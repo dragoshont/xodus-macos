@@ -44,6 +44,9 @@ While Xodus is capable of downloading and running those titles. It's possible th
 
 ## Building
 
+For the Apple Silicon remote-development environment used by the macOS
+bring-up, see [macOS remote development setup](docs/macos-bringup/01-remote-development.md).
+
 The project structure is as follows.
 
 ```

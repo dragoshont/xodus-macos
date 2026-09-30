@@ -96,9 +96,10 @@ Phoenix\Binaries\Win64\HogwartsLegacy.exe
 
 Both processes remained alive for more than two minutes, CrossOver logged
 `using d3dmetal as the graphics backend`, and macOS produced no crash report.
-This proves a sustained Windows game process and D3DMetal activation. It does
-not prove rendered gameplay; that still requires observation at the Mac
-display.
+The user then visually confirmed that the game opened and reached shader
+preparation. This proves a rendered Windows game path and D3DMetal activation.
+Actual interactive gameplay still needs confirmation after shader preparation
+finishes.
 
 The process remained alive beyond seven minutes. The revision-bound run
 manifest is stored on the Mac at:

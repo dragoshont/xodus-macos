@@ -22,6 +22,9 @@ param(
         "quit-windows-steam",
         "xgameruntime-smoke",
         "xodus-service-smoke",
+        "xodus-login",
+        "start-xodus-service",
+        "stop-xodus-service",
         "prepare-grounded-control",
         "bootstrap-status"
     )]
@@ -52,6 +55,9 @@ $commands = @{
     "quit-windows-steam"       = "cd $repo && ./scripts/macos/trigger-gui.sh quit-windows-steam"
     "xgameruntime-smoke"       = "cd $repo && ./scripts/macos/trigger-gui.sh xgameruntime-smoke"
     "xodus-service-smoke"      = "cd $repo && ./scripts/macos/trigger-gui.sh xodus-service-smoke"
+    "xodus-login"              = "cd $repo && ./scripts/macos/trigger-gui.sh xodus-login"
+    "start-xodus-service"      = "cd $repo && ./scripts/macos/trigger-gui.sh start-xodus-service"
+    "stop-xodus-service"       = "cd $repo && ./scripts/macos/trigger-gui.sh stop-xodus-service"
     "prepare-grounded-control" = "cd $repo && ./scripts/macos/create-grounded-control.sh"
     "bootstrap-status"         = 'run_id=$(cat "$HOME/xodus-runs/latest-bootstrap"); run_dir="$HOME/xodus-runs/$run_id"; pid=$(cat "$run_dir/pid"); if kill -0 "$pid" 2>/dev/null; then echo "STATUS=RUNNING"; else echo "STATUS=EXITED"; fi; tail -n 80 "$run_dir/bootstrap.log"'
 }

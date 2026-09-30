@@ -48,6 +48,10 @@ succeeded. Xodus operations that initialize or access Apple Keychain should
 therefore run in the logged-in GUI bootstrap namespace, even when initiated
 remotely.
 
+A dedicated `com.xodus.service` LaunchAgent is installed. Remote start and stop
+requests were verified: the service entered the running state, created the
+mode-`0600` socket, handled SIGINT, and removed the socket.
+
 ## Not attempted
 
 The following were intentionally not attempted while the user was unavailable:

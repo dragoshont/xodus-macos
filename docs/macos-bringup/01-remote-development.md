@@ -61,6 +61,9 @@ Use the checked-in Windows wrapper for routine operations:
 .\scripts\windows\invoke-mac.ps1 quit-windows-steam
 .\scripts\windows\invoke-mac.ps1 xgameruntime-smoke
 .\scripts\windows\invoke-mac.ps1 xodus-service-smoke
+.\scripts\windows\invoke-mac.ps1 xodus-login
+.\scripts\windows\invoke-mac.ps1 start-xodus-service
+.\scripts\windows\invoke-mac.ps1 stop-xodus-service
 .\scripts\windows\invoke-mac.ps1 install-grounded
 .\scripts\windows\invoke-mac.ps1 install-hogwarts
 .\scripts\windows\invoke-mac.ps1 launch-hogwarts
@@ -101,6 +104,22 @@ The helper accepts only:
 It does not execute arbitrary request content. SSH creates a mode-600 request
 file, and the LaunchAgent processes it inside the logged-in Aqua session.
 Runtime logs are stored under `~/Library/Logs/XodusRemote`.
+
+A separate `com.xodus.service` user LaunchAgent keeps `xodus-service` in the
+same unlocked Keychain/Aqua context while allowing the GUI request processor to
+continue accepting launch commands. Install it with:
+
+```bash
+./scripts/windows/invoke-mac.ps1 build
+ssh xodus-mac "cd ~/src/xodus-macos && ./scripts/macos/install-xodus-service-agent.sh"
+```
+
+Or directly on the Mac:
+
+```bash
+cd ~/src/xodus-macos
+./scripts/macos/install-xodus-service-agent.sh
+```
 
 After installation, no sudo is needed for normal GUI launches:
 

@@ -23,6 +23,12 @@ coordination.
   contribution policy.
 - Review size: small source correction plus compile coverage.
 
+A diagnostic-only build with `-fpermissive` produces the DLL and test
+executable. Test discovery succeeds, but executing any of the 42 XThreading
+tests exits with code 5 before GoogleTest reports an assertion. The same result
+occurs inside the Aqua LaunchAgent, so it is not caused by the SSH GUI session.
+The diagnostic artifact must not be used for game execution.
+
 ## 2. xgameruntime macOS cross-build documentation or CI
 
 - Repository: `xodus-gaming/xgameruntime`

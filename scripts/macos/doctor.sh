@@ -127,13 +127,15 @@ else
 fi
 
 section "GUI launch agent"
-launch_agent="gui/$(id -u)/com.xodus.remote-launch"
-if launchctl print "$launch_agent" >/dev/null 2>&1; then
-    printf 'LaunchAgent: loaded (%s)\n' "$launch_agent"
-else
-    echo "LaunchAgent: not loaded"
-    failures=$((failures + 1))
-fi
+for label in com.xodus.remote-launch com.xodus.service; do
+    launch_agent="gui/$(id -u)/$label"
+    if launchctl print "$launch_agent" >/dev/null 2>&1; then
+        printf 'LaunchAgent: loaded (%s)\n' "$launch_agent"
+    else
+        printf 'LaunchAgent: not loaded (%s)\n' "$launch_agent"
+        failures=$((failures + 1))
+    fi
+done
 
 section "Repository"
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then

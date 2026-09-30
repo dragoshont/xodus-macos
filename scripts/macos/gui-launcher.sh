@@ -163,6 +163,26 @@ for request in "$request_dir"/*.request; do
                 fi
             fi
             ;;
+        xodus-login)
+            cli="$HOME/src/xodus-macos/target/release/xodus-cli"
+            if [[ ! -x "$cli" ]]; then
+                echo "Release xodus-cli is missing." >"$stderr_log"
+                status=1
+            else
+                XODUS_LOG=warn "$cli" login >"$stdout_log" 2>"$stderr_log"
+                status=$?
+            fi
+            ;;
+        start-xodus-service)
+            launchctl kickstart -k "gui/$(id -u)/com.xodus.service" \
+                >"$stdout_log" 2>"$stderr_log"
+            status=$?
+            ;;
+        stop-xodus-service)
+            launchctl kill SIGINT "gui/$(id -u)/com.xodus.service" \
+                >"$stdout_log" 2>"$stderr_log"
+            status=$?
+            ;;
         edge-cdp)
             port="${argument:-9222}"
             if ! [[ "$port" =~ ^[0-9]+$ ]] || ((port < 1024 || port > 65535)); then

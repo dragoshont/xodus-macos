@@ -2,7 +2,7 @@
 
 Status date: 2026-10-01
 
-## Decision
+## Initial decision
 
 Start with **Option A: CrossOver Wine plus out-of-tree xgameruntime**, using
 xgameruntime PR
@@ -14,6 +14,46 @@ xgameruntime PR
 
 This is the smallest path that preserves the verified CrossOver/D3DMetal stack
 and can reach the current Xodus host service without first rebuilding Wine.
+
+## Option A result
+
+Stock CrossOver 26.3 does not provide the Windows AF_UNIX behavior required by
+PR #18. The repository's `scripts/macos/test-wine-af-unix.sh` builds a minimal
+Windows client, starts a native Unix-domain socket server, and attempts a
+`PING`/`PONG` exchange through CrossOver. The Windows `socket(AF_UNIX, ...)`
+call returned `INVALID_SOCKET` with Winsock error `10047`
+(`WSAEAFNOSUPPORT`; test exit code 11).
+
+Therefore Option A is blocked before xgameruntime or GDK semantics are involved.
+The next implementation path is **Option B: apply the already-public Xodus Wine
+AF_UNIX patch to the matching CrossOver source and build a private local
+runtime**.
+
+Xodus Wine commit:
+
+```text
+6b7313c1bd !7650: Add support for AF_UNIX sockets
+```
+
+The patch changes seven Wine files and applies cleanly to the CrossOver 26.3.0
+source tree. This result is only an applicability check; no patched CrossOver
+runtime has been installed into CrossOver.
+
+An isolated source build is reproducible with:
+
+```bash
+./scripts/macos/build-crossover-wine-af-unix.sh
+```
+
+The script never modifies `/Applications/CrossOver.app`.
+
+An isolated full build was attempted. An arm64-host build reached
+`dlls/winemac.drv` and failed because the published CrossOver source declares
+`WineMetalLayer` only for an x86_64 host. An x86_64 build under Rosetta could
+not start Apple's compiler because the installed Command Line Tools package
+contains an arm64-only `libxcrun`. Producing a compatible private runtime
+therefore needs the appropriate full Xcode/universal host toolchain or
+CodeWeavers' supported build environment; it is not a one-file drop-in build.
 
 Do not implement or upstream GDK semantic behavior from this AI-assisted
 workspace. Runtime work here is limited to public-source build integration,
@@ -155,8 +195,8 @@ must be reviewed before changing it.
 
 | Option | First-launch speed | Divergence | D3DMetal confidence | Upstream value | Decision |
 | --- | --- | --- | --- | --- | --- |
-| A. CrossOver + out-of-tree xgameruntime | High | Low | High | High | Start here |
-| B. CrossOver source + Xodus Wine patchset | Medium/low | Medium/high | Medium | High if patches stay small | Only if A proves a missing Wine hook |
+| A. CrossOver + out-of-tree xgameruntime | High | Low | High | High | Blocked: stock CrossOver lacks required AF_UNIX |
+| B. CrossOver source + Xodus Wine patchset | Medium/low | Medium/high | Medium | High if patches stay small | Next experiment |
 | C. Xodus Wine + external D3DMetal/GPTK | Low | High | Unknown | Medium | Avoid initially |
 | D. Wait for upstream out-of-tree maturity | No immediate launch | None | N/A | High | Stop condition if PR #18 is actively changing incompatibly |
 
@@ -165,11 +205,13 @@ must be reviewed before changing it.
 1. Pin CrossOver 26.3 and xgameruntime PR #18 revisions.
 2. Build only the public out-of-tree runtime and its tests.
 3. Create a disposable CrossOver test bottle or back up the control bottle.
-4. Install/override `xgameruntime.dll` without modifying CrossOver binaries.
-5. Start native `xodus-service` and prove `/tmp/xodus.sock` ownership and mode.
-6. Run a minimal open test executable that initializes the runtime and connects
+4. Run `scripts/macos/test-wine-af-unix.sh` to verify the exact transport
+   needed by the runtime.
+5. Install/override `xgameruntime.dll` without modifying CrossOver binaries.
+6. Start native `xodus-service` and prove `/tmp/xodus.sock` ownership and mode.
+7. Run a minimal open test executable that initializes the runtime and connects
    to the service.
-7. Only after that, invoke the entitled Hogwarts Legacy Game Pass package.
+8. Only after that, invoke the entitled Hogwarts Legacy Game Pass package.
 
 ## Stop conditions
 

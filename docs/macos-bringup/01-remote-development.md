@@ -128,6 +128,10 @@ MTL_HUD_ENABLED=1
 DXVK_HUD=fps,frametimes,gpuload,memory
 ```
 
+These variables were written to every existing CrossOver bottle. The original
+configuration for each bottle is retained as
+`cxbottle.conf.before-xodus-overlay`.
+
 A separate `com.xodus.service` user LaunchAgent keeps `xodus-service` in the
 same unlocked Keychain/Aqua context while allowing the GUI request processor to
 continue accepting launch commands. Install it with:

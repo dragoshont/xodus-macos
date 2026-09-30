@@ -43,6 +43,11 @@ printf 'install_dir=%s\n' "${install_dir:-unknown}"
 printf 'bytes_downloaded=%s\n' "${bytes_downloaded:-0}"
 printf 'bytes_to_download=%s\n' "${bytes_to_download:-0}"
 printf 'size_on_disk=%s\n' "${size_on_disk:-0}"
+if [[ "$state_flags" == "4" ]]; then
+    echo "download_complete=true"
+else
+    echo "download_complete=false"
+fi
 if [[ -d "$staging_dir" ]]; then
     staging_kib="$(du -sk "$staging_dir" | awk '{ print $1 }')"
     printf 'staging_bytes=%s\n' "$((staging_kib * 1024))"

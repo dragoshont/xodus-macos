@@ -137,6 +137,28 @@ for label in com.xodus.remote-launch com.xodus.service; do
     fi
 done
 
+section "CrossOver performance overlay"
+bottles_root="$HOME/Library/Application Support/CrossOver/Bottles"
+if [[ -d "$bottles_root" ]]; then
+    shopt -s nullglob
+    bottle_configs=("$bottles_root"/*/cxbottle.conf)
+    if ((${#bottle_configs[@]} == 0)); then
+        echo "No CrossOver bottles found"
+    fi
+    for config in "${bottle_configs[@]}"; do
+        bottle_name="$(basename "$(dirname "$config")")"
+        if grep -Fq '"MTL_HUD_ENABLED" = "1"' "$config" &&
+            grep -Fq '"DXVK_HUD" = "fps,frametimes,gpuload,memory"' "$config"; then
+            printf '%-20s enabled\n' "$bottle_name"
+        else
+            printf '%-20s disabled\n' "$bottle_name"
+            failures=$((failures + 1))
+        fi
+    done
+else
+    echo "No CrossOver bottles directory found"
+fi
+
 section "Repository"
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     printf 'Root: %s\n' "$(git rev-parse --show-toplevel)"

@@ -110,6 +110,9 @@ manifest is stored on the Mac at:
 The game was then closed deliberately by shutting down only the Windows Steam
 client. No crash report was produced.
 
+The Metal and DXVK performance HUD variables are enabled for future launches.
+The game must be restarted for the overlay to appear.
+
 Windows Steam initially displayed no connectivity after its account session
 was replaced by the simultaneously running native macOS Steam client. Closing
 native Steam and relaunching only the CrossOver client restored a successful

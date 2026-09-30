@@ -76,6 +76,10 @@ The following were intentionally not attempted while the user was unavailable:
 
 No credentials, authentication payloads, or license material were captured.
 
+The Xodus device identity can be provisioned from the Aqua session, but no
+stored user identity exists yet. The next progress point requires the user to
+complete Xodus's Microsoft login UI.
+
 ## Next experiment
 
 With the user present:

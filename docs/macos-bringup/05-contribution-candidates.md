@@ -60,7 +60,29 @@ The diagnostic artifact must not be used for game execution.
 - Review size: medium if implemented as a supported launchd service; small if
   limited to documentation and diagnostics.
 
-## 4. Stale macOS service socket handling
+## 4. CrossOver/Xodus Wine AF_UNIX integration
+
+- Repository: `xodus-gaming/wine`, with local integration against CrossOver
+  26.3.0 source.
+- Reproduction: `scripts/macos/test-wine-af-unix.sh` compiles a minimal Windows
+  AF_UNIX client and connects it to a native macOS socket server.
+- Result: stock CrossOver 26.3 returns `INVALID_SOCKET` from
+  `socket(AF_UNIX, SOCK_STREAM, 0)` with Winsock error `10047`
+  (`WSAEAFNOSUPPORT`).
+- Existing public source: Xodus Wine commit `6b7313c1bd` adds AF_UNIX support
+  and applies cleanly to the matching CrossOver 26.3.0 Wine source.
+- Boundary: Wine/platform plumbing; use the existing public patch and preserve
+  provenance rather than reimplementing behavior.
+- Review size: potentially large because a private CrossOver-compatible Wine
+  build and D3DMetal validation are still required.
+
+The public patch applies cleanly to the CrossOver source. A full arm64-host
+build then fails because `WineMetalLayer` is excluded by an x86_64 source guard,
+while an x86_64-host build under Rosetta cannot use the arm64-only Command Line
+Tools `libxcrun`. This narrows the next investigation to supported CrossOver
+build tooling rather than AF_UNIX patch conflicts.
+
+## 5. Stale macOS service socket handling
 
 - Repository: `xodus-gaming/xodus`
 - Relevant code: `crates/xodus-service/src/main.rs`.

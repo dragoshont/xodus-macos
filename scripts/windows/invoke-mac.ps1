@@ -19,6 +19,8 @@ param(
         "launch-hogwarts",
         "hogwarts-status",
         "build-widl",
+        "build-crossover-wine-af-unix",
+        "test-wine-af-unix",
         "launch-crossover",
         "launch-steam",
         "quit-native-steam",
@@ -55,6 +57,8 @@ $commands = @{
     "launch-hogwarts"          = "cd $repo && ./scripts/macos/trigger-gui.sh launch-hogwarts"
     "hogwarts-status"          = "cd $repo && ./scripts/macos/steam-app-status.sh 990080"
     "build-widl"               = "cd $repo && ./scripts/macos/build-widl.sh"
+    "build-crossover-wine-af-unix" = "cd $repo && ./scripts/macos/build-crossover-wine-af-unix.sh"
+    "test-wine-af-unix"        = "cd $repo && ./scripts/macos/test-wine-af-unix.sh"
     "launch-crossover"         = "cd $repo && ./scripts/macos/trigger-gui.sh crossover"
     "launch-steam"             = "cd $repo && ./scripts/macos/trigger-gui.sh steam-control"
     "quit-native-steam"        = "cd $repo && ./scripts/macos/trigger-gui.sh quit-native-steam"

@@ -55,6 +55,11 @@ Use the checked-in Windows wrapper for routine operations:
 .\scripts\windows\invoke-mac.ps1 test
 .\scripts\windows\invoke-mac.ps1 build
 .\scripts\windows\invoke-mac.ps1 edge-cdp
+.\scripts\windows\invoke-mac.ps1 launch-crossover
+.\scripts\windows\invoke-mac.ps1 launch-steam
+.\scripts\windows\invoke-mac.ps1 quit-native-steam
+.\scripts\windows\invoke-mac.ps1 install-grounded
+.\scripts\windows\invoke-mac.ps1 install-hogwarts
 .\scripts\windows\invoke-mac.ps1 prepare-grounded-control
 .\scripts\windows\invoke-mac.ps1 bootstrap-status
 ```
@@ -63,6 +68,38 @@ Prepare the isolated Steam control bottle on the Mac with:
 
 ```bash
 ./scripts/macos/create-grounded-control.sh
+```
+
+## GUI launch bridge
+
+A plain SSH session does not belong to the active Aqua bootstrap namespace.
+CrossOver itself can open through Launch Services, but Windows Steam's updater
+could not create its initial window when Wine was invoked directly from SSH.
+
+Install the allowlisted per-user LaunchAgent once:
+
+```bash
+./scripts/macos/install-gui-launcher.sh
+```
+
+The helper accepts only:
+
+- `crossover`;
+- `quit-native-steam`;
+- `steam-grounded`;
+- `install-grounded`, fixed to Steam application ID `962130`;
+- `install-hogwarts`, fixed to Steam application ID `990080`;
+- `edge-cdp`, optionally with a local port.
+
+It does not execute arbitrary request content. SSH creates a mode-600 request
+file, and the LaunchAgent processes it inside the logged-in Aqua session.
+Runtime logs are stored under `~/Library/Logs/XodusRemote`.
+
+After installation, no sudo is needed for normal GUI launches:
+
+```bash
+./scripts/macos/trigger-gui.sh steam-grounded
+./scripts/macos/trigger-gui.sh edge-cdp 9222
 ```
 
 ## Bootstrap

@@ -89,6 +89,10 @@ on `127.0.0.1:9222`, and accepts a real Playwright `connectOverCDP()` session.
 CrossOver launches from SSH and its bundled runtime reports build
 `26.3.0.39832`.
 
+The allowlisted `com.xodus.remote-launch` user LaunchAgent is installed and
+successfully processes both `steam-grounded` and `edge-cdp` requests without
+requiring sudo for routine launches.
+
 The following native checks pass on the Mac:
 
 ```text

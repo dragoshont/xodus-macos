@@ -68,6 +68,8 @@ if [[ "$install_crossover" == true ]]; then
     brew install --cask crossover
 fi
 
+"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/install-gui-launcher.sh"
+
 echo
 echo "Bootstrap complete. Open a new shell or run:"
 echo "  $brew_init"

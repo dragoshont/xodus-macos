@@ -82,6 +82,12 @@ while an x86_64-host build under Rosetta cannot use the arm64-only Command Line
 Tools `libxcrun`. This narrows the next investigation to supported CrossOver
 build tooling rather than AF_UNIX patch conflicts.
 
+Subsequent work successfully configured an x86_64-host build using native Clang
+as a cross-compiler and a locally built x86_64 FreeType dylib. The minimal
+loader/server/ws2_32/core runtime compiles. Mixing those patched components into
+a stock CrossOver bottle is unsafe: ws2_32 faults during process attach. A
+coherent private runtime build is required.
+
 ## 5. Stale macOS service socket handling
 
 - Repository: `xodus-gaming/xodus`

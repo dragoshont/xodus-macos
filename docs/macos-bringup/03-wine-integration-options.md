@@ -55,6 +55,30 @@ contains an arm64-only `libxcrun`. Producing a compatible private runtime
 therefore needs the appropriate full Xcode/universal host toolchain or
 CodeWeavers' supported build environment; it is not a one-file drop-in build.
 
+Further iteration removed both of those configure blockers:
+
+- native arm64 Clang can cross-compile x86_64 macOS host binaries;
+- bundled FreeType was built as an x86_64 dylib;
+- an x86_64-host CrossOver Wine configuration completed;
+- the Wine loader, wineserver, ntdll, ws2_32, wineboot, and required core
+  console DLLs/programs compiled with commit `6b7313c1bd` applied.
+
+The remaining full-build failure is an unrelated CrossOver Vulkan source
+assumption (`SONAME_LIBVULKAN` while configured without Vulkan).
+
+A transport-only mixed-runtime experiment starts the patched loader and server
+against the disposable stock bottle, but patched `ws2_32.dll` faults during
+`PROCESS_ATTACH`:
+
+```text
+NtRaiseException: Exception frame is not in stack limits
+```
+
+This proves that swapping only ws2_32/server/ntdll into a stock CrossOver
+bottle is not a safe integration mechanism. The next experiment needs a
+coherent private Wine runtime build, including CrossOver's expected graphics
+and compatibility modules, rather than mixed binaries.
+
 Do not implement or upstream GDK semantic behavior from this AI-assisted
 workspace. Runtime work here is limited to public-source build integration,
 reproduction, diagnostics, and human implementation briefs.

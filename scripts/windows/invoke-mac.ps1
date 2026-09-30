@@ -13,6 +13,7 @@ param(
         "install-gui-launcher",
         "install-grounded",
         "install-hogwarts",
+        "hogwarts-status",
         "launch-crossover",
         "launch-steam",
         "quit-native-steam",
@@ -37,6 +38,7 @@ $commands = @{
     "install-gui-launcher"     = "cd $repo && ./scripts/macos/install-gui-launcher.sh"
     "install-grounded"         = "cd $repo && ./scripts/macos/trigger-gui.sh install-grounded"
     "install-hogwarts"         = "cd $repo && ./scripts/macos/trigger-gui.sh install-hogwarts"
+    "hogwarts-status"          = "cd $repo && ./scripts/macos/steam-app-status.sh 990080"
     "launch-crossover"         = "cd $repo && ./scripts/macos/trigger-gui.sh crossover"
     "launch-steam"             = "cd $repo && ./scripts/macos/trigger-gui.sh steam-grounded"
     "quit-native-steam"        = "cd $repo && ./scripts/macos/trigger-gui.sh quit-native-steam"

@@ -60,6 +60,7 @@ Use the checked-in Windows wrapper for routine operations:
 .\scripts\windows\invoke-mac.ps1 quit-native-steam
 .\scripts\windows\invoke-mac.ps1 install-grounded
 .\scripts\windows\invoke-mac.ps1 install-hogwarts
+.\scripts\windows\invoke-mac.ps1 hogwarts-status
 .\scripts\windows\invoke-mac.ps1 prepare-grounded-control
 .\scripts\windows\invoke-mac.ps1 bootstrap-status
 ```

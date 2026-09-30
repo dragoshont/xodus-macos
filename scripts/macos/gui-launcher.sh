@@ -6,9 +6,32 @@ state_root="$HOME/Library/Application Support/XodusRemote"
 request_dir="$state_root/requests"
 processed_dir="$state_root/processed"
 log_dir="$HOME/Library/Logs/XodusRemote"
+overlay_file="$state_root/performance-overlay"
+bottles_root="$HOME/Library/Application Support/CrossOver/Bottles"
+bottle="HogwartsControl"
+if [[ -d "$bottles_root/GroundedControl" && ! -d "$bottles_root/$bottle" ]]; then
+    bottle="GroundedControl"
+fi
+cxwine="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine"
+steam="$bottles_root/$bottle/drive_c/Program Files (x86)/Steam/Steam.exe"
 
 mkdir -p "$request_dir" "$processed_dir" "$log_dir"
 chmod 700 "$state_root" "$request_dir" "$processed_dir"
+
+if [[ ! -f "$overlay_file" ]]; then
+    printf 'on\n' >"$overlay_file"
+fi
+
+if [[ "$(cat "$overlay_file")" == "on" ]]; then
+    export MTL_HUD_ENABLED=1
+    export DXVK_HUD="fps,frametimes,gpuload,memory"
+    launchctl setenv MTL_HUD_ENABLED "$MTL_HUD_ENABLED"
+    launchctl setenv DXVK_HUD "$DXVK_HUD"
+else
+    unset MTL_HUD_ENABLED DXVK_HUD
+    launchctl unsetenv MTL_HUD_ENABLED
+    launchctl unsetenv DXVK_HUD
+fi
 
 shopt -s nullglob
 for request in "$request_dir"/*.request; do
@@ -25,6 +48,20 @@ for request in "$request_dir"/*.request; do
                 >"$stdout_log" 2>"$stderr_log"
             status=$?
             ;;
+        overlay-on)
+            printf 'on\n' >"$overlay_file"
+            launchctl setenv MTL_HUD_ENABLED 1
+            launchctl setenv DXVK_HUD "fps,frametimes,gpuload,memory"
+            echo "Performance overlay enabled for future game launches." >"$stdout_log"
+            status=0
+            ;;
+        overlay-off)
+            printf 'off\n' >"$overlay_file"
+            launchctl unsetenv MTL_HUD_ENABLED
+            launchctl unsetenv DXVK_HUD
+            echo "Performance overlay disabled for future game launches." >"$stdout_log"
+            status=0
+            ;;
         quit-native-steam)
             /usr/bin/osascript \
                 -e 'tell application id "com.valvesoftware.steam" to quit' \
@@ -32,58 +69,37 @@ for request in "$request_dir"/*.request; do
             status=$?
             ;;
         quit-windows-steam)
-            cxwine="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine"
-            steam="$HOME/Library/Application Support/CrossOver/Bottles/GroundedControl/drive_c/Program Files (x86)/Steam/Steam.exe"
             if [[ ! -x "$cxwine" || ! -f "$steam" ]]; then
-                echo "CrossOver or the GroundedControl Steam executable is missing." >"$stderr_log"
+                echo "CrossOver or the control-bottle Steam executable is missing." >"$stderr_log"
                 status=1
             else
                 "$cxwine" \
-                    --bottle GroundedControl \
+                    --bottle "$bottle" \
                     --no-wait \
                     "$steam" -shutdown >"$stdout_log" 2>"$stderr_log"
                 status=$?
             fi
             ;;
-        steam-grounded)
-            cxwine="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine"
-            steam="$HOME/Library/Application Support/CrossOver/Bottles/GroundedControl/drive_c/Program Files (x86)/Steam/Steam.exe"
+        steam-control)
             if [[ ! -x "$cxwine" || ! -f "$steam" ]]; then
-                echo "CrossOver or the GroundedControl Steam executable is missing." >"$stderr_log"
+                echo "CrossOver or the control-bottle Steam executable is missing." >"$stderr_log"
                 status=1
             else
                 "$cxwine" \
-                    --bottle GroundedControl \
+                    --bottle "$bottle" \
                     --no-wait \
                     --cx-log "$log_dir/$run_id.crossover.log" \
                     "$steam" >"$stdout_log" 2>"$stderr_log"
                 status=$?
             fi
             ;;
-        install-grounded)
-            cxwine="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine"
-            steam="$HOME/Library/Application Support/CrossOver/Bottles/GroundedControl/drive_c/Program Files (x86)/Steam/Steam.exe"
-            if [[ ! -x "$cxwine" || ! -f "$steam" ]]; then
-                echo "CrossOver or the GroundedControl Steam executable is missing." >"$stderr_log"
-                status=1
-            else
-                "$cxwine" \
-                    --bottle GroundedControl \
-                    --no-wait \
-                    --cx-log "$log_dir/$run_id.crossover.log" \
-                    "$steam" "steam://install/962130" >"$stdout_log" 2>"$stderr_log"
-                status=$?
-            fi
-            ;;
         install-hogwarts)
-            cxwine="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine"
-            steam="$HOME/Library/Application Support/CrossOver/Bottles/GroundedControl/drive_c/Program Files (x86)/Steam/Steam.exe"
             if [[ ! -x "$cxwine" || ! -f "$steam" ]]; then
-                echo "CrossOver or the GroundedControl Steam executable is missing." >"$stderr_log"
+                echo "CrossOver or the control-bottle Steam executable is missing." >"$stderr_log"
                 status=1
             else
                 "$cxwine" \
-                    --bottle GroundedControl \
+                    --bottle "$bottle" \
                     --no-wait \
                     --cx-log "$log_dir/$run_id.crossover.log" \
                     "$steam" "steam://install/990080" >"$stdout_log" 2>"$stderr_log"
@@ -91,14 +107,12 @@ for request in "$request_dir"/*.request; do
             fi
             ;;
         launch-hogwarts)
-            cxwine="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine"
-            steam="$HOME/Library/Application Support/CrossOver/Bottles/GroundedControl/drive_c/Program Files (x86)/Steam/Steam.exe"
             if [[ ! -x "$cxwine" || ! -f "$steam" ]]; then
-                echo "CrossOver or the GroundedControl Steam executable is missing." >"$stderr_log"
+                echo "CrossOver or the control-bottle Steam executable is missing." >"$stderr_log"
                 status=1
             else
                 "$cxwine" \
-                    --bottle GroundedControl \
+                    --bottle "$bottle" \
                     --no-wait \
                     --cx-log "$log_dir/$run_id.crossover.log" \
                     "$steam" -applaunch 990080 >"$stdout_log" 2>"$stderr_log"

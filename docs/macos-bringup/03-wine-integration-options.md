@@ -169,7 +169,7 @@ must be reviewed before changing it.
 5. Start native `xodus-service` and prove `/tmp/xodus.sock` ownership and mode.
 6. Run a minimal open test executable that initializes the runtime and connects
    to the service.
-7. Only after that, invoke an entitled Game Pass package.
+7. Only after that, invoke the entitled Hogwarts Legacy Game Pass package.
 
 ## Stop conditions
 

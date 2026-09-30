@@ -12,6 +12,7 @@ state_root="$HOME/Library/Application Support/XodusRemote"
 bin_dir="$state_root/bin"
 request_dir="$state_root/requests"
 processed_dir="$state_root/processed"
+overlay_file="$state_root/performance-overlay"
 log_dir="$HOME/Library/Logs/XodusRemote"
 launch_agents="$HOME/Library/LaunchAgents"
 label="com.xodus.remote-launch"
@@ -21,6 +22,10 @@ uid="$(id -u)"
 mkdir -p "$bin_dir" "$request_dir" "$processed_dir" "$log_dir" "$launch_agents"
 chmod 700 "$state_root" "$bin_dir" "$request_dir" "$processed_dir"
 install -m 700 "$repo_root/scripts/macos/gui-launcher.sh" "$bin_dir/gui-launcher.sh"
+if [[ ! -f "$overlay_file" ]]; then
+    printf 'on\n' >"$overlay_file"
+fi
+chmod 600 "$overlay_file"
 
 cat >"$plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>

@@ -2,9 +2,10 @@
 
 Snapshot date: 2026-09-30
 
-This is the starting revision record for the Grounded macOS bring-up. Data was
-read from public GitHub repository metadata and the local fork before any
-runtime integration work.
+This is the starting revision record for the Hogwarts Legacy PC Game Pass
+macOS bring-up. Grounded was the original proposed title, but the available
+Steam account does not own it. Data was read from public GitHub repository
+metadata and the local fork before any runtime integration work.
 
 ## Source revisions
 
@@ -90,8 +91,12 @@ CrossOver launches from SSH and its bundled runtime reports build
 `26.3.0.39832`.
 
 The allowlisted `com.xodus.remote-launch` user LaunchAgent is installed and
-successfully processes both `steam-grounded` and `edge-cdp` requests without
+successfully processes both `steam-control` and `edge-cdp` requests without
 requiring sudo for routine launches.
+
+The `com.xodus.service` user LaunchAgent is also installed. It starts the native
+service in the unlocked Aqua/Keychain context and can be controlled through the
+same allowlisted request mechanism.
 
 The following native checks pass on the Mac:
 
@@ -110,12 +115,12 @@ Validation logs are stored under:
 
 ## Immediate decisions
 
-1. Remove the temporary passwordless sudo policy after unattended setup.
-2. Complete CrossOver first-run/trial prompts if they remain.
-3. Establish the Steam Grounded plus D3DMetal control before modifying runtime
-   integration.
-4. Evaluate CrossOver plus out-of-tree xgameruntime before considering a custom
-   Wine build.
+1. Remove the temporary passwordless sudo policy after reviewing this setup.
+2. Confirm interactive Hogwarts gameplay after its shader preparation.
+3. Complete Xodus Microsoft login in the Aqua session.
+4. Query/download Hogwarts product `9MT5NJ5W7B8Z` with market `GB`.
+5. Have a human address the strict-build blocker in xgameruntime PR #18 before
+   using its DLL for the Game Pass launch.
 
 No xgameruntime or proprietary API behavior implementation should be generated
 by an AI agent. Runtime findings must remain evidence, tests based on permitted

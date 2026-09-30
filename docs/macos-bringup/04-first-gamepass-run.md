@@ -54,12 +54,22 @@ mode-`0600` socket, handled SIGINT, and removed the socket.
 
 ## Not attempted
 
+Microsoft's public UK display catalog confirms that product
+`9MT5NJ5W7B8Z` is Hogwarts Legacy and includes an x64 `MSIXVC` package allowed
+on `Windows.Desktop`. All catalog, download, license, and run commands must use
+market `GB`.
+
+The Xodus login UI currently hardcodes `en-US`. This affects login-page locale,
+while the package/catalog and license commands accept an explicit market.
+Do not change authentication behavior in this AI-assisted branch; pass
+`--market GB` to the relevant package operations.
+
 The following were intentionally not attempted while the user was unavailable:
 
 - Microsoft/Xbox device login;
 - Game Pass library enumeration;
-- Grounded entitlement selection;
-- Grounded package download;
+- Hogwarts Legacy entitlement selection;
+- Hogwarts Legacy package download;
 - license retrieval;
 - encrypted executable preparation;
 - Game Pass executable launch.
@@ -72,7 +82,8 @@ With the user present:
 
 1. Launch the Xodus login flow through the Aqua LaunchAgent.
 2. Complete Microsoft device authentication directly in the presented UI.
-3. Confirm that the account has the PC Game Pass Grounded entitlement.
+3. Confirm that the account has the PC Game Pass Hogwarts Legacy entitlement
+   in the UK catalog.
 4. Record the title/package identifier without recording account identifiers.
 5. Download or stream the package.
 6. Verify license acquisition and the macOS `prepare()` path.

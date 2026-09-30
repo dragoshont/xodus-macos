@@ -8,7 +8,12 @@ if ! [[ "$app_id" =~ ^[0-9]+$ ]]; then
     exit 2
 fi
 
-steam_root="$HOME/Library/Application Support/CrossOver/Bottles/GroundedControl/drive_c/Program Files (x86)/Steam"
+bottles_root="$HOME/Library/Application Support/CrossOver/Bottles"
+bottle="HogwartsControl"
+if [[ -d "$bottles_root/GroundedControl" && ! -d "$bottles_root/$bottle" ]]; then
+    bottle="GroundedControl"
+fi
+steam_root="$bottles_root/$bottle/drive_c/Program Files (x86)/Steam"
 manifest="$steam_root/steamapps/appmanifest_$app_id.acf"
 content_log="$steam_root/logs/content_log.txt"
 

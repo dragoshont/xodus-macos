@@ -55,6 +55,10 @@ Use the checked-in Windows wrapper for routine operations:
 .\scripts\windows\invoke-mac.ps1 test
 .\scripts\windows\invoke-mac.ps1 build
 .\scripts\windows\invoke-mac.ps1 edge-cdp
+.\scripts\windows\invoke-mac.ps1 overlay-on
+.\scripts\windows\invoke-mac.ps1 overlay-off
+.\scripts\windows\invoke-mac.ps1 overlay-all-on
+.\scripts\windows\invoke-mac.ps1 overlay-all-off
 .\scripts\windows\invoke-mac.ps1 launch-crossover
 .\scripts\windows\invoke-mac.ps1 launch-steam
 .\scripts\windows\invoke-mac.ps1 quit-native-steam
@@ -64,19 +68,18 @@ Use the checked-in Windows wrapper for routine operations:
 .\scripts\windows\invoke-mac.ps1 xodus-login
 .\scripts\windows\invoke-mac.ps1 start-xodus-service
 .\scripts\windows\invoke-mac.ps1 stop-xodus-service
-.\scripts\windows\invoke-mac.ps1 install-grounded
 .\scripts\windows\invoke-mac.ps1 install-hogwarts
 .\scripts\windows\invoke-mac.ps1 launch-hogwarts
 .\scripts\windows\invoke-mac.ps1 hogwarts-status
 .\scripts\windows\invoke-mac.ps1 build-widl
-.\scripts\windows\invoke-mac.ps1 prepare-grounded-control
+.\scripts\windows\invoke-mac.ps1 prepare-steam-control
 .\scripts\windows\invoke-mac.ps1 bootstrap-status
 ```
 
 Prepare the isolated Steam control bottle on the Mac with:
 
 ```bash
-./scripts/macos/create-grounded-control.sh
+./scripts/macos/create-hogwarts-control.sh
 ```
 
 ## GUI launch bridge
@@ -95,8 +98,7 @@ The helper accepts only:
 
 - `crossover`;
 - `quit-native-steam`;
-- `steam-grounded`;
-- `install-grounded`, fixed to Steam application ID `962130`;
+- `steam-control`;
 - `install-hogwarts`, fixed to Steam application ID `990080`;
 - `xgameruntime-smoke`, fixed to the public PR #18 diagnostic test binary;
 - `edge-cdp`, optionally with a local port.
@@ -104,6 +106,27 @@ The helper accepts only:
 It does not execute arbitrary request content. SSH creates a mode-600 request
 file, and the LaunchAgent processes it inside the logged-in Aqua session.
 Runtime logs are stored under `~/Library/Logs/XodusRemote`.
+
+The overlay defaults to enabled for helper-launched games:
+
+- D3DMetal receives `MTL_HUD_ENABLED=1`;
+- DXVK receives `DXVK_HUD=fps,frametimes,gpuload,memory`.
+
+The Metal HUD reports FPS, CPU/GPU frame timing, and memory metrics supported by
+the active Metal runtime. Restart an already-running game after changing the
+overlay state.
+
+`overlay-all-on` also writes these settings into every existing CrossOver
+bottle, preserving one backup per bottle with the suffix
+`.before-xodus-overlay`. This makes the overlay available to manual CrossOver
+launches as well as LaunchAgent-triggered launches.
+
+The enabled variables are:
+
+```text
+MTL_HUD_ENABLED=1
+DXVK_HUD=fps,frametimes,gpuload,memory
+```
 
 A separate `com.xodus.service` user LaunchAgent keeps `xodus-service` in the
 same unlocked Keychain/Aqua context while allowing the GUI request processor to
@@ -124,7 +147,7 @@ cd ~/src/xodus-macos
 After installation, no sudo is needed for normal GUI launches:
 
 ```bash
-./scripts/macos/trigger-gui.sh steam-grounded
+./scripts/macos/trigger-gui.sh steam-control
 ./scripts/macos/trigger-gui.sh edge-cdp 9222
 ```
 
@@ -259,7 +282,7 @@ cargo test
 cargo build --release --workspace
 ```
 
-Do not begin Wine or Grounded integration until the native macOS checks pass.
+Do not begin Wine or Game Pass integration until the native macOS checks pass.
 
 ## Security boundaries
 

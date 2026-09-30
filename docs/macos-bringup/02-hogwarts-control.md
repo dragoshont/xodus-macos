@@ -1,8 +1,9 @@
-# Grounded Steam control
+# Hogwarts Legacy Steam control
 
 Status date: 2026-09-30
 
-The control environment is prepared, but gameplay is not yet validated.
+Hogwarts Legacy is the Windows-only Steam control. Grounded is no longer the
+target because the signed-in Steam account does not own it.
 
 ## Proven
 
@@ -10,7 +11,8 @@ The control environment is prepared, but gameplay is not yet validated.
 - CrossOver's bundled runtime reports product build `26.3.0.39832`.
 - CrossOver launches into the active Aqua desktop from an SSH-initiated
   `open -a CrossOver`.
-- A dedicated 64-bit Windows 10 bottle named `GroundedControl` exists.
+- A dedicated 64-bit Windows 10 bottle exists. It retains the legacy name
+  `GroundedControl` to avoid moving or duplicating its 76 GB installation.
 - The bottle has:
 
   ```text
@@ -62,20 +64,17 @@ the CrossOver Steam client.
 From the Mac-side repository:
 
 ```bash
-./scripts/macos/create-grounded-control.sh
+./scripts/macos/create-hogwarts-control.sh
 ```
 
 The script preserves an existing bottle, requires D3DMetal, downloads the
 official Steam installer only when needed, and does not handle account
 credentials.
 
-## Interim Windows graphics control
+## Windows graphics control
 
-The signed-in account does not own Grounded on Steam. Hogwarts Legacy, Steam
-application ID `990080`, is owned and Windows-only, so it is the interim
-DirectX 12/D3DMetal control. It is larger and cannot remove Grounded-specific
-engine uncertainty, but successful gameplay will validate the lower
-CrossOver/D3DMetal stack on this exact Mac.
+Hogwarts Legacy, Steam application ID `990080`, is owned and Windows-only, so it
+is the DirectX 12/D3DMetal control for the new Hogwarts Game Pass target.
 
 The Hogwarts install manifest was created with:
 
@@ -108,16 +107,14 @@ manifest is stored on the Mac at:
 ~/xodus-runs/hogwarts-control-20261001T005911+0300/manifest.txt
 ```
 
+The game was then closed deliberately by shutting down only the Windows Steam
+client. No crash report was produced.
+
 Windows Steam initially displayed no connectivity after its account session
 was replaced by the simultaneously running native macOS Steam client. Closing
 native Steam and relaunching only the CrossOver client restored a successful
 Steam logon. Native Steam must remain closed while the Windows client downloads
 or runs games.
 
-The full Grounded control still requires legitimate Steam access:
-
-1. Install the Windows edition of Grounded.
-2. Launch Grounded with D3DMetal and reach actual gameplay.
-
-Do not begin Game Pass/Xodus runtime diagnosis until this control reaches
-gameplay or produces a reproducible CrossOver-specific failure.
+The remaining control gate is confirming interactive gameplay after shader
+preparation.

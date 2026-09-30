@@ -10,8 +10,11 @@ param(
         "test",
         "build",
         "edge-cdp",
+        "overlay-on",
+        "overlay-off",
+        "overlay-all-on",
+        "overlay-all-off",
         "install-gui-launcher",
-        "install-grounded",
         "install-hogwarts",
         "launch-hogwarts",
         "hogwarts-status",
@@ -25,7 +28,7 @@ param(
         "xodus-login",
         "start-xodus-service",
         "stop-xodus-service",
-        "prepare-grounded-control",
+        "prepare-steam-control",
         "bootstrap-status"
     )]
     [string]$Action
@@ -43,14 +46,17 @@ $commands = @{
     "test"                     = "cd $repo && $cargoPath && cargo test"
     "build"                    = "cd $repo && $cargoPath && cargo build --release --workspace"
     "edge-cdp"                 = "cd $repo && ./scripts/macos/trigger-gui.sh edge-cdp"
+    "overlay-on"               = "cd $repo && ./scripts/macos/trigger-gui.sh overlay-on"
+    "overlay-off"              = "cd $repo && ./scripts/macos/trigger-gui.sh overlay-off"
+    "overlay-all-on"           = "cd $repo && ./scripts/macos/set-crossover-overlay.sh on"
+    "overlay-all-off"          = "cd $repo && ./scripts/macos/set-crossover-overlay.sh off"
     "install-gui-launcher"     = "cd $repo && ./scripts/macos/install-gui-launcher.sh"
-    "install-grounded"         = "cd $repo && ./scripts/macos/trigger-gui.sh install-grounded"
     "install-hogwarts"         = "cd $repo && ./scripts/macos/trigger-gui.sh install-hogwarts"
     "launch-hogwarts"          = "cd $repo && ./scripts/macos/trigger-gui.sh launch-hogwarts"
     "hogwarts-status"          = "cd $repo && ./scripts/macos/steam-app-status.sh 990080"
     "build-widl"               = "cd $repo && ./scripts/macos/build-widl.sh"
     "launch-crossover"         = "cd $repo && ./scripts/macos/trigger-gui.sh crossover"
-    "launch-steam"             = "cd $repo && ./scripts/macos/trigger-gui.sh steam-grounded"
+    "launch-steam"             = "cd $repo && ./scripts/macos/trigger-gui.sh steam-control"
     "quit-native-steam"        = "cd $repo && ./scripts/macos/trigger-gui.sh quit-native-steam"
     "quit-windows-steam"       = "cd $repo && ./scripts/macos/trigger-gui.sh quit-windows-steam"
     "xgameruntime-smoke"       = "cd $repo && ./scripts/macos/trigger-gui.sh xgameruntime-smoke"
@@ -58,7 +64,7 @@ $commands = @{
     "xodus-login"              = "cd $repo && ./scripts/macos/trigger-gui.sh xodus-login"
     "start-xodus-service"      = "cd $repo && ./scripts/macos/trigger-gui.sh start-xodus-service"
     "stop-xodus-service"       = "cd $repo && ./scripts/macos/trigger-gui.sh stop-xodus-service"
-    "prepare-grounded-control" = "cd $repo && ./scripts/macos/create-grounded-control.sh"
+    "prepare-steam-control"    = "cd $repo && ./scripts/macos/create-hogwarts-control.sh"
     "bootstrap-status"         = 'run_id=$(cat "$HOME/xodus-runs/latest-bootstrap"); run_dir="$HOME/xodus-runs/$run_id"; pid=$(cat "$run_dir/pid"); if kill -0 "$pid" 2>/dev/null; then echo "STATUS=RUNNING"; else echo "STATUS=EXITED"; fi; tail -n 80 "$run_dir/bootstrap.log"'
 }
 

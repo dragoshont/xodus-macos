@@ -2,7 +2,12 @@
 
 set -euo pipefail
 
-bottle="${XODUS_GROUNDED_BOTTLE:-GroundedControl}"
+bottles_root="$HOME/Library/Application Support/CrossOver/Bottles"
+default_bottle="HogwartsControl"
+if [[ -d "$bottles_root/GroundedControl" && ! -d "$bottles_root/$default_bottle" ]]; then
+    default_bottle="GroundedControl"
+fi
+bottle="${XODUS_STEAM_BOTTLE:-$default_bottle}"
 cxroot="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver"
 cxbottle="$cxroot/bin/cxbottle"
 cxwine="$cxroot/bin/wine"
@@ -21,7 +26,7 @@ if [[ ! -d "$bottle_dir" ]]; then
         --bottle "$bottle" \
         --create \
         --template win10_64 \
-        --description "Grounded Steam control with D3DMetal" \
+        --description "Hogwarts Legacy Steam control with D3DMetal" \
         --param "EnvironmentVariables:CX_GRAPHICS_BACKEND=d3dmetal"
 fi
 

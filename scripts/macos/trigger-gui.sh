@@ -9,7 +9,7 @@ request_dir="$state_root/requests"
 processed_dir="$state_root/processed"
 
 case "$action" in
-    crossover | quit-native-steam | steam-grounded | install-grounded | install-hogwarts)
+    crossover | quit-native-steam | steam-grounded | install-grounded | install-hogwarts | xgameruntime-smoke)
         if [[ -n "$argument" ]]; then
             echo "Action $action does not accept an argument." >&2
             exit 2
@@ -23,7 +23,7 @@ case "$action" in
         fi
         ;;
     *)
-        echo "Usage: $0 {crossover|quit-native-steam|steam-grounded|install-grounded|install-hogwarts|edge-cdp} [edge-cdp-port]" >&2
+        echo "Usage: $0 {crossover|quit-native-steam|steam-grounded|install-grounded|install-hogwarts|xgameruntime-smoke|edge-cdp} [edge-cdp-port]" >&2
         exit 2
         ;;
 esac

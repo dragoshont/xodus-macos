@@ -3,13 +3,23 @@
 set -euo pipefail
 
 install_crossover=false
+install_runtime_toolchain=false
 
-if [[ "${1:-}" == "--with-crossover" ]]; then
-    install_crossover=true
-elif [[ $# -gt 0 ]]; then
-    echo "Usage: $0 [--with-crossover]" >&2
-    exit 2
-fi
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --with-crossover)
+            install_crossover=true
+            ;;
+        --with-runtime-toolchain)
+            install_runtime_toolchain=true
+            ;;
+        *)
+            echo "Usage: $0 [--with-crossover] [--with-runtime-toolchain]" >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
     echo "This bootstrap script must run on macOS." >&2
@@ -66,6 +76,10 @@ PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --global playwright
 
 if [[ "$install_crossover" == true ]]; then
     brew install --cask crossover
+fi
+
+if [[ "$install_runtime_toolchain" == true ]]; then
+    brew install mingw-w64 bison freetype
 fi
 
 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/install-gui-launcher.sh"

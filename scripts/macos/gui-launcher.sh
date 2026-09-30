@@ -82,6 +82,22 @@ for request in "$request_dir"/*.request; do
                 status=$?
             fi
             ;;
+        xgameruntime-smoke)
+            cxwine="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine"
+            test_exe="$HOME/src/xgameruntime-pr18/build/windows-x64-diagnostic/bin/test_xgameruntime.exe"
+            if [[ ! -x "$cxwine" || ! -f "$test_exe" ]]; then
+                echo "CrossOver or the diagnostic xgameruntime test executable is missing." >"$stderr_log"
+                status=1
+            else
+                "$cxwine" \
+                    --bottle XGameRuntimeTest \
+                    --no-gui \
+                    "$test_exe" \
+                    --gtest_filter=XThreadingTests.VerifySimpleAsyncCall \
+                    >"$stdout_log" 2>"$stderr_log"
+                status=$?
+            fi
+            ;;
         edge-cdp)
             port="${argument:-9222}"
             if ! [[ "$port" =~ ^[0-9]+$ ]] || ((port < 1024 || port > 65535)); then

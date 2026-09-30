@@ -59,9 +59,19 @@ for command_name in git brew rustup rustc cargo protoc python3 node npm playwrig
 done
 
 section "Supporting commands"
-for command_name in cmake ninja pkg-config jq tmux shellcheck gh; do
+for command_name in cmake ninja pkg-config jq tmux shellcheck gh x86_64-w64-mingw32-gcc; do
     optional_command "$command_name"
 done
+if [[ -x /opt/homebrew/opt/bison/bin/bison ]]; then
+    printf '%-14s %s\n' "brew-bison" "/opt/homebrew/opt/bison/bin/bison"
+else
+    printf '%-14s not installed\n' "brew-bison"
+fi
+if [[ -x "$HOME/.local/xodus-wine-tools/bin/widl" ]]; then
+    printf '%-14s %s\n' "wine-widl" "$HOME/.local/xodus-wine-tools/bin/widl"
+else
+    printf '%-14s not built\n' "wine-widl"
+fi
 
 section "Versions"
 git --version 2>/dev/null || true
@@ -80,6 +90,8 @@ playwright --version 2>/dev/null || true
 tmux -V 2>/dev/null || true
 shellcheck --version 2>/dev/null | head -n 2 || true
 gh --version 2>/dev/null | head -n 1 || true
+x86_64-w64-mingw32-gcc --version 2>/dev/null | head -n 1 || true
+/opt/homebrew/opt/bison/bin/bison --version 2>/dev/null | head -n 1 || true
 
 section "Rosetta"
 if pgrep oahd >/dev/null 2>&1 || arch -x86_64 /usr/bin/true >/dev/null 2>&1; then

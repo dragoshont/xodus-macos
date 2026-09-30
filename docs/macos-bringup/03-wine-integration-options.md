@@ -77,6 +77,58 @@ build experiment therefore needs:
 
 Do not bypass the project's `widl` check by renaming MinGW's implementation.
 
+## Build evidence
+
+The Mac now has MinGW-w64 14.0.0. A native Wine IDL compiler was built from
+CodeWeavers' matching CrossOver 26.3.0 source archive:
+
+```text
+archive SHA-256:
+ac99c8ca4b3848f3e81784135f023df266b61c2345726ea55a50b3e030dd6872
+
+widl:
+~/.local/xodus-wine-tools/bin/widl
+
+widl version:
+11.0
+```
+
+Wine configure required:
+
+```text
+--enable-archs=x86_64
+```
+
+so the arm64 Mac host uses the installed x86_64 MinGW PE toolchain rather than
+requiring an unavailable ARM64 Windows compiler. Wine's standard IDL directory
+also had to be supplied to `widl` so imports such as `unknwn.idl` and
+`propidl.idl` resolve.
+
+Reproduce the pinned source download, checksum verification, tools-only Wine
+configuration, `widl` build, and include-path wrapper with:
+
+```bash
+./scripts/macos/build-widl.sh
+```
+
+The unchanged PR #18 source then built through 73 of 82 steps and stopped at
+`src/Xodus/IPCLayer.cpp` because the socket global is declared as `HANDLE` but
+passed to Winsock APIs that require `SOCKET`. A diagnostic-only
+`-fpermissive` build produced:
+
+```text
+build/windows-x64-diagnostic/bin/xgameruntime.dll
+build/windows-x64-diagnostic/bin/test_xgameruntime.exe
+```
+
+Those artifacts must not be used for a game run. The permissive build only
+confirmed that the socket type mismatch is the strict-build blocker.
+
+All 42 XThreading tests start under CrossOver but exit with code 5 before
+GoogleTest records an assertion result. The same result occurs in the Aqua
+LaunchAgent context, ruling out the SSH GUI namespace as the cause. This
+remains a separate runtime/test-harness blocker.
+
 ## Public-code observations requiring human review
 
 PR #18's Darwin socket path is directionally correct, but its current
@@ -84,6 +136,10 @@ PR #18's Darwin socket path is directionally correct, but its current
 reviewed before relying on it. The function allocates from the Unix string
 length, prepends `Z:`, and then writes a terminator beyond that original length.
 This is evidence from open source, not proprietary behavior.
+
+The same source declares its socket as `HANDLE` while using Winsock APIs that
+require `SOCKET`. MinGW rejects these conversions in strict C++ mode. This
+needs an upstream human review rather than an AI-authored runtime patch.
 
 Any fix intended for xgameruntime upstream is:
 

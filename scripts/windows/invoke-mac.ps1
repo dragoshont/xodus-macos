@@ -14,9 +14,11 @@ param(
         "install-grounded",
         "install-hogwarts",
         "hogwarts-status",
+        "build-widl",
         "launch-crossover",
         "launch-steam",
         "quit-native-steam",
+        "xgameruntime-smoke",
         "prepare-grounded-control",
         "bootstrap-status"
     )]
@@ -39,9 +41,11 @@ $commands = @{
     "install-grounded"         = "cd $repo && ./scripts/macos/trigger-gui.sh install-grounded"
     "install-hogwarts"         = "cd $repo && ./scripts/macos/trigger-gui.sh install-hogwarts"
     "hogwarts-status"          = "cd $repo && ./scripts/macos/steam-app-status.sh 990080"
+    "build-widl"               = "cd $repo && ./scripts/macos/build-widl.sh"
     "launch-crossover"         = "cd $repo && ./scripts/macos/trigger-gui.sh crossover"
     "launch-steam"             = "cd $repo && ./scripts/macos/trigger-gui.sh steam-grounded"
     "quit-native-steam"        = "cd $repo && ./scripts/macos/trigger-gui.sh quit-native-steam"
+    "xgameruntime-smoke"       = "cd $repo && ./scripts/macos/trigger-gui.sh xgameruntime-smoke"
     "prepare-grounded-control" = "cd $repo && ./scripts/macos/create-grounded-control.sh"
     "bootstrap-status"         = 'run_id=$(cat "$HOME/xodus-runs/latest-bootstrap"); run_dir="$HOME/xodus-runs/$run_id"; pid=$(cat "$run_dir/pid"); if kill -0 "$pid" 2>/dev/null; then echo "STATUS=RUNNING"; else echo "STATUS=EXITED"; fi; tail -n 80 "$run_dir/bootstrap.log"'
 }

@@ -58,9 +58,11 @@ Use the checked-in Windows wrapper for routine operations:
 .\scripts\windows\invoke-mac.ps1 launch-crossover
 .\scripts\windows\invoke-mac.ps1 launch-steam
 .\scripts\windows\invoke-mac.ps1 quit-native-steam
+.\scripts\windows\invoke-mac.ps1 xgameruntime-smoke
 .\scripts\windows\invoke-mac.ps1 install-grounded
 .\scripts\windows\invoke-mac.ps1 install-hogwarts
 .\scripts\windows\invoke-mac.ps1 hogwarts-status
+.\scripts\windows\invoke-mac.ps1 build-widl
 .\scripts\windows\invoke-mac.ps1 prepare-grounded-control
 .\scripts\windows\invoke-mac.ps1 bootstrap-status
 ```
@@ -90,6 +92,7 @@ The helper accepts only:
 - `steam-grounded`;
 - `install-grounded`, fixed to Steam application ID `962130`;
 - `install-hogwarts`, fixed to Steam application ID `990080`;
+- `xgameruntime-smoke`, fixed to the public PR #18 diagnostic test binary;
 - `edge-cdp`, optionally with a local port.
 
 It does not execute arbitrary request content. SSH creates a mode-600 request
@@ -123,6 +126,12 @@ To install CrossOver through Homebrew as part of the bootstrap:
 ./scripts/macos/bootstrap.sh --with-crossover
 ```
 
+To also install the xgameruntime cross-compilation prerequisites:
+
+```bash
+./scripts/macos/bootstrap.sh --with-crossover --with-runtime-toolchain
+```
+
 The script installs:
 
 - Homebrew under `/opt/homebrew`;
@@ -141,6 +150,8 @@ The script installs:
 - rustup;
 - Rust 1.98.0 with Clippy and rustfmt;
 - optionally, the Homebrew CrossOver cask.
+
+The optional runtime toolchain adds MinGW-w64, modern Bison, and FreeType.
 
 CrossOver is proprietary software. Installation does not provide a license or
 bundle CrossOver, D3DMetal, Game Porting Toolkit, or game files with Xodus.

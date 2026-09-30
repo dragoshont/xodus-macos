@@ -30,6 +30,7 @@ install_dir="$(field installdir)"
 bytes_downloaded="$(field BytesDownloaded)"
 bytes_to_download="$(field BytesToDownload)"
 size_on_disk="$(field SizeOnDisk)"
+staging_dir="$steam_root/steamapps/downloading/$app_id"
 
 printf 'manifest=present\n'
 printf 'state_flags=%s\n' "${state_flags:-unknown}"
@@ -37,6 +38,12 @@ printf 'install_dir=%s\n' "${install_dir:-unknown}"
 printf 'bytes_downloaded=%s\n' "${bytes_downloaded:-0}"
 printf 'bytes_to_download=%s\n' "${bytes_to_download:-0}"
 printf 'size_on_disk=%s\n' "${size_on_disk:-0}"
+if [[ -d "$staging_dir" ]]; then
+    staging_kib="$(du -sk "$staging_dir" | awk '{ print $1 }')"
+    printf 'staging_bytes=%s\n' "$((staging_kib * 1024))"
+else
+    echo "staging_bytes=0"
+fi
 
 if [[ "${bytes_to_download:-0}" =~ ^[0-9]+$ ]] &&
     [[ "${bytes_downloaded:-0}" =~ ^[0-9]+$ ]] &&

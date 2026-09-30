@@ -13,12 +13,15 @@ param(
         "install-gui-launcher",
         "install-grounded",
         "install-hogwarts",
+        "launch-hogwarts",
         "hogwarts-status",
         "build-widl",
         "launch-crossover",
         "launch-steam",
         "quit-native-steam",
+        "quit-windows-steam",
         "xgameruntime-smoke",
+        "xodus-service-smoke",
         "prepare-grounded-control",
         "bootstrap-status"
     )]
@@ -40,12 +43,15 @@ $commands = @{
     "install-gui-launcher"     = "cd $repo && ./scripts/macos/install-gui-launcher.sh"
     "install-grounded"         = "cd $repo && ./scripts/macos/trigger-gui.sh install-grounded"
     "install-hogwarts"         = "cd $repo && ./scripts/macos/trigger-gui.sh install-hogwarts"
+    "launch-hogwarts"          = "cd $repo && ./scripts/macos/trigger-gui.sh launch-hogwarts"
     "hogwarts-status"          = "cd $repo && ./scripts/macos/steam-app-status.sh 990080"
     "build-widl"               = "cd $repo && ./scripts/macos/build-widl.sh"
     "launch-crossover"         = "cd $repo && ./scripts/macos/trigger-gui.sh crossover"
     "launch-steam"             = "cd $repo && ./scripts/macos/trigger-gui.sh steam-grounded"
     "quit-native-steam"        = "cd $repo && ./scripts/macos/trigger-gui.sh quit-native-steam"
+    "quit-windows-steam"       = "cd $repo && ./scripts/macos/trigger-gui.sh quit-windows-steam"
     "xgameruntime-smoke"       = "cd $repo && ./scripts/macos/trigger-gui.sh xgameruntime-smoke"
+    "xodus-service-smoke"      = "cd $repo && ./scripts/macos/trigger-gui.sh xodus-service-smoke"
     "prepare-grounded-control" = "cd $repo && ./scripts/macos/create-grounded-control.sh"
     "bootstrap-status"         = 'run_id=$(cat "$HOME/xodus-runs/latest-bootstrap"); run_dir="$HOME/xodus-runs/$run_id"; pid=$(cat "$run_dir/pid"); if kill -0 "$pid" 2>/dev/null; then echo "STATUS=RUNNING"; else echo "STATUS=EXITED"; fi; tail -n 80 "$run_dir/bootstrap.log"'
 }

@@ -83,6 +83,30 @@ The Hogwarts install manifest was created with:
 BytesToDownload = 73108753104
 ```
 
+The download completed successfully with Steam build ID `20773316` and
+`StateFlags=4` (`Fully Installed`). Steam reported 73,108,753,104 downloaded
+bytes and 76,444,174,839 bytes on disk.
+
+After a clean Windows Steam restart, Steam launched:
+
+```text
+HogwartsLegacy.exe
+Phoenix\Binaries\Win64\HogwartsLegacy.exe
+```
+
+Both processes remained alive for more than two minutes, CrossOver logged
+`using d3dmetal as the graphics backend`, and macOS produced no crash report.
+This proves a sustained Windows game process and D3DMetal activation. It does
+not prove rendered gameplay; that still requires observation at the Mac
+display.
+
+The process remained alive beyond seven minutes. The revision-bound run
+manifest is stored on the Mac at:
+
+```text
+~/xodus-runs/hogwarts-control-20261001T005911+0300/manifest.txt
+```
+
 Windows Steam initially displayed no connectivity after its account session
 was replaced by the simultaneously running native macOS Steam client. Closing
 native Steam and relaunching only the CrossOver client restored a successful

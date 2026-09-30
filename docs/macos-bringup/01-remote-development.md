@@ -58,9 +58,12 @@ Use the checked-in Windows wrapper for routine operations:
 .\scripts\windows\invoke-mac.ps1 launch-crossover
 .\scripts\windows\invoke-mac.ps1 launch-steam
 .\scripts\windows\invoke-mac.ps1 quit-native-steam
+.\scripts\windows\invoke-mac.ps1 quit-windows-steam
 .\scripts\windows\invoke-mac.ps1 xgameruntime-smoke
+.\scripts\windows\invoke-mac.ps1 xodus-service-smoke
 .\scripts\windows\invoke-mac.ps1 install-grounded
 .\scripts\windows\invoke-mac.ps1 install-hogwarts
+.\scripts\windows\invoke-mac.ps1 launch-hogwarts
 .\scripts\windows\invoke-mac.ps1 hogwarts-status
 .\scripts\windows\invoke-mac.ps1 build-widl
 .\scripts\windows\invoke-mac.ps1 prepare-grounded-control

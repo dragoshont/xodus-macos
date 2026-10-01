@@ -257,6 +257,26 @@ PY
                 rm -f "$expect_script"
             fi
             ;;
+        xodus-hogwarts-launch)
+            cli="$HOME/src/xodus-macos/target/release/xodus-cli"
+            source="$HOME/Games/Xodus/HogwartsLegacy-Xbox"
+            wine="$HOME/src/xodus-macos/scripts/macos/crossover-control-wine.sh"
+            if [[ ! -x "$cli" || ! -x "$wine" ]]; then
+                echo "Release xodus-cli or CrossOver wrapper is missing." >"$stderr_log"
+                status=1
+            elif [[ ! -f "$source/.xodus-streaming.msixvc" ]]; then
+                echo "Completed Hogwarts Xodus package is missing." >"$stderr_log"
+                status=1
+            else
+                XODUS_LOG=warn "$cli" run \
+                    "$source" \
+                    "$wine" \
+                    --exe 'Phoenix\Binaries\WinGDK\HogwartsLegacy.exe' \
+                    --market GB \
+                    >"$stdout_log" 2>"$stderr_log"
+                status=$?
+            fi
+            ;;
         start-xodus-hogwarts-stream)
             destination="$HOME/Games/Xodus/HogwartsLegacy-Xbox"
             runs_root="$HOME/xodus-runs"

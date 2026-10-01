@@ -5,11 +5,19 @@ Status date: 2026-10-01
 ## Highest proven milestone
 
 ```text
-M0: host Xodus builds on Mac
+WinGDK process + D3DMetal + public XThreading task queue + asynchronous XUser
 ```
 
-The full native workspace passes formatting, Clippy, tests, and release build on
-the Apple Silicon host.
+The full native workspace passes formatting, Clippy, tests, and release build
+on the Apple Silicon host. Subsequent experiments also completed package
+extraction, decrypted executable staging, AF_UNIX transport, public task-queue
+creation, and asynchronous XUser provider dispatch.
+
+The current blocker is Wine bcrypt asymmetric initialization. The public XUser
+implementation reaches `BCryptGenerateKeyPair`, which returns
+`STATUS_NOT_IMPLEMENTED` because the Wine builtin Unix companion is not
+attached. See [`06-experiment-ledger.md`](06-experiment-ledger.md) for the
+complete evidence and attempt history.
 
 The native `xodus-service` also passes a controlled service smoke test when
 started in the logged-in Aqua session:
@@ -52,7 +60,7 @@ A dedicated `com.xodus.service` LaunchAgent is installed. Remote start and stop
 requests were verified: the service entered the running state, created the
 mode-`0600` socket, handled SIGINT, and removed the socket.
 
-## Not attempted
+## Completed package and launch work
 
 Microsoft's public UK display catalog confirms that product
 `9MT5NJ5W7B8Z` is Hogwarts Legacy and includes an x64 `MSIXVC` package allowed
@@ -64,17 +72,10 @@ while the package/catalog and license commands accept an explicit market.
 Do not change authentication behavior in this AI-assisted branch; pass
 `--market GB` to the relevant package operations.
 
-The following were intentionally not attempted while the user was unavailable:
-
-- Microsoft/Xbox device login;
-- Game Pass library enumeration;
-- Hogwarts Legacy entitlement selection;
-- Hogwarts Legacy package download;
-- license retrieval;
-- encrypted executable preparation;
-- Game Pass executable launch.
-
-No credentials, authentication payloads, or license material were captured.
+The Microsoft/Xbox login, UK entitlement selection, package download, license
+retrieval, encrypted executable preparation, and first Game Pass executable
+launch have all been completed. No credentials, authentication payloads,
+license material, or CDN URLs were captured in diagnostics or documentation.
 
 The Xodus device identity can be provisioned from the Aqua session, but no
 stored user identity existed at the initial snapshot. The user subsequently
@@ -116,14 +117,8 @@ license, and downloads/extracts required segments. Progress is available with:
 
 ## Next experiment
 
-With the user present:
-
-1. Launch the Xodus login flow through the Aqua LaunchAgent.
-2. Complete Microsoft device authentication directly in the presented UI.
-3. Confirm that the account has the PC Game Pass Hogwarts Legacy entitlement
-   in the UK catalog.
-4. Record the title/package identifier without recording account identifiers.
-5. Download or stream the package.
-6. Verify license acquisition and the macOS `prepare()` path.
-7. Attempt launch with the pinned runtime architecture and report the first
-   failing milestone from M1 through M12.
+1. Make `BCryptGenerateKeyPair(2048)` pass in the isolated private-Wine smoke
+   test.
+2. Rerun Hogwarts with narrow public xgameruntime diagnostics.
+3. Record the next failing public API in
+   [`06-experiment-ledger.md`](06-experiment-ledger.md).

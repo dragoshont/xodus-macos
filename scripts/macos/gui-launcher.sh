@@ -260,7 +260,10 @@ PY
         xodus-hogwarts-launch)
             cli="$HOME/src/xodus-macos/target/release/xodus-cli"
             source="$HOME/Games/Xodus/HogwartsLegacy-Xbox"
-            wine="$HOME/src/xodus-macos/scripts/macos/crossover-control-wine.sh"
+            wine="$HOME/src/xodus-macos/scripts/macos/private-xodus-crossover-wine.sh"
+            bottle="$HOME/Library/Application Support/CrossOver/Bottles/GroundedControl"
+            stock_server="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wineserver"
+            private_server="$HOME/src/build/crossover-wine-xodus-full-26.3.0-x86_64/server/wineserver"
             if [[ ! -x "$cli" || ! -x "$wine" ]]; then
                 echo "Release xodus-cli or CrossOver wrapper is missing." >"$stderr_log"
                 status=1
@@ -268,7 +271,10 @@ PY
                 echo "Completed Hogwarts Xodus package is missing." >"$stderr_log"
                 status=1
             else
-                XODUS_LOG=warn "$cli" run \
+                WINEPREFIX="$bottle" "$stock_server" -k 2>/dev/null || true
+                WINEPREFIX="$bottle" "$private_server" -k 2>/dev/null || true
+                sleep 2
+                XODUS_LOG=warn XODUS_WINE_DEBUG=+xgameruntime,+gdkc "$cli" run \
                     "$source" \
                     "$wine" \
                     --exe 'Phoenix\Binaries\WinGDK\HogwartsLegacy.exe' \

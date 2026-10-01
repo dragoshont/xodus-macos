@@ -2,6 +2,9 @@
 
 Snapshot date: 2026-09-30
 
+For the chronological, continuously updated investigation record, see
+[`06-experiment-ledger.md`](06-experiment-ledger.md).
+
 This is the starting revision record for the Hogwarts Legacy PC Game Pass
 macOS bring-up. Grounded was the original proposed title, but the available
 Steam account does not own it. Data was read from public GitHub repository
@@ -116,11 +119,11 @@ Validation logs are stored under:
 ## Immediate decisions
 
 1. Remove the temporary passwordless sudo policy after reviewing this setup.
-2. Confirm interactive Hogwarts gameplay after its shader preparation.
-3. Complete Xodus Microsoft login in the Aqua session.
-4. Query/download Hogwarts product `9MT5NJ5W7B8Z` with market `GB`.
-5. Have a human address the strict-build blocker in xgameruntime PR #18 before
-   using its DLL for the Game Pass launch.
+2. Restore Wine bcrypt asymmetric support in the isolated RSA smoke test.
+3. Rerun the Game Pass executable only after the bcrypt smoke test passes.
+4. Record the next public runtime boundary in the experiment ledger.
+5. Have a human implement any missing GDK semantics that are not already
+   present in public source.
 
 No xgameruntime or proprietary API behavior implementation should be generated
 by an AI agent. Runtime findings must remain evidence, tests based on permitted

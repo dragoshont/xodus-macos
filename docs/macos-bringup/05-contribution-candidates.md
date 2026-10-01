@@ -100,6 +100,25 @@ coherent private runtime build is required.
 - Action: do not implement until reproduced and checked against active service
   PR [#193](https://github.com/xodus-gaming/xodus/pull/193).
 
+## 6. Guard Linux-only Xodus Wine synchronization code on macOS
+
+- Repository: `xodus-gaming/wine`
+- Revision: `eab69739f15180b96797645ccade44c1c4414980`
+- Reproduction: configure succeeds for an x86_64 macOS host with the pinned
+  xgameruntime submodule initialized.
+- Build failure:
+
+  ```text
+  server/fsync.c: use of undeclared identifier __NR_futex
+  server/inproc_sync.c: linux/types.h file not found
+  ```
+
+- Problem: Linux fsync/ntsync server sources are built on macOS without feature
+  guards or a configure switch.
+- Scope: Wine/platform host portability; no GDK semantic behavior.
+- Boundary: requires Wine maintainer review and existing Wine provenance.
+- Review size: likely small-to-medium, but must preserve Linux behavior.
+
 ## Priority
 
 The first actionable upstream discussion should cover candidates 1 and 2

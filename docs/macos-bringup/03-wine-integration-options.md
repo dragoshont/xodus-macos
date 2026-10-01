@@ -79,6 +79,19 @@ bottle is not a safe integration mechanism. The next experiment needs a
 coherent private Wine runtime build, including CrossOver's expected graphics
 and compatibility modules, rather than mixed binaries.
 
+The coherent `xodus-gaming/wine` fork was also configured successfully as an
+x86_64 macOS host build with its pinned xgameruntime submodule. Its server build
+then stopped in Linux-only synchronization code:
+
+```text
+server/fsync.c: __NR_futex is unavailable on macOS
+server/inproc_sync.c: linux/types.h is unavailable on macOS
+```
+
+These sources are compiled without macOS feature guards or configure toggles in
+the pinned fork. This is a host-portability blocker before xgameruntime IPC can
+be tested with a coherent Xodus Wine runtime.
+
 Do not implement or upstream GDK semantic behavior from this AI-assisted
 workspace. Runtime work here is limited to public-source build integration,
 reproduction, diagnostics, and human implementation briefs.

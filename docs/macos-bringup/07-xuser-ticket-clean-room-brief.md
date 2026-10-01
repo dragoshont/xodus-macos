@@ -2,6 +2,9 @@
 
 Status: human implementation required
 
+The implementation-ready requirements and acceptance-test specification are in
+[`09-rps-ticket-bridge-sdd.md`](09-rps-ticket-bridge-sdd.md).
+
 This document defines the first remaining XUser/GDK semantic boundary for the
 Hogwarts Legacy Game Pass launch. It intentionally does not provide an
 implementation. The surrounding transport, service protocol, ownership, and
@@ -166,4 +169,3 @@ Validation must use synthetic or redacted evidence:
 - Hardcoding account, device, title, or endpoint credentials.
 - Tracing proprietary Microsoft runtime behavior.
 - Guessing error mappings or UI behavior not established by public source.
-

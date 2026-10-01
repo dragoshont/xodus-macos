@@ -67,6 +67,9 @@ Use the checked-in Windows wrapper for routine operations:
 .\scripts\windows\invoke-mac.ps1 xodus-service-smoke
 .\scripts\windows\invoke-mac.ps1 xodus-login
 .\scripts\windows\invoke-mac.ps1 xodus-hogwarts-probe
+.\scripts\windows\invoke-mac.ps1 start-xodus-hogwarts-stream
+.\scripts\windows\invoke-mac.ps1 stop-xodus-hogwarts-stream
+.\scripts\windows\invoke-mac.ps1 xodus-hogwarts-status
 .\scripts\windows\invoke-mac.ps1 start-xodus-service
 .\scripts\windows\invoke-mac.ps1 stop-xodus-service
 .\scripts\windows\invoke-mac.ps1 install-hogwarts
@@ -161,6 +164,14 @@ and ContentID in:
 The first post-login access may display a macOS Keychain prompt for
 `xodus-cli`. Choose **Always Allow** so unattended Xodus commands can read the
 stored tokens from the same signed binary.
+
+Long-running Hogwarts package streaming uses its own
+`com.xodus.hogwarts-stream` Aqua LaunchAgent so Keychain access remains valid
+after the remote request returns. Install it once with:
+
+```bash
+./scripts/macos/install-xodus-hogwarts-stream-agent.sh
+```
 
 After installation, no sudo is needed for normal GUI launches:
 

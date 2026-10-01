@@ -193,14 +193,12 @@ for request in "$request_dir"/*.request; do
                 echo "Release xodus-cli is missing." >"$stderr_log"
                 status=1
             else
-                raw_log="$state_root/hogwarts-package-probe.raw"
                 summary="$state_root/hogwarts-package-probe.txt"
                 expect_script="$state_root/hogwarts-package-probe.expect"
                 cat >"$expect_script" <<EOF
 #!/usr/bin/expect -f
 set timeout 120
-log_user 0
-log_file -noappend "$raw_log"
+log_user 1
 spawn -noecho env XODUS_LOG=warn "$cli" download 9MT5NJ5W7B8Z --market GB --dry-run
 expect {
     -re "Select files to download" {
@@ -223,7 +221,7 @@ EOF
                 chmod 700 "$expect_script"
                 "$expect_script" >"$stdout_log" 2>"$stderr_log"
                 status=$?
-                python3 - "$raw_log" "$summary" <<'PY'
+                python3 - "$stdout_log" "$summary" <<'PY'
 from pathlib import Path
 import re
 import sys
@@ -253,10 +251,42 @@ for line in text.replace("\r", "\n").splitlines():
 
 summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 summary_path.chmod(0o600)
+raw_path.write_text(summary_path.read_text(encoding="utf-8"), encoding="utf-8")
+raw_path.chmod(0o600)
 PY
-                rm -f "$raw_log" "$expect_script"
-                cat "$summary" >>"$stdout_log"
+                rm -f "$expect_script"
             fi
+            ;;
+        start-xodus-hogwarts-stream)
+            destination="$HOME/Games/Xodus/HogwartsLegacy-Xbox"
+            runs_root="$HOME/xodus-runs"
+            latest_file="$runs_root/latest-hogwarts-xbox-stream"
+            stream_label="gui/$(id -u)/com.xodus.hogwarts-stream"
+            if ! launchctl print "$stream_label" >/dev/null 2>&1; then
+                echo "The Hogwarts streaming LaunchAgent is not installed." >"$stderr_log"
+                status=1
+            elif launchctl print "$stream_label" 2>/dev/null |
+                grep -q 'state = running'; then
+                echo "The Hogwarts Xbox stream is already running." >"$stderr_log"
+                status=1
+            else
+                stream_run_id="hogwarts-xbox-stream-$(date -u +%Y%m%dT%H%M%SZ)"
+                stream_run_dir="$runs_root/$stream_run_id"
+                mkdir -p "$stream_run_dir" "$destination"
+                printf '%s\n' "$destination" >"$stream_run_dir/destination"
+                printf '%s\n' "$stream_run_id" >"$latest_file"
+                : >"$HOME/Library/Logs/XodusRemote/hogwarts-xbox-stream.stdout.log"
+                : >"$HOME/Library/Logs/XodusRemote/hogwarts-xbox-stream.stderr.log"
+                launchctl kickstart -k "$stream_label" >"$stdout_log" 2>"$stderr_log"
+                status=$?
+                printf 'RUN_ID=%s\nDESTINATION=%s\n' \
+                    "$stream_run_id" "$destination" >>"$stdout_log"
+            fi
+            ;;
+        stop-xodus-hogwarts-stream)
+            launchctl kill SIGINT "gui/$(id -u)/com.xodus.hogwarts-stream" \
+                >"$stdout_log" 2>"$stderr_log"
+            status=$?
             ;;
         start-xodus-service)
             launchctl kickstart -k "gui/$(id -u)/com.xodus.service" \

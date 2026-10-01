@@ -9,7 +9,7 @@ request_dir="$state_root/requests"
 processed_dir="$state_root/processed"
 
 case "$action" in
-    crossover | overlay-on | overlay-off | quit-native-steam | quit-windows-steam | steam-control | install-hogwarts | launch-hogwarts | xgameruntime-smoke | xodus-login | xodus-hogwarts-probe | start-xodus-service | stop-xodus-service | xodus-service-smoke)
+    crossover | overlay-on | overlay-off | quit-native-steam | quit-windows-steam | steam-control | install-hogwarts | launch-hogwarts | xgameruntime-smoke | xodus-login | xodus-hogwarts-probe | start-xodus-hogwarts-stream | stop-xodus-hogwarts-stream | start-xodus-service | stop-xodus-service | xodus-service-smoke)
         if [[ -n "$argument" ]]; then
             echo "Action $action does not accept an argument." >&2
             exit 2
@@ -23,7 +23,7 @@ case "$action" in
         fi
         ;;
     *)
-        echo "Usage: $0 {crossover|overlay-on|overlay-off|quit-native-steam|quit-windows-steam|steam-control|install-hogwarts|launch-hogwarts|xgameruntime-smoke|xodus-login|xodus-hogwarts-probe|start-xodus-service|stop-xodus-service|xodus-service-smoke|edge-cdp} [edge-cdp-port]" >&2
+        echo "Usage: $0 {crossover|overlay-on|overlay-off|quit-native-steam|quit-windows-steam|steam-control|install-hogwarts|launch-hogwarts|xgameruntime-smoke|xodus-login|xodus-hogwarts-probe|start-xodus-hogwarts-stream|stop-xodus-hogwarts-stream|start-xodus-service|stop-xodus-service|xodus-service-smoke|edge-cdp} [edge-cdp-port]" >&2
         exit 2
         ;;
 esac

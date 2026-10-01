@@ -83,6 +83,37 @@ then blocked on macOS Keychain approval for reading the stored user tokens; the
 user must choose **Always Allow** on that one-time prompt before unattended
 catalog/package operations can continue.
 
+The user approved permanent Keychain access and the UK dry-run succeeded.
+Entitled package metadata:
+
+```text
+Product: 9MT5NJ5W7B8Z
+ContentID: c1084505-abc1-4c27-b3fe-ab7040a5f302
+Base: WarnerBros.Interactive.PHX_1.0.16.0_x64__ktmk1xygcecda.msixvc
+Base size: 95,473,455,104 bytes
+Updates: four XSP files
+Market: GB
+```
+
+The dry-run selected all files and redacted every CDN URL. No data was
+downloaded by the probe.
+
+The resumable Xodus streaming/extraction path is now running through the
+dedicated Aqua LaunchAgent `com.xodus.hogwarts-stream`:
+
+```text
+Destination: ~/Games/Xodus/HogwartsLegacy-Xbox
+Parallel jobs: 8
+Market: GB
+```
+
+This command automatically selects the MSIXVC base package, acquires the
+license, and downloads/extracts required segments. Progress is available with:
+
+```bash
+./scripts/macos/hogwarts-xbox-status.sh
+```
+
 ## Next experiment
 
 With the user present:

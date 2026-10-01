@@ -1,6 +1,6 @@
 # macOS Hogwarts Game Pass experiment ledger
 
-Last updated: 2026-10-01 10:32 EEST
+Last updated: 2026-10-01
 
 This is the durable handoff journal for the Hogwarts Legacy PC Game Pass
 bring-up on Apple Silicon. Update it after every experiment that changes the
@@ -12,19 +12,15 @@ proprietary runtime traces.
 
 **Highest proven end-to-end point:** the WinGDK executable starts through the
 decrypted macOS package overlay, private AF_UNIX-capable CrossOver Wine, and
-D3DMetal. Public xgameruntime code creates the required task queue and executes
-the asynchronous `XUserAddAsync(AddDefaultUserSilently)` provider.
+D3DMetal. Public runtime code now completes task-queue creation, asynchronous
+XUser dispatch, proof-key generation, Schannel TLS, endpoint download, JSON
+object/array parsing, and endpoint vector enumeration.
 
-**Current blocker:** the public XUser implementation reaches
-`BCryptGenerateKeyPair`, but Wine returns `STATUS_NOT_IMPLEMENTED` because
-`bcrypt.dll` has a null Unix-library handle. An isolated RSA smoke test
-reproduces the same failure outside the game:
-
-```text
-BCryptOpenAlgorithmProvider(RSA): 0x00000000
-BCryptGenerateKeyPair(2048):      0xc0000002
-bcrypt:key_asymmetric_create no encryption support
-```
+**Current blocker:** public XUser branch `44d97de` reaches the explicit
+`get_rps_tickets()` stub. The native Xodus service already exposes the required
+MSA token response over AF_UNIX, but connecting that service response to XUser
+is GDK semantic work and requires a human clean-room implementation. See
+[`07-xuser-ticket-clean-room-brief.md`](07-xuser-ticket-clean-room-brief.md).
 
 The game currently retries initialization instead of reaching sustained
 interactive startup. No game launch is intentionally left running.
@@ -47,8 +43,12 @@ interactive startup. No game launch is intentionally left running.
 | Initial task queue | Complete in private experiment | `XTaskQueueCreate(SerializedThreadPool, SerializedThreadPool)` succeeds | Replaced the in-tree stub with the public PR #18 C++ XThreading implementation. |
 | PR #18 strict build | Locally repaired | MinGW build succeeds | Corrected the public AF_UNIX socket global from `HANDLE` to the Winsock type `SOCKET`; this is transport/type correctness, not GDK semantics. |
 | XUser dispatch | Complete in private experiment | `XUserAddAsync`, provider begin/work/result callbacks execute | Built public branch `origin/xuser` at `44d97de` and delegated its internal XThreading queries to the public PR #18 runtime. |
-| XUser credential initialization | Blocked | RSA key generation returns `0xc0000002` | Narrowed the failure to Wine bcrypt Unix-library initialization with an isolated smoke executable. |
-| Sustained Game Pass startup | Not complete | Initialization retries | Depends on restoring asymmetric bcrypt support, then observing the next public API boundary. |
+| XUser credential initialization | Complete in private experiment | RSA and ECDSA key generation succeed | Rebuilt private Wine bcrypt with public GnuTLS support and forced the matching builtin PE/Unix pair. |
+| Xbox HTTPS | Complete in private experiment | Isolated WinHTTP request returns HTTP 200 | Rebuilt private Wine Schannel with public GnuTLS support and forced builtin `secur32`. |
+| Async COM apartment | Complete in private experiment | `Windows.Data.Json` activation succeeds on task workers | Initialized a COM MTA around generic task-pool callbacks. |
+| Endpoint JSON parsing | Complete in private experiment | Endpoint document parses and enumerates | Backported public Wine master `windows.web` JSON code at `6d1b09405774c4f234ed3fa0088a9706deb7ad49` and added standard `IVector<IJsonValue*>` size access. |
+| RPS ticket acquisition | Human clean-room blocker | `get_rps_tickets()` explicit stub | Existing native service protocol is documented in `07-xuser-ticket-clean-room-brief.md`; no public runtime implementation exists. |
+| Sustained Game Pass startup | Not complete | Initialization retries | Depends on the human clean-room RPS ticket bridge, then observing the next public API boundary. |
 
 ## Experiment journal
 
@@ -155,6 +155,56 @@ interactive startup. No game launch is intentionally left running.
   Rosetta, so the remaining issue is the Wine builtin PE-to-Unix companion
   path, not missing cryptographic libraries.
 
+### 2026-10-01: bcrypt and Schannel resolution
+
+- Instrumented only the private bcrypt build and confirmed
+  `__wine_init_unix_call()` returned `STATUS_ENTRYPOINT_NOT_FOUND`.
+- Found that the original private `bcrypt.so` was a 4 KiB empty backend because
+  the build was configured without GnuTLS headers.
+- Installed GnuTLS headers, enabled the public Wine GnuTLS backend, rebuilt the
+  x86_64 Unix companion, and forced builtin `bcrypt`.
+- Isolated RSA smoke result:
+
+  ```text
+  BCryptOpenAlgorithmProvider(RSA): 0x00000000
+  BCryptGenerateKeyPair(2048):      0x00000000
+  ```
+
+- Rebuilt the public Wine Schannel Unix companion with the same headers and
+  forced builtin `secur32`.
+- Isolated WinHTTP request to the Xbox title-management endpoint completed with
+  HTTP 200.
+- **Result:** proof-key generation and TLS are no longer blockers.
+
+### 2026-10-01: COM and Wine JSON resolution
+
+- Endpoint JSON initially failed because task-pool workers had no COM
+  apartment.
+- Initialized a generic COM MTA around private task-pool callbacks.
+- Wine then reached its explicit `Windows.Data.Json` object-parser stub.
+- Backported the exact public Wine master implementation at
+  `6d1b09405774c4f234ed3fa0088a9706deb7ad49`.
+- Added the standard `IVector<IJsonValue*>` interface required only for array
+  size enumeration; unsupported mutation methods remain explicit stubs.
+- **Result:** the complete 17.5 KiB endpoint and signature-policy document is
+  parsed and enumerated.
+
+### 2026-10-01: clean-room XUser boundary
+
+- The next executed call is:
+
+  ```text
+  get_rps_tickets(allowUi=FALSE, userTicket, deviceTicket) -> E_NOTIMPL
+  ```
+
+- Searched all public xgameruntime branches, Xodus Wine branches, and indexed
+  GitHub forks; no implementation exists.
+- The native service already exposes `MSA_TOKEN_REQUEST` and
+  `MSA_TOKEN_RESPONSE` over `/tmp/xodus.sock`.
+- **Result:** further progress requires a human clean-room implementation of
+  the XUser-to-service ticket bridge. The exact contract is documented in
+  `07-xuser-ticket-clean-room-brief.md`.
+
 ## Current private experimental composition
 
 These files are intentionally not proposed for upstreaming:
@@ -190,15 +240,13 @@ Public provenance used:
 
 ## Next actions
 
-1. Correct the private Wine builtin Unix-companion lookup for
-   `bcrypt.dll` and rerun the isolated RSA smoke test.
-2. Do not launch Hogwarts again until
-   `BCryptGenerateKeyPair(2048)` succeeds in isolation.
-3. Once the smoke test passes, rerun with only
-   `+xgameruntime,+gdkc` and record the next failing public API.
-4. Keep all GDK semantic behavior sourced from existing public code. If the
-   next requirement has no public implementation, stop and prepare a human
-   clean-room implementation brief.
+1. Have a human implement and review the clean-room ticket bridge described in
+   `07-xuser-ticket-clean-room-brief.md`.
+2. Validate the bridge with synthetic XML and token-redacted integration logs.
+3. Rerun with only `+xgameruntime,+gdkc` and record the next public API
+   boundary.
+4. Keep all GDK semantic behavior sourced from existing public code or
+   human clean-room work.
 5. Keep the Mac checkout authoritative and update this ledger after each
    milestone or eliminated hypothesis.
 

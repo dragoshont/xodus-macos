@@ -13,11 +13,12 @@ on the Apple Silicon host. Subsequent experiments also completed package
 extraction, decrypted executable staging, AF_UNIX transport, public task-queue
 creation, and asynchronous XUser provider dispatch.
 
-The current blocker is Wine bcrypt asymmetric initialization. The public XUser
-implementation reaches `BCryptGenerateKeyPair`, which returns
-`STATUS_NOT_IMPLEMENTED` because the Wine builtin Unix companion is not
-attached. See [`06-experiment-ledger.md`](06-experiment-ledger.md) for the
-complete evidence and attempt history.
+Wine bcrypt asymmetric initialization, Schannel TLS, task-worker COM
+initialization, and endpoint JSON parsing are now working in the private
+experiment. The current blocker is the explicit public
+`get_rps_tickets()` stub. See
+[`06-experiment-ledger.md`](06-experiment-ledger.md) and
+[`07-xuser-ticket-clean-room-brief.md`](07-xuser-ticket-clean-room-brief.md).
 
 The native `xodus-service` also passes a controlled service smoke test when
 started in the logged-in Aqua session:
@@ -117,8 +118,7 @@ license, and downloads/extracts required segments. Progress is available with:
 
 ## Next experiment
 
-1. Make `BCryptGenerateKeyPair(2048)` pass in the isolated private-Wine smoke
-   test.
+1. Complete human clean-room review and implementation of the XUser ticket
+   bridge.
 2. Rerun Hogwarts with narrow public xgameruntime diagnostics.
-3. Record the next failing public API in
-   [`06-experiment-ledger.md`](06-experiment-ledger.md).
+3. Record the next failing public API in the experiment ledger.

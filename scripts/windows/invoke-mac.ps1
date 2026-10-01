@@ -28,6 +28,7 @@ param(
         "xgameruntime-smoke",
         "xodus-service-smoke",
         "xodus-login",
+        "xodus-hogwarts-probe",
         "start-xodus-service",
         "stop-xodus-service",
         "prepare-steam-control",
@@ -66,6 +67,7 @@ $commands = @{
     "xgameruntime-smoke"       = "cd $repo && ./scripts/macos/trigger-gui.sh xgameruntime-smoke"
     "xodus-service-smoke"      = "cd $repo && ./scripts/macos/trigger-gui.sh xodus-service-smoke"
     "xodus-login"              = "cd $repo && ./scripts/macos/trigger-gui.sh xodus-login"
+    "xodus-hogwarts-probe"     = "cd $repo && ./scripts/macos/trigger-gui.sh xodus-hogwarts-probe"
     "start-xodus-service"      = "cd $repo && ./scripts/macos/trigger-gui.sh start-xodus-service"
     "stop-xodus-service"       = "cd $repo && ./scripts/macos/trigger-gui.sh stop-xodus-service"
     "prepare-steam-control"    = "cd $repo && ./scripts/macos/create-hogwarts-control.sh"

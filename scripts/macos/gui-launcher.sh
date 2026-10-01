@@ -187,6 +187,77 @@ for request in "$request_dir"/*.request; do
                 status=$?
             fi
             ;;
+        xodus-hogwarts-probe)
+            cli="$HOME/src/xodus-macos/target/release/xodus-cli"
+            if [[ ! -x "$cli" ]]; then
+                echo "Release xodus-cli is missing." >"$stderr_log"
+                status=1
+            else
+                raw_log="$state_root/hogwarts-package-probe.raw"
+                summary="$state_root/hogwarts-package-probe.txt"
+                expect_script="$state_root/hogwarts-package-probe.expect"
+                cat >"$expect_script" <<EOF
+#!/usr/bin/expect -f
+set timeout 120
+log_user 0
+log_file -noappend "$raw_log"
+spawn -noecho env XODUS_LOG=warn "$cli" download 9MT5NJ5W7B8Z --market GB --dry-run
+expect {
+    -re "Select files to download" {
+        after 500
+        send -- "\\033\\[C"
+        after 300
+        send -- "\\r"
+    }
+    timeout {
+        exit 124
+    }
+    eof {
+        exit 1
+    }
+}
+expect eof
+catch wait result
+exit [lindex \$result 3]
+EOF
+                chmod 700 "$expect_script"
+                "$expect_script" >"$stdout_log" 2>"$stderr_log"
+                status=$?
+                python3 - "$raw_log" "$summary" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+raw_path = Path(sys.argv[1])
+summary_path = Path(sys.argv[2])
+text = raw_path.read_text(encoding="utf-8", errors="replace")
+text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+lines = []
+url_seen = False
+for line in text.replace("\r", "\n").splitlines():
+    line = line.strip()
+    if not line:
+        continue
+    if re.search(r"https?://", line):
+        if not url_seen:
+            lines.append("[download URLs redacted]")
+            url_seen = True
+        continue
+    if (
+        "Select files to download" in line
+        or "ContentID:" in line
+        or re.search(r"\.(?:msixvc|xvc|xsp)\b", line, re.IGNORECASE)
+    ):
+        if line not in lines:
+            lines.append(line)
+
+summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+summary_path.chmod(0o600)
+PY
+                rm -f "$raw_log" "$expect_script"
+                cat "$summary" >>"$stdout_log"
+            fi
+            ;;
         start-xodus-service)
             launchctl kickstart -k "gui/$(id -u)/com.xodus.service" \
                 >"$stdout_log" 2>"$stderr_log"

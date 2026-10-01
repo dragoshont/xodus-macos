@@ -77,8 +77,11 @@ The following were intentionally not attempted while the user was unavailable:
 No credentials, authentication payloads, or license material were captured.
 
 The Xodus device identity can be provisioned from the Aqua session, but no
-stored user identity exists yet. The next progress point requires the user to
-complete Xodus's Microsoft login UI.
+stored user identity existed at the initial snapshot. The user subsequently
+completed Xodus's Microsoft login successfully. The first UK package dry-run
+then blocked on macOS Keychain approval for reading the stored user tokens; the
+user must choose **Always Allow** on that one-time prompt before unattended
+catalog/package operations can continue.
 
 ## Next experiment
 

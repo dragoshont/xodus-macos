@@ -66,6 +66,7 @@ Use the checked-in Windows wrapper for routine operations:
 .\scripts\windows\invoke-mac.ps1 xgameruntime-smoke
 .\scripts\windows\invoke-mac.ps1 xodus-service-smoke
 .\scripts\windows\invoke-mac.ps1 xodus-login
+.\scripts\windows\invoke-mac.ps1 xodus-hogwarts-probe
 .\scripts\windows\invoke-mac.ps1 start-xodus-service
 .\scripts\windows\invoke-mac.ps1 stop-xodus-service
 .\scripts\windows\invoke-mac.ps1 install-hogwarts
@@ -147,6 +148,19 @@ Or directly on the Mac:
 cd ~/src/xodus-macos
 ./scripts/macos/install-xodus-service-agent.sh
 ```
+
+`xodus-hogwarts-probe` performs a UK-market (`GB`) entitlement/package dry run
+for product `9MT5NJ5W7B8Z`. It selects all returned files in a private PTY,
+downloads nothing, deletes raw download URLs, and retains only package names
+and ContentID in:
+
+```text
+~/Library/Application Support/XodusRemote/hogwarts-package-probe.txt
+```
+
+The first post-login access may display a macOS Keychain prompt for
+`xodus-cli`. Choose **Always Allow** so unattended Xodus commands can read the
+stored tokens from the same signed binary.
 
 After installation, no sudo is needed for normal GUI launches:
 

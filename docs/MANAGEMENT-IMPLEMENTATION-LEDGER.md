@@ -113,6 +113,23 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
+### Confirmed adversarial finding XODUS-R05
+
+Registry preparation previously lacked the loader's aggregate 256-installation
+and 4 MiB serialized-byte limits. Preparation now checks the exact prospective
+registry before creating a journal/staging root; commit checks it again before
+promotion or replacing registry-selected active state. The authoritative registry
+writer (including rollback/open) enforces the same shared limits. Durable JSON
+writes cannot exceed their shared loader byte budget.
+
+All **11 native staging regressions** passed, including 256 real tiny installation
+commits, clean rejection of both preparation and a previously prepared 257th
+authoritative commit, byte-identical prior registry and successful reopen.
+Exact prospective 4 MiB commits/reopens; 4 MiB plus one byte fails before
+promotion, leaves the verified staged transaction recoverable, and preserves the
+previous active files and separate saves. Test-only sized registry fixtures never
+enter the live management adapter. Retained final reviewer closure remains required.
+
 The isolated arm64 native run passed **48 Rust checks** (6 CLI/callback/private-channel,
 8 owned-auth/configuration/handoff lifecycle, 7 adapter, 9 local staging/recovery, 11 framing/state,
 2 frozen wire, 5 core token/Keychain-memory checks). The schema validator passed

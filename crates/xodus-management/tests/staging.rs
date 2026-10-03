@@ -51,6 +51,246 @@ fn commit(
 }
 
 #[test]
+fn registry_count_capacity_is_enforced_before_preparation_and_authoritative_promotion() {
+    let (_temporary, path) = directory();
+    let mut store = StagingStore::open(&path).unwrap();
+    let pending = store.prepare(manifest(b"pending"), None, 0, 0).unwrap();
+    store
+        .write_file(
+            &pending.transaction_id,
+            "content/data.bin",
+            b"pending".as_slice(),
+            || false,
+        )
+        .unwrap();
+    store.verify(&pending.transaction_id).unwrap();
+    let first = commit(&mut store, b"x", None, 0);
+    for _ in 1..MAX_REGISTRY_INSTALLATIONS {
+        commit(&mut store, b"x", None, 0);
+    }
+    let saves = path.join("saves").join(&first.installation_id);
+    fs::create_dir(&saves).unwrap();
+    fs::write(saves.join("progress.save"), b"user progress").unwrap();
+    let before = fs::read(path.join("registry.json")).unwrap();
+    assert_eq!(store.snapshot().len(), MAX_REGISTRY_INSTALLATIONS);
+    assert_eq!(
+        store
+            .prepare(manifest(b"extra"), None, 0, 0)
+            .unwrap_err()
+            .code,
+        ErrorCode::LimitExceeded
+    );
+    assert_eq!(
+        store.commit(&pending.transaction_id).unwrap_err().code,
+        ErrorCode::LimitExceeded
+    );
+    assert_eq!(fs::read(path.join("registry.json")).unwrap(), before);
+    assert_eq!(store.recoveries().unwrap()[0].phase, Phase::Verified);
+    assert!(
+        path.join("staging")
+            .join(&pending.transaction_id)
+            .join("content/data.bin")
+            .is_file()
+    );
+    assert!(!path.join("versions").join(&pending.transaction_id).exists());
+    assert_eq!(
+        fs::read(
+            path.join("versions")
+                .join(&first.active.transaction_id)
+                .join("content/data.bin")
+        )
+        .unwrap(),
+        b"x"
+    );
+    assert_eq!(
+        fs::read(saves.join("progress.save")).unwrap(),
+        b"user progress"
+    );
+    drop(store);
+    assert_eq!(
+        StagingStore::open(&path).unwrap().snapshot().len(),
+        MAX_REGISTRY_INSTALLATIONS
+    );
+}
+
+fn sized_registry_fixture(registry: &mut serde_json::Value, target: usize) {
+    let template = registry["installations"]
+        .as_object()
+        .unwrap()
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    let mut ids = Vec::new();
+    for index in 0..16 {
+        let id = uuid::Uuid::from_u128(10000 + index).to_string();
+        let mut entry = template.clone();
+        entry["installationID"] = serde_json::json!(id);
+        entry["rollback"] = serde_json::Value::Null;
+        entry["active"]["transactionID"] =
+            serde_json::json!(uuid::Uuid::from_u128(20000 + index).to_string());
+        entry["active"]["manifest"]["files"] = serde_json::json!(
+            (0..256)
+                .map(|file| ManifestFile {
+                    path: format!("f{file:03}"),
+                    bytes: 0,
+                    sha256: Sha256::digest([])
+                        .iter()
+                        .map(|byte| format!("{byte:02x}"))
+                        .collect()
+                })
+                .collect::<Vec<_>>()
+        );
+        registry["installations"][&id] = entry;
+        ids.push(id);
+    }
+    let mut remaining = target
+        .checked_sub(serde_json::to_vec(registry).unwrap().len())
+        .unwrap();
+    for id in ids {
+        for file in registry["installations"][&id]["active"]["manifest"]["files"]
+            .as_array_mut()
+            .unwrap()
+        {
+            let original = file["path"].as_str().unwrap().to_owned();
+            let added = (1024 - original.len()).min(remaining);
+            file["path"] = serde_json::json!(format!("{original}{}", "x".repeat(added)));
+            remaining -= added;
+        }
+    }
+    assert_eq!(remaining, 0);
+    assert_eq!(serde_json::to_vec(registry).unwrap().len(), target);
+}
+
+#[test]
+fn exact_registry_byte_boundary_reopens_and_one_byte_excess_never_replaces_active_or_saves() {
+    for excess in [0, 1] {
+        let (_temporary, path) = directory();
+        let mut store = StagingStore::open(&path).unwrap();
+        let first = commit(&mut store, b"first", None, 0);
+        let saves = path.join("saves").join(&first.installation_id);
+        fs::create_dir(&saves).unwrap();
+        fs::write(saves.join("progress.save"), b"user progress").unwrap();
+        let pending = store
+            .prepare(
+                manifest(b"second"),
+                Some(first.installation_id.clone()),
+                1,
+                0,
+            )
+            .unwrap();
+        store
+            .write_file(
+                &pending.transaction_id,
+                "content/data.bin",
+                b"second".as_slice(),
+                || false,
+            )
+            .unwrap();
+        store.verify(&pending.transaction_id).unwrap();
+        let mut registry: serde_json::Value =
+            serde_json::from_slice(&fs::read(path.join("registry.json")).unwrap()).unwrap();
+        let mut candidate = registry.clone();
+        let entry = &mut candidate["installations"][&first.installation_id];
+        entry["revision"] = serde_json::json!(2);
+        entry["rollback"] = serde_json::to_value(&first.active).unwrap();
+        entry["active"] =
+            serde_json::json!({"transactionID":pending.transaction_id,"manifest":pending.manifest});
+        let delta = serde_json::to_vec(&candidate).unwrap().len()
+            - serde_json::to_vec(&registry).unwrap().len();
+        sized_registry_fixture(&mut registry, MAX_STORAGE_JSON_BYTES - delta + excess);
+        drop(store);
+        fs::write(
+            path.join("registry.json"),
+            serde_json::to_vec(&registry).unwrap(),
+        )
+        .unwrap();
+        let mut store = StagingStore::open(&path).unwrap();
+        let before = fs::read(path.join("registry.json")).unwrap();
+        let mut exact_candidate: serde_json::Value = serde_json::from_slice(&before).unwrap();
+        exact_candidate["installations"][&first.installation_id] =
+            candidate["installations"][&first.installation_id].clone();
+        assert_eq!(
+            serde_json::to_vec(&exact_candidate).unwrap().len(),
+            MAX_STORAGE_JSON_BYTES + excess
+        );
+        if excess == 0 {
+            let updated = store.commit(&pending.transaction_id).unwrap();
+            assert_eq!(updated.active.transaction_id, pending.transaction_id);
+            assert_eq!(
+                fs::metadata(path.join("registry.json")).unwrap().len(),
+                MAX_STORAGE_JSON_BYTES as u64
+            );
+            let mut too_large = manifest(b"third");
+            too_large.package_version.push('x');
+            assert_eq!(
+                store
+                    .prepare(too_large, Some(first.installation_id.clone()), 2, 0)
+                    .unwrap_err()
+                    .code,
+                ErrorCode::LimitExceeded
+            );
+        } else {
+            assert_eq!(
+                store
+                    .prepare(
+                        manifest(b"second"),
+                        Some(first.installation_id.clone()),
+                        1,
+                        0
+                    )
+                    .unwrap_err()
+                    .code,
+                ErrorCode::LimitExceeded
+            );
+            assert_eq!(
+                store.commit(&pending.transaction_id).unwrap_err().code,
+                ErrorCode::LimitExceeded
+            );
+            assert_eq!(fs::read(path.join("registry.json")).unwrap(), before);
+            assert_eq!(store.recoveries().unwrap()[0].phase, Phase::Verified);
+            assert!(path.join("staging").join(&pending.transaction_id).is_dir());
+            assert!(!path.join("versions").join(&pending.transaction_id).exists());
+            assert_eq!(
+                store
+                    .snapshot()
+                    .iter()
+                    .find(|entry| entry.installation_id == first.installation_id)
+                    .unwrap()
+                    .active
+                    .transaction_id,
+                first.active.transaction_id
+            );
+        }
+        assert_eq!(
+            fs::read(
+                path.join("versions")
+                    .join(&first.active.transaction_id)
+                    .join("content/data.bin")
+            )
+            .unwrap(),
+            b"first"
+        );
+        assert_eq!(
+            fs::read(saves.join("progress.save")).unwrap(),
+            b"user progress"
+        );
+        drop(store);
+        let reopened = StagingStore::open(&path).unwrap();
+        assert_eq!(reopened.snapshot().len(), 17);
+        assert_eq!(
+            reopened
+                .snapshot()
+                .iter()
+                .find(|entry| entry.installation_id == first.installation_id)
+                .unwrap()
+                .revision,
+            if excess == 0 { 2 } else { 1 }
+        );
+    }
+}
+
+#[test]
 fn atomic_update_rollback_preserves_separate_saves() {
     let (_temporary, path) = directory();
     let mut store = StagingStore::open(&path).unwrap();

@@ -13,6 +13,9 @@ use uuid::Uuid;
 use crate::state::{identifier_valid, validate_directory};
 use crate::wire::{ErrorCode, Protocol, WireError};
 
+pub const MAX_REGISTRY_INSTALLATIONS: usize = 256;
+pub const MAX_STORAGE_JSON_BYTES: usize = 4 * 1024 * 1024;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Manifest {
@@ -220,11 +223,40 @@ fn sync_directory(path: &Path) -> Result<(), WireError> {
 }
 
 fn atomic_json(path: &Path, value: &impl Serialize) -> Result<(), WireError> {
+    atomic_bytes(path, &serialized_json(value)?)
+}
+
+fn serialized_json(value: &impl Serialize) -> Result<Vec<u8>, WireError> {
+    let bytes = serde_json::to_vec(value).map_err(|_| recovery())?;
+    if bytes.len() > MAX_STORAGE_JSON_BYTES {
+        return Err(error(
+            ErrorCode::LimitExceeded,
+            "Local durable metadata would exceed its reloadable storage byte limit. Preserve active versions and saves.",
+        ));
+    }
+    Ok(bytes)
+}
+
+fn registry_bytes(registry: &Registry) -> Result<Vec<u8>, WireError> {
+    if registry.installations.len() > MAX_REGISTRY_INSTALLATIONS {
+        return Err(error(
+            ErrorCode::LimitExceeded,
+            "Local installation registry is at capacity. No active version or saves were replaced.",
+        ));
+    }
+    serialized_json(registry)
+}
+
+fn atomic_registry(path: &Path, registry: &Registry) -> Result<(), WireError> {
+    atomic_bytes(path, &registry_bytes(registry)?)
+}
+
+fn atomic_bytes(path: &Path, bytes: &[u8]) -> Result<(), WireError> {
     regular_or_missing(path)?;
     let directory = path.parent().ok_or_else(recovery)?;
     require_directory(directory)?;
     let mut file = tempfile::NamedTempFile::new_in(directory).map_err(|_| recovery())?;
-    serde_json::to_writer(&mut file, value).map_err(|_| recovery())?;
+    file.write_all(bytes).map_err(|_| recovery())?;
     file.as_file().sync_all().map_err(|_| recovery())?;
     file.persist(path).map_err(|_| recovery())?;
     sync_directory(directory)
@@ -233,10 +265,10 @@ fn atomic_json(path: &Path, value: &impl Serialize) -> Result<(), WireError> {
 fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, WireError> {
     require_regular(path)?;
     let file = File::open(path).map_err(|_| recovery())?;
-    if file.metadata().map_err(|_| recovery())?.len() > 4 * 1024 * 1024 {
+    if file.metadata().map_err(|_| recovery())?.len() > MAX_STORAGE_JSON_BYTES as u64 {
         return Err(recovery());
     }
-    serde_json::from_reader(file.take(4 * 1024 * 1024 + 1)).map_err(|_| recovery())
+    serde_json::from_reader(file.take(MAX_STORAGE_JSON_BYTES as u64 + 1)).map_err(|_| recovery())
 }
 
 impl StagingStore {
@@ -264,7 +296,9 @@ impl StagingStore {
         let registry = match fs::symlink_metadata(&registry_path) {
             Ok(_) => {
                 let registry: Registry = read_json(&registry_path)?;
-                if registry.version != Protocol::default() || registry.installations.len() > 256 {
+                if registry.version != Protocol::default()
+                    || registry.installations.len() > MAX_REGISTRY_INSTALLATIONS
+                {
                     return Err(recovery());
                 }
                 for (id, installation) in &registry.installations {
@@ -287,7 +321,7 @@ impl StagingStore {
             },
             Err(_) => return Err(recovery()),
         };
-        atomic_json(&registry_path, &registry)?;
+        atomic_registry(&registry_path, &registry)?;
         Ok(Self {
             root: root.to_owned(),
             _lock: lock,
@@ -351,6 +385,7 @@ impl StagingStore {
             phase: Phase::Prepared,
             manifest,
         };
+        self.prospective_registry(&transaction)?;
         atomic_json(
             &self.journal_path(&transaction.transaction_id),
             &transaction,
@@ -359,6 +394,34 @@ impl StagingStore {
         validate_directory(&directory)?;
         atomic_json(&directory.join(".owner.json"), &transaction.transaction_id)?;
         Ok(transaction)
+    }
+
+    fn prospective_registry(
+        &self,
+        transaction: &Transaction,
+    ) -> Result<(LocalInstallation, Registry), WireError> {
+        let current = self
+            .registry
+            .installations
+            .get(&transaction.installation_id);
+        let installation = LocalInstallation {
+            installation_id: transaction.installation_id.clone(),
+            revision: transaction
+                .expected_revision
+                .checked_add(1)
+                .ok_or_else(recovery)?,
+            active: Version {
+                transaction_id: transaction.transaction_id.clone(),
+                manifest: transaction.manifest.clone(),
+            },
+            rollback: current.map(|entry| entry.active.clone()),
+        };
+        let mut registry = self.registry.clone();
+        registry
+            .installations
+            .insert(installation.installation_id.clone(), installation.clone());
+        registry_bytes(&registry)?;
+        Ok((installation, registry))
     }
 
     fn journal_path(&self, id: &str) -> PathBuf {
@@ -511,6 +574,7 @@ impl StagingStore {
                 "Active version changed before commit.",
             ));
         }
+        let (installation, registry) = self.prospective_registry(&transaction)?;
         let directory = self.owned_directory("staging", id)?;
         verify_tree(&directory, &transaction.manifest)?;
         let destination = self.root.join("versions").join(id);
@@ -522,23 +586,7 @@ impl StagingStore {
         fs::rename(&directory, &destination).map_err(|_| recovery())?;
         sync_directory(&self.root.join("versions"))?;
         sync_directory(&self.root.join("staging"))?;
-        let installation = LocalInstallation {
-            installation_id: transaction.installation_id.clone(),
-            revision: transaction
-                .expected_revision
-                .checked_add(1)
-                .ok_or_else(recovery)?,
-            active: Version {
-                transaction_id: id.to_owned(),
-                manifest: transaction.manifest,
-            },
-            rollback: current.map(|entry| entry.active.clone()),
-        };
-        let mut registry = self.registry.clone();
-        registry
-            .installations
-            .insert(installation.installation_id.clone(), installation.clone());
-        atomic_json(&self.root.join("registry.json"), &registry)?;
+        atomic_registry(&self.root.join("registry.json"), &registry)?;
         self.registry = registry;
         fs::remove_file(self.journal_path(id)).map_err(|_| recovery())?;
         sync_directory(&self.root.join("journals"))?;
@@ -612,7 +660,7 @@ impl StagingStore {
         registry
             .installations
             .insert(id.to_owned(), installation.clone());
-        atomic_json(&self.root.join("registry.json"), &registry)?;
+        atomic_registry(&self.root.join("registry.json"), &registry)?;
         self.registry = registry;
         Ok(installation)
     }

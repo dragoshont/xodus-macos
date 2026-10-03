@@ -1793,6 +1793,70 @@
       },
       "additionalProperties": false
     },
+    "failedDiscoveryData": {
+      "type": "object",
+      "required": [
+        "corpus",
+        "completeness",
+        "source",
+        "checkedAt",
+        "freshness",
+        "corpusRevision",
+        "products",
+        "failures",
+        "nextCursor"
+      ],
+      "properties": {
+        "corpus": {
+          "const": "pcGamePassDiscovery"
+        },
+        "completeness": {
+          "const": "partial"
+        },
+        "source": {
+          "const": "MicrosoftGamePassSigls:v3"
+        },
+        "checkedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "freshness": {
+          "const": "live"
+        },
+        "corpusRevision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "products": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/productRecord"
+          },
+          "maxItems": 0
+        },
+        "failures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/discoveryFailure"
+          },
+          "maxItems": 16,
+          "minItems": 1
+        },
+        "nextCursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "job": {
       "type": "object",
       "required": [

@@ -160,3 +160,16 @@ Canonical discovery schema LF SHA256:
 Preserved unsigned developer discovery executable SHA256:
 `14dd06466a201ddb77fe7c2d6f9a57bbbb79788f03413989e5158d9053c864ad`.
 This pin is an integration milestone, not completion of all user requirements.
+
+The app consumer requested and agreed the additive `failedDiscoveryData`
+definition for command-correlated all-failure error details. It preserves
+nonempty success pages, requires zero products and 1..16 typed failures, and
+retains all strict provenance/cursor fields. The existing sanitized
+`fixture-discovery-all-failed` frame is unchanged. Native contract validation
+passes 71 positive, 11 negative, 4 evidence-edge and six dedicated failed-page
+negative checks (products, empty/excess failures, wrong/missing provenance and
+secret-field injection).
+Refined canonical LF schema SHA256:
+`2ede71d5171cf4dc1659fedfc99187a90d904d9264119a22ee9f94064baef3d2`.
+This schema-only refinement does not claim additional live account/install
+capabilities, and the earlier developer engine remains byte-pinned.

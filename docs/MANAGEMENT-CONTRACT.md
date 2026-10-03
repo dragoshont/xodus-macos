@@ -116,6 +116,13 @@ manual release validation gate; automated checks use memory-only fake proofs.
 
 ## Public PC discovery extension
 
+All-failure `PACKAGE_UNAVAILABLE` error details use `$defs.failedDiscoveryData`:
+the same strict source, scope, provenance and cursor fields as successful
+discovery, but no products and at least one bounded typed failure. Successful
+`discoveryData` still requires a nonempty product page. Error details are
+validated in the correlated discovery-command context, not accepted as arbitrary
+safe payloads merely because they arrived inside an error envelope.
+
 `catalog.discover` is an agreed additive 1.0 extension. Parameters are
 `{"market":"US","language":"en-US","limit":8,"cursor":null}`; limit is 1..16.
 Its result contains `corpus:"pcGamePassDiscovery"`, `completeness:"partial"`,

@@ -155,6 +155,9 @@ defs["discoveryData"] = obj({
     "products": {**array(ref("productRecord"), 16), "minItems": 1},
     "failures": array(ref("discoveryFailure"), 16), "nextCursor": nullable(text),
 })
+defs["failedDiscoveryData"] = copy.deepcopy(defs["discoveryData"])
+defs["failedDiscoveryData"]["properties"]["products"] = array(ref("productRecord"), 0)
+defs["failedDiscoveryData"]["properties"]["failures"]["minItems"] = 1
 defs["job"] = obj({
     "jobID": identifier, "revision": uint, "kind": {"const": "catalogRefresh"},
     "state": enum("queued", "running", "completed", "failed", "cancelled"),

@@ -1,4 +1,5 @@
 """Schema shape checks for deterministic sanitized fixtures (not live API tests)."""
+import copy
 import json
 from pathlib import Path
 
@@ -14,6 +15,26 @@ positive = json.loads((fixtures / "positive.json").read_text())
 negative = json.loads((fixtures / "negative.json").read_text())
 for frame in positive:
     validator.validate(frame)
+failed_schema = {**schema, "oneOf": [{"$ref": "#/$defs/failedDiscoveryData"}]}
+failed_validator = jsonschema.Draft202012Validator(
+    failed_schema, format_checker=jsonschema.FormatChecker())
+failed_frame = next(frame for frame in positive
+                    if frame.get("requestID") == "fixture-discovery-all-failed")
+failed_data = failed_frame["error"]["details"]
+failed_validator.validate(failed_data)
+failed_cases = [
+    {**failed_data, "products": [next(frame["data"]["product"] for frame in positive
+                                  if "product" in frame.get("data", {}))]},
+    {**failed_data, "failures": []},
+    {**failed_data, "failures": failed_data["failures"] * 17},
+    {**failed_data, "source": "unknown"},
+    {**failed_data, "token": "fixture-not-a-token"},
+]
+missing_provenance = copy.deepcopy(failed_data)
+del missing_provenance["checkedAt"]
+failed_cases.append(missing_provenance)
+for case in failed_cases:
+    assert list(failed_validator.iter_errors(case)), "unsafe failed discovery details"
 for case in negative:
     assert list(validator.iter_errors(case["frame"])), case["name"]
 for name in ("identifier", "protocol", "fingerprint", "entitlement", "installability",
@@ -26,4 +47,5 @@ for item in evidence:
         evidence_schema, format_checker=jsonschema.FormatChecker()).validate(item)
 assert positive == [json.loads(line) for line in (fixtures / "positive.jsonl").read_text().splitlines()]
 print(f"Contract fixtures: {len(positive)} positive, {len(negative)} negative, "
+      f"{len(failed_cases)} failed-page negative checks, "
       f"{len(evidence)} evidence-edge; preserved 9 foundation definitions.")

@@ -153,6 +153,21 @@ pub trait CatalogProvider: Send + Sync {
     fn discovery_supported(&self) -> bool {
         false
     }
+    fn query_supported(&self) -> bool {
+        false
+    }
+    fn query(
+        &self,
+        _: QueryParams,
+    ) -> Pin<Box<dyn Future<Output = Result<QueryData, WireError>> + Send + '_>> {
+        Box::pin(async {
+            Err(WireError::new(
+                ErrorCode::CapabilityMissing,
+                "This provider has no proved anonymous Microsoft Store search source.",
+                false,
+            ))
+        })
+    }
     fn discover(
         &self,
         _: DiscoveryParams,
@@ -254,6 +269,20 @@ impl CatalogProvider for PublicCatalog {
     }
     fn discovery_supported(&self) -> bool {
         true
+    }
+    fn query_supported(&self) -> bool {
+        true
+    }
+    fn query(
+        &self,
+        params: QueryParams,
+    ) -> Pin<Box<dyn Future<Output = Result<QueryData, WireError>> + Send + '_>> {
+        Box::pin(crate::query::fetch_page(
+            &self.client,
+            &self.permits,
+            Arc::new(self.clone()),
+            params,
+        ))
     }
     fn discover(
         &self,
@@ -410,6 +439,10 @@ enum Completion {
         request_id: String,
         result: Result<DiscoveryData, WireError>,
     },
+    Query {
+        request_id: String,
+        result: Result<QueryData, WireError>,
+    },
     Product {
         request_id: String,
         result: Result<ProductRecord, WireError>,
@@ -482,6 +515,7 @@ impl Backend {
                 "jobs.enqueue" | "jobs.cancel" | "jobs.retry" | "jobs.snapshot" |
                 "events.replay" | "installed.snapshot" | "diagnostics.export") ||
                 (*command == "catalog.discover" && self.provider.discovery_supported()) ||
+                (*command == "catalog.query" && self.provider.query_supported()) ||
                 (self.native_auth && matches!(*command, "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout"));
             let audience = match *command {
                 "auth.begin" | "auth.status" | "auth.logout" => Some("Isolated launcher profile; Passport.NET/STS store credential, not entitlement authorization"),
@@ -495,7 +529,7 @@ impl Backend {
                     "inventory.snapshot" =>
                         "Consumer account audience, complete pagination and PC ownership coverage are not proven.",
                     "catalog.discover" => "No proved public PC discovery feed is available in this provider.",
-                    "catalog.query" => "The agreed anonymous Microsoft Store query provider is not connected yet.",
+                    "catalog.query" => "No proved anonymous Microsoft Store search source is available in this provider.",
                     "game.launch" => "A signed, distributable, exact version-paired runtime is not certified.",
                     "jobs.pause" | "jobs.resume" => "Catalog refresh does not support durable pause.",
                     "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout" =>
@@ -508,6 +542,8 @@ impl Backend {
                 Some("Only management registry scope, not legacy installs or external folders.".to_owned())
             } else if *command == "catalog.discover" {
                 Some("Partial public PC GamePass discovery, not ownership/subscription or whole-store text search.".to_owned())
+            } else if *command == "catalog.query" {
+                Some("Partial anonymous Microsoft Store game search with resolved PC metadata, not ownership or authorized download.".to_owned())
             } else { None };
             Capability { command: (*command).to_owned(), supported,
                 audience: audience.map(str::to_owned), reason }
@@ -729,12 +765,19 @@ impl Backend {
                 Data::Auth(status)
             }
             Operation::CatalogSearch(params) => Data::Search(search(&self.store, params)?),
-            Operation::CatalogQuery(_) => {
-                return Err(WireError::new(
-                    ErrorCode::CapabilityMissing,
-                    "The agreed public Microsoft Store query contract is not connected to this provider yet.",
-                    false,
-                ));
+            Operation::CatalogQuery(params) => {
+                self.reserve_worker()?;
+                let provider = self.provider.clone();
+                let params = params.clone();
+                let request_id = request.request_id.clone();
+                self.pending_requests.insert(request_id.clone());
+                self.tasks.spawn(async move {
+                    Completion::Query {
+                        request_id,
+                        result: provider.query(params).await,
+                    }
+                });
+                return Ok(None);
             }
             Operation::CatalogDiscover(params) => {
                 if params
@@ -1707,6 +1750,18 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
                         if fatal { return Err(WireError::new(ErrorCode::RegistryRecoveryRequired,
                             "Discovery cache persistence failed. Reconcile before retrying.", false)); }
                     },
+                    Some(Ok(Completion::Query { request_id, result })) => {
+                        backend.pending_requests.remove(&request_id);
+                        let result = result.and_then(|page| {
+                            backend.store.cache_discovery_products(&page.products)?;
+                            Ok(Data::Query(page))
+                        });
+                        let fatal = result.as_ref().err().is_some_and(|error|
+                            error.code == ErrorCode::RegistryRecoveryRequired);
+                        write_result(writer, request_id, result).await?;
+                        if fatal { return Err(WireError::new(ErrorCode::RegistryRecoveryRequired,
+                            "Query cache persistence failed. Reconcile before retrying.", false)); }
+                    },
                     Some(Ok(Completion::Product {request_id, result})) => {
                         backend.pending_requests.remove(&request_id);
                         let result = result.and_then(|product| {
@@ -2241,7 +2296,7 @@ mod auth_lifecycle_tests {
     }
 
     #[tokio::test]
-    async fn account_status_remains_dispatchable_while_discovery_waits_and_eof_cancels_it() {
+    async fn account_status_remains_dispatchable_while_public_pages_wait_and_eof_cancels_them() {
         use tokio::io::AsyncBufReadExt;
         struct PendingDiscovery;
         impl CatalogProvider for PendingDiscovery {
@@ -2254,6 +2309,16 @@ mod auth_lifecycle_tests {
             }
             fn discovery_supported(&self) -> bool {
                 true
+            }
+            fn query_supported(&self) -> bool {
+                true
+            }
+            fn query(
+                &self,
+                _: QueryParams,
+            ) -> Pin<Box<dyn Future<Output = Result<QueryData, WireError>> + Send + '_>>
+            {
+                Box::pin(std::future::pending())
             }
             fn discover(
                 &self,
@@ -2281,6 +2346,12 @@ mod auth_lifecycle_tests {
                 "catalog.discover",
                 serde_json::json!({"market":"US","language":"en-US","limit":8,"cursor":null}),
             ),
+            (
+                "query",
+                "catalog.query",
+                serde_json::json!({
+                "query":"Halo","market":"US","language":"en-US","limit":8,"cursor":null}),
+            ),
             ("status", "auth.status", serde_json::json!({})),
         ] {
             let request = serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},
@@ -2304,11 +2375,18 @@ mod auth_lifecycle_tests {
             }
         }
         client_write.shutdown().await.unwrap();
-        let mut line = String::new();
-        reader.read_line(&mut line).await.unwrap();
-        let result: serde_json::Value = serde_json::from_str(&line).unwrap();
-        assert_eq!(result["requestID"], "discover");
-        assert_eq!(result["error"]["code"], "CANCELLED");
+        let mut cancelled = BTreeSet::new();
+        for _ in 0..2 {
+            let mut line = String::new();
+            reader.read_line(&mut line).await.unwrap();
+            let result: serde_json::Value = serde_json::from_str(&line).unwrap();
+            cancelled.insert(result["requestID"].as_str().unwrap().to_owned());
+            assert_eq!(result["error"]["code"], "CANCELLED");
+        }
+        assert_eq!(
+            cancelled,
+            BTreeSet::from(["discover".to_owned(), "query".to_owned()])
+        );
         assert_eq!(task.await.unwrap().unwrap_err().code, ErrorCode::Cancelled);
     }
 

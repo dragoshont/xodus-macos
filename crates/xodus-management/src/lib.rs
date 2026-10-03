@@ -7,3 +7,5 @@ pub mod wire;
 pub mod adapter;
 #[cfg(feature = "live")]
 pub mod discovery;
+#[cfg(feature = "live")]
+pub mod query;

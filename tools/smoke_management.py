@@ -16,6 +16,7 @@ parser.add_argument("--binary", type=Path, required=True)
 parser.add_argument("--root", type=Path, required=True)
 parser.add_argument("--product", default="9NBLGGH2JHXJ")
 parser.add_argument("--discover", action="store_true")
+parser.add_argument("--query", action="store_true")
 args = parser.parse_args()
 schema = json.loads((Path(__file__).resolve().parents[1] /
                      "docs/contracts/management-v1.schema.json").read_text())
@@ -162,6 +163,54 @@ with tempfile.TemporaryDirectory(prefix="management-public-smoke-", dir=args.roo
             first_ids = {item["productID"] for item in page["products"] + page["failures"]}
             next_ids = {item["productID"] for item in following["data"]["products"] + following["data"]["failures"]}
             assert not first_ids & next_ids
+        query_counts = []
+        if args.query:
+            assert capabilities["catalog.query"]["supported"]
+            query_params = {"query":"Halo","market":"US","language":"en-US","limit":8,"cursor":None}
+            query_ids = set()
+            resolved_count = 0
+            first_cursor = None
+            failed_validator = jsonschema.Draft202012Validator(
+                {**schema, "oneOf":[{"$ref":"#/$defs/failedQueryData"}]},
+                format_checker=jsonschema.FormatChecker())
+            for index, expected_attempts in enumerate((8, 8, 4, 8)):
+                started = time.monotonic()
+                identifier = f"query-{index}"
+                client.send(identifier, "catalog.query", query_params)
+                queried = client.result(identifier)
+                assert time.monotonic() - started < 35
+                if queried["ok"]:
+                    page = queried["data"]
+                else:
+                    assert queried["error"]["code"] == "PACKAGE_UNAVAILABLE" and "details" in queried["error"], queried
+                    page = queried["error"]["details"]
+                    failed_validator.validate(page)
+                assert page["corpus"] == "publicMicrosoftStoreSearch"
+                assert page["query"] == "Halo" and page["completeness"] == "partial"
+                assert page["source"] == "MicrosoftStoreEdge:v9.0/searchResults"
+                assert page["freshness"] == "live"
+                attempts = page["products"] + page["failures"]
+                assert len(attempts) == expected_attempts, "Source positions were skipped"
+                identifiers = {item["productID"] for item in attempts}
+                assert len(identifiers) == expected_attempts and not query_ids & identifiers
+                query_ids.update(identifiers)
+                resolved_count += len(page["products"])
+                query_counts.append({"products":len(page["products"]),"failures":len(page["failures"])})
+                for product in page["products"]:
+                    assert product["pcCatalogCandidate"] and product["freshness"] == "live"
+                    for evidence in product["editions"]:
+                        assert evidence["entitlement"]["kind"] == "unknown"
+                        assert evidence["compatibility"]["kind"] == "unknown"
+                assert page["nextCursor"]
+                query_params["cursor"] = page["nextCursor"]
+                if index == 0:
+                    first_cursor = page["nextCursor"]
+            assert resolved_count > 0 and len(query_ids) == 28
+            client.send("query-foreign", "catalog.query",
+                        {**query_params,"query":"Forza","cursor":first_cursor})
+            assert client.result("query-foreign")["error"]["code"] == "REVISION_CONFLICT"
+            client.send("query-malformed", "catalog.query", {**query_params,"cursor":"q1-00"})
+            assert client.result("query-malformed")["error"]["code"] == "INVALID_REQUEST"
         client.send("inventory", "inventory.snapshot", {
             "accountScope": "default", "market": "US", "refresh": "network"})
         assert client.result("inventory")["error"]["code"] == "ACCESS_UNKNOWN"
@@ -192,4 +241,6 @@ print(json.dumps({"nativeProcess": "passed", "publicCatalogDetail": "passed",
                   "publicRefreshJobReplayReconnect": "passed", "ownedInventory": "notQueried",
                   "accountConsent": "notExecuted", "gameLaunch": "gatedNotExecuted",
                   "pcDiscovery": "passed" if args.discover else "notExecuted",
+                  "publicStoreQuery": "passed" if args.query else "notExecuted",
+                  "queryPageOutcomes": query_counts,
                   "schemaFrames": "validated", "binarySHA256": hashlib.sha256(args.binary.read_bytes()).hexdigest()}))

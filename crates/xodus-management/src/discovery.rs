@@ -19,7 +19,7 @@ pub const LOOKUP_TIMEOUT: Duration = Duration::from_secs(8);
 pub const PAGE_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_FEED_BYTES: usize = 512 * 1024;
 const MAX_FEED_PRODUCTS: usize = 2048;
-const MAX_PAGE_BYTES: usize = 896 * 1024;
+pub(crate) const MAX_PAGE_BYTES: usize = 896 * 1024;
 
 fn network() -> WireError {
     WireError::new(
@@ -185,68 +185,15 @@ async fn resolve_page(
 ) -> Result<DiscoveryData, WireError> {
     let (revision, start, end) = page_scope(&ids, &params)?;
     let checked_at = now();
-    let mut workers = JoinSet::new();
-    let mut outcomes = BTreeMap::new();
-    let mut next = start;
-    while outcomes.len() < end - start {
-        while workers.len() < 4 && next < end {
-            let index = next;
-            next += 1;
-            let provider = provider.clone();
-            let product = ProductParams {
-                product_id: ids[index].clone(),
-                market: params.market.clone(),
-                language: params.language.clone(),
-                refresh: Refresh::Network,
-            };
-            workers.spawn(async move {
-                let result = tokio::time::timeout(LOOKUP_TIMEOUT, provider.fetch(product))
-                    .await
-                    .unwrap_or_else(|_| Err(network()));
-                (index, result)
-            });
-        }
-        tokio::select! {
-            outcome = workers.join_next() => match outcome {
-                Some(Ok((index, result))) => { outcomes.insert(index, result); },
-                Some(Err(_)) => return Err(WireError::new(ErrorCode::InternalError,
-                    "Public discovery metadata worker failed unexpectedly.", false)),
-                None => return Err(metadata()),
-            },
-            _ = tokio::time::sleep_until(deadline) => {
-                workers.abort_all();
-                while workers.join_next().await.is_some() {}
-                for index in start..end {
-                    outcomes.entry(index).or_insert_with(|| Err(network()));
-                }
-            },
-        }
-    }
-    let mut products = Vec::new();
-    let mut failures = Vec::new();
-    let mut size = 0;
-    for (index, result) in outcomes {
-        let result = result.and_then(|product| {
-            if product.product_id != ids[index] || product.market != params.market
-                || product.language != params.language || product.freshness != Freshness::Live {
-                return Err(metadata());
-            }
-            let length = serde_json::to_vec(&product).map_err(|_| metadata())?.len();
-            if length > MAX_PAGE_BYTES - size {
-                return Err(WireError::new(ErrorCode::LimitExceeded,
-                    "Product exceeds this page response budget. Request a smaller page or product.detail.", false));
-            }
-            size += length;
-            Ok(product)
-        });
-        match result {
-            Ok(product) => products.push(product),
-            Err(error) => failures.push(DiscoveryFailure {
-                product_id: ids[index].clone(),
-                error,
-            }),
-        }
-    }
+    let (products, failures) = resolve_product_ids(
+        provider,
+        &ids[start..end],
+        &params.market,
+        &params.language,
+        deadline,
+        false,
+    )
+    .await?;
     let page = DiscoveryData {
         corpus: CORPUS.to_owned(),
         completeness: "partial".to_owned(),
@@ -271,6 +218,104 @@ async fn resolve_page(
         return Err(error);
     }
     Ok(page)
+}
+
+pub(crate) async fn resolve_product_ids(
+    provider: Arc<dyn CatalogProvider>,
+    ids: &[String],
+    market: &str,
+    language: &str,
+    deadline: tokio::time::Instant,
+    require_pc: bool,
+) -> Result<(Vec<ProductRecord>, Vec<DiscoveryFailure>), WireError> {
+    let invalid_metadata = || {
+        WireError::new(
+            ErrorCode::PackageUnavailable,
+            "Public product lookup returned missing, mismatched or invalid metadata.",
+            false,
+        )
+    };
+    let unavailable = || {
+        WireError::new(
+            ErrorCode::NetworkUnavailable,
+            "Public product metadata timed out or is temporarily unavailable. Retry later.",
+            true,
+        )
+    };
+    if ids.len() > 16 {
+        return Err(WireError::new(
+            ErrorCode::LimitExceeded,
+            "Public metadata page exceeds the bounded lookup count.",
+            false,
+        ));
+    }
+    let mut workers = JoinSet::new();
+    let mut outcomes = BTreeMap::new();
+    let mut next = 0;
+    while outcomes.len() < ids.len() {
+        while workers.len() < 4 && next < ids.len() {
+            let index = next;
+            next += 1;
+            let provider = provider.clone();
+            let product = ProductParams {
+                product_id: ids[index].clone(),
+                market: market.to_owned(),
+                language: language.to_owned(),
+                refresh: Refresh::Network,
+            };
+            workers.spawn(async move {
+                let result = tokio::time::timeout(LOOKUP_TIMEOUT, provider.fetch(product))
+                    .await
+                    .unwrap_or_else(|_| Err(unavailable()));
+                (index, result)
+            });
+        }
+        tokio::select! {
+            outcome = workers.join_next() => match outcome {
+                Some(Ok((index, result))) => { outcomes.insert(index, result); },
+                Some(Err(_)) => return Err(WireError::new(ErrorCode::InternalError,
+                    "Public product metadata worker failed unexpectedly.", false)),
+                None => return Err(invalid_metadata()),
+            },
+            _ = tokio::time::sleep_until(deadline) => {
+                workers.abort_all();
+                while workers.join_next().await.is_some() {}
+                for index in 0..ids.len() {
+                    outcomes.entry(index).or_insert_with(|| Err(unavailable()));
+                }
+            },
+        }
+    }
+    let mut products = Vec::new();
+    let mut failures = Vec::new();
+    let mut size = 0;
+    for (index, result) in outcomes {
+        let result = result.and_then(|product| {
+            if product.product_id != ids[index] || product.market != market
+                || product.language != language || product.freshness != Freshness::Live {
+                return Err(invalid_metadata());
+            }
+            if require_pc && !product.pc_catalog_candidate {
+                return Err(WireError::new(ErrorCode::PackageUnavailable,
+                    "Returned public metadata has no Windows.Desktop package evidence. Store visibility is not a verified PC package.", false));
+            }
+            let length = serde_json::to_vec(&product).map_err(|_| invalid_metadata())?.len();
+            if length > MAX_PAGE_BYTES - size {
+                return Err(WireError::new(ErrorCode::LimitExceeded,
+                    "Product exceeds this page response budget. Request a smaller page or product.detail.", false));
+            }
+            size += length;
+            Ok(product)
+        });
+        match result {
+            Ok(product) => products.push(product),
+            Err(error) => failures.push(DiscoveryFailure {
+                product_id: ids[index].clone(),
+                error,
+            }),
+        }
+    }
+    Ok((products, failures))
 }
 
 #[cfg(test)]

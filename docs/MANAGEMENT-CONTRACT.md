@@ -45,7 +45,7 @@ runtime/version. Account scope is only `default`, without an account identifier.
 | product.detail | productData, anonymous public product-ID lookup or explicit cached lookup |
 | catalog.search | searchData, **observedPublicProducts** corpus only, partial catalog coverage |
 | catalog.discover | discoveryData, one bounded public PC GamePass page; not ownership or whole-store text search |
-| catalog.query | queryData, agreed real anonymous Microsoft Store game-query contract; capability gated until the provider is connected |
+| catalog.query | queryData, real bounded anonymous Microsoft Store game search, resolved live PC metadata and explicit per-ID failures |
 | jobs.enqueue | jobData for catalogRefresh; install variant gated |
 | jobs.cancel / jobs.retry | jobData; expectedRevision required |
 | jobs.pause / jobs.resume | gated: no pause guarantee |
@@ -186,8 +186,11 @@ all-failure details, deadline/cancellation and console-only schema rejection.
 The verified production source begins at anonymous HTTPS
 `storeedgefd.dsx.mp.microsoft.com/v9.0/pages/searchResults` with market, locale,
 deviceFamily `windows.desktop`, query and mediaType `games`. Its server-provided
-next URI can use the same host `/v9.0/search`, with games product family and opaque
-server cursor. No redirects, credentials, cookies, CardActions or arbitrary URLs
+next URI can use the same host `/v9.0/search`, with an opaque server cursor.
+`productFamilies=games` is optional: the actual server omits it on later
+continuations; any supplied value must still be `games`. Media type, exact query,
+market/language, device family and `facets=false` remain mandatory and validated.
+No redirects, credentials, cookies, CardActions or arbitrary URLs
 are executed. A bounded `q1-` opaque cursor binds exact query/market/language,
 validated source URI, unconsumed source-page offset and observed ID revision;
 an 8-item client page cannot discard the source page's remaining 12 cards.
@@ -196,8 +199,9 @@ Cursor is public metadata, not a credential. Invalid/changed scope is rejected.
 The implementation budget is one source page (1 MiB/10 seconds), at most four
 metadata workers (8 seconds each), 30 seconds whole page, 896 KiB output, and
 at most 16 attempted IDs. EOF cancels pending work; no per-query wire cancellation
-is promised. This standalone schema/type freeze keeps the capability false until
-the real provider is connected and validated; fixtures are not live proof.
+is promised. The real public provider is connected and advertised independently
+from cache-only search and PC GamePass discovery. Unsupported alternate providers
+retain a false capability with typed actionable failure. Fixtures are not live proof.
 
 `catalog.discover` is an agreed additive 1.0 extension. Parameters are
 `{"market":"US","language":"en-US","limit":8,"cursor":null}`; limit is 1..16.

@@ -10,7 +10,7 @@ review remain independently owned. No automatic merge or game launch.
 | AUTH-01 | Existing NativeTokenBroker/SOAP provider, required Passport.NET/STS ticket, isolated launcher Keychain profile, memory-only checked device preparation, bounded private bootstrap/result, parent-only atomic user/device proof commit and cancellation/deadline tests | Real user-mediated sign-in and Keychain approval, issued store proof and live package authorization not yet executed |
 | AUTH-02 | Same-profile user-only disconnect with device retention, no default CLI/service account access/import/logout, shared-clone XSTS invalidation, storage-error propagation and flowID correlation | Real multi-account/Keychain failure/manual refresh validation; no complete consumer library inferred |
 | LIB-01/02/03 | inventory.snapshot fails ACCESS_UNKNOWN with source/completeness; anonymous metadata never gains ownership | Consumer audience/authorization, paging, never-played PC purchase coverage, expiry and refresh evidence |
-| FIND-01 | Persistent observedPublicProducts cache search plus live, user-paged official PC GamePass discovery with explicit per-ID failures, source/freshness, locale resolution and revision-bound cursors | Full-text whole-store query and genuine owned library search remain active requirements; discovery is not a substitute |
+| FIND-01 | Real anonymous Microsoft Store game text query with resolved PC evidence, bounded cursors/per-ID failures; separate observed cache search and official PC GamePass discovery | Complete owned-library search/coverage and real account authorization remain active requirements; public search is not ownership |
 | ID-01 | Returned product and SKU IDs preserved, absent/mismatched IDs error, content IDs never become package IDs | Authorized edition/package/version/architecture/language resolution |
 | DETAIL-01 | Independent unknown access, unknown/blocked downloadability, unknown compatibility, management-only notInstalled facets | Authorized entitlement/download source and registry-backed live install state |
 | COMPAT-01 | No verified/experimental compatibility fabricated, runtimeFingerprint null | Exact signed/distributable runtime/OS evidence and opt-in experimental policy |
@@ -112,6 +112,43 @@ JSON Schema fixture checks are explicitly separate from live public API checks.
 Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
+
+### Real public Microsoft Store query
+
+`catalog.query` is now backed by the anonymous production Microsoft Store Edge
+v9 source, not cached title filtering or fixture DTOs. Initial array and
+subsequent object pages are parsed explicitly; source `Index=-1` and card
+`TypeTag=app` do not become invented game/platform identities. Server next URIs
+may omit `productFamilies` on later pages; that known field is optional and
+constrained to `games` when present. All other host/HTTPS/path/query/locale/
+device/media/facets/cursor constraints remain checked. No redirects or remote
+actions execute.
+
+The shared bounded DisplayCatalog resolver now serves discovery and query.
+Query requires real Windows.Desktop package-candidate evidence; console-only,
+failed, timed-out or response-budget-exceeding metadata stays visible per ID.
+All-failed attempted pages are typed errors, not empty successes; genuine
+source-zero behavior is covered separately by a fixture/unit test, not claimed
+as observed for arbitrary nonsense terms. The Store can return fuzzy suggestions.
+
+The actual native process check preserved source positions **8/8/4/8** across
+two source pages: **28 distinct attempted IDs, 7 resolved live PC records and
+21 explicit failures**. Every stdout frame validated against the unchanged
+frozen schema; foreign and malformed cursors were rejected. Real product lookup,
+catalog-refresh job/idempotency/replay/reconnect and two-page PC discovery also
+passed. No account consent, entitlement call, package download or game executed.
+The final combined native run comprises 82 scoped Rust checks plus the separate
+plaintext-fallback refusal check, clippy with warnings denied, and 77 positive /
+15 negative / 4 evidence-edge fixtures plus six failed-discovery and six
+failed-query detail rejection checks. Retained reviewer delta closure is required.
+
+Unsigned developer engine, preserved read/execute-only:
+`/Users/dragoshont/xodus-app-tooling/launcher-management-20a5b11d/artifacts/xodus-cli-query-v1-58f5b80f253d8ee1`.
+SHA256 `58f5b80f253d8ee199dc193d3a31cbd1571b641ce309f81bf0430910a6982e83`.
+It includes the R05 capacity correction and still advertises no certified runtime.
+Schema bundle `artifacts/contracts-query-9d024ae` contains read-only LF artifacts
+and SHA256SUMS; schema SHA256 is unchanged
+`655e1ed31772b35a8526ef5a0986557e7f6de689d5c4925ccde7041bc33b5f29`.
 
 ### Confirmed adversarial finding XODUS-R05
 

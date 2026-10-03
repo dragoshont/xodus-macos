@@ -251,7 +251,15 @@ fn parse_source(
             }
             let next = url.join(uri).map_err(|_| metadata())?;
             validate_url(&next, params)?;
-            if next.path() != NEXT_PATH || &next == url {
+            let server_cursor = |page: &reqwest::Url| {
+                page.query_pairs()
+                    .find(|(key, _)| key == "cursor")
+                    .map(|(_, value)| value.into_owned())
+            };
+            if next.path() != NEXT_PATH
+                || server_cursor(url)
+                    .is_some_and(|current| server_cursor(&next).as_ref() == Some(&current))
+            {
                 return Err(metadata());
             }
             Some(next)
@@ -583,6 +591,43 @@ mod tests {
     }
 
     #[test]
+    fn repeated_logical_server_cursor_refuses_optional_order_and_encoding_variants() {
+        let params = params();
+        let current = next_url(&params);
+        let omitted = current.to_string().replace("&productFamilies=games", "");
+        let encoded = current
+            .to_string()
+            .replace("fixture-server-cursor", "%66ixture-server-cursor");
+        let mut reordered = current.clone();
+        let pairs = current
+            .query_pairs()
+            .map(|(key, value)| (key.into_owned(), value.into_owned()))
+            .collect::<Vec<_>>();
+        reordered.set_query(None);
+        reordered
+            .query_pairs_mut()
+            .extend_pairs(pairs.into_iter().rev());
+        for repeated in [omitted.clone(), encoded, reordered.to_string()] {
+            let error = parse_source(&source_bytes(20, Some(&repeated), false), &current, &params)
+                .err()
+                .unwrap();
+            assert_eq!(error.code, ErrorCode::PackageUnavailable);
+        }
+        let distinct = omitted.replace("fixture-server-cursor", "new-fixture-cursor");
+        let page =
+            parse_source(&source_bytes(20, Some(&distinct), false), &current, &params).unwrap();
+        assert_eq!(
+            page.next
+                .unwrap()
+                .query_pairs()
+                .find(|(key, _)| key == "cursor")
+                .unwrap()
+                .1,
+            "new-fixture-cursor"
+        );
+    }
+
+    #[test]
     fn client_pages_preserve_all_twenty_positions_before_following_next_route() {
         let mut params = params();
         let source = source(20, &params);
@@ -776,6 +821,115 @@ mod tests {
         assert_eq!(details["query"], " Halo ");
         assert_eq!(details["products"].as_array().unwrap().len(), 0);
         assert_eq!(details["failures"].as_array().unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn zero_source_pages_complete_through_serve_without_cache_mutation_or_disconnect() {
+        use crate::adapter::{Backend, serve};
+        use crate::state::Store;
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+        struct EmptyQuery;
+        impl CatalogProvider for EmptyQuery {
+            fn fetch(
+                &self,
+                _: ProductParams,
+            ) -> Pin<Box<dyn Future<Output = Result<ProductRecord, WireError>> + Send + '_>>
+            {
+                Box::pin(async { Err(metadata()) })
+            }
+            fn query_supported(&self) -> bool {
+                true
+            }
+            fn query(
+                &self,
+                params: QueryParams,
+            ) -> Pin<Box<dyn Future<Output = Result<QueryData, WireError>> + Send + '_>>
+            {
+                Box::pin(async move {
+                    Ok(QueryData {
+                        corpus: CORPUS.to_owned(),
+                        completeness: "partial".to_owned(),
+                        source: SOURCE.to_owned(),
+                        checked_at: now(),
+                        freshness: Freshness::Live,
+                        query: params.query,
+                        products: vec![],
+                        failures: vec![],
+                        next_cursor: None,
+                    })
+                })
+            }
+        }
+        let temporary = tempfile::tempdir().unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(temporary.path(), std::fs::Permissions::from_mode(0o700))
+                .unwrap();
+        }
+        let root = temporary.path().canonicalize().unwrap();
+        let store = Store::open(&root).unwrap();
+        let revision = store.state.cache_revision;
+        let bytes = std::fs::read(root.join("management.json")).unwrap();
+        let backend = Backend::new(store, Arc::new(EmptyQuery));
+        let (client, server) = tokio::io::duplex(65536);
+        let (server_read, server_write) = tokio::io::split(server);
+        let task = tokio::spawn(serve(backend, BufReader::new(server_read), server_write));
+        let (client_read, mut writer) = tokio::io::split(client);
+        let mut reader = BufReader::new(client_read);
+        writer.write_all(b"{\"kind\":\"request\",\"protocol\":{\"major\":1,\"minor\":0},\"requestID\":\"hello\",\"command\":\"hello\",\"params\":{\"client\":\"fixture\",\"clientVersion\":\"1\"}}\n").await.unwrap();
+        let mut line = String::new();
+        reader.read_line(&mut line).await.unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&line).unwrap()["ok"],
+            true
+        );
+        let params = params();
+        let terminal = encode_cursor(&Cursor {
+            version: 1,
+            scope: scope(&params),
+            page: next_url(&params).to_string(),
+            offset: 0,
+            revision: None,
+        })
+        .unwrap();
+        for (index, cursor) in [None, Some(terminal)].into_iter().enumerate() {
+            let identifier = format!("zero-{index}");
+            let request = serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},
+                "requestID":identifier,"command":"catalog.query","params":QueryParams {cursor,..params.clone()}});
+            writer
+                .write_all(format!("{request}\n").as_bytes())
+                .await
+                .unwrap();
+            line.clear();
+            tokio::time::timeout(Duration::from_secs(2), reader.read_line(&mut line))
+                .await
+                .unwrap()
+                .unwrap();
+            let frame: serde_json::Value = serde_json::from_str(&line).unwrap();
+            assert_eq!(frame["requestID"], identifier);
+            assert_eq!(frame["ok"], true);
+            assert_eq!(frame["data"]["products"], serde_json::json!([]));
+            assert_eq!(frame["data"]["failures"], serde_json::json!([]));
+            assert!(frame["data"]["nextCursor"].is_null());
+            assert_eq!(std::fs::read(root.join("management.json")).unwrap(), bytes);
+            let request = serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},
+                "requestID":format!("after-{index}"),"command":"catalog.search","params":{
+                "query":"","market":"US","language":"en-US","platform":"pc","limit":8,"cursor":null}});
+            writer
+                .write_all(format!("{request}\n").as_bytes())
+                .await
+                .unwrap();
+            line.clear();
+            reader.read_line(&mut line).await.unwrap();
+            let frame: serde_json::Value = serde_json::from_str(&line).unwrap();
+            assert_eq!(frame["ok"], true);
+            assert_eq!(frame["requestID"], format!("after-{index}"));
+            assert_eq!(frame["data"]["cacheRevision"], revision);
+            assert_eq!(std::fs::read(root.join("management.json")).unwrap(), bytes);
+        }
+        writer.shutdown().await.unwrap();
+        task.await.unwrap().unwrap();
     }
 
     #[tokio::test]

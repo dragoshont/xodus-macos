@@ -113,6 +113,42 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
+### Query corrections XODUS-R06 / XODUS-R07 and inspection contract freeze
+
+R06 now bypasses cache persistence for genuine successful source-zero query pages.
+An actual `serve`/completion regression returns empty success for both initial
+and terminal-continuation cases, checks byte-identical management.json and unchanged
+cache revision, then succeeds on another request through the **same connection**.
+R07 compares decoded server cursors after strict scope validation; optional-family,
+parameter-order and equivalent-percent-encoding changes cannot disguise repeats.
+Independent variants are rejected before emitting another client cursor; a new
+cursor with legitimate omitted family is accepted. Retained reviewer closure
+remains necessary; no random/fuzzy live query is called source-zero evidence.
+
+The native consumer agreed strict `installed.inspect`/inspectionData. The bounded
+primitive is implemented with descriptor-relative no-follow regular reads,
+identity rechecks and exactly 196 metadata bytes, excluding signatures/key material.
+Header GUIDs/observed version do not establish retail identities, verified files,
+ownership or runtime compatibility; capability remains false during the standalone
+freeze. Four isolated primitive checks pass; no external/user/private-runtime
+folder or credentials were inspected. libc 0.2.189 is already locked/cached;
+the manifest adds only its direct management dependency edge.
+Native management checks total 69; fixtures are now 79 positive / 20 negative /
+4 evidence-edge, plus six failed-discovery and six failed-query detail rejects.
+Canonical committed-LF schema SHA256:
+`c95c3fabdf114f89329d2361e76421e7b47be4c113f56c2381e64d437e44f749`.
+
+Combined verification passed **88 scoped native Rust checks**, separate
+plaintext-fallback refusal, management clippy with warnings denied and the real
+public detail/job/replay/reconnect/discovery/four-page-query smoke. Corrected
+unsigned developer engine:
+`artifacts/xodus-cli-query-review-v1-35f0d3d4271b4cee`, SHA256
+`35f0d3d4271b4ceecb29ab2f767cd0d702a1ac48cd936383a962119165a382fe`.
+Read-only public contract bundle: `artifacts/contracts-inspection-c95c3fab`.
+All artifacts remain under the isolated launcher-management tooling root.
+This pin supersedes 58f5 for the confirmed query defects; no live inspection
+adapter, account consent, authorization or game/runtime action is claimed.
+
 ### Real public Microsoft Store query
 
 `catalog.query` is now backed by the anonymous production Microsoft Store Edge

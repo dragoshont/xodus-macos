@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import json
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +50,8 @@ product_params = obj({
 })
 mutation = obj({"jobID": identifier, "expectedRevision": uint})
 installation_mutation = obj({"installationID": identifier, "expectedRevision": uint})
+directory = {"type": "string", "minLength": 2, "maxLength": 1024,
+             "pattern": "^/[^\\u0000-\\u001f\\u007f-\\u009f]+$"}
 commands = {
     "hello": obj({"client": text, "clientVersion": text,
                   "requiredCapabilities": array(identifier, 32)}, ("requiredCapabilities",)),
@@ -100,6 +103,7 @@ commands = {
     "events.replay": obj({"sessionID": identifier, "afterSequence": uint,
                            "limit": {"type": "integer", "minimum": 1, "maximum": 1000}}),
     "installed.snapshot": empty,
+    "installed.inspect": obj({"directory": directory}),
     "game.launch": installation_mutation,
     "game.rollback": installation_mutation,
     "game.update": obj({**installation_mutation["properties"], "planID": identifier,
@@ -182,6 +186,30 @@ defs["queryData"]["allOf"] = [{
     "if": {"properties": {"products": {"maxItems": 0}}},
     "then": {"properties": {"failures": {"maxItems": 0}}},
 }]
+guid = {"type": "string", "format": "uuid"}
+defs["inspectionMarker"] = obj({
+    "relativePath": {"const": ".xodus-streaming.msixvc"},
+    "bytes": {"type":"integer","minimum":4096,"maximum":9007199254740991},
+    "observedMetadataSHA256": {"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "format": {"const":"msft-xvd"}, "formatVersion": {"type":"integer","minimum":0,"maximum":4294967295},
+    "xvdType": enum(0, 1),
+    "contentTypeRaw": {"enum":list(range(0x1f)) + list(range(0x20,0x26))},
+    "volumeFlagsRaw": {"type":"integer","minimum":0,"maximum":4294967295},
+    "contentID": {**guid,"not":{"const":str(uuid.UUID(int=0))}},
+    "headerProductGUID": guid, "headerPDUID": guid,
+    "observedPackageVersion": {"type":"string","pattern":"^[0-9]{1,5}(\\.[0-9]{1,5}){3}$"},
+})
+defs["inspectionAssessment"] = obj({
+    "kind":{"const":"externalMarkerDetected"}, "registered":{"const":False},
+    "retailIdentity":{"const":"unknown"}, "fileVerification":{"const":"notPerformed"},
+    "entitlement":{"const":"unknown"}, "compatibility":{"const":"unknown"},
+    "launchable":{"const":False}, "reason":text,
+})
+defs["inspectionData"] = obj({
+    "scope":{"const":"userSelectedDirectory"}, "completeness":{"const":"partial"},
+    "freshness":{"const":"live"}, "checkedAt":date, "directory":directory,
+    "marker":ref("inspectionMarker"), "assessment":ref("inspectionAssessment"),
+})
 defs["job"] = obj({
     "jobID": identifier, "revision": uint, "kind": {"const": "catalogRefresh"},
     "state": enum("queued", "running", "completed", "failed", "cancelled"),
@@ -218,7 +246,7 @@ defs["diagnosticsData"] = obj({
 })
 defs["success"]["properties"]["data"] = {"oneOf": [
     ref(name) for name in ("helloData", "authData", "productData", "searchData", "discoveryData", "queryData",
-                          "jobData", "jobsData", "replayData", "installedData", "diagnosticsData")
+                          "jobData", "jobsData", "replayData", "installedData", "inspectionData", "diagnosticsData")
 ]}
 
 
@@ -248,6 +276,7 @@ examples = {
                      "product": {"productID": "FIXTURE00001", "market": "US",
                                  "language": "en-US", "refresh": "network"}},
     "events.replay": {"sessionID": "fixture-session", "afterSequence": 0, "limit": 1000},
+    "installed.inspect": {"directory":"/fixture/selected"},
     "game.update": {"installationID": "fixture-install", "expectedRevision": 1,
                     "planID": "fixture-plan", "planDigest": "fixture-digest"},
     "game.remove": {"installationID": "fixture-install", "expectedRevision": 1,
@@ -295,6 +324,25 @@ query_page = {"corpus": "publicMicrosoftStoreSearch", "completeness": "partial",
     "source": "MicrosoftStoreEdge:v9.0/searchResults", "checkedAt": timestamp, "freshness": "live",
     "query": "Fixture Harbor", "products": discovery["products"], "failures": discovery["failures"],
     "nextCursor": query_cursor}
+metadata_base, metadata_identity = bytearray(156), bytearray(40)
+metadata_base[:8] = b"msft-xvd"
+metadata_base[12:16] = (2).to_bytes(4,"little")
+metadata_base[32:48] = uuid.UUID(int=1).bytes_le
+metadata_base[132:136] = (1).to_bytes(4,"little")
+metadata_identity[:16] = uuid.UUID(int=2).bytes_le
+metadata_identity[16:32] = uuid.UUID(int=3).bytes_le
+for offset, value in ((32,4),(34,3),(36,2),(38,1)):
+    metadata_identity[offset:offset+2] = value.to_bytes(2,"little")
+inspection = {"scope":"userSelectedDirectory","completeness":"partial","freshness":"live",
+    "checkedAt":timestamp,"directory":"/fixture/selected",
+    "marker":{"relativePath":".xodus-streaming.msixvc","bytes":4096,
+        "observedMetadataSHA256":hashlib.sha256(metadata_base+metadata_identity).hexdigest(),
+        "format":"msft-xvd","formatVersion":2,"xvdType":0,"contentTypeRaw":1,"volumeFlagsRaw":0,
+        "contentID":str(uuid.UUID(int=1)),"headerProductGUID":str(uuid.UUID(int=2)),
+        "headerPDUID":str(uuid.UUID(int=3)),"observedPackageVersion":"1.2.3.4"},
+    "assessment":{"kind":"externalMarkerDetected","registered":False,"retailIdentity":"unknown",
+        "fileVerification":"notPerformed","entitlement":"unknown","compatibility":"unknown",
+        "launchable":False,"reason":"Marker metadata is not verified files, retail identity, authorization or a certified runtime."}}
 results = [
     {"protocol": protocol, "backendVersion": "fixture", "runtimeFingerprint": None,
      "capabilities": [{"command": "game.launch", "supported": False,
@@ -309,6 +357,7 @@ results = [
     discovery,
     query_page,
     {**query_page, "products": [], "failures": [], "nextCursor": None},
+    inspection,
     {"job": job, "watermark": 2},
     {"sessionID": "fixture-session", "watermark": 2, "jobs": [job]},
     {"sessionID": "fixture-session", "watermark": 2, "events": [event], "hasMore": False},
@@ -380,6 +429,18 @@ console_result = copy.deepcopy(next(frame for frame in positive
     and frame["data"]["products"]))
 console_result["data"]["products"][0]["pcCatalogCandidate"] = False
 negative.append({"name": "consoleOnlyQueryProduct", "frame": console_result})
+inspect_request = copy.deepcopy(next(frame for frame in positive if frame.get("command") == "installed.inspect"))
+inspect_request["params"]["directory"] = "relative"
+negative.append({"name":"relativeInspectionDirectory","frame":inspect_request})
+for key, value in (("registered",True),("fileVerification","verified"),("launchable",True)):
+    frame = {"kind":"result","protocol":protocol,"requestID":"fixture-unsafe-inspection",
+             "ok":True,"data":copy.deepcopy(inspection)}
+    frame["data"]["assessment"][key] = value
+    negative.append({"name":"unsafeInspection"+key,"frame":frame})
+frame = {"kind":"result","protocol":protocol,"requestID":"fixture-retail-id",
+         "ok":True,"data":copy.deepcopy(inspection)}
+frame["data"]["marker"]["productID"] = "FIXTURE00001"
+negative.append({"name":"inspectionHeaderNotRetailProductID","frame":frame})
 for code, message in [("NETWORK_UNAVAILABLE", "Public query exceeded its bounded deadline."),
                       ("CANCELLED", "Transport closed before public query completed.")]:
     positive.append({"kind":"result","protocol":protocol,"requestID":"fixture-query-"+code.lower(),

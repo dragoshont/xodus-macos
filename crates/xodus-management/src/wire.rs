@@ -99,6 +99,8 @@ pub enum Operation {
     EventsReplay(ReplayParams),
     #[serde(rename = "installed.snapshot")]
     InstalledSnapshot(Empty),
+    #[serde(rename = "installed.inspect")]
+    InstalledInspect(InspectParams),
     #[serde(rename = "game.launch")]
     GameLaunch(InstallationMutation),
     #[serde(rename = "game.update")]
@@ -190,6 +192,12 @@ pub struct QueryParams {
     pub language: String,
     pub limit: u32,
     pub cursor: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InspectParams {
+    pub directory: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -427,6 +435,7 @@ pub enum Data {
     Jobs(JobsData),
     Replay(ReplayData),
     Installed(InstalledData),
+    Inspection(Box<InspectionData>),
     Diagnostics(DiagnosticsData),
 }
 
@@ -776,6 +785,52 @@ pub struct InstalledData {
     pub completeness: Completeness,
     pub installations: Vec<InstallationRecord>,
     pub watermark: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InspectionData {
+    pub scope: String,
+    pub completeness: Completeness,
+    pub freshness: Freshness,
+    pub checked_at: String,
+    pub directory: String,
+    pub marker: InspectionMarker,
+    pub assessment: InspectionAssessment,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InspectionMarker {
+    pub relative_path: String,
+    pub bytes: u64,
+    #[serde(rename = "observedMetadataSHA256")]
+    pub observed_metadata_sha256: String,
+    pub format: String,
+    pub format_version: u32,
+    pub xvd_type: u32,
+    pub content_type_raw: u32,
+    pub volume_flags_raw: u32,
+    #[serde(rename = "contentID")]
+    pub content_id: String,
+    #[serde(rename = "headerProductGUID")]
+    pub header_product_guid: String,
+    #[serde(rename = "headerPDUID")]
+    pub header_pduid: String,
+    pub observed_package_version: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InspectionAssessment {
+    pub kind: String,
+    pub registered: bool,
+    pub retail_identity: String,
+    pub file_verification: String,
+    pub entitlement: String,
+    pub compatibility: String,
+    pub launchable: bool,
+    pub reason: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

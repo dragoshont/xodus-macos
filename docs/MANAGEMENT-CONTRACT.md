@@ -52,6 +52,7 @@ runtime/version. Account scope is only `default`, without an account identifier.
 | jobs.snapshot | jobsData, authoritative set at watermark |
 | events.replay | replayData, ordered durable events |
 | installed.snapshot | installedData, managementRegistryOnly; no legacy-folder discovery |
+| installed.inspect | agreed read-only userSelectedDirectory inspectionData; adapter capability remains gated during this freeze |
 | install.plan | gated: no authorized complete package plan provider |
 | game.launch | gated: no signed/certified paired runtime |
 | game.update / game.rollback / game.remove | gated: no management-installed version to mutate |
@@ -202,6 +203,39 @@ at most 16 attempted IDs. EOF cancels pending work; no per-query wire cancellati
 is promised. The real public provider is connected and advertised independently
 from cache-only search and PC GamePass discovery. Unsupported alternate providers
 retain a false capability with typed actionable failure. Fixtures are not live proof.
+
+Successful source-zero pages bypass cache persistence and do not change cache
+bytes/revision or disconnect the session. A next URI must advance the decoded
+server cursor under the validated fixed scope: changing optional family, parameter
+order or percent-encoding cannot disguise a repeated consumed source page.
+
+## Read-only selected-folder inspection freeze
+
+The sole native consumer explicitly agreed `installed.inspect {directory}`.
+`inspectionData` is separate from installed registry/evidence: userSelectedDirectory
+scope, partial completeness, live/checkedAt, exact selected directory, marker
+metadata and an assessment fixed to externalMarkerDetected, registered false,
+unknown retailIdentity/entitlement/compatibility, fileVerification notPerformed
+and launchable false. No scan, adoption, file write or game launch is authorized
+by inspecting a marker.
+
+Only `.xodus-streaming.msixvc` is opened relative to no-follow directory descriptors.
+The checked primitive reads exactly 196 bytes: `0x200..0x29c` and
+`0x39c..0x3c4`. The SHA256 is their ordered concatenation, **not** full marker,
+package or extracted-file integrity. Signature/key-material ranges are not read.
+No general XvdFile/NTFS/region parser, license call or FILETIME conversion runs.
+The source vduid is contentID; headerProductGUID and headerPDUID remain raw header
+GUIDs, never retail product/edition/package IDs. Version is merely observed.
+
+Paths must be normalized absolute POSIX folders, bounded to 1024 UTF-8 bytes /
+64 components. Symlinks/aliases, hardlinks, special files, missing/malformed
+markers and inaccessible/nonlocal configurations fail explicitly. Descriptor and
+pathname identity/size/timestamps/link count are rechecked after reading. Errors
+are typed/sanitized without success-shaped empty installation results.
+This freeze advertises no inspection adapter capability yet. Four isolated native
+primitive checks exercise real regular-file reads/no writes, fixed fields/version,
+extreme unconverted FILETIME, path syntax, links/nonregular files and read-time
+replacement. Real managed/adopted installation identity remains an open gate.
 
 `catalog.discover` is an agreed additive 1.0 extension. Parameters are
 `{"market":"US","language":"en-US","limit":8,"cursor":null}`; limit is 1..16.

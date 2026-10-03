@@ -163,6 +163,7 @@ pub const COMMANDS: &[&str] = &[
     "jobs.snapshot",
     "events.replay",
     "installed.snapshot",
+    "installed.inspect",
     "game.launch",
     "game.update",
     "game.rollback",
@@ -252,6 +253,9 @@ pub fn validate_operation(operation: &Operation) -> Result<(), WireError> {
                                 })
                         })
                 })
+        }
+        Operation::InstalledInspect(params) => {
+            crate::inspection::directory_valid(&params.directory)
         }
         Operation::InstallPlan(params) => {
             identifier_valid(&params.edition_id)

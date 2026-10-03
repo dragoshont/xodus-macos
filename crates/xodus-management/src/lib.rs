@@ -1,3 +1,4 @@
+pub mod inspection;
 pub mod staging;
 pub mod state;
 pub mod transport;

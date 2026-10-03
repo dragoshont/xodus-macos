@@ -16,5 +16,8 @@ tempfile = "3.27.0"
 sha2 = "0.11.0"
 xodus = { path = "../xodus", optional = true }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.189"
+
 [features]
 live = ["dep:xodus"]

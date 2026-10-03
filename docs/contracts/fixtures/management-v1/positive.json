@@ -263,6 +263,18 @@
       "minor": 0
     },
     "requestID": "fixture-20",
+    "command": "installed.inspect",
+    "params": {
+      "directory": "/fixture/selected"
+    }
+  },
+  {
+    "kind": "request",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-21",
     "command": "game.launch",
     "params": {
       "installationID": "fixture-install",
@@ -275,7 +287,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-21",
+    "requestID": "fixture-22",
     "command": "game.rollback",
     "params": {
       "installationID": "fixture-install",
@@ -288,7 +300,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-22",
+    "requestID": "fixture-23",
     "command": "game.update",
     "params": {
       "installationID": "fixture-install",
@@ -303,7 +315,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-23",
+    "requestID": "fixture-24",
     "command": "game.remove",
     "params": {
       "installationID": "fixture-install",
@@ -318,7 +330,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-24",
+    "requestID": "fixture-25",
     "command": "diagnostics.export",
     "params": {}
   },
@@ -645,6 +657,46 @@
     "requestID": "fixture-result-7",
     "ok": true,
     "data": {
+      "scope": "userSelectedDirectory",
+      "completeness": "partial",
+      "freshness": "live",
+      "checkedAt": "2026-10-03T12:00:00Z",
+      "directory": "/fixture/selected",
+      "marker": {
+        "relativePath": ".xodus-streaming.msixvc",
+        "bytes": 4096,
+        "observedMetadataSHA256": "c59942de632cbc6d4cc04d84113e6de50cd7d7fae32080ecfe935052d2cb645f",
+        "format": "msft-xvd",
+        "formatVersion": 2,
+        "xvdType": 0,
+        "contentTypeRaw": 1,
+        "volumeFlagsRaw": 0,
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "headerProductGUID": "00000000-0000-0000-0000-000000000002",
+        "headerPDUID": "00000000-0000-0000-0000-000000000003",
+        "observedPackageVersion": "1.2.3.4"
+      },
+      "assessment": {
+        "kind": "externalMarkerDetected",
+        "registered": false,
+        "retailIdentity": "unknown",
+        "fileVerification": "notPerformed",
+        "entitlement": "unknown",
+        "compatibility": "unknown",
+        "launchable": false,
+        "reason": "Marker metadata is not verified files, retail identity, authorization or a certified runtime."
+      }
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-result-8",
+    "ok": true,
+    "data": {
       "job": {
         "jobID": "fixture-job",
         "revision": 2,
@@ -675,7 +727,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-8",
+    "requestID": "fixture-result-9",
     "ok": true,
     "data": {
       "sessionID": "fixture-session",
@@ -711,7 +763,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-9",
+    "requestID": "fixture-result-10",
     "ok": true,
     "data": {
       "sessionID": "fixture-session",
@@ -761,7 +813,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-10",
+    "requestID": "fixture-result-11",
     "ok": true,
     "data": {
       "registryVersion": {
@@ -780,7 +832,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-11",
+    "requestID": "fixture-result-12",
     "ok": true,
     "data": {
       "reportVersion": 1,

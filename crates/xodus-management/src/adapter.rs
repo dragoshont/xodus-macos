@@ -530,6 +530,7 @@ impl Backend {
                         "Consumer account audience, complete pagination and PC ownership coverage are not proven.",
                     "catalog.discover" => "No proved public PC discovery feed is available in this provider.",
                     "catalog.query" => "No proved anonymous Microsoft Store search source is available in this provider.",
+                    "installed.inspect" => "The agreed read-only selected-folder inspection adapter is not connected yet.",
                     "game.launch" => "A signed, distributable, exact version-paired runtime is not certified.",
                     "jobs.pause" | "jobs.resume" => "Catalog refresh does not support durable pause.",
                     "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout" =>
@@ -765,6 +766,13 @@ impl Backend {
                 Data::Auth(status)
             }
             Operation::CatalogSearch(params) => Data::Search(search(&self.store, params)?),
+            Operation::InstalledInspect(_) => {
+                return Err(WireError::new(
+                    ErrorCode::CapabilityMissing,
+                    "The agreed read-only folder inspection contract is not connected yet.",
+                    false,
+                ));
+            }
             Operation::CatalogQuery(params) => {
                 self.reserve_worker()?;
                 let provider = self.provider.clone();
@@ -1753,7 +1761,9 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
                     Some(Ok(Completion::Query { request_id, result })) => {
                         backend.pending_requests.remove(&request_id);
                         let result = result.and_then(|page| {
-                            backend.store.cache_discovery_products(&page.products)?;
+                            if !page.products.is_empty() {
+                                backend.store.cache_discovery_products(&page.products)?;
+                            }
                             Ok(Data::Query(page))
                         });
                         let fatal = result.as_ref().err().is_some_and(|error|

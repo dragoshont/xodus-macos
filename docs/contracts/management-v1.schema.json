@@ -79,6 +79,7 @@
             "jobs.snapshot",
             "events.replay",
             "installed.snapshot",
+            "installed.inspect",
             "game.launch",
             "game.rollback",
             "game.update",
@@ -810,6 +811,34 @@
           "if": {
             "properties": {
               "command": {
+                "const": "installed.inspect"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "object",
+                "required": [
+                  "directory"
+                ],
+                "properties": {
+                  "directory": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 1024,
+                    "pattern": "^/[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "command": {
                 "const": "game.launch"
               }
             }
@@ -1022,6 +1051,9 @@
             },
             {
               "$ref": "#/$defs/installedData"
+            },
+            {
+              "$ref": "#/$defs/inspectionData"
             },
             {
               "$ref": "#/$defs/diagnosticsData"
@@ -2088,6 +2120,199 @@
               "type": "null"
             }
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "inspectionMarker": {
+      "type": "object",
+      "required": [
+        "relativePath",
+        "bytes",
+        "observedMetadataSHA256",
+        "format",
+        "formatVersion",
+        "xvdType",
+        "contentTypeRaw",
+        "volumeFlagsRaw",
+        "contentID",
+        "headerProductGUID",
+        "headerPDUID",
+        "observedPackageVersion"
+      ],
+      "properties": {
+        "relativePath": {
+          "const": ".xodus-streaming.msixvc"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 4096,
+          "maximum": 9007199254740991
+        },
+        "observedMetadataSHA256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "format": {
+          "const": "msft-xvd"
+        },
+        "formatVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "xvdType": {
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "contentTypeRaw": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37
+          ]
+        },
+        "volumeFlagsRaw": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "contentID": {
+          "type": "string",
+          "format": "uuid",
+          "not": {
+            "const": "00000000-0000-0000-0000-000000000000"
+          }
+        },
+        "headerProductGUID": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "headerPDUID": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "observedPackageVersion": {
+          "type": "string",
+          "pattern": "^[0-9]{1,5}(\\.[0-9]{1,5}){3}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "inspectionAssessment": {
+      "type": "object",
+      "required": [
+        "kind",
+        "registered",
+        "retailIdentity",
+        "fileVerification",
+        "entitlement",
+        "compatibility",
+        "launchable",
+        "reason"
+      ],
+      "properties": {
+        "kind": {
+          "const": "externalMarkerDetected"
+        },
+        "registered": {
+          "const": false
+        },
+        "retailIdentity": {
+          "const": "unknown"
+        },
+        "fileVerification": {
+          "const": "notPerformed"
+        },
+        "entitlement": {
+          "const": "unknown"
+        },
+        "compatibility": {
+          "const": "unknown"
+        },
+        "launchable": {
+          "const": false
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      },
+      "additionalProperties": false
+    },
+    "inspectionData": {
+      "type": "object",
+      "required": [
+        "scope",
+        "completeness",
+        "freshness",
+        "checkedAt",
+        "directory",
+        "marker",
+        "assessment"
+      ],
+      "properties": {
+        "scope": {
+          "const": "userSelectedDirectory"
+        },
+        "completeness": {
+          "const": "partial"
+        },
+        "freshness": {
+          "const": "live"
+        },
+        "checkedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "directory": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 1024,
+          "pattern": "^/[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+        },
+        "marker": {
+          "$ref": "#/$defs/inspectionMarker"
+        },
+        "assessment": {
+          "$ref": "#/$defs/inspectionAssessment"
         }
       },
       "additionalProperties": false

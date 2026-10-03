@@ -32,8 +32,19 @@ pub enum ConsentHandoff {
     Completed {
         session: Box<xodus::xal::TokenStore>,
     },
+    StoreCompleted {
+        session: Box<xodus::models::secrets::ManagementStoreSession>,
+    },
     Cancelled,
     Failed,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConsentBootstrap {
+    pub flow_id: String,
+    pub device: Option<xodus::models::secrets::Device>,
+    pub device_token: Option<xodus::models::secrets::LegacyToken>,
 }
 
 struct ConsentReader {
@@ -58,7 +69,11 @@ async fn read_consent<R: AsyncRead + Unpin>(mut reader: R) -> Result<ConsentHand
     serde_json::from_slice(&bytes).map_err(|_| invalid())
 }
 
-fn spawn_consent(executable: &Path, flow_id: &str) -> Result<(Child, ConsentReader), WireError> {
+fn spawn_consent(
+    executable: &Path,
+    flow_id: &str,
+    bootstrap: &ConsentBootstrap,
+) -> Result<(Child, ConsentReader), WireError> {
     #[cfg(unix)]
     {
         use std::os::fd::OwnedFd;
@@ -69,9 +84,13 @@ fn spawn_consent(executable: &Path, flow_id: &str) -> Result<(Child, ConsentRead
                 true,
             )
         };
+        let bytes = serde_json::to_vec(bootstrap).map_err(|_| unavailable())?;
+        if bytes.len() > MAX_AUTH_HANDOFF_BYTES {
+            return Err(unavailable());
+        }
         let (parent, child) = std::os::unix::net::UnixStream::pair().map_err(|_| unavailable())?;
         parent.set_nonblocking(true).map_err(|_| unavailable())?;
-        let parent = tokio::net::UnixStream::from_std(parent).map_err(|_| unavailable())?;
+        let mut parent = tokio::net::UnixStream::from_std(parent).map_err(|_| unavailable())?;
         let child = Command::new(executable)
             .arg("management-auth-worker")
             .arg("--flow-id")
@@ -90,13 +109,34 @@ fn spawn_consent(executable: &Path, flow_id: &str) -> Result<(Child, ConsentRead
             child,
             ConsentReader {
                 flow_id: flow_id.to_owned(),
-                task: tokio::spawn(read_consent(parent)),
+                task: tokio::spawn(async move {
+                    tokio::time::timeout(Duration::from_secs(5), async {
+                        parent.write_u32(bytes.len() as u32).await?;
+                        parent.write_all(&bytes).await
+                    })
+                    .await
+                    .map_err(|_| {
+                        WireError::new(
+                            ErrorCode::AuthInvalid,
+                            "Native consent bootstrap timed out.",
+                            true,
+                        )
+                    })?
+                    .map_err(|_| {
+                        WireError::new(
+                            ErrorCode::AuthInvalid,
+                            "Native consent bootstrap channel failed.",
+                            true,
+                        )
+                    })?;
+                    read_consent(parent).await
+                }),
             },
         ))
     }
     #[cfg(not(unix))]
     {
-        let _ = (executable, flow_id);
+        let _ = (executable, flow_id, bootstrap);
         Err(WireError::new(
             ErrorCode::UnsupportedConfiguration,
             "Native consent requires the macOS protected parent channel.",
@@ -349,6 +389,23 @@ pub fn map_product(
 }
 
 enum Completion {
+    ConsentPrepared {
+        request_id: String,
+        flow_id: String,
+        result: Result<ConsentBootstrap, WireError>,
+    },
+    AccountCommit {
+        flow_id: String,
+        result: Result<(), WireError>,
+    },
+    AccountLogout {
+        request_id: String,
+        result: Result<AuthData, WireError>,
+    },
+    AccountStatus {
+        request_id: String,
+        result: Result<AuthData, WireError>,
+    },
     Discovery {
         request_id: String,
         result: Result<DiscoveryData, WireError>,
@@ -375,6 +432,8 @@ pub struct Backend {
     auth_flow: Option<AuthFlow>,
     auth_started: Option<std::time::Instant>,
     pending_requests: BTreeSet<String>,
+    async_keychain_io: bool,
+    account_mutation_pending: bool,
 }
 
 impl Backend {
@@ -391,6 +450,8 @@ impl Backend {
             auth_flow: None,
             auth_started: None,
             pending_requests: BTreeSet::new(),
+            async_keychain_io: true,
+            account_mutation_pending: false,
         }
     }
 
@@ -410,7 +471,7 @@ impl Backend {
                     true,
                 )
             })?;
-            self.tokens = Some(TokenManager::with_keychain_and_memory());
+            self.tokens = Some(TokenManager::with_management_keychain_and_memory());
         }
         self.tokens.clone().ok_or_else(transport::invalid)
     }
@@ -423,7 +484,7 @@ impl Backend {
                 (*command == "catalog.discover" && self.provider.discovery_supported()) ||
                 (self.native_auth && matches!(*command, "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout"));
             let audience = match *command {
-                "auth.begin" | "auth.status" | "auth.logout" => Some("XboxLive only; package/consumer inventory not authorized"),
+                "auth.begin" | "auth.status" | "auth.logout" => Some("Isolated launcher profile; Passport.NET/STS store credential, not entitlement authorization"),
                 "inventory.snapshot" => Some("Unproven consumer PC entitlement audience"),
                 "install.plan" | "game.update" => Some("http://update.xboxlive.com and www.microsoft.com"),
                 "game.launch" => Some("Package license and signed paired runtime"),
@@ -482,6 +543,41 @@ impl Backend {
             Operation::AuthBegin(_) => {
                 self.poll_auth()?;
                 let tokens = self.token_manager()?;
+                if self.account_mutation_pending
+                    || self
+                        .auth_flow
+                        .as_ref()
+                        .is_some_and(|flow| matches!(flow.state, AuthFlowState::Pending))
+                {
+                    return Err(WireError::new(
+                        ErrorCode::InvalidTransition,
+                        "Finish the active launcher account operation before connecting.",
+                        false,
+                    ));
+                }
+                if self.async_keychain_io {
+                    self.reserve_worker()?;
+                    let tokens = tokens
+                        .with_explicit_management_keychain_interaction()
+                        .map_err(|_| transport::invalid())?;
+                    let flow_id = Uuid::new_v4().to_string();
+                    let request_id = request.request_id.clone();
+                    self.auth_flow = Some(AuthFlow {
+                        flow_id: flow_id.clone(),
+                        state: AuthFlowState::Pending,
+                        error: None,
+                    });
+                    self.pending_requests.insert(request_id.clone());
+                    self.tasks.spawn(async move {
+                        let prepare_id = flow_id.clone();
+                        Completion::ConsentPrepared {
+                            request_id,
+                            flow_id,
+                            result: account_work(move || prepare_consent(tokens, prepare_id)).await,
+                        }
+                    });
+                    return Ok(None);
+                }
                 if self.auth_child.is_some()
                     || self.auth_handoff.is_some()
                     || !matches!(auth_status(&tokens)?.state, AuthState::SignedOut)
@@ -500,7 +596,8 @@ impl Backend {
                     )
                 })?;
                 let flow_id = Uuid::new_v4().to_string();
-                let (child, handoff) = spawn_consent(&executable, &flow_id)?;
+                let bootstrap = prepare_consent(tokens, flow_id.clone())?;
+                let (child, handoff) = spawn_consent(&executable, &flow_id, &bootstrap)?;
                 self.auth_child = Some(child);
                 self.auth_handoff = Some(handoff);
                 self.auth_started = Some(std::time::Instant::now());
@@ -512,6 +609,13 @@ impl Backend {
                 Data::Auth(self.account_status()?)
             }
             Operation::AuthCancel(params) => {
+                if self.account_mutation_pending {
+                    return Err(WireError::new(
+                        ErrorCode::InvalidTransition,
+                        "Native Keychain commit/disconnect already started. Respond to its explicit prompt and reconcile status.",
+                        false,
+                    ));
+                }
                 self.poll_auth()?;
                 if self
                     .auth_flow
@@ -525,7 +629,6 @@ impl Backend {
                     ));
                 }
                 self.stop_auth().await?;
-                let mut status = auth_status(&self.token_manager()?)?;
                 if let Some(flow) = &mut self.auth_flow
                     && matches!(flow.state, AuthFlowState::Pending)
                 {
@@ -536,17 +639,77 @@ impl Backend {
                         false,
                     ));
                 }
+                if self.async_keychain_io {
+                    self.reserve_worker()?;
+                    let tokens = self.token_manager()?;
+                    let request_id = request.request_id.clone();
+                    let flow = self.auth_flow.clone();
+                    self.pending_requests.insert(request_id.clone());
+                    self.tasks.spawn(async move {
+                        Completion::AccountStatus {
+                            request_id,
+                            result: read_account_status(tokens).await.map(|mut status| {
+                                status.flow = flow;
+                                status
+                            }),
+                        }
+                    });
+                    return Ok(None);
+                }
+                let mut status = auth_status(&self.token_manager()?)?;
                 status.flow = self.auth_flow.clone();
                 Data::Auth(status)
             }
             Operation::AuthStatus(_) => {
                 self.poll_auth()?;
-                Data::Auth(self.account_status()?)
+                self.reserve_worker()?;
+                let tokens = self.token_manager()?;
+                let request_id = request.request_id.clone();
+                let flow = self.auth_flow.clone();
+                self.pending_requests.insert(request_id.clone());
+                self.tasks.spawn(async move {
+                    Completion::AccountStatus {
+                        request_id,
+                        result: read_account_status(tokens).await.map(|mut status| {
+                            status.flow = flow;
+                            status
+                        }),
+                    }
+                });
+                return Ok(None);
             }
             Operation::AuthLogout(_) => {
+                if self.account_mutation_pending {
+                    return Err(WireError::new(
+                        ErrorCode::InvalidTransition,
+                        "A native Keychain account mutation is pending. Reconcile it before disconnecting.",
+                        false,
+                    ));
+                }
                 self.stop_auth().await?;
                 self.auth_flow = None;
                 let tokens = self.token_manager()?;
+                if self.async_keychain_io {
+                    let tokens = tokens
+                        .with_explicit_management_keychain_interaction()
+                        .map_err(|_| transport::invalid())?;
+                    let request_id = request.request_id.clone();
+                    self.account_mutation_pending = true;
+                    self.pending_requests.insert(request_id.clone());
+                    self.tasks.spawn(async move {
+                        Completion::AccountLogout { request_id, result: account_work(move || {
+                            tokens.remove_user_credentials().map_err(|_| WireError::new(
+                                ErrorCode::AuthInvalid, "Launcher disconnect failed. Signed-out state is not confirmed.", true))?;
+                            let status = auth_status(&tokens)?;
+                            if !matches!(status.state, AuthState::SignedOut) {
+                                return Err(WireError::new(ErrorCode::AuthInvalid,
+                                    "Launcher credentials changed during disconnect; reconcile account status.", true));
+                            }
+                            Ok(status)
+                        }).await }
+                    });
+                    return Ok(None);
+                }
                 tokens.remove_user_credentials().map_err(|_| {
                     WireError::new(
                         ErrorCode::AuthInvalid,
@@ -743,7 +906,7 @@ impl Backend {
         if self.tasks.len() >= MAX_WORKERS {
             return Err(WireError::new(
                 ErrorCode::LimitExceeded,
-                "Four metadata operations are already active. Retry after a terminal outcome.",
+                "Four management operations are already active. Retry after a terminal outcome.",
                 true,
             ));
         }
@@ -894,6 +1057,39 @@ impl Backend {
         };
         self.stop_auth().await?;
         let outcome = match result {
+            Ok(ConsentHandoff::StoreCompleted { session }) => {
+                if session.flow_id != flow_id || !session.valid() {
+                    Err(WireError::new(
+                        ErrorCode::AuthInvalid,
+                        "Native consent did not return matching complete unexpired store proof.",
+                        false,
+                    ))
+                } else {
+                    if self.async_keychain_io {
+                        let tokens = self.token_manager()?;
+                        self.account_mutation_pending = true;
+                        self.tasks.spawn(async move {
+                            Completion::AccountCommit { flow_id, result: account_work(move || {
+                                if !matches!(auth_status(&tokens)?.state, AuthState::SignedOut) {
+                                    return Err(WireError::new(ErrorCode::AuthInvalid,
+                                        "Launcher credentials changed during consent. Disconnect explicitly before retrying.", false));
+                                }
+                                tokens.save_management_store_session(*session).map_err(|_| WireError::new(
+                                    ErrorCode::AuthInvalid, "Launcher Keychain commit failed; review profile status.", true))
+                            }).await }
+                        });
+                        return Ok(());
+                    }
+                    self.token_manager().and_then(|tokens| {
+                        if !matches!(auth_status(&tokens)?.state, AuthState::SignedOut) {
+                            return Err(WireError::new(ErrorCode::AuthInvalid,
+                                "Launcher credentials changed during consent. Disconnect explicitly before retrying.", false));
+                        }
+                        tokens.save_management_store_session(*session).map_err(|_| WireError::new(
+                            ErrorCode::AuthInvalid, "Launcher Keychain commit failed; review profile status.", true))
+                    })
+                }
+            }
             Ok(ConsentHandoff::Completed { session }) => {
                 if !xal_session_valid(&session) {
                     Err(WireError::new(
@@ -924,6 +1120,11 @@ impl Backend {
             )),
             Err(error) => Err(error),
         };
+        self.finish_auth(outcome);
+        Ok(())
+    }
+
+    fn finish_auth(&mut self, outcome: Result<(), WireError>) {
         if let Some(flow) = &mut self.auth_flow {
             match outcome {
                 Ok(()) => {
@@ -940,7 +1141,6 @@ impl Backend {
                 }
             }
         }
-        Ok(())
     }
     fn start_job(&mut self, job: Job) -> Result<Job, WireError> {
         let job = self
@@ -958,6 +1158,89 @@ impl Backend {
         self.workers.insert(job.job_id.clone(), handle);
         Ok(job)
     }
+}
+
+async fn account_work<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, WireError> + Send + 'static,
+) -> Result<T, WireError> {
+    let unavailable = || {
+        WireError::new(
+            ErrorCode::AuthInvalid,
+            "Launcher account worker is unavailable. Reconcile account state before retrying.",
+            true,
+        )
+    };
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    std::thread::Builder::new()
+        .name("xodus-account".to_owned())
+        .spawn(move || {
+            let _ = sender.send(work());
+        })
+        .map_err(|_| unavailable())?;
+    receiver.await.map_err(|_| unavailable())?
+}
+
+fn prepare_consent(tokens: TokenManager, flow_id: String) -> Result<ConsentBootstrap, WireError> {
+    if !matches!(auth_status(&tokens)?.state, AuthState::SignedOut) {
+        return Err(WireError::new(
+            ErrorCode::InvalidTransition,
+            "Disconnect existing launcher credentials before connecting another account.",
+            false,
+        ));
+    }
+    let device = match tokens.get_device_license() {
+        Ok(device) => Some(device),
+        Err(TokenStoreError::NotFound) => None,
+        Err(_) => {
+            return Err(WireError::new(
+                ErrorCode::AuthInvalid,
+                "Launcher device credentials could not be read; they were not replaced.",
+                true,
+            ));
+        }
+    };
+    let device_token = match tokens.get_device_sts_token() {
+        Ok(Token::Legacy(token)) => Some(token),
+        Err(TokenStoreError::NotFound) => None,
+        _ => {
+            return Err(WireError::new(
+                ErrorCode::AuthInvalid,
+                "Launcher device proof could not be read or is unsupported; it was not replaced.",
+                true,
+            ));
+        }
+    };
+    Ok(ConsentBootstrap {
+        flow_id,
+        device,
+        device_token,
+    })
+}
+
+async fn read_account_status(tokens: TokenManager) -> Result<AuthData, WireError> {
+    let unavailable = || {
+        let mut error = WireError::new(
+            ErrorCode::AuthInvalid,
+            "Launcher Keychain read is unavailable. No approval was requested or credentials replaced.",
+            true,
+        );
+        error.details = serde_json::json!({"category":"credentialStoreUnavailable",
+            "action":"Review Keychain availability or use explicitly initiated account consent."})
+        .as_object()
+        .cloned();
+        error
+    };
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    std::thread::Builder::new()
+        .name("xodus-account-read".to_owned())
+        .spawn(move || {
+            let _ = sender.send(auth_status(&tokens));
+        })
+        .map_err(|_| unavailable())?;
+    tokio::time::timeout(Duration::from_secs(2), receiver)
+        .await
+        .map_err(|_| unavailable())?
+        .map_err(|_| unavailable())?
 }
 
 pub fn auth_status(tokens: &TokenManager) -> Result<AuthData, WireError> {
@@ -980,6 +1263,43 @@ pub fn auth_status(tokens: &TokenManager) -> Result<AuthData, WireError> {
         entitlement_authorized: false,
         flow: None,
     };
+    match tokens.get_management_store_session() {
+        Ok(Some(session)) => {
+            let state = if !session.structurally_valid() {
+                AuthState::Invalid
+            } else if session.valid() {
+                AuthState::CredentialPresent
+            } else {
+                AuthState::Expired
+            };
+            return Ok(AuthData {
+                state,
+                credential_store: "macOSKeychain".to_owned(),
+                audience: Some(xodus::tokens::PASSPORT_STS.to_owned()),
+                expires_at: session
+                    .tokens
+                    .get(xodus::tokens::PASSPORT_STS)
+                    .and_then(|token| {
+                        let Token::Legacy(token) = token else {
+                            return None;
+                        };
+                        let user_expires =
+                            DateTime::parse_from_rfc3339(&token.lifetime.expires).ok()?;
+                        let device_expires =
+                            DateTime::parse_from_rfc3339(&session.device_token.lifetime.expires)
+                                .ok()?;
+                        Some(user_expires.min(device_expires).to_rfc3339())
+                    }),
+                entitlement_authorized: false,
+                flow: None,
+            });
+        }
+        Ok(None) => {}
+        Err(TokenStoreError::Serde(_) | TokenStoreError::InvalidCredential) => {
+            return Ok(invalid_status());
+        }
+        Err(_) => return Err(keychain_error()),
+    }
     let proof = match tokens.get_xal_user_session() {
         Ok(proof) => proof,
         Err(TokenStoreError::Serde(_)) => return Ok(invalid_status()),
@@ -1220,8 +1540,16 @@ where
     while backend.tasks.join_next().await.is_some() {}
     for request_id in std::mem::take(&mut backend.pending_requests) {
         let error = WireError::new(
-            ErrorCode::Cancelled,
-            "Transport closed before the public metadata request completed.",
+            if backend.account_mutation_pending {
+                ErrorCode::AuthInvalid
+            } else {
+                ErrorCode::Cancelled
+            },
+            if backend.account_mutation_pending {
+                "Transport closed during a started native account mutation. Reconnect and reconcile; cancellation is not confirmed."
+            } else {
+                "Transport closed before the request completed."
+            },
             true,
         );
         let written = write_result(&mut writer, request_id, Err(error.clone())).await;
@@ -1230,7 +1558,15 @@ where
         }
     }
     let cancelled = backend.stop_auth().await;
-    result.and(cancelled)
+    result.and(cancelled)?;
+    if backend.account_mutation_pending {
+        return Err(WireError::new(
+            ErrorCode::AuthInvalid,
+            "Native account mutation started before transport closed. Reconnect and reconcile its outcome.",
+            true,
+        ));
+    }
+    Ok(())
 }
 
 async fn serve_loop<W: AsyncWrite + Unpin>(
@@ -1306,6 +1642,51 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
             },
             completion = backend.tasks.join_next(), if !backend.tasks.is_empty() => {
                 match completion {
+                    Some(Ok(Completion::ConsentPrepared { request_id, flow_id, result })) => {
+                        backend.pending_requests.remove(&request_id);
+                        let result = if backend.auth_flow.as_ref().is_none_or(|flow|
+                            flow.flow_id != flow_id || !matches!(flow.state, AuthFlowState::Pending)) {
+                            Err(WireError::new(ErrorCode::AuthCancelled,
+                                "Account preparation was cancelled before native sign-in started.", false))
+                        } else {
+                            result.and_then(|bootstrap| {
+                                let executable = std::env::current_exe().map_err(|_| WireError::new(
+                                    ErrorCode::AuthInvalid, "Native consent executable is unavailable.", false))?;
+                                let (child, handoff) = spawn_consent(&executable, &flow_id, &bootstrap)?;
+                                backend.auth_child = Some(child);
+                                backend.auth_handoff = Some(handoff);
+                                backend.auth_started = Some(std::time::Instant::now());
+                                Ok(Data::Auth(AuthData { state: AuthState::SignedOut,
+                                    credential_store: "macOSKeychain".to_owned(), audience: None, expires_at: None,
+                                    entitlement_authorized: false, flow: backend.auth_flow.clone() }))
+                            })
+                        };
+                        if let Err(error) = &result
+                            && backend.auth_flow.as_ref().is_some_and(|flow|
+                                flow.flow_id == flow_id && matches!(flow.state, AuthFlowState::Pending)) {
+                            backend.finish_auth(Err(error.clone()));
+                        }
+                        write_result(writer, request_id, result).await?;
+                    },
+                    Some(Ok(Completion::AccountCommit { flow_id, result })) => {
+                        backend.account_mutation_pending = false;
+                        if backend.auth_flow.as_ref().is_none_or(|flow|
+                            flow.flow_id != flow_id || !matches!(flow.state, AuthFlowState::Pending)) {
+                            return Err(WireError::new(ErrorCode::AuthInvalid,
+                                "Native commit completed outside its reserved flow. Reconcile launcher account state.", true));
+                        }
+                        backend.finish_auth(result);
+                    },
+                    Some(Ok(Completion::AccountLogout { request_id, result })) => {
+                        backend.account_mutation_pending = false;
+                        backend.pending_requests.remove(&request_id);
+                        write_result(writer, request_id, result.map(Data::Auth)).await?;
+                    },
+                    Some(Ok(Completion::AccountStatus { request_id, result })) => {
+                        backend.pending_requests.remove(&request_id);
+                        let result = result.map(Data::Auth);
+                        write_result(writer, request_id, result).await?;
+                    },
                     Some(Ok(Completion::Discovery { request_id, result })) => {
                         backend.pending_requests.remove(&request_id);
                         let result = result.and_then(|page| {
@@ -1426,7 +1807,10 @@ mod auth_lifecycle_tests {
             Arc::new(PublicCatalog::new().unwrap()),
         );
         backend.native_auth = true;
-        backend.tokens = Some(TokenManager::with_memory());
+        backend.async_keychain_io = false;
+        backend.tokens = Some(TokenManager::with_management_backend(Arc::new(
+            xodus::tokens::backend::MemoryBackend::default(),
+        )));
         (temporary, backend)
     }
 
@@ -1469,6 +1853,134 @@ mod auth_lifecycle_tests {
             "user_token":token, "authorization_token":token
         }))
         .unwrap()
+    }
+
+    fn fixture_store_session() -> xodus::models::secrets::ManagementStoreSession {
+        let token = xodus::models::secrets::LegacyToken {
+            key_name: Some(xodus::tokens::PASSPORT_STS.to_owned()),
+            token: "<EncryptedData Id=\"fixture\" xmlns=\"http://www.w3.org/2001/04/xmlenc#\" Type=\"http://www.w3.org/2001/04/xmlenc#Element\"><EncryptionMethod Algorithm=\"http://www.w3.org/2001/04/xmlenc#tripledes-cbc\"/><KeyInfo><KeyName>http://Passport.NET/STS</KeyName></KeyInfo><CipherData><CipherValue>Zml4dHVyZQ==</CipherValue></CipherData></EncryptedData>".to_owned(),
+            binary_secret: Some(format!("BAAA{}AA==", "AAAA".repeat(1364))),
+            tpm_key: None,
+            lifetime: xodus::models::soap::Timestamp { id: None,
+                created: "2026-01-01T00:00:00Z".to_owned(), expires: "2099-01-01T00:00:00Z".to_owned() },
+        };
+        xodus::models::secrets::ManagementStoreSession {
+            flow_id: "fixture-flow".to_owned(),
+            user: xodus::models::secrets::User {
+                puid: "fixture".to_owned(),
+                username: "fixture".to_owned(),
+            },
+            tokens: std::collections::HashMap::from([(
+                xodus::tokens::PASSPORT_STS.to_owned(),
+                Token::Legacy(token.clone()),
+            )]),
+            device: xodus::models::secrets::Device {
+                puid: "fixture".to_owned(),
+                hwid: "fixture".to_owned(),
+                device_id: "fixture".to_owned(),
+                username: "fixture".to_owned(),
+                password: "fixture-not-a-password".to_owned(),
+                splicense: "fixture-not-a-license".to_owned(),
+            },
+            device_token: token,
+        }
+    }
+
+    #[tokio::test]
+    async fn store_consent_commits_only_active_complete_proof_and_reports_cached_not_authorized() {
+        let (_temporary, mut backend) = backend();
+        let pid = own_worker(&mut backend);
+        let session = fixture_store_session();
+        assert!(session.valid());
+        backend
+            .complete_auth(
+                "fixture-flow".to_owned(),
+                Ok(ConsentHandoff::StoreCompleted {
+                    session: Box::new(session),
+                }),
+            )
+            .await
+            .unwrap();
+        let status = backend.account_status().unwrap();
+        assert!(matches!(status.state, AuthState::CredentialPresent));
+        assert_eq!(
+            status.audience.as_deref(),
+            Some(xodus::tokens::PASSPORT_STS)
+        );
+        assert!(!status.entitlement_authorized);
+        assert!(matches!(
+            status.flow.unwrap().state,
+            AuthFlowState::Completed
+        ));
+        no_owned_process(pid);
+    }
+
+    #[tokio::test]
+    async fn cancelled_foreign_and_expired_store_sessions_never_write_credentials() {
+        for failure in ["foreign", "cancelled", "expired", "bad-proof"] {
+            let (_temporary, mut backend) = backend();
+            let pid = own_worker(&mut backend);
+            let mut session = fixture_store_session();
+            match failure {
+                "foreign" => session.flow_id = "foreign".to_owned(),
+                "cancelled" => backend.auth_flow.as_mut().unwrap().state = AuthFlowState::Cancelled,
+                "expired" => {
+                    backend.auth_started =
+                        Some(std::time::Instant::now() - Duration::from_secs(601))
+                }
+                "bad-proof" => session.device_token.binary_secret = None,
+                _ => unreachable!(),
+            }
+            backend
+                .complete_auth(
+                    "fixture-flow".to_owned(),
+                    Ok(ConsentHandoff::StoreCompleted {
+                        session: Box::new(session),
+                    }),
+                )
+                .await
+                .unwrap();
+            assert!(
+                backend
+                    .tokens
+                    .as_ref()
+                    .unwrap()
+                    .get_management_store_session()
+                    .unwrap()
+                    .is_none()
+            );
+            backend.stop_auth().await.unwrap();
+            no_owned_process(pid);
+        }
+    }
+
+    #[test]
+    fn store_status_distinguishes_expiry_and_sanitizes_malformed_cached_dates() {
+        use xodus::tokens::store::TokenBackend;
+        let memory = Arc::new(xodus::tokens::backend::MemoryBackend::default());
+        let tokens = TokenManager::with_management_backend(memory.clone());
+        let mut session = fixture_store_session();
+        session.device_token.lifetime.expires = "2000-01-01T00:00:00Z".to_owned();
+        memory
+            .set(
+                "management-store-user",
+                &serde_json::to_vec(&session).unwrap(),
+            )
+            .unwrap();
+        let expired = auth_status(&tokens).unwrap();
+        assert!(matches!(expired.state, AuthState::Expired));
+        assert!(!expired.entitlement_authorized);
+        session.device_token.lifetime.expires = "fixture-not-a-date-or-public-output".to_owned();
+        memory
+            .set(
+                "management-store-user",
+                &serde_json::to_vec(&session).unwrap(),
+            )
+            .unwrap();
+        let invalid = auth_status(&tokens).unwrap();
+        assert!(matches!(invalid.state, AuthState::Invalid));
+        assert!(invalid.expires_at.is_none());
+        assert!(!serde_json::to_string(&invalid).unwrap().contains("fixture"));
     }
 
     #[tokio::test]
@@ -1790,6 +2302,161 @@ mod auth_lifecycle_tests {
         assert_eq!(result["requestID"], "discover");
         assert_eq!(result["error"]["code"], "CANCELLED");
         assert_eq!(task.await.unwrap().unwrap_err().code, ErrorCode::Cancelled);
+    }
+
+    #[tokio::test]
+    async fn pending_parent_commit_does_not_block_public_work_or_acknowledge_false_cancellation() {
+        use xodus::tokens::store::TokenBackend;
+        struct WaitingWrite {
+            memory: xodus::tokens::backend::MemoryBackend,
+            release: std::sync::Mutex<std::sync::mpsc::Receiver<()>>,
+        }
+        impl TokenBackend for WaitingWrite {
+            fn get(&self, key: &str) -> Result<Option<Vec<u8>>, TokenStoreError> {
+                self.memory.get(key)
+            }
+            fn set(&self, key: &str, value: &[u8]) -> Result<(), TokenStoreError> {
+                self.release
+                    .lock()
+                    .unwrap()
+                    .recv_timeout(Duration::from_secs(5))
+                    .unwrap();
+                self.memory.set(key, value)
+            }
+            fn remove(&self, key: &str) -> Result<(), TokenStoreError> {
+                self.memory.remove(key)
+            }
+        }
+        let (_temporary, mut backend) = backend();
+        backend.async_keychain_io = true;
+        let (release, receiver) = std::sync::mpsc::channel();
+        backend.tokens = Some(TokenManager::with_management_backend(Arc::new(
+            WaitingWrite {
+                memory: xodus::tokens::backend::MemoryBackend::default(),
+                release: std::sync::Mutex::new(receiver),
+            },
+        )));
+        let pid = own_worker(&mut backend);
+        backend
+            .complete_auth(
+                "fixture-flow".to_owned(),
+                Ok(ConsentHandoff::StoreCompleted {
+                    session: Box::new(fixture_store_session()),
+                }),
+            )
+            .await
+            .unwrap();
+        assert!(backend.account_mutation_pending);
+        let request = Request {
+            kind: RequestKind::Request,
+            protocol: Protocol::default(),
+            request_id: "fixture-public".to_owned(),
+            operation: Operation::DiagnosticsExport(Empty {}),
+        };
+        assert!(matches!(
+            backend.dispatch(&request).await.unwrap(),
+            Some(Data::Diagnostics(_))
+        ));
+        let cancel = Request {
+            request_id: "fixture-cancel".to_owned(),
+            operation: Operation::AuthCancel(AuthCancelParams {
+                flow_id: "fixture-flow".to_owned(),
+            }),
+            ..request
+        };
+        assert_eq!(
+            backend.dispatch(&cancel).await.unwrap_err().code,
+            ErrorCode::InvalidTransition
+        );
+        release.send(()).unwrap();
+        let Completion::AccountCommit { result, .. } =
+            backend.tasks.join_next().await.unwrap().unwrap()
+        else {
+            panic!("parent commit completion required");
+        };
+        result.unwrap();
+        assert!(
+            backend
+                .tokens
+                .as_ref()
+                .unwrap()
+                .get_management_store_session()
+                .unwrap()
+                .is_some()
+        );
+        no_owned_process(pid);
+    }
+
+    #[tokio::test]
+    async fn slow_read_only_account_lookup_does_not_block_public_actor_and_has_a_deadline() {
+        use tokio::io::AsyncBufReadExt;
+        use xodus::tokens::store::TokenBackend;
+        struct Slow {
+            first: std::sync::atomic::AtomicBool,
+        }
+        impl TokenBackend for Slow {
+            fn get(&self, _: &str) -> Result<Option<Vec<u8>>, TokenStoreError> {
+                if !self.first.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                    std::thread::sleep(Duration::from_millis(2100));
+                }
+                Ok(None)
+            }
+            fn set(&self, _: &str, _: &[u8]) -> Result<(), TokenStoreError> {
+                panic!("read-only status must not write")
+            }
+            fn remove(&self, _: &str) -> Result<(), TokenStoreError> {
+                panic!("read-only status must not remove")
+            }
+        }
+        let (_temporary, mut backend) = backend();
+        backend.tokens = Some(TokenManager::with_management_backend(Arc::new(Slow {
+            first: std::sync::atomic::AtomicBool::new(false),
+        })));
+        let (client, server) = tokio::io::duplex(8192);
+        let (server_read, mut server_write) = tokio::io::split(server);
+        let task = tokio::spawn(async move {
+            serve(backend, BufReader::new(server_read), &mut server_write).await
+        });
+        let (client_read, mut client_write) = tokio::io::split(client);
+        let mut reader = BufReader::new(client_read);
+        let frames = [
+            serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},"requestID":"hello",
+                "command":"hello","params":{"client":"fixture","clientVersion":"1"}}),
+            serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},"requestID":"status",
+                "command":"auth.status","params":{}}),
+            serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},"requestID":"public",
+                "command":"diagnostics.export","params":{}}),
+        ];
+        for frame in frames {
+            client_write
+                .write_all(format!("{frame}\n").as_bytes())
+                .await
+                .unwrap();
+        }
+        for id in ["hello", "public"] {
+            let mut line = String::new();
+            tokio::time::timeout(Duration::from_millis(500), reader.read_line(&mut line))
+                .await
+                .unwrap()
+                .unwrap();
+            let result: serde_json::Value = serde_json::from_str(&line).unwrap();
+            assert_eq!(result["requestID"], id);
+            assert_eq!(result["ok"], true);
+        }
+        let mut line = String::new();
+        tokio::time::timeout(Duration::from_secs(3), reader.read_line(&mut line))
+            .await
+            .unwrap()
+            .unwrap();
+        let result: serde_json::Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(result["requestID"], "status");
+        assert_eq!(
+            result["error"]["details"]["category"],
+            "credentialStoreUnavailable"
+        );
+        client_write.shutdown().await.unwrap();
+        task.await.unwrap().unwrap();
+        tokio::time::sleep(Duration::from_millis(150)).await;
     }
 
     #[tokio::test]

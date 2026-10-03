@@ -75,12 +75,17 @@ neither is downloadable without a separate authorized package source.
 
 ## Native account consent
 
-`auth.begin` has `{"accountScope":"default"}` params. It accepts only signed-out
-state and spawns one owned native WKWebView worker using the existing
-`xodus::auth::start_new_session` Microsoft/XboxLive flow. The library validates
-OAuth state; the navigation callback accepts only the exact HTTPS
-`login.live.com/oauth20_desktop.srf` origin/path. No arbitrary scope, pasted token
-or callback URL is accepted over management transport.
+`auth.begin` has `{"accountScope":"default"}` params. Here `default` means the
+single **isolated launcher profile**, not the ordinary CLI/service account.
+The existing native Keychain TokenBackend is reused with service
+`Xodus Management Service`; normal CLI/service `Xodus Service` entries are never
+read, imported, copied, overwritten or logged out by management.
+It accepts only signed-out state and spawns one owned native WKWebView worker,
+reusing the actual CLI NativeTokenBroker/SOAP provider (`InlineLogin.srf`,
+client ID `000000004424da1f`, XboxLive broker scope and Passport.NET/tb request).
+Required legacy ticket identity is the response's `http://Passport.NET/STS`
+KeyName, not the request's `/tb` address. No arbitrary scope, pasted token or
+callback URL is accepted over management transport.
 
 The result is authData with optional `flow`:
 `{"flowID":"opaque-uuid","state":"pending","error":null}`. The client explicitly
@@ -88,29 +93,60 @@ polls `auth.status` and may send `auth.cancel` with that flowID. Terminal flow
 states are completed/cancelled/failed. Starting consent is not signed-in success.
 No automatic consent window or Keychain-approval clicking is performed.
 
-Complete nonempty unexpired XAL sessions are atomically committed by the parent to one native
-Keychain entry (`management-xal-user`) through the existing TokenBackend, paired
-with a nonsecret flowID. They are **not** the legacy SOAP/Passport credential
-used by the CLI's packagespc and licensing providers. `credentialPresent` is
-cached credential presence/expiry, not fresh server authorization; it never
-sets entitlementAuthorized true. Package and consumer inventory audiences are
-not inferred from XboxLive sign-in.
+Read-only `auth.status` explicitly disables native Security interaction and
+runs outside the public actor with a two-second deadline. A blocked/unapproved
+read returns `AUTH_INVALID` with `details.category:credentialStoreUnavailable`,
+not a permission dialog, signed-out fallback or an empty account. Late read
+results are discarded; they cannot modify credentials. Explicit preparation,
+parent commit and logout also run outside the actor, so public discovery/jobs
+remain dispatchable while the user responds to an intentionally initiated
+Keychain prompt. The ordinary CLI process's interaction policy is unchanged.
+
+Complete validated user/SOAP/device proof is committed by the parent in one
+native Keychain entry (`management-store-user`), paired with the matching flowID.
+Existing package/license TokenManager getters consume this complete bundle,
+without a conversion from XboxLive XAL tokens or a partial user-record write.
+Validation requires nonempty user/device fields, structured Passport encrypted
+tickets, valid lifetimes, and the device's exact bounded version-4 HMAC proof.
+`credentialPresent` is cached proof presence/expiry (the earlier user/device
+expiry), not fresh endpoint authorization; entitlementAuthorized stays false.
+Package, PC purchasing-account identity and consumer inventory authorization
+are not inferred. A PC Microsoft Store buyer may differ from the Xbox player.
 
 The child has null stdout/stderr and no initialized tracing/log subscriber.
 Its stdin is an inherited anonymous private Unix socket, not the management
-stdin pipe; only a bounded length-prefixed consent result travels over it.
-The child never initializes or writes any credential store. The parent alone
+stdin pipe. A bounded length-prefixed bootstrap carries only this profile's
+existing device material, then a bounded result returns complete proof.
+The child uses an in-memory TokenBackend only; it never initializes or writes
+native credential storage. Device provisioning/reauthentication occurs only
+inside explicitly initiated sign-in, never hello/status. Missing device material
+can be provisioned; corrupt, denied or inconsistent reads are explicit failures,
+not permission to replace a device. Broker bodies and signing-state/RSA inputs
+are bounded/checked, with typed propagated errors rather than panics.
+The parent alone
 checks the still-pending matching flow and commits the complete Keychain entry.
 It never writes plaintext token files, tokens to argv, a public credential pipe,
 or callback fragments to logs. Only a nonsecret flow UUID is passed in argv.
+The management webview is nonpersistent/incognito, rejects untrusted navigation
+and IPC origins, and preserves one private WK cookie context across bounded
+inline-consent continuations. Ordinary CLI cookie behavior is retained.
 Closing the window records cancellation. A 10-minute timeout kills the owned
 worker. Cancellation waits for that child to terminate before acknowledging;
 if the parent's matching Keychain commit already completed, the result
-reports completed rather than pretending to undo it. No late child callback can
+reports completed rather than pretending to undo it. Once an atomic parent OS
+commit/disconnect has started, cancel/logout return `INVALID_TRANSITION` until
+its outcome is reconciled, rather than falsely acknowledging cancellation of an
+uncancellable native storage call. Flow remains pending while that explicit
+prompt is active. Transport loss during a started mutation reports uncertain
+account outcome and requires status reconciliation, never confirmed cancellation.
+No late child callback can
 commit after the cancellation acknowledgment. Foreign/stale flow IDs are errors.
 EOF, broken output and logout terminate/wait the owned child. Logout invalidates
-the pending flow before removal, removes user/management-XAL entries, invalidates
-all process-local cached XSTS audiences, and preserves device identity/license.
+the pending flow before removal, removes this profile's user entries, invalidates
+all process-local cached XSTS audiences, and preserves its device identity/license.
+Before removing the combined bundle, logout retains its device material in
+separate same-profile entries; retention failure leaves the user bundle intact
+and reports an error. No unrelated Keychain service is touched.
 Keychain failure is an error, not signedOut. Live account consent remains a
 manual release validation gate; automated checks use memory-only fake proofs.
 

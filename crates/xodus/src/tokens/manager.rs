@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use crate::models::secrets::{Device, Token, TokenStore, User};
 use crate::models::xbox::XstsResponse;
-use crate::tokens::backend::{KeychainBackend, MemoryBackend};
+use crate::tokens::backend::{KeychainBackend, ManagementKeychainBackend, MemoryBackend};
 use crate::tokens::store::{ExpiringTokenBackend, TokenBackend, TokenStoreError};
 
 mod keys {
@@ -14,6 +14,7 @@ mod keys {
     pub const USER_TOKENS: &str = "user-tokens";
     pub const USER_INFO: &str = "user-DA";
     pub const XAL_USER_SESSION: &str = "management-xal-user";
+    pub const STORE_USER_SESSION: &str = "management-store-user";
 }
 
 pub const PASSPORT_STS: &str = "http://Passport.NET/STS";
@@ -27,6 +28,7 @@ pub struct TokenManager {
     persistent: Arc<dyn TokenBackend>,
     ephemeral: Arc<dyn ExpiringTokenBackend>,
     cache_epoch: Arc<AtomicU64>,
+    management_profile: bool,
 }
 
 impl TokenManager {
@@ -38,6 +40,7 @@ impl TokenManager {
             persistent,
             ephemeral,
             cache_epoch: Arc::new(AtomicU64::new(0)),
+            management_profile: false,
         }
     }
 
@@ -48,6 +51,53 @@ impl TokenManager {
             Arc::new(KeychainBackend),
             Arc::new(MemoryBackend::default()),
         )
+    }
+
+    pub fn with_management_keychain_and_memory() -> Self {
+        Self::with_management_backend(Arc::new(ManagementKeychainBackend {
+            interactive_reads: false,
+        }))
+    }
+
+    pub fn with_management_backend(persistent: Arc<dyn TokenBackend>) -> Self {
+        let mut manager = Self::new(persistent, Arc::new(MemoryBackend::default()));
+        manager.management_profile = true;
+        manager
+    }
+
+    pub fn with_explicit_management_keychain_interaction(&self) -> Result<Self, TokenStoreError> {
+        if !self.management_profile {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        let mut manager = self.clone();
+        manager.persistent = Arc::new(ManagementKeychainBackend {
+            interactive_reads: true,
+        });
+        Ok(manager)
+    }
+
+    pub fn get_management_store_session(
+        &self,
+    ) -> Result<Option<crate::models::secrets::ManagementStoreSession>, TokenStoreError> {
+        if !self.management_profile {
+            return Ok(None);
+        }
+        self.persistent
+            .get(keys::STORE_USER_SESSION)?
+            .map(|bytes| serde_json::from_slice(&bytes).map_err(Into::into))
+            .transpose()
+    }
+
+    pub fn save_management_store_session(
+        &self,
+        session: crate::models::secrets::ManagementStoreSession,
+    ) -> Result<(), TokenStoreError> {
+        if !self.management_profile || !session.valid() {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        self.cache_epoch.fetch_add(1, Ordering::SeqCst);
+        self.persistent
+            .set(keys::STORE_USER_SESSION, &serde_json::to_vec(&session)?)
     }
 
     /// Keychain for persistent storage, in-memory for ephemeral - the default
@@ -66,8 +116,16 @@ impl TokenManager {
 
     /// Disconnect the account without removing the separately owned device identity.
     pub fn remove_user_credentials(&self) -> Result<(), TokenStoreError> {
+        if let Some(session) = self.get_management_store_session()? {
+            self.save_device_license(&session.device)?;
+            self.save_device_token(PASSPORT_STS.to_owned(), Token::Legacy(session.device_token))?;
+        }
         self.cache_epoch.fetch_add(1, Ordering::SeqCst);
-        for key in [keys::USER_TOKENS, keys::USER_INFO, keys::XAL_USER_SESSION] {
+        let mut keys = vec![keys::USER_TOKENS, keys::USER_INFO, keys::XAL_USER_SESSION];
+        if self.management_profile {
+            keys.push(keys::STORE_USER_SESSION);
+        }
+        for key in keys {
             match self.persistent.remove(key) {
                 Ok(())
                 | Err(TokenStoreError::NotFound)
@@ -105,6 +163,9 @@ impl TokenManager {
     // ---- Device identity / license -----------------------------------------
 
     pub fn get_device_license(&self) -> Result<Device, TokenStoreError> {
+        if let Some(session) = self.get_management_store_session()? {
+            return Ok(session.device);
+        }
         let bytes = self
             .persistent
             .get(keys::DEV_LICENSE)?
@@ -124,6 +185,11 @@ impl TokenManager {
     // ---- Device STS tokens (keyed by SOAP "applies_to" address) -----------
 
     pub fn get_device_token_for(&self, address: &str) -> Result<Option<Token>, TokenStoreError> {
+        if address == PASSPORT_STS
+            && let Some(session) = self.get_management_store_session()?
+        {
+            return Ok(Some(Token::Legacy(session.device_token)));
+        }
         Self::read_token_store(&*self.persistent, keys::DEVICE_TOKENS, address)
     }
 
@@ -139,6 +205,9 @@ impl TokenManager {
     // ---- User STS tokens (keyed by SOAP "applies_to" address) --------------
 
     pub fn get_user_token_for(&self, address: &str) -> Result<Option<Token>, TokenStoreError> {
+        if let Some(mut session) = self.get_management_store_session()? {
+            return Ok(session.tokens.remove(address));
+        }
         Self::read_token_store(&*self.persistent, keys::USER_TOKENS, address)
     }
 
@@ -165,6 +234,9 @@ impl TokenManager {
     // ---- User info -----------------------------------------------------------
 
     pub fn get_user(&self) -> Result<User, TokenStoreError> {
+        if let Some(session) = self.get_management_store_session()? {
+            return Ok(session.user);
+        }
         let bytes = self
             .persistent
             .get(keys::USER_INFO)?
@@ -307,5 +379,146 @@ mod management_tests {
         let tokens =
             TokenManager::new(Arc::new(RemovalFailure), Arc::new(MemoryBackend::default()));
         assert!(tokens.remove_user_credentials().is_err());
+    }
+
+    fn fixture_store_session() -> crate::models::secrets::ManagementStoreSession {
+        use base64::Engine;
+        let mut secret = vec![0; 4096];
+        secret[..4].copy_from_slice(&4u32.to_le_bytes());
+        let token = crate::models::secrets::LegacyToken {
+            key_name: Some(PASSPORT_STS.to_owned()),
+            token: quick_xml::se::to_string(&crate::models::soap::EncryptedData::devicesoftware(
+                base64::prelude::BASE64_STANDARD.encode(b"fixture-not-a-real-credential"),
+            ))
+            .unwrap(),
+            binary_secret: Some(base64::prelude::BASE64_STANDARD.encode(secret)),
+            tpm_key: None,
+            lifetime: crate::models::soap::Timestamp {
+                id: None,
+                created: "2026-01-01T00:00:00Z".to_owned(),
+                expires: "2099-01-01T00:00:00Z".to_owned(),
+            },
+        };
+        crate::models::secrets::ManagementStoreSession {
+            flow_id: "fixture-flow".to_owned(),
+            user: User {
+                puid: "fixture".to_owned(),
+                username: "fixture".to_owned(),
+            },
+            tokens: HashMap::from([(PASSPORT_STS.to_owned(), Token::Legacy(token.clone()))]),
+            device: Device {
+                username: "fixture".to_owned(),
+                password: "fixture-not-a-password".to_owned(),
+                splicense: "fixture-not-a-license".to_owned(),
+                puid: "fixture".to_owned(),
+                hwid: "fixture".to_owned(),
+                device_id: "fixture".to_owned(),
+            },
+            device_token: token,
+        }
+    }
+
+    #[test]
+    fn store_bundle_serves_existing_providers_and_logout_retains_only_device() {
+        let memory = Arc::new(MemoryBackend::default());
+        let tokens = TokenManager::with_management_backend(memory.clone());
+        tokens
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        assert!(memory.get(keys::USER_TOKENS).unwrap().is_none());
+        assert!(memory.get(keys::USER_INFO).unwrap().is_none());
+        assert!(tokens.get_user_sts_token().is_ok());
+        assert!(tokens.get_user().is_ok());
+        assert!(tokens.get_device_sts_token().is_ok());
+        tokens.remove_user_credentials().unwrap();
+        assert!(tokens.get_management_store_session().unwrap().is_none());
+        assert!(matches!(
+            tokens.get_user_sts_token(),
+            Err(TokenStoreError::NotFound)
+        ));
+        assert!(tokens.get_device_license().is_ok());
+        assert!(tokens.get_device_sts_token().is_ok());
+    }
+
+    #[test]
+    fn default_cli_profile_never_reads_imports_or_deletes_management_bundle() {
+        let memory = Arc::new(MemoryBackend::default());
+        let management = TokenManager::with_management_backend(memory.clone());
+        management
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let original = memory.get(keys::STORE_USER_SESSION).unwrap().unwrap();
+        let cli = TokenManager::new(memory.clone(), Arc::new(MemoryBackend::default()));
+        assert!(cli.get_management_store_session().unwrap().is_none());
+        assert!(matches!(cli.get_user(), Err(TokenStoreError::NotFound)));
+        assert!(matches!(
+            cli.get_device_license(),
+            Err(TokenStoreError::NotFound)
+        ));
+        assert!(
+            cli.save_management_store_session(fixture_store_session())
+                .is_err()
+        );
+        cli.remove_user_credentials().unwrap();
+        assert_eq!(
+            memory.get(keys::STORE_USER_SESSION).unwrap().unwrap(),
+            original
+        );
+    }
+
+    #[test]
+    fn incomplete_expired_or_wrong_audience_proof_never_commits_a_bundle() {
+        let memory = Arc::new(MemoryBackend::default());
+        let tokens = TokenManager::with_management_backend(memory.clone());
+        let mut incomplete = fixture_store_session();
+        incomplete.device_token.binary_secret = None;
+        assert!(tokens.save_management_store_session(incomplete).is_err());
+        let mut expired = fixture_store_session();
+        expired.device_token.lifetime.expires = "2000-01-01T00:00:00Z".to_owned();
+        assert!(tokens.save_management_store_session(expired).is_err());
+        let mut wrong = fixture_store_session();
+        wrong.tokens.clear();
+        assert!(tokens.save_management_store_session(wrong).is_err());
+        assert!(memory.get(keys::STORE_USER_SESSION).unwrap().is_none());
+    }
+
+    struct RetentionFailure {
+        memory: MemoryBackend,
+        writes: AtomicU64,
+    }
+    impl TokenBackend for RetentionFailure {
+        fn get(&self, key: &str) -> Result<Option<Vec<u8>>, TokenStoreError> {
+            self.memory.get(key)
+        }
+        fn set(&self, key: &str, value: &[u8]) -> Result<(), TokenStoreError> {
+            self.writes.fetch_add(1, Ordering::SeqCst);
+            if key != keys::STORE_USER_SESSION {
+                return Err(TokenStoreError::InvalidCredential);
+            }
+            self.memory.set(key, value)
+        }
+        fn remove(&self, key: &str) -> Result<(), TokenStoreError> {
+            self.memory.remove(key)
+        }
+    }
+
+    #[test]
+    fn user_device_commit_is_one_write_and_failed_logout_retention_keeps_user_bundle() {
+        let persistent = Arc::new(RetentionFailure {
+            memory: MemoryBackend::default(),
+            writes: AtomicU64::new(0),
+        });
+        let tokens = TokenManager::with_management_backend(persistent.clone());
+        tokens
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        assert_eq!(persistent.writes.load(Ordering::SeqCst), 1);
+        let original = persistent.get(keys::STORE_USER_SESSION).unwrap().unwrap();
+        assert!(tokens.remove_user_credentials().is_err());
+        assert_eq!(
+            persistent.get(keys::STORE_USER_SESSION).unwrap().unwrap(),
+            original
+        );
+        assert!(tokens.get_user_sts_token().is_ok());
     }
 }

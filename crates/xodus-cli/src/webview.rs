@@ -18,7 +18,7 @@ pub enum HandlerControl<T> {
 }
 
 pub trait SessionHandler {
-    type Output: std::fmt::Debug;
+    type Output;
 
     fn bootstrap(&mut self, runtime: &mut RuntimeCommands) -> HandlerResult<()>;
 
@@ -42,6 +42,7 @@ pub struct WebviewRequest {
     title: String,
     url: String,
     headers: HeaderMap,
+    isolated: bool,
 }
 
 pub struct RuntimeCommands {
@@ -55,6 +56,7 @@ enum RuntimeAction {
         request: WebviewRequest,
     },
     CloseSession(SessionId),
+    Navigate(SessionId, String),
 }
 
 enum CustomEvent {
@@ -98,6 +100,10 @@ impl RuntimeCommands {
     pub fn close_session(&mut self, session_id: SessionId) {
         self.actions.push(RuntimeAction::CloseSession(session_id));
     }
+
+    pub fn navigate_session(&mut self, session_id: SessionId, url: String) {
+        self.actions.push(RuntimeAction::Navigate(session_id, url));
+    }
 }
 
 impl WebviewRequest {
@@ -106,11 +112,12 @@ impl WebviewRequest {
             title: title.into(),
             url,
             headers,
+            isolated: false,
         }
     }
 }
 
-pub fn login_request(client_id: String, market: String) -> WebviewRequest {
+pub fn login_request(client_id: String, market: String, isolated: bool) -> WebviewRequest {
     let uid = uuid::Uuid::new_v4();
     let url = format!(
         "https://login.live.com/ppsecure/InlineLogin.srf?id=80604&scid=3&mkt={market}&Platform=Windows10&clientid={client_id}&hosted=1"
@@ -144,11 +151,32 @@ pub fn login_request(client_id: String, market: String) -> WebviewRequest {
         HeaderValue::from_static(r#"CloudExperienceHost"#),
     );
 
-    WebviewRequest::new("Xodus login", url, headers)
+    let mut request = WebviewRequest::new("Xodus login", url, headers);
+    request.isolated = isolated;
+    request
 }
 
-pub fn finalize_request(url: String) -> WebviewRequest {
-    WebviewRequest::new("Xodus login", url, HeaderMap::new())
+pub(crate) fn trusted_login_url(value: &str) -> bool {
+    reqwest::Url::parse(value).is_ok_and(|url| {
+        url.scheme() == "https"
+            && matches!(
+                url.host_str(),
+                Some("login.live.com" | "account.live.com" | "login.microsoftonline.com")
+            )
+            && url.port().is_none()
+            && url.username().is_empty()
+            && url.password().is_none()
+    })
+}
+
+fn trusted_bridge_origin(value: &str) -> bool {
+    trusted_login_url(value)
+        && reqwest::Url::parse(value).is_ok_and(|url| url.host_str() == Some("login.live.com"))
+}
+
+fn finish_url(value: &str) -> bool {
+    trusted_bridge_origin(value)
+        && reqwest::Url::parse(value).is_ok_and(|url| url.path() == "/ppsecure/post.srf")
 }
 
 pub fn run_sessions<T>(handler: T) -> HandlerResult<Option<T::Output>>
@@ -200,10 +228,21 @@ where
                 if state.active_session == Some(session_id)
                     && let Some(webview) = state.active_webview.as_ref()
                 {
-                    let _ = webview.evaluate_script(&format!(r#"window["CloudExperienceHost.Bridge.dispatchMessage"](JSON.stringify({{"type": "callback", "value": {{ "name": "CloudExperienceHost.getContext", "args": ["CloudExperienceHost", "TokenBroker", "TokenBroker", "{{\"PrivatePropertyBag\":1,\"PasswordlessConnect\":1,\"PreferAssociate\":1,\"ChromelessUI\":0}}"], "context": "{ctx}"}}}}))"#));
+                    let callback = serde_json::json!({"type":"callback", "value":{
+                        "name":"CloudExperienceHost.getContext",
+                        "args":["CloudExperienceHost", "TokenBroker", "TokenBroker",
+                            r#"{"PrivatePropertyBag":1,"PasswordlessConnect":1,"PreferAssociate":1,"ChromelessUI":0}"#],
+                        "context":ctx}});
+                    if webview.evaluate_script(&format!(
+                        r#"window["CloudExperienceHost.Bridge.dispatchMessage"](JSON.stringify({callback}))"#)).is_err() {
+                        state.error = Some("Native broker bridge failed".to_owned());
+                    }
                 }
             }
             Event::UserEvent(CustomEvent::IpcCallback(session_id, data)) => {
+                if state.active_session != Some(session_id) {
+                    return;
+                }
                 apply_handler_result(
                     &proxy,
                     target,
@@ -255,6 +294,11 @@ fn dispatch_actions(
             RuntimeAction::CloseSession(session_id) => {
                 let _ = session_id;
             }
+            RuntimeAction::Navigate(_, _) => {
+                return Err(
+                    std::io::Error::other("Cannot navigate before opening native consent").into(),
+                );
+            }
         }
     }
 
@@ -305,6 +349,21 @@ fn apply_actions<T>(
                 remove_session(state, session_id);
                 let _ = proxy;
             }
+            RuntimeAction::Navigate(session_id, url) => {
+                if state.active_session != Some(session_id) || !trusted_login_url(&url) {
+                    state.error = Some("Invalid native consent continuation".to_owned());
+                    break;
+                }
+                if let Some(webview) = state.active_webview.as_ref() {
+                    if webview.load_url(&url).is_err() {
+                        state.error = Some("Native consent continuation failed".to_owned());
+                        break;
+                    }
+                } else {
+                    state.error = Some("Native consent window is unavailable".to_owned());
+                    break;
+                }
+            }
         }
     }
 }
@@ -334,10 +393,16 @@ fn create_session<T: SessionHandler>(
     let proxy_ipc = proxy.clone();
     let builder = WebViewBuilder::new()
             .with_url(&request.url)
+            .with_incognito(request.isolated)
+            .with_navigation_handler(|url| trusted_login_url(&url))
             .with_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; MSAppHost/3.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.26100")
             .with_headers(request.headers)
             .with_initialization_script("window.external = {notify: window.ipc.postMessage }")
             .with_ipc_handler(move |request| {
+                if request.body().len() > 256 * 1024
+                    || !trusted_bridge_origin(&request.uri().to_string()) {
+                    return;
+                }
                 let body = request.body();
                 let payload = serde_json::from_str::<DAProperty>(body);
                 if let Ok(data) = payload {
@@ -368,7 +433,7 @@ fn create_session<T: SessionHandler>(
                 }
             })
             .with_on_page_load_handler(move |event, url| {
-                if matches!(event, PageLoadEvent::Finished) && url.starts_with("https://login.live.com/ppsecure/post.srf")
+                if matches!(event, PageLoadEvent::Finished) && finish_url(&url)
                 {
                     proxy.send_event(CustomEvent::Finish(session_id)).ok();
                 }
@@ -378,14 +443,44 @@ fn create_session<T: SessionHandler>(
     let webview = {
         use tao::platform::unix::WindowExtUnix;
         use wry::WebViewBuilderExtUnix;
-        builder.build_gtk(window.default_vbox().unwrap()).unwrap()
+        builder.build_gtk(
+            window
+                .default_vbox()
+                .ok_or_else(|| std::io::Error::other("Missing webview container"))?,
+        )?
     };
     #[cfg(not(target_os = "linux"))]
-    let webview = builder.build(&window).unwrap();
+    let webview = builder.build(&window)?;
 
     state.active_session = Some(session_id);
     state.active_webview = Some(webview);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn management_broker_bridge_requires_exact_trusted_origin_and_finish_path() {
+        assert!(trusted_bridge_origin("https://login.live.com/"));
+        assert!(finish_url(
+            "https://login.live.com/ppsecure/post.srf?fixture=1"
+        ));
+        for value in [
+            "http://login.live.com/",
+            "https://login.live.com.attacker.invalid/",
+            "https://user@login.live.com/",
+            "https://login.live.com:8443/",
+            "https://account.live.com/",
+            "https://example.invalid/",
+        ] {
+            assert!(!trusted_bridge_origin(value), "{value}");
+        }
+        assert!(!finish_url(
+            "https://login.live.com/ppsecure/post.srf.attacker"
+        ));
+        assert!(!finish_url("https://login.live.com/other"));
+    }
 }
 
 fn remove_session<T: SessionHandler>(state: &mut RuntimeState<T>, session_id: SessionId) {

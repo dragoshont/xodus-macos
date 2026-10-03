@@ -7,8 +7,8 @@ review remain independently owned. No automatic merge or game launch.
 
 | Requirement | Implemented surface / evidence | Remaining release gate |
 | --- | --- | --- |
-| AUTH-01 | Existing XAL Microsoft/XboxLive flow, exact native WK callback, inherited private socket with bounded proof handoff, parent-only atomic Keychain commit, flow polling and owned-child cancel/EOF/logout/deadline tests | Real approved account consent, Keychain approval, successful XboxLive account result not executed unattended |
-| AUTH-02 | User-only disconnect, device preservation, shared-clone XSTS cache invalidation, storage-error propagation, flowID correlation | Real multi-account/Keychain failure/manual session refresh validation; no package credential conversion inferred |
+| AUTH-01 | Existing NativeTokenBroker/SOAP provider, required Passport.NET/STS ticket, isolated launcher Keychain profile, memory-only checked device preparation, bounded private bootstrap/result, parent-only atomic user/device proof commit and cancellation/deadline tests | Real user-mediated sign-in and Keychain approval, issued store proof and live package authorization not yet executed |
+| AUTH-02 | Same-profile user-only disconnect with device retention, no default CLI/service account access/import/logout, shared-clone XSTS invalidation, storage-error propagation and flowID correlation | Real multi-account/Keychain failure/manual refresh validation; no complete consumer library inferred |
 | LIB-01/02/03 | inventory.snapshot fails ACCESS_UNKNOWN with source/completeness; anonymous metadata never gains ownership | Consumer audience/authorization, paging, never-played PC purchase coverage, expiry and refresh evidence |
 | FIND-01 | Persistent observedPublicProducts cache search plus live, user-paged official PC GamePass discovery with explicit per-ID failures, source/freshness, locale resolution and revision-bound cursors | Full-text whole-store query and genuine owned library search remain active requirements; discovery is not a substitute |
 | ID-01 | Returned product and SKU IDs preserved, absent/mismatched IDs error, content IDs never become package IDs | Authorized edition/package/version/architecture/language resolution |
@@ -28,12 +28,14 @@ review remain independently owned. No automatic merge or game launch.
 - `api/displaycatalog.rs` provides public product-ID lookup. The new bounded
   variant limits response size/time and refuses redirects. It does not discover
   a global full-text catalog or a complete owned library.
-- `auth.rs::start_new_session` returns a XAL TokenStore scoped to XboxLive. The
-  new native callback deliberately reuses that flow/state validation. Existing
-  `package.rs::get_packages` instead requires legacy device/user SOAP tokens,
-  gets XSTS for `http://update.xboxlive.com`, and unwraps several failure paths.
-  `license.rs` uses `www.microsoft.com`, device license keys and consumer content
-  licensing. No source-proven XAL-to-legacy/broker conversion exists.
+- The initial published consent engine used `auth.rs::start_new_session` XAL.
+  The store-capable bridge now reuses `commands/login.rs` NativeTokenBroker and
+  SOAP ticket issuance directly, not a fabricated XAL-to-store conversion.
+  Its isolated launcher profile supplies the exact legacy device/user credential
+  getters required by `package.rs` (`http://update.xboxlive.com`) and `license.rs`
+  (`www.microsoft.com`). Those endpoint authorizations and checked package
+  provider integration still need live proof; possession of a Passport ticket
+  is not a successful package/license call or complete purchasing-account library.
 - `PackageFile` contains FileSize/FileHash/KeyBlob/CDN paths, but this fork has no
   FileHash algorithm/encoding validation or authoritative expanded-file space
   calculation. No signed URL/key blob enters management results/state.
@@ -173,3 +175,65 @@ Refined canonical LF schema SHA256:
 `2ede71d5171cf4dc1659fedfc99187a90d904d9264119a22ee9f94064baef3d2`.
 This schema-only refinement does not claim additional live account/install
 capabilities, and the earlier developer engine remains byte-pinned.
+
+## Isolated store-capable native sign-in bridge
+
+The coordinator and app consumer explicitly agreed launcher-profile isolation:
+`Xodus Management Service` reuses the existing native TokenBackend implementation,
+while ordinary `Xodus Service` credentials and CLI browser-cookie behavior are
+unchanged. No implicit CLI account import or logout occurs. The helper uses the
+existing NativeTokenBroker/SOAP issuance provider with an in-memory backend and a
+private device bootstrap. The parent commits one complete validated user/device
+bundle only for its still-active flow. Logout first retains same-profile device
+material, fails without deleting the bundle if retention fails, then disconnects
+the user and invalidates shared-clone XSTS caches.
+
+Checked device preparation distinguishes genuine missing identity from corrupt,
+denied or inconsistent storage; it never provisions after a read failure.
+Malformed broker status/body/proof, signing-state versions, license lengths and
+RSA blob lengths/inversion now propagate explicit errors rather than panic or
+continue with false success. SOAP HTTP faults remain typed fault responses (for
+real inline-consent continuation); non-success credential responses cannot
+become issued proof. The management WK context is nonpersistent and retained
+across bounded inline continuations; its IPC origin comes from the actual WK
+message frame URL in pinned Wry 0.56.1, not an untrusted payload field.
+
+The final isolated native run passed **69 Rust checks** (7 CLI, 20 management
+library, 8 adapter, 9 staging, 11 state/framing, 2 wire and 12 core credential/
+device/license checks) plus the alternate-feature plaintext-refusal check.
+Management clippy passed with warnings denied. CLI clippy passed with only the
+existing `collapsible_if` and `too_many_arguments` lint classes allowed
+(`extract_eappx.rs` and legacy streaming signatures); service compilation passed,
+but broad service clippy still finds its unchanged `utils.rs` needless return.
+No unrelated style changes were made.
+The 71/11/4 fixture checks, six strict failed-discovery detail negative checks,
+and actual public detail/job/replay/reconnect/two-page discovery process checks
+all passed against the newly built executable.
+
+Preserved unsigned developer store-auth executable:
+`artifacts/xodus-cli-store-auth-v1-889f5a0a36d15289`
+SHA256 `889f5a0a36d15289576f61807a3dfb19f15df78cfbb70261b29fc3aae161ea40`.
+The shared wire schema remains LF SHA256
+`2ede71d5171cf4dc1659fedfc99187a90d904d9264119a22ee9f94064baef3d2`.
+**No actual sign-in, Keychain approval or account/package authorization was
+executed.** Real issuance and user-mediated consent remain manual validation
+gates, not proof supplied by sanitized fixtures. Broader live text search,
+selected-install inspection, complete consumer inventory, managed package
+lifecycle, runtime pairing and coordinator-owned final review remain active.
+
+The app's actual old-engine GUI startup exposed a native Keychain read waiting
+for interaction while the SSH context denied it. The replacement management
+backend explicitly suppresses Security interaction for reads; process policy is
+restored and default CLI policy is untouched. The already locked
+security-framework 3.7.0 dependency is now declared directly for its checked
+native interaction guard; no new installed library/version was needed.
+`auth.status` has a two-second off-actor deadline with typed sanitized
+`credentialStoreUnavailable` failure, while metadata and jobs stay dispatchable.
+Explicit preparation/commit/logout use parent-owned account work outside the
+actor; a started atomic mutation rejects cancel/logout until reconciliation,
+rather than acknowledging a cancellation while the native call could still
+commit. EOF during a started mutation is an uncertain-account error, not
+confirmed cancellation. Tests exercise slow denied reads, actual process-policy
+restoration (without reading credentials), public work during a delayed fake
+parent commit and false-cancellation rejection. The replacement GUI and actual
+user-mediated sign-in still require app-owner/manual validation.

@@ -19,15 +19,7 @@ pub async fn run(client: &reqwest::Client, tokens: &TokenManager) -> ExitCode {
         eprintln!("Invalid STS token");
         return ExitCode::FAILURE;
     };
-    let handler = LoginHandler::new(client.clone(), token, tokens.clone());
-    let output = match webview::run_sessions(handler) {
-        Ok(output) => output.flatten(),
-        Err(_) => {
-            eprintln!("Sign-in failed before credentials were issued");
-            return ExitCode::FAILURE;
-        }
-    };
-    match validate_issued(output) {
+    match issue_credentials_inner(client.clone(), token, false) {
         Ok((issued, user)) => {
             if tokens.replace_user_tokens(issued).is_err() || tokens.save_user(&user).is_err() {
                 eprintln!("Sign-in credentials could not be persisted");
@@ -40,6 +32,45 @@ pub async fn run(client: &reqwest::Client, tokens: &TokenManager) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+pub(crate) fn issue_credentials(
+    client: reqwest::Client,
+    device: secrets::LegacyToken,
+) -> Result<
+    (
+        std::collections::HashMap<String, secrets::Token>,
+        secrets::User,
+    ),
+    &'static str,
+> {
+    issue_credentials_inner(client, device, true)
+}
+
+fn issue_credentials_inner(
+    client: reqwest::Client,
+    device: secrets::LegacyToken,
+    isolated: bool,
+) -> Result<
+    (
+        std::collections::HashMap<String, secrets::Token>,
+        secrets::User,
+    ),
+    &'static str,
+> {
+    if !secrets::device_token_structurally_valid(&device) || !secrets::legacy_token_valid(&device) {
+        return Err("Device credential proof is invalid or expired");
+    }
+    let output = webview::run_sessions(LoginHandler::new(client, device, isolated))
+        .map_err(|_| "Native Microsoft sign-in failed")?
+        .flatten();
+    let (tokens, user) = validate_issued(output)?;
+    if !matches!(tokens.get(xodus::tokens::PASSPORT_STS), Some(secrets::Token::Legacy(token))
+        if secrets::legacy_token_valid(token))
+    {
+        return Err("Sign-in did not issue the required Passport store credential");
+    }
+    Ok((tokens, user))
 }
 
 #[derive(Debug)]
@@ -90,20 +121,22 @@ struct LoginHandler {
     client: reqwest::Client,
     device: xodus::models::secrets::LegacyToken,
     client_id: String,
-    finish: bool,
+    finish_count: u8,
+    isolated: bool,
 }
 
 impl LoginHandler {
     fn new(
         client: reqwest::Client,
         device: xodus::models::secrets::LegacyToken,
-        _tokens: TokenManager,
+        isolated: bool,
     ) -> Self {
         Self {
             client,
             device,
             client_id: CLIENT_ID.to_string(),
-            finish: false,
+            finish_count: 0,
+            isolated,
         }
     }
 
@@ -130,14 +163,13 @@ impl LoginHandler {
 
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async move {
-                let mut scopes = vec![(
-                    USER_AUTH_SCOPE.to_string(),
-                    Some(soap::PolicyReference::token_broker()),
-                )];
-
-                if self.finish {
-                    scopes.push(("http://Passport.NET/tb".to_string(), None));
-                }
+                let scopes = vec![
+                    (
+                        USER_AUTH_SCOPE.to_string(),
+                        Some(soap::PolicyReference::token_broker()),
+                    ),
+                    ("http://Passport.NET/tb".to_string(), None),
+                ];
 
                 xodus::api::live::exchange_user_token(
                     &client,
@@ -166,6 +198,7 @@ impl webview::SessionHandler for LoginHandler {
         runtime.open_session(webview::login_request(
             self.client_id.clone(),
             LOGIN_MARKET.to_string(),
+            self.isolated,
         ));
         Ok(())
     }
@@ -183,9 +216,14 @@ impl webview::SessionHandler for LoginHandler {
                 if let Some(pp) = pp
                     && let Some(auth_url) = pp.inline_auth_url
                 {
-                    runtime.close_session(session_id);
-                    self.finish = true;
-                    runtime.open_session(webview::finalize_request(auth_url));
+                    if self.finish_count >= 4 || !webview::trusted_login_url(&auth_url) {
+                        return Err(std::io::Error::other(
+                            "Unsupported or repeated inline authentication",
+                        )
+                        .into());
+                    }
+                    self.finish_count += 1;
+                    runtime.navigate_session(session_id, auth_url);
                     return Ok(webview::HandlerControl::Continue);
                 }
 

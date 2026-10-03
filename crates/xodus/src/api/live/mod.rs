@@ -15,8 +15,8 @@ pub const XML_HEADER: &str = r#"<?xml version="1.0" encoding="UTF-8"?>"#;
 pub async fn login_device_credential(
     client: &reqwest::Client,
     data: DeviceAddRequest,
-) -> reqwest::Result<DeviceAddResponse> {
-    let data = quick_xml::se::to_string(&data).unwrap();
+) -> Result<DeviceAddResponse, rst::RSTError> {
+    let data = quick_xml::se::to_string(&data)?;
 
     let response = client
         .post("https://login.live.com/ppsecure/deviceaddcredential.srf")
@@ -25,9 +25,9 @@ pub async fn login_device_credential(
         .header("Host", "login.live.com")
         .body(data)
         .send()
-        .await?;
-    let text = response.text().await?;
-    let resp: DeviceAddResponse = quick_xml::de::from_str(&text).expect("Failed to de xml");
+        .await?.error_for_status()?;
+    let text = rst::request::bounded_response_text(response).await?;
+    let resp: DeviceAddResponse = quick_xml::de::from_str(&text)?;
     Ok(resp)
 }
 
@@ -52,10 +52,19 @@ pub async fn exchange_device_token(
     scope: String,
     policy: Option<soap::PolicyReference>,
 ) -> Result<soap::RequestSecurityTokenResponse, rst::RSTError> {
-    let secret = BASE64_STANDARD.decode(token.binary_secret.as_ref().unwrap())?;
-    let secret: [u8; 4096] = secret.try_into().unwrap();
+    let secret = BASE64_STANDARD.decode(
+        token
+            .binary_secret
+            .as_ref()
+            .ok_or(rst::RSTError::InvalidEncryptedPayload)?,
+    )?;
+    let secret: [u8; 4096] = secret
+        .try_into()
+        .map_err(|_| rst::RSTError::InvalidEncryptedPayload)?;
     let secret: ClepHmacState = transmute!(secret);
-    let hmac_secret = secret.get_hmac_state();
+    let hmac_secret = secret
+        .try_get_hmac_state()
+        .map_err(|_| rst::RSTError::InvalidEncryptedPayload)?;
 
     let request = rst::RSTRequestBuilder::new()
         .sso_flags("SsoRestr")
@@ -93,10 +102,19 @@ pub async fn exchange_user_token(
     hosting_app: String,
     scope_policies: &[(String, Option<soap::PolicyReference>)],
 ) -> Result<ExchangeUserTokenOutcome, rst::RSTError> {
-    let secret = BASE64_STANDARD.decode(device_token.binary_secret.as_ref().unwrap())?;
-    let secret: [u8; 4096] = secret.try_into().unwrap();
+    let secret = BASE64_STANDARD.decode(
+        device_token
+            .binary_secret
+            .as_ref()
+            .ok_or(rst::RSTError::InvalidEncryptedPayload)?,
+    )?;
+    let secret: [u8; 4096] = secret
+        .try_into()
+        .map_err(|_| rst::RSTError::InvalidEncryptedPayload)?;
     let secret: ClepHmacState = transmute!(secret);
-    let hmac_secret = secret.get_hmac_state();
+    let hmac_secret = secret
+        .try_get_hmac_state()
+        .map_err(|_| rst::RSTError::InvalidEncryptedPayload)?;
 
     let mut builder = rst::RSTRequestBuilder::new()
         .username(soap::UsernameToken::user_hint(username))
@@ -142,7 +160,7 @@ mod test {
         let client = reqwest::Client::new();
 
         let mgr = TokenManager::with_memory();
-        ensure_device_credentials(&client, &mgr).await;
+        ensure_device_credentials(&client, &mgr).await.unwrap();
 
         let token: Token = mgr.get_device_sts_token().unwrap();
         let Token::Legacy(token) = token else {

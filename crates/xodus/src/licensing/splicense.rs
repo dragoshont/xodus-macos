@@ -239,6 +239,11 @@ impl SPLicense {
         };
 
         let size = read_u32(&mut reader)? as usize;
+        if size > 1024 * 1024 {
+            return Err(
+                io::Error::new(io::ErrorKind::InvalidData, "License block exceeds bound").into(),
+            );
+        }
 
         // Create a new reader that limits the number of bytes that can be read to `size`
         let mut reader = reader.take(size as u64);
@@ -288,6 +293,13 @@ impl SPLicense {
                 self.clep_sign_state = Some(Box::new(transmute!(data)));
             }
             Ok(BlockId::SignatureBlock) => {
+                if size < 4 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Truncated signature block",
+                    )
+                    .into());
+                }
                 let _unknown: [u8; 2] = read_array(&mut reader)?;
                 self.signature_origin = read_u16(&mut reader)?;
                 self.signature_block = read_vec(&mut reader, size - 4)?;
@@ -367,8 +379,46 @@ impl SPLicense {
     }
 
     pub fn parse_base64(string: &str) -> Result<SPLicense, SPLicenseParseError> {
+        if string.len() > 2 * 1024 * 1024 {
+            return Err(SPLicenseDecodeError::IoError(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "License exceeds bound",
+            ))
+            .into());
+        }
         let data = BASE64_STANDARD.decode(string)?;
         Ok(SPLicense::decode(&*data)?)
+    }
+}
+
+#[cfg(test)]
+mod management_license_tests {
+    use super::*;
+    #[test]
+    fn untrusted_device_license_lengths_and_versions_return_errors_not_panics() {
+        for (id, size) in [
+            (BlockId::HardwareId as u32, u32::MAX),
+            (BlockId::SignatureBlock as u32, 2),
+        ] {
+            let mut bytes = vec![0; 8];
+            bytes.extend_from_slice(&id.to_le_bytes());
+            bytes.extend_from_slice(&size.to_le_bytes());
+            bytes.extend_from_slice(&[0; 2]);
+            assert!(SPLicense::decode(bytes.as_slice()).is_err());
+        }
+        let state: ClepSignState = transmute!([0u8; 4096]);
+        assert!(state.try_get_rsa_key().is_err());
+        let state: ClepHmacState = transmute!([0u8; 4096]);
+        assert!(state.try_get_hmac_state().is_err());
+        assert!(
+            crate::licensing::utils::parse_bcrypt_rsa_private(&BCryptRsaBlock([0; 544])).is_err()
+        );
+        let mut blob = [0; 544];
+        blob[..4].copy_from_slice(&0x3241_5352u32.to_le_bytes());
+        for offset in [8, 12, 16, 20] {
+            blob[offset..offset + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+        }
+        assert!(crate::licensing::utils::parse_bcrypt_rsa_private(&BCryptRsaBlock(blob)).is_err());
     }
 }
 
@@ -386,6 +436,15 @@ impl EncryptedDeviceKey {
 }
 
 impl ClepSignState {
+    pub fn try_get_rsa_key(&self) -> Result<BCryptRsaBlock, &'static str> {
+        if self.version != 4 {
+            return Err("Unsupported device signing state");
+        }
+        Ok(BCryptRsaBlock(decrypt_cbc_zero_iv(
+            self.key_schedule,
+            &self.key_data,
+        )))
+    }
     pub fn get_rsa_key(&self) -> BCryptRsaBlock {
         assert!(self.version == 4);
         BCryptRsaBlock(decrypt_cbc_zero_iv(self.key_schedule, &self.key_data))
@@ -393,6 +452,16 @@ impl ClepSignState {
 }
 
 impl ClepHmacState {
+    pub fn try_get_hmac_state(&self) -> Result<HmacBinarySecret, &'static str> {
+        if self.version != 4 {
+            return Err("Unsupported device HMAC state");
+        }
+        Ok(HmacBinarySecret(
+            decrypt_cbc_zero_iv(self.key_schedule, &self.key_data)[12..44]
+                .try_into()
+                .map_err(|_| "Invalid device HMAC state")?,
+        ))
+    }
     pub fn get_hmac_state(&self) -> HmacBinarySecret {
         assert!(self.version == 4);
         HmacBinarySecret(

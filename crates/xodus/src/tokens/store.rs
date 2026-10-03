@@ -25,4 +25,6 @@ pub enum TokenStoreError {
     Serde(#[from] serde_json::Error),
     #[error("entry not found")]
     NotFound,
+    #[error("credential proof is incomplete, invalid or expired")]
+    InvalidCredential,
 }

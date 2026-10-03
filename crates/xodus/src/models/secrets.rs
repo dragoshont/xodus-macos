@@ -12,6 +12,69 @@ pub struct Device {
     pub password: String,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagementStoreSession {
+    pub flow_id: String,
+    pub user: User,
+    pub tokens: std::collections::HashMap<String, Token>,
+    pub device: Device,
+    pub device_token: LegacyToken,
+}
+
+impl ManagementStoreSession {
+    pub fn structurally_valid(&self) -> bool {
+        !self.flow_id.is_empty()
+            && !self.user.puid.trim().is_empty()
+            && !self.user.username.trim().is_empty()
+            && !self.device.username.is_empty()
+            && !self.device.password.is_empty()
+            && !self.device.puid.is_empty()
+            && !self.device.hwid.is_empty()
+            && !self.device.splicense.is_empty()
+            && device_token_structurally_valid(&self.device_token)
+            && matches!(self.tokens.get(crate::tokens::PASSPORT_STS),
+                Some(Token::Legacy(token)) if legacy_token_structurally_valid(token))
+    }
+
+    pub fn valid(&self) -> bool {
+        self.structurally_valid()
+            && legacy_token_valid(&self.device_token)
+            && matches!(self.tokens.get(crate::tokens::PASSPORT_STS),
+                Some(Token::Legacy(token)) if legacy_token_valid(token))
+    }
+}
+
+pub fn device_token_structurally_valid(token: &LegacyToken) -> bool {
+    use base64::Engine;
+    legacy_token_structurally_valid(token)
+        && token.key_name.as_deref() == Some(crate::tokens::PASSPORT_STS)
+        && token.binary_secret.as_ref().is_some_and(|secret| {
+            base64::prelude::BASE64_STANDARD
+                .decode(secret)
+                .is_ok_and(|bytes| bytes.len() == 4096 && bytes[..4] == 4u32.to_le_bytes())
+        })
+}
+
+pub fn legacy_token_structurally_valid(token: &LegacyToken) -> bool {
+    use base64::Engine;
+    token.token.len() <= 64 * 1024
+        && quick_xml::de::from_str::<soap::EncryptedData>(&token.token).is_ok_and(|encrypted| {
+            encrypted.key_info.key_name.as_deref() == Some(crate::tokens::PASSPORT_STS)
+                && token.key_name.as_deref() == Some(crate::tokens::PASSPORT_STS)
+                && base64::prelude::BASE64_STANDARD
+                    .decode(&encrypted.cipher_data.cipher_value)
+                    .is_ok_and(|cipher| !cipher.is_empty())
+        })
+        && chrono::DateTime::parse_from_rfc3339(&token.lifetime.expires).is_ok()
+}
+
+pub fn legacy_token_valid(token: &LegacyToken) -> bool {
+    legacy_token_structurally_valid(token)
+        && chrono::DateTime::parse_from_rfc3339(&token.lifetime.expires)
+            .is_ok_and(|expires| expires > chrono::Utc::now())
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LegacyToken {
     pub key_name: Option<String>,

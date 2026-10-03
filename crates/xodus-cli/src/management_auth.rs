@@ -1,17 +1,7 @@
 use std::process::ExitCode;
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
-
-use async_trait::async_trait;
-use tao::event::{Event, WindowEvent};
-use tao::event_loop::{ControlFlow, EventLoopBuilder};
-use tao::platform::run_return::EventLoopExtRunReturn;
-use tao::window::WindowBuilder;
-use wry::WebViewBuilder;
-use xodus::xal::{AuthPromptCallback, AuthPromptData, url::Url};
-use xodus_management::adapter::{ConsentHandoff, MAX_AUTH_HANDOFF_BYTES};
+use xodus::models::secrets::{ManagementStoreSession, Token};
+use xodus::tokens::{PASSPORT_STS, TokenManager};
+use xodus_management::adapter::{ConsentBootstrap, ConsentHandoff, MAX_AUTH_HANDOFF_BYTES};
 
 fn private_channel(fd: std::os::fd::OwnedFd) -> std::io::Result<std::os::unix::net::UnixStream> {
     let channel = std::os::unix::net::UnixStream::from(fd);
@@ -20,8 +10,32 @@ fn private_channel(fd: std::os::fd::OwnedFd) -> std::io::Result<std::os::unix::n
             "Expected inherited anonymous parent channel",
         ));
     }
+    channel.set_read_timeout(Some(std::time::Duration::from_secs(5)))?;
     channel.set_write_timeout(Some(std::time::Duration::from_secs(5)))?;
     Ok(channel)
+}
+
+fn read_bootstrap(
+    channel: &mut std::os::unix::net::UnixStream,
+    flow_id: &str,
+) -> std::io::Result<ConsentBootstrap> {
+    use std::io::Read;
+    let invalid = || std::io::Error::other("Invalid private consent bootstrap");
+    let mut prefix = [0; 4];
+    channel.read_exact(&mut prefix)?;
+    let length = u32::from_be_bytes(prefix) as usize;
+    if length == 0 || length > MAX_AUTH_HANDOFF_BYTES {
+        return Err(invalid());
+    }
+    let mut bytes = vec![0; length];
+    channel.read_exact(&mut bytes)?;
+    let bootstrap: ConsentBootstrap = serde_json::from_slice(&bytes).map_err(|_| invalid())?;
+    if bootstrap.flow_id != flow_id
+        || (bootstrap.device.is_none() && bootstrap.device_token.is_some())
+    {
+        return Err(invalid());
+    }
+    Ok(bootstrap)
 }
 
 fn write_handoff(
@@ -41,79 +55,49 @@ fn write_handoff(
     channel.flush()
 }
 
-struct NativeConsent {
-    cancelled: Arc<AtomicBool>,
-}
-
-#[derive(Clone)]
-enum ConsentEvent {
-    Redirect(Url),
-}
-
-#[async_trait]
-impl AuthPromptCallback for NativeConsent {
-    async fn call(
-        &self,
-        prompt: AuthPromptData,
-    ) -> Result<Option<Url>, Box<dyn std::error::Error>> {
-        let initial = prompt.authentication_url();
-        if !prompt.expect_url()
-            || initial.scheme() != "https"
-            || initial.host_str() != Some("login.live.com")
-        {
-            return Err(std::io::Error::other("Unsupported consent prompt").into());
-        }
-        let mut event_loop = EventLoopBuilder::<ConsentEvent>::with_user_event().build();
-        let proxy = event_loop.create_proxy();
-        let window = WindowBuilder::new()
-            .with_title("Connect Xodus to Xbox")
-            .with_inner_size(tao::dpi::LogicalSize::new(520.0, 720.0))
-            .build(&event_loop)?;
-        let webview = WebViewBuilder::new()
-            .with_url(initial.as_str())
-            .with_navigation_handler(move |value| {
-                let Ok(url) = Url::parse(&value) else {
-                    return false;
-                };
-                if is_callback(&url) {
-                    let _ = proxy.send_event(ConsentEvent::Redirect(url));
-                    false
-                } else {
-                    url.scheme() == "https"
-                }
-            })
-            .build(&window)?;
-        let mut redirect = None;
-        event_loop.run_return(|event, _, control| {
-            *control = ControlFlow::Wait;
-            match event {
-                Event::UserEvent(ConsentEvent::Redirect(url)) => {
-                    redirect = Some(url);
-                    *control = ControlFlow::Exit;
-                }
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    ..
-                } => *control = ControlFlow::Exit,
-                _ => {}
-            }
-        });
-        drop(webview);
-        drop(window);
-        if redirect.is_none() {
-            self.cancelled.store(true, Ordering::SeqCst);
-        }
-        Ok(redirect)
+async fn issue_session(
+    bootstrap: ConsentBootstrap,
+) -> Result<ManagementStoreSession, &'static str> {
+    let tokens = TokenManager::with_memory();
+    if let Some(device) = bootstrap.device {
+        tokens
+            .save_device_license(&device)
+            .map_err(|_| "Device bootstrap failed")?;
     }
-}
-
-fn is_callback(url: &Url) -> bool {
-    url.scheme() == "https"
-        && url.host_str() == Some("login.live.com")
-        && url.path() == "/oauth20_desktop.srf"
-        && url.port().is_none()
-        && url.username().is_empty()
-        && url.password().is_none()
+    if let Some(token) = bootstrap.device_token {
+        tokens
+            .save_device_token(PASSPORT_STS.to_owned(), Token::Legacy(token))
+            .map_err(|_| "Device bootstrap failed")?;
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|_| "Microsoft authentication client unavailable")?;
+    xodus::tokens::device::ensure_device_credentials(&client, &tokens)
+        .await
+        .map_err(|_| "Device credential preparation failed")?;
+    let Token::Legacy(device_token) = tokens
+        .get_device_sts_token()
+        .map_err(|_| "Device proof unavailable")?
+    else {
+        return Err("Device proof unavailable");
+    };
+    let device = tokens
+        .get_device_license()
+        .map_err(|_| "Device identity unavailable")?;
+    let (issued, user) = crate::commands::login::issue_credentials(client, device_token.clone())?;
+    let session = ManagementStoreSession {
+        flow_id: bootstrap.flow_id,
+        user,
+        tokens: issued,
+        device,
+        device_token,
+    };
+    if !session.valid() {
+        return Err("Incomplete or expired store credential proof");
+    }
+    Ok(session)
 }
 
 pub async fn run(flow_id: String) -> ExitCode {
@@ -130,20 +114,20 @@ pub async fn run(flow_id: String) -> ExitCode {
     let Ok(mut channel) = private_channel(fd) else {
         return ExitCode::FAILURE;
     };
-    let cancelled = Arc::new(AtomicBool::new(false));
-    let result = xodus::auth::start_new_session(NativeConsent {
-        cancelled: cancelled.clone(),
-    })
-    .await;
-    let (outcome, code) = match result {
-        Ok(session) if xodus_management::adapter::xal_session_valid(&session) => (
-            ConsentHandoff::Completed {
+    let Ok(bootstrap) = read_bootstrap(&mut channel, &flow_id) else {
+        return ExitCode::FAILURE;
+    };
+    let (outcome, code) = match issue_session(bootstrap).await {
+        Ok(session) => (
+            ConsentHandoff::StoreCompleted {
                 session: Box::new(session),
             },
             ExitCode::SUCCESS,
         ),
-        _ if cancelled.load(Ordering::SeqCst) => (ConsentHandoff::Cancelled, ExitCode::from(2)),
-        _ => (ConsentHandoff::Failed, ExitCode::FAILURE),
+        Err("Sign-in was cancelled or no credentials were issued") => {
+            (ConsentHandoff::Cancelled, ExitCode::from(2))
+        }
+        Err(_) => (ConsentHandoff::Failed, ExitCode::FAILURE),
     };
     if write_handoff(&mut channel, &outcome).is_ok() {
         code
@@ -155,39 +139,48 @@ pub async fn run(flow_id: String) -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Read, Write};
 
     #[test]
     fn handoff_is_anonymous_bounded_private_socket_not_public_output() {
-        use std::io::Read;
-        let (parent, child) = std::os::unix::net::UnixStream::pair().unwrap();
+        let (mut parent, child) = std::os::unix::net::UnixStream::pair().unwrap();
         let mut channel = private_channel(child.into()).unwrap();
         write_handoff(&mut channel, &ConsentHandoff::Cancelled).unwrap();
         drop(channel);
         let mut bytes = Vec::new();
-        (&parent).read_to_end(&mut bytes).unwrap();
-        let length = u32::from_be_bytes(bytes[..4].try_into().unwrap()) as usize;
-        assert_eq!(length, bytes.len() - 4);
+        parent.read_to_end(&mut bytes).unwrap();
+        assert_eq!(
+            u32::from_be_bytes(bytes[..4].try_into().unwrap()) as usize,
+            bytes.len() - 4
+        );
         assert!(matches!(
             serde_json::from_slice::<ConsentHandoff>(&bytes[4..]).unwrap(),
             ConsentHandoff::Cancelled
         ));
-        let file = tempfile::tempfile().unwrap();
-        assert!(private_channel(file.into()).is_err());
+        assert!(private_channel(tempfile::tempfile().unwrap().into()).is_err());
     }
 
     #[test]
-    fn callback_is_exact_https_desktop_origin() {
-        assert!(is_callback(
-            &Url::parse("https://login.live.com/oauth20_desktop.srf#state=fixture").unwrap()
-        ));
-        for value in [
-            "http://login.live.com/oauth20_desktop.srf",
-            "https://login.live.com.attacker.invalid/oauth20_desktop.srf",
-            "https://login.live.com/other",
-            "https://user@login.live.com/oauth20_desktop.srf",
-            "https://login.live.com:8443/oauth20_desktop.srf",
+    fn bootstrap_rejects_mismatched_flow_oversize_and_unknown_fields() {
+        for bytes in [
+            0u32.to_be_bytes().to_vec(),
+            ((MAX_AUTH_HANDOFF_BYTES + 1) as u32).to_be_bytes().to_vec(),
         ] {
-            assert!(!is_callback(&Url::parse(value).unwrap()), "{value}");
+            let (mut parent, mut child) = std::os::unix::net::UnixStream::pair().unwrap();
+            parent.write_all(&bytes).unwrap();
+            assert!(read_bootstrap(&mut child, "fixture").is_err());
+        }
+        for payload in [
+            serde_json::json!({"flow_id":"foreign","device":null,"device_token":null}),
+            serde_json::json!({"flow_id":"fixture","device":null,"device_token":null,"secret":"fixture-not-a-token"}),
+        ] {
+            let (mut parent, mut child) = std::os::unix::net::UnixStream::pair().unwrap();
+            let bytes = serde_json::to_vec(&payload).unwrap();
+            parent
+                .write_all(&(bytes.len() as u32).to_be_bytes())
+                .unwrap();
+            parent.write_all(&bytes).unwrap();
+            assert!(read_bootstrap(&mut child, "fixture").is_err());
         }
     }
 }

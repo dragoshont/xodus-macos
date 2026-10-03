@@ -10,6 +10,20 @@ pub struct RSTRequest<'a> {
     pub signature: Option<super::RSTSignature<'a>>,
 }
 
+pub(crate) async fn bounded_response_text(
+    mut response: reqwest::Response,
+) -> Result<String, super::RSTError> {
+    const MAX: usize = 1024 * 1024;
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        if chunk.len() > MAX - bytes.len() {
+            return Err(super::RSTError::InvalidEncryptedPayload);
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    String::from_utf8(bytes).map_err(|_| super::RSTError::InvalidEncryptedPayload)
+}
+
 impl<'a> RSTRequest<'a> {
     /// Makes a POST request with `reqwest::Client` and decrypts the envelope if applicable
     pub async fn request(
@@ -26,8 +40,14 @@ impl<'a> RSTRequest<'a> {
         .send()
         .await?;
 
-        let response_text = response.text().await?;
+        let status_error = response.error_for_status_ref().err();
+        let response_text = bounded_response_text(response).await?;
         let envelope: soap::Envelope = quick_xml::de::from_str(&response_text)?;
+        if let Some(error) = status_error
+            && !matches!(envelope.body.body, soap::BodyContent::Fault(_))
+        {
+            return Err(error.into());
+        }
 
         verify_and_decrypt_envelope(self.signature, response_text, envelope)
     }
@@ -55,7 +75,11 @@ fn verify_and_decrypt_envelope<'a>(
         && let Some(key_info) = &security_signature.key_info
     {
         let id = &key_info.security_token_reference.reference.uri;
-        let nonce = nonces.get(&id[1..]).ok_or(super::RSTError::MissingNonce)?;
+        let id = id
+            .strip_prefix('#')
+            .filter(|id| !id.is_empty())
+            .ok_or(super::RSTError::MissingNonce)?;
+        let nonce = nonces.get(id).ok_or(super::RSTError::MissingNonce)?;
         let nonce = BASE64_STANDARD.decode(nonce)?;
         let key = signature.signing_key(&nonce)?;
         let mut kmgr = bergshamra::KeysManager::new();

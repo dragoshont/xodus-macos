@@ -1,4 +1,5 @@
 pub static SERVICE_NAME: &str = "Xodus Service";
+pub const MANAGEMENT_SERVICE_NAME: &str = "Xodus Management Service";
 
 pub const fn management_native_keychain_enabled() -> bool {
     cfg!(all(target_os = "macos", not(feature = "key-chain-file")))
@@ -40,7 +41,14 @@ pub fn init_secrets() -> Result<(), keyring_core::Error> {
 }
 
 pub fn get_entry(user: &str) -> Result<keyring_core::Entry, keyring_core::Error> {
-    keyring_core::Entry::new(SERVICE_NAME, user)
+    get_entry_for(SERVICE_NAME, user)
+}
+
+pub(crate) fn get_entry_for(
+    service: &str,
+    user: &str,
+) -> Result<keyring_core::Entry, keyring_core::Error> {
+    keyring_core::Entry::new(service, user)
 }
 
 pub fn destroy_secrets() {

@@ -1,0 +1,189 @@
+[
+  {
+    "name": "wrongMajor",
+    "frame": {
+      "kind": "request",
+      "protocol": {
+        "major": 2,
+        "minor": 0
+      },
+      "requestID": "fixture-1",
+      "command": "hello",
+      "params": {
+        "client": "fixture-client",
+        "clientVersion": "1.0"
+      }
+    }
+  },
+  {
+    "name": "wrongMinor",
+    "frame": {
+      "kind": "request",
+      "protocol": {
+        "major": 1,
+        "minor": 1
+      },
+      "requestID": "fixture-1",
+      "command": "hello",
+      "params": {
+        "client": "fixture-client",
+        "clientVersion": "1.0"
+      }
+    }
+  },
+  {
+    "name": "emptyID",
+    "frame": {
+      "kind": "request",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "",
+      "command": "hello",
+      "params": {
+        "client": "fixture-client",
+        "clientVersion": "1.0"
+      }
+    }
+  },
+  {
+    "name": "oversizedID",
+    "frame": {
+      "kind": "request",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "command": "hello",
+      "params": {
+        "client": "fixture-client",
+        "clientVersion": "1.0"
+      }
+    }
+  },
+  {
+    "name": "unknownCommand",
+    "frame": {
+      "kind": "request",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-1",
+      "command": "unsafe.execute",
+      "params": {
+        "client": "fixture-client",
+        "clientVersion": "1.0"
+      }
+    }
+  },
+  {
+    "name": "credentialField",
+    "frame": {
+      "kind": "request",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-1",
+      "command": "hello",
+      "params": {
+        "client": "fixture-client",
+        "clientVersion": "1.0"
+      },
+      "credential": "fixture-not-a-token"
+    }
+  },
+  {
+    "name": "unknownParams",
+    "frame": {
+      "kind": "request",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-1",
+      "command": "hello",
+      "params": {
+        "client": "fixture",
+        "clientVersion": "1",
+        "token": "fixture"
+      }
+    }
+  },
+  {
+    "name": "negativeSequence",
+    "frame": {
+      "kind": "event",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "sessionID": "fixture-session",
+      "sequence": -1,
+      "requestID": "fixture-enqueue",
+      "jobID": "fixture-job",
+      "revision": 2,
+      "event": "job.changed",
+      "data": {
+        "jobID": "fixture-job",
+        "revision": 2,
+        "kind": "catalogRefresh",
+        "state": "cancelled",
+        "requestID": "fixture-enqueue",
+        "createdAt": "2026-10-03T12:00:00Z",
+        "updatedAt": "2026-10-03T12:00:00Z",
+        "product": {
+          "productID": "FIXTURE00001",
+          "market": "US",
+          "language": "en-US",
+          "refresh": "network"
+        },
+        "attempt": 1,
+        "error": {
+          "code": "CANCELLED",
+          "message": "Refresh cancelled.",
+          "retryable": false
+        }
+      }
+    }
+  },
+  {
+    "name": "bothSuccessAndFailure",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-result-0",
+      "ok": true,
+      "data": {
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "backendVersion": "fixture",
+        "runtimeFingerprint": null,
+        "capabilities": [
+          {
+            "command": "game.launch",
+            "supported": false,
+            "audience": "Xbox package authorization and signed paired runtime",
+            "reason": "No certified runtime."
+          }
+        ],
+        "sessionID": "fixture-session",
+        "schema": "urn:xodus:management:1.0",
+        "catalogCorpus": "observedPublicProducts"
+      },
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "fixture",
+        "retryable": false
+      }
+    }
+  }
+]

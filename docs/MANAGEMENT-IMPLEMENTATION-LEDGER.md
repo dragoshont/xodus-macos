@@ -12,7 +12,7 @@ review remain independently owned. No automatic merge or game launch.
 | LIB-01/02/03 | inventory.snapshot fails ACCESS_UNKNOWN with source/completeness; anonymous metadata never gains ownership | Consumer audience/authorization, paging, never-played PC purchase coverage, expiry and refresh evidence |
 | FIND-01 | Real anonymous Microsoft Store game text query with resolved PC evidence, bounded cursors/per-ID failures; separate observed cache search and official PC GamePass discovery | Complete owned-library search/coverage and real account authorization remain active requirements; public search is not ownership |
 | ID-01 | Returned product and SKU IDs preserved, absent/mismatched IDs error, content IDs never become package IDs | Authorized edition/package/version/architecture/language resolution |
-| DETAIL-01 | Independent unknown access, unknown/blocked downloadability, unknown compatibility, management-only notInstalled facets | Authorized entitlement/download source and registry-backed live install state |
+| DETAIL-01 | Independent unknown access/downloadability/compatibility; real explicit selected-folder marker inspection with partial observed metadata, unchanged files/state and no invented retail identities | Authorized entitlement/download source, full file verification and registry-backed live install/adoption state |
 | COMPAT-01 | No verified/experimental compatibility fabricated, runtimeFingerprint null | Exact signed/distributable runtime/OS evidence and opt-in experimental policy |
 | PLAN-01 | Local manifest size overflow, free-space allocation recheck and SHA256 validation implemented/tested; wire plan remains error-only | Authenticated complete MSIXVC file/hash semantics, expanded/staging/rollback estimates, immutable authorized plan |
 | QUEUE-01/02 | Actual public-catalog refresh jobs: atomic ordered state/events, snapshots/replay, idempotency, revisions, cancellation, bounded retries, interrupted recovery | Install/download/extract jobs are not connected; local transaction tests are not live package queue proof |
@@ -112,6 +112,32 @@ JSON Schema fixture checks are explicitly separate from live public API checks.
 Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
+
+### Connected native read-only selected-folder inspection
+
+`installed.inspect` now dispatches off the actor and returns the agreed exact
+shape/path. Five-second result deadline and four owned read permits bound work;
+timed-out reads hold their permit until native IO finishes, with no late result,
+registry mutation or file writes. Five isolated primitive/deadline checks pass.
+The actual native JSONL process inspects a synthetic marker only under its own
+private test root, proves the exact 196-byte digest/observed version, unchanged
+marker and management.json bytes, typed missing/alias/malformed errors and a
+working subsequent request. Registry snapshot remains empty/management-only:
+marker observation never registers a game or fabricates ownership/launchability.
+
+Native management checks total 70; the separate unchanged CLI/core suites bring
+the scoped count to 89. Clippy and 79/20/4 fixtures plus six/six failed-detail checks
+remain clean. Real public query/discovery/job/replay/reconnect checks still pass.
+The separate plaintext-fallback refusal check also passes. Immutable unsigned
+developer engine:
+`artifacts/xodus-cli-inspection-v1-da548dd5abe4c32d`, SHA256
+`da548dd5abe4c32dc17035817d1a809a31c8eb19e615f26dad079a245cf72178`.
+This replaces 35f0 for native app integration and includes R05/R06/R07 corrections.
+It is not a certified runtime or signed/distributable release.
+No external/private/user game folder, credential/consent, entitled package or
+runtime was accessed. The frozen inspection schema remains
+`c95c3fabdf114f89329d2361e76421e7b47be4c113f56c2381e64d437e44f749`.
+Inspection primitive and adapter deltas require retained reviewer closure.
 
 ### Query corrections XODUS-R06 / XODUS-R07 and inspection contract freeze
 

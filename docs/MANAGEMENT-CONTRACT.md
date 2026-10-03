@@ -52,7 +52,7 @@ runtime/version. Account scope is only `default`, without an account identifier.
 | jobs.snapshot | jobsData, authoritative set at watermark |
 | events.replay | replayData, ordered durable events |
 | installed.snapshot | installedData, managementRegistryOnly; no legacy-folder discovery |
-| installed.inspect | agreed read-only userSelectedDirectory inspectionData; adapter capability remains gated during this freeze |
+| installed.inspect | read-only userSelectedDirectory inspectionData on native macOS; no scan, registration, adoption or launch |
 | install.plan | gated: no authorized complete package plan provider |
 | game.launch | gated: no signed/certified paired runtime |
 | game.update / game.rollback / game.remove | gated: no management-installed version to mutate |
@@ -232,10 +232,16 @@ Paths must be normalized absolute POSIX folders, bounded to 1024 UTF-8 bytes /
 markers and inaccessible/nonlocal configurations fail explicitly. Descriptor and
 pathname identity/size/timestamps/link count are rechecked after reading. Errors
 are typed/sanitized without success-shaped empty installation results.
-This freeze advertises no inspection adapter capability yet. Four isolated native
-primitive checks exercise real regular-file reads/no writes, fixed fields/version,
+The native adapter now advertises inspection separately from registry snapshot.
+Five isolated native primitive/deadline checks exercise real regular-file reads/no writes, fixed fields/version,
 extreme unconverted FILETIME, path syntax, links/nonregular files and read-time
-replacement. Real managed/adopted installation identity remains an open gate.
+replacement. Reads run off the actor with a five-second result deadline and at
+most four owned blocking workers. A timed-out/EOF-discarded read retains its
+permit until native IO finishes; no late result or registry/file mutation occurs.
+The native process check uses only a named synthetic marker under its private
+test root, verifies exact digest/selected path, unchanged marker/state bytes and
+visible missing/alias/malformed errors. It is not a real game-install proof.
+Real managed/adopted installation identity remains an open gate.
 
 `catalog.discover` is an agreed additive 1.0 extension. Parameters are
 `{"market":"US","language":"en-US","limit":8,"cursor":null}`; limit is 1..16.

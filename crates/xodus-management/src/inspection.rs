@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::wire::{ErrorCode, WireError};
 
 pub const MARKER: &str = ".xodus-streaming.msixvc";
+pub const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 const HEADER_BYTES: u64 = 4096;
 const BASE_OFFSET: u64 = 0x200;
 const IDENTITY_OFFSET: u64 = 0x39c;
@@ -128,6 +129,66 @@ pub fn inspect(directory: &str) -> Result<MarkerMetadata, WireError> {
     {
         Err(unsupported())
     }
+}
+
+pub async fn inspect_async(
+    directory: String,
+    permits: std::sync::Arc<tokio::sync::Semaphore>,
+) -> Result<crate::wire::InspectionData, WireError> {
+    let selected = directory.clone();
+    let marker = bounded_read(permits, TIMEOUT, move || inspect(&selected)).await?;
+    Ok(crate::wire::InspectionData {
+        scope: "userSelectedDirectory".to_owned(), completeness: crate::wire::Completeness::Partial,
+        freshness: crate::wire::Freshness::Live, checked_at: crate::state::now(), directory,
+        marker: crate::wire::InspectionMarker {
+            relative_path: MARKER.to_owned(), bytes: marker.bytes,
+            observed_metadata_sha256: marker.observed_metadata_sha256,
+            format: "msft-xvd".to_owned(), format_version: marker.format_version,
+            xvd_type: marker.xvd_type, content_type_raw: marker.content_type_raw,
+            volume_flags_raw: marker.volume_flags_raw, content_id: marker.content_id,
+            header_product_guid: marker.header_product_guid, header_pduid: marker.header_pduid,
+            observed_package_version: marker.observed_package_version,
+        },
+        assessment: crate::wire::InspectionAssessment {
+            kind: "externalMarkerDetected".to_owned(), registered: false,
+            retail_identity: "unknown".to_owned(), file_verification: "notPerformed".to_owned(),
+            entitlement: "unknown".to_owned(), compatibility: "unknown".to_owned(), launchable: false,
+            reason: "Marker metadata is not verified files, retail identity, authorization or a certified runtime.".to_owned(),
+        },
+    })
+}
+
+async fn bounded_read<T: Send + 'static>(
+    permits: std::sync::Arc<tokio::sync::Semaphore>,
+    timeout: std::time::Duration,
+    read: impl FnOnce() -> Result<T, WireError> + Send + 'static,
+) -> Result<T, WireError> {
+    let unavailable = || {
+        WireError::new(
+            ErrorCode::UnsupportedConfiguration,
+            "Read-only folder inspection did not finish its local metadata read within the bounded deadline. No files were modified.",
+            true,
+        )
+    };
+    let deadline = tokio::time::Instant::now() + timeout;
+    let permit = tokio::time::timeout_at(deadline, permits.acquire_owned())
+        .await
+        .map_err(|_| unavailable())?
+        .map_err(|_| unsupported())?;
+    let work = tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        read()
+    });
+    tokio::time::timeout_at(deadline, work)
+        .await
+        .map_err(|_| unavailable())?
+        .map_err(|_| {
+            WireError::new(
+                ErrorCode::InternalError,
+                "Read-only inspection worker failed unexpectedly. No files were modified.",
+                false,
+            )
+        })?
 }
 
 #[cfg(unix)]
@@ -381,5 +442,49 @@ mod tests {
             inspect(directory.to_str().unwrap()).unwrap_err().code,
             ErrorCode::UnsupportedConfiguration
         );
+    }
+
+    #[tokio::test]
+    async fn timed_out_read_keeps_its_permit_until_owned_io_finishes() {
+        use std::sync::Arc;
+        let permits = Arc::new(tokio::sync::Semaphore::new(1));
+        let (release, waiting) = std::sync::mpsc::channel();
+        let (started, began) = tokio::sync::oneshot::channel();
+        let worker_permits = permits.clone();
+        let task = tokio::spawn(bounded_read(
+            worker_permits,
+            std::time::Duration::from_millis(100),
+            move || {
+                started.send(()).unwrap();
+                waiting.recv().unwrap();
+                Ok(())
+            },
+        ));
+        began.await.unwrap();
+        assert_eq!(
+            task.await.unwrap().unwrap_err().code,
+            ErrorCode::UnsupportedConfiguration
+        );
+        assert_eq!(permits.available_permits(), 0);
+        assert_eq!(
+            bounded_read(
+                permits.clone(),
+                std::time::Duration::from_millis(10),
+                || Ok(())
+            )
+            .await
+            .unwrap_err()
+            .code,
+            ErrorCode::UnsupportedConfiguration
+        );
+        release.send(()).unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(1), async {
+            while permits.available_permits() == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(bounded_read(permits, TIMEOUT, || Ok(())).await.unwrap(), ());
     }
 }

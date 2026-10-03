@@ -443,6 +443,10 @@ enum Completion {
         request_id: String,
         result: Result<QueryData, WireError>,
     },
+    Inspection {
+        request_id: String,
+        result: Result<InspectionData, WireError>,
+    },
     Product {
         request_id: String,
         result: Result<ProductRecord, WireError>,
@@ -467,6 +471,7 @@ pub struct Backend {
     pending_requests: BTreeSet<String>,
     async_keychain_io: bool,
     account_mutation_pending: bool,
+    inspection_permits: Arc<tokio::sync::Semaphore>,
 }
 
 impl Backend {
@@ -485,6 +490,7 @@ impl Backend {
             pending_requests: BTreeSet::new(),
             async_keychain_io: true,
             account_mutation_pending: false,
+            inspection_permits: Arc::new(tokio::sync::Semaphore::new(4)),
         }
     }
 
@@ -516,6 +522,7 @@ impl Backend {
                 "events.replay" | "installed.snapshot" | "diagnostics.export") ||
                 (*command == "catalog.discover" && self.provider.discovery_supported()) ||
                 (*command == "catalog.query" && self.provider.query_supported()) ||
+                (*command == "installed.inspect" && cfg!(target_os = "macos")) ||
                 (self.native_auth && matches!(*command, "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout"));
             let audience = match *command {
                 "auth.begin" | "auth.status" | "auth.logout" => Some("Isolated launcher profile; Passport.NET/STS store credential, not entitlement authorization"),
@@ -530,7 +537,7 @@ impl Backend {
                         "Consumer account audience, complete pagination and PC ownership coverage are not proven.",
                     "catalog.discover" => "No proved public PC discovery feed is available in this provider.",
                     "catalog.query" => "No proved anonymous Microsoft Store search source is available in this provider.",
-                    "installed.inspect" => "The agreed read-only selected-folder inspection adapter is not connected yet.",
+                    "installed.inspect" => "Read-only local folder inspection requires native macOS filesystem support.",
                     "game.launch" => "A signed, distributable, exact version-paired runtime is not certified.",
                     "jobs.pause" | "jobs.resume" => "Catalog refresh does not support durable pause.",
                     "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout" =>
@@ -545,6 +552,8 @@ impl Backend {
                 Some("Partial public PC GamePass discovery, not ownership/subscription or whole-store text search.".to_owned())
             } else if *command == "catalog.query" {
                 Some("Partial anonymous Microsoft Store game search with resolved PC metadata, not ownership or authorized download.".to_owned())
+            } else if *command == "installed.inspect" {
+                Some("Read-only selected-folder marker metadata only; no scan, registration, ownership, file verification or launch.".to_owned())
             } else { None };
             Capability { command: (*command).to_owned(), supported,
                 audience: audience.map(str::to_owned), reason }
@@ -766,12 +775,26 @@ impl Backend {
                 Data::Auth(status)
             }
             Operation::CatalogSearch(params) => Data::Search(search(&self.store, params)?),
-            Operation::InstalledInspect(_) => {
-                return Err(WireError::new(
-                    ErrorCode::CapabilityMissing,
-                    "The agreed read-only folder inspection contract is not connected yet.",
-                    false,
-                ));
+            Operation::InstalledInspect(params) => {
+                if !cfg!(target_os = "macos") {
+                    return Err(WireError::new(
+                        ErrorCode::CapabilityMissing,
+                        "Read-only local folder inspection requires native macOS filesystem support.",
+                        false,
+                    ));
+                }
+                self.reserve_worker()?;
+                let permits = self.inspection_permits.clone();
+                let directory = params.directory.clone();
+                let request_id = request.request_id.clone();
+                self.pending_requests.insert(request_id.clone());
+                self.tasks.spawn(async move {
+                    Completion::Inspection {
+                        request_id,
+                        result: crate::inspection::inspect_async(directory, permits).await,
+                    }
+                });
+                return Ok(None);
             }
             Operation::CatalogQuery(params) => {
                 self.reserve_worker()?;
@@ -1771,6 +1794,10 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
                         write_result(writer, request_id, result).await?;
                         if fatal { return Err(WireError::new(ErrorCode::RegistryRecoveryRequired,
                             "Query cache persistence failed. Reconcile before retrying.", false)); }
+                    },
+                    Some(Ok(Completion::Inspection { request_id, result })) => {
+                        backend.pending_requests.remove(&request_id);
+                        write_result(writer, request_id, result.map(|data| Data::Inspection(Box::new(data)))).await?;
                     },
                     Some(Ok(Completion::Product {request_id, result})) => {
                         backend.pending_requests.remove(&request_id);

@@ -7,6 +7,7 @@ import selectors
 import subprocess
 import tempfile
 import time
+import uuid
 from pathlib import Path
 
 import jsonschema
@@ -17,6 +18,7 @@ parser.add_argument("--root", type=Path, required=True)
 parser.add_argument("--product", default="9NBLGGH2JHXJ")
 parser.add_argument("--discover", action="store_true")
 parser.add_argument("--query", action="store_true")
+parser.add_argument("--inspect", action="store_true")
 args = parser.parse_args()
 schema = json.loads((Path(__file__).resolve().parents[1] /
                      "docs/contracts/management-v1.schema.json").read_text())
@@ -211,6 +213,52 @@ with tempfile.TemporaryDirectory(prefix="management-public-smoke-", dir=args.roo
             assert client.result("query-foreign")["error"]["code"] == "REVISION_CONFLICT"
             client.send("query-malformed", "catalog.query", {**query_params,"cursor":"q1-00"})
             assert client.result("query-malformed")["error"]["code"] == "INVALID_REQUEST"
+        if args.inspect:
+            assert capabilities["installed.inspect"]["supported"]
+            selected = state / "selected-folder-fixture"
+            selected.mkdir(mode=0o700)
+            marker = bytearray(4096)
+            marker[0x200:0x208] = b"msft-xvd"
+            marker[0x20c:0x210] = (2).to_bytes(4,"little")
+            marker[0x220:0x230] = uuid.UUID(int=1).bytes_le
+            marker[0x284:0x288] = (1).to_bytes(4,"little")
+            marker[0x39c:0x3ac] = uuid.UUID(int=2).bytes_le
+            marker[0x3ac:0x3bc] = uuid.UUID(int=3).bytes_le
+            for offset,value in ((0x3bc,4),(0x3be,3),(0x3c0,2),(0x3c2,1)):
+                marker[offset:offset+2] = value.to_bytes(2,"little")
+            marker_path = selected / ".xodus-streaming.msixvc"
+            marker_path.write_bytes(marker)
+            state_before = (state / "management.json").read_bytes()
+            client.send("inspect", "installed.inspect", {"directory":str(selected)})
+            inspected = client.result("inspect")
+            assert inspected["ok"], inspected
+            data = inspected["data"]
+            assert data["directory"] == str(selected) and data["completeness"] == "partial"
+            assert data["assessment"] == {
+                "kind":"externalMarkerDetected","registered":False,"retailIdentity":"unknown",
+                "fileVerification":"notPerformed","entitlement":"unknown","compatibility":"unknown",
+                "launchable":False,
+                "reason":"Marker metadata is not verified files, retail identity, authorization or a certified runtime."}
+            assert data["marker"]["contentID"] == str(uuid.UUID(int=1))
+            assert data["marker"]["observedPackageVersion"] == "1.2.3.4"
+            assert data["marker"]["observedMetadataSHA256"] == hashlib.sha256(
+                marker[0x200:0x29c] + marker[0x39c:0x3c4]).hexdigest()
+            assert marker_path.read_bytes() == marker
+            assert (state / "management.json").read_bytes() == state_before
+            missing = state / "missing-marker-fixture"
+            missing.mkdir(mode=0o700)
+            client.send("inspect-missing", "installed.inspect", {"directory":str(missing)})
+            assert client.result("inspect-missing")["error"]["code"] == "NOT_FOUND"
+            alias = state / "selected-alias-fixture"
+            alias.symlink_to(selected, target_is_directory=True)
+            client.send("inspect-alias", "installed.inspect", {"directory":str(alias)})
+            assert client.result("inspect-alias")["error"]["code"] == "UNSUPPORTED_CONFIGURATION"
+            marker[0x200] = 0
+            marker_path.write_bytes(marker)
+            client.send("inspect-malformed", "installed.inspect", {"directory":str(selected)})
+            assert client.result("inspect-malformed")["error"]["code"] == "INTEGRITY_FAILED"
+            assert marker_path.read_bytes() == marker
+            assert (state / "management.json").read_bytes() == state_before
         client.send("inventory", "inventory.snapshot", {
             "accountScope": "default", "market": "US", "refresh": "network"})
         assert client.result("inventory")["error"]["code"] == "ACCESS_UNKNOWN"
@@ -243,4 +291,5 @@ print(json.dumps({"nativeProcess": "passed", "publicCatalogDetail": "passed",
                   "pcDiscovery": "passed" if args.discover else "notExecuted",
                   "publicStoreQuery": "passed" if args.query else "notExecuted",
                   "queryPageOutcomes": query_counts,
+                  "selectedFolderInspection": "passedIsolatedReadOnlyFixture" if args.inspect else "notExecuted",
                   "schemaFrames": "validated", "binarySHA256": hashlib.sha256(args.binary.read_bytes()).hexdigest()}))

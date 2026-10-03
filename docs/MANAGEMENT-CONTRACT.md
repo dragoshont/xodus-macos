@@ -11,13 +11,16 @@ app foundation at `4e9c963085d20943fd0ef1c452c67ab40a52ac99`;
 Envelope property names and all productEvidence definitions are preserved.
 The implementation fills previously unspecified operation payloads/results,
 adds negotiated `auth.logout`, and adds explicit validation/state error codes.
+The subsequent optional `authData.flow` extension was explicitly agreed by the
+coordinator and native app owner before consumer integration.
 
 ## Transport
 
 `xodus-cli manage --protocol 1 --state-dir <absolute-private-directory>` (the
 shipping bundle may rename the executable to `xodus`). UTF-8 JSONL on stdin and
 stdout, LF framing, maximum 1 MiB per frame. No interactive prompts, credentials,
-raw upstream errors, URLs or human progress on stdout. Hello must be first.
+raw upstream errors, signed download URLs, callback fragments or human progress
+on stdout. Hello must be first.
 Only exact 1.0 is accepted; a future minor requires a new negotiated schema.
 Unknown envelope/parameter fields fail closed. Each valid, distinct request ID
 receives one terminal result. Request IDs are unique per connection, not durable
@@ -37,7 +40,7 @@ runtime/version. Account scope is only `default`, without an account identifier.
 | --- | --- |
 | hello | helloData |
 | auth.status / auth.logout | authData, native macOS Keychain only |
-| auth.begin / auth.cancel | gated: approved cancellable broker not established |
+| auth.begin / auth.cancel | authData with optional flow, owned native WKWebView consent worker |
 | inventory.snapshot | gated: ACCESS_UNKNOWN; no catalog/history ownership substitution |
 | product.detail | productData, anonymous public product-ID lookup or explicit cached lookup |
 | catalog.search | searchData, **observedPublicProducts** corpus only, partial catalog coverage |
@@ -47,7 +50,7 @@ runtime/version. Account scope is only `default`, without an account identifier.
 | jobs.snapshot | jobsData, authoritative set at watermark |
 | events.replay | replayData, ordered durable events |
 | installed.snapshot | installedData, managementRegistryOnly; no legacy-folder discovery |
-| install.plan | gated: no authorized verified package/atomic install engine |
+| install.plan | gated: no authorized complete package plan provider |
 | game.launch | gated: no signed/certified paired runtime |
 | game.update / game.rollback / game.remove | gated: no management-installed version to mutate |
 | diagnostics.export | diagnosticsData, bounded preview object only; no export file or upload |
@@ -65,8 +68,50 @@ the global Microsoft catalog. Cursor pins cache revision and query scope;
 cache changes invalidate it explicitly. Cached metadata cannot authorize a job.
 `productID` is the public Store ID, `editionID` is the returned SKU ID. Missing
 SKU IDs are errors, never fabricated editions. Content IDs are not package IDs.
-All entitlement/installability/compatibility evidence remains unknown unless a
-separate authorized/certified source exists; none exists in this scoped version.
+Entitlement and compatibility remain unknown. Installability is unknown for a
+public PC candidate and blocked when the returned edition has no PC package;
+neither is downloadable without a separate authorized package source.
+
+## Native account consent
+
+`auth.begin` has `{"accountScope":"default"}` params. It accepts only signed-out
+state and spawns one owned native WKWebView worker using the existing
+`xodus::auth::start_new_session` Microsoft/XboxLive flow. The library validates
+OAuth state; the navigation callback accepts only the exact HTTPS
+`login.live.com/oauth20_desktop.srf` origin/path. No arbitrary scope, pasted token
+or callback URL is accepted over management transport.
+
+The result is authData with optional `flow`:
+`{"flowID":"opaque-uuid","state":"pending","error":null}`. The client explicitly
+polls `auth.status` and may send `auth.cancel` with that flowID. Terminal flow
+states are completed/cancelled/failed. Starting consent is not signed-in success.
+No automatic consent window or Keychain-approval clicking is performed.
+
+Complete nonempty unexpired XAL sessions are atomically committed by the parent to one native
+Keychain entry (`management-xal-user`) through the existing TokenBackend, paired
+with a nonsecret flowID. They are **not** the legacy SOAP/Passport credential
+used by the CLI's packagespc and licensing providers. `credentialPresent` is
+cached credential presence/expiry, not fresh server authorization; it never
+sets entitlementAuthorized true. Package and consumer inventory audiences are
+not inferred from XboxLive sign-in.
+
+The child has null stdout/stderr and no initialized tracing/log subscriber.
+Its stdin is an inherited anonymous private Unix socket, not the management
+stdin pipe; only a bounded length-prefixed consent result travels over it.
+The child never initializes or writes any credential store. The parent alone
+checks the still-pending matching flow and commits the complete Keychain entry.
+It never writes plaintext token files, tokens to argv, a public credential pipe,
+or callback fragments to logs. Only a nonsecret flow UUID is passed in argv.
+Closing the window records cancellation. A 10-minute timeout kills the owned
+worker. Cancellation waits for that child to terminate before acknowledging;
+if the parent's matching Keychain commit already completed, the result
+reports completed rather than pretending to undo it. No late child callback can
+commit after the cancellation acknowledgment. Foreign/stale flow IDs are errors.
+EOF, broken output and logout terminate/wait the owned child. Logout invalidates
+the pending flow before removal, removes user/management-XAL entries, invalidates
+all process-local cached XSTS audiences, and preserves device identity/license.
+Keychain failure is an error, not signedOut. Live account consent remains a
+manual release validation gate; automated checks use memory-only fake proofs.
 
 ## Persistence, snapshots, replay, cancellation
 
@@ -96,6 +141,25 @@ hasMore is true continue from the last returned event sequence, **not** watermar
 Duplicates can arise across reconnect/replay; deduplicate by sessionID/sequence.
 Live event delivery is supplementary; a missed event is recoverable via replay.
 EOF or broken stdout is not evidence of pending-job completion.
+
+## Isolated local transaction primitive (not a live install provider)
+
+`crates/xodus-management/src/staging.rs` implements real bounded file IO,
+SHA256/size verification, durable prepare/verify/promote journals, atomic
+registry promotion, retained version rollback and explicit interrupted-work
+recovery. Saves are separate from staged/versioned directories. Disposal is
+limited to the exact UUID-owned uncommitted directory and refuses symlinks,
+hardlinks or unexpected files. Paths are bounded ASCII relative manifest paths;
+Unicode/normalization and encrypted package extraction are not guessed.
+
+This component is **not wired to successful management install/update/remove
+operations**. It accepts caller-supplied local manifests with explicit SHA256;
+it cannot establish ownership, license policy, the upstream FileHash algorithm,
+complete expanded-file manifests or runtime pairing. Filesystem tests run on
+synthetic bytes in an isolated test root. They are evidence of local transaction
+correctness, not evidence of a working Xbox package installation or gameplay.
+The management registry remains empty by construction until an authorized
+complete package adapter is implemented; legacy folders are never imported.
 
 ## Sanitized fixtures
 

@@ -44,6 +44,13 @@ While Xodus is capable of downloading and running those titles. It's possible th
 
 ## Building
 
+The macOS fork also provides a strict JSONL management adapter:
+`xodus-cli manage --protocol 1 --state-dir <absolute-private-directory>`.
+See [the wire contract](docs/MANAGEMENT-CONTRACT.md) and
+[implementation/release gates](docs/MANAGEMENT-IMPLEMENTATION-LEDGER.md).
+Native account consent and public metadata refresh are separate from ownership,
+package installation and runtime certification; gated operations fail explicitly.
+
 The project structure is as follows.
 
 ```

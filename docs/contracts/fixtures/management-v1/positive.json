@@ -643,6 +643,98 @@
       "major": 1,
       "minor": 0
     },
+    "requestID": "fixture-auth-pending",
+    "ok": true,
+    "data": {
+      "state": "signedOut",
+      "credentialStore": "macOSKeychain",
+      "audience": null,
+      "expiresAt": null,
+      "entitlementAuthorized": false,
+      "flow": {
+        "flowID": "fixture-flow",
+        "state": "pending",
+        "error": null
+      }
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-auth-completed",
+    "ok": true,
+    "data": {
+      "state": "credentialPresent",
+      "credentialStore": "macOSKeychain",
+      "audience": "http://xboxlive.com",
+      "expiresAt": "2099-01-01T00:00:00Z",
+      "entitlementAuthorized": false,
+      "flow": {
+        "flowID": "fixture-flow",
+        "state": "completed",
+        "error": null
+      }
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-auth-cancelled",
+    "ok": true,
+    "data": {
+      "state": "signedOut",
+      "credentialStore": "macOSKeychain",
+      "audience": null,
+      "expiresAt": null,
+      "entitlementAuthorized": false,
+      "flow": {
+        "flowID": "fixture-flow",
+        "state": "cancelled",
+        "error": {
+          "code": "AUTH_CANCELLED",
+          "message": "Sanitized fixture consent outcome.",
+          "retryable": false
+        }
+      }
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-auth-failed",
+    "ok": true,
+    "data": {
+      "state": "signedOut",
+      "credentialStore": "macOSKeychain",
+      "audience": null,
+      "expiresAt": null,
+      "entitlementAuthorized": false,
+      "flow": {
+        "flowID": "fixture-flow",
+        "state": "failed",
+        "error": {
+          "code": "AUTH_INVALID",
+          "message": "Sanitized fixture consent outcome.",
+          "retryable": false
+        }
+      }
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
     "requestID": "fixture-error",
     "ok": false,
     "error": {

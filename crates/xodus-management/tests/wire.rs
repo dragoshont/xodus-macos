@@ -4,8 +4,12 @@ use xodus_management::wire::{Operation, Request};
 fn all_frozen_requests_decode() {
     let frames: Vec<serde_json::Value> = serde_json::from_str(include_str!(
         "../../../docs/contracts/fixtures/management-v1/positive.json"
-    )).unwrap();
-    let requests: Vec<_> = frames.iter().filter(|frame| frame["kind"] == "request").collect();
+    ))
+    .unwrap();
+    let requests: Vec<_> = frames
+        .iter()
+        .filter(|frame| frame["kind"] == "request")
+        .collect();
     assert_eq!(requests.len(), 22);
     for frame in requests {
         let parsed: Request = serde_json::from_value(frame.clone()).unwrap();

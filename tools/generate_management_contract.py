@@ -76,7 +76,8 @@ commands = {
     }),
     "jobs.enqueue": {"oneOf": [
         obj({"kind": {"const": "catalogRefresh"}, "idempotencyKey": identifier,
-             "product": product_params}),
+             "product": {**product_params, "properties": {
+                 **product_params["properties"], "refresh": {"const": "network"}}}}),
         obj({"kind": {"const": "install"}, "idempotencyKey": identifier,
              "planID": identifier, "planDigest": text}),
     ]},
@@ -122,6 +123,11 @@ defs["authData"] = obj({
     "credentialStore": {"const": "macOSKeychain"}, "audience": nullable(text),
     "expiresAt": nullable(date), "entitlementAuthorized": {"const": False},
 })
+defs["authFlow"] = obj({
+    "flowID": identifier, "state": enum("pending", "completed", "cancelled", "failed"),
+    "error": nullable(ref("error")),
+})
+defs["authData"]["properties"]["flow"] = ref("authFlow")
 defs["productRecord"] = obj({
     "productID": identifier, "title": text, "market": text, "language": text,
     "source": text, "checkedAt": date, "freshness": enum("live", "cached"),
@@ -175,7 +181,7 @@ defs["success"]["properties"]["data"] = {"oneOf": [
 
 def write(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+    path.write_bytes((json.dumps(value, indent=2, ensure_ascii=True) + "\n").encode("utf-8"))
 
 
 write(ROOT / "docs" / "contracts" / "management-v1.schema.json", schema)
@@ -253,6 +259,20 @@ results = [
 positive += [{"kind": "result", "protocol": protocol, "requestID": f"fixture-result-{i}",
               "ok": True, "data": data} for i, data in enumerate(results)]
 positive += [event]
+for state in ("pending", "completed", "cancelled", "failed"):
+    positive.append({
+        "kind": "result", "protocol": protocol, "requestID": f"fixture-auth-{state}", "ok": True,
+        "data": {
+            "state": "credentialPresent" if state == "completed" else "signedOut",
+            "credentialStore": "macOSKeychain",
+            "audience": "http://xboxlive.com" if state == "completed" else None,
+            "expiresAt": "2099-01-01T00:00:00Z" if state == "completed" else None, "entitlementAuthorized": False,
+            "flow": {"flowID": "fixture-flow", "state": state,
+                     "error": {"code": "AUTH_CANCELLED" if state == "cancelled" else "AUTH_INVALID",
+                               "message": "Sanitized fixture consent outcome.", "retryable": False}
+                     if state in ("cancelled", "failed") else None},
+        },
+    })
 for code in defs["error"]["properties"]["code"]["enum"]:
     positive.append({"kind": "result", "protocol": protocol, "requestID": "fixture-error",
                      "ok": False, "error": {"code": code, "message": "Sanitized fixture error.",
@@ -276,6 +296,9 @@ negative.append({"name": "negativeSequence", "frame": bad_job})
 bad_result = copy.deepcopy(positive[len(commands)])
 bad_result["error"] = {"code": "INTERNAL_ERROR", "message": "fixture", "retryable": False}
 negative.append({"name": "bothSuccessAndFailure", "frame": bad_result})
+bad_flow = copy.deepcopy(positive[-len(defs["error"]["properties"]["code"]["enum"]) - 1])
+bad_flow["data"]["flow"]["token"] = "fixture-not-a-token"
+negative.append({"name": "secretFieldInFlow", "frame": bad_flow})
 write(fixture_root / "positive.json", positive)
 write(fixture_root / "negative.json", negative)
 write(fixture_root / "evidence-edge.json", [
@@ -289,5 +312,5 @@ write(fixture_root / "evidence-edge.json", [
                                   "os": "fixture-os", "architecture": "arm64",
                                   "runtimeFingerprint": "fixture-runtime"}},
 ])
-(fixture_root / "positive.jsonl").write_text(
-    "".join(json.dumps(frame, separators=(",", ":")) + "\n" for frame in positive), encoding="utf-8")
+(fixture_root / "positive.jsonl").write_bytes(
+    "".join(json.dumps(frame, separators=(",", ":")) + "\n" for frame in positive).encode("utf-8"))

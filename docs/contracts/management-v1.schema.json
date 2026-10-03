@@ -461,10 +461,7 @@
                             "pattern": "^[a-z]{2,3}(-[A-Z]{2})?$"
                           },
                           "refresh": {
-                            "enum": [
-                              "cache",
-                              "network"
-                            ]
+                            "const": "network"
                           }
                         },
                         "additionalProperties": false
@@ -1503,6 +1500,41 @@
         },
         "entitlementAuthorized": {
           "const": false
+        },
+        "flow": {
+          "$ref": "#/$defs/authFlow"
+        }
+      },
+      "additionalProperties": false
+    },
+    "authFlow": {
+      "type": "object",
+      "required": [
+        "flowID",
+        "state",
+        "error"
+      ],
+      "properties": {
+        "flowID": {
+          "$ref": "#/$defs/identifier"
+        },
+        "state": {
+          "enum": [
+            "pending",
+            "completed",
+            "cancelled",
+            "failed"
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false

@@ -1,5 +1,9 @@
 pub static SERVICE_NAME: &str = "Xodus Service";
 
+pub const fn management_native_keychain_enabled() -> bool {
+    cfg!(all(target_os = "macos", not(feature = "key-chain-file")))
+}
+
 pub fn init_secrets() -> Result<(), keyring_core::Error> {
     #[cfg(feature = "key-chain-file")]
     {

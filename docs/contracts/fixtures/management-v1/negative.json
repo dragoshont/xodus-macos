@@ -185,5 +185,34 @@
         "retryable": false
       }
     }
+  },
+  {
+    "name": "secretFieldInFlow",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-auth-failed",
+      "ok": true,
+      "data": {
+        "state": "signedOut",
+        "credentialStore": "macOSKeychain",
+        "audience": null,
+        "expiresAt": null,
+        "entitlementAuthorized": false,
+        "flow": {
+          "flowID": "fixture-flow",
+          "state": "failed",
+          "error": {
+            "code": "AUTH_INVALID",
+            "message": "Sanitized fixture consent outcome.",
+            "retryable": false
+          },
+          "token": "fixture-not-a-token"
+        }
+      }
+    }
   }
 ]

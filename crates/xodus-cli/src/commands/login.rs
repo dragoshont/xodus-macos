@@ -11,39 +11,79 @@ const LOGIN_MARKET: &str = "en-US";
 const USER_AUTH_SCOPE: &str = "scope=service::user.auth.xboxlive.com::MBI_SSL&api-version=2.0";
 
 pub async fn run(client: &reqwest::Client, tokens: &TokenManager) -> ExitCode {
-    let token = tokens.get_device_sts_token().unwrap();
+    let Ok(token) = tokens.get_device_sts_token() else {
+        eprintln!("Device credentials are unavailable");
+        return ExitCode::FAILURE;
+    };
     let secrets::Token::Legacy(token) = token else {
         eprintln!("Invalid STS token");
         return ExitCode::FAILURE;
     };
     let handler = LoginHandler::new(client.clone(), token, tokens.clone());
-    let output = webview::run_sessions(handler)
-        .expect("failed to login")
-        .flatten();
-    let issued_tokens = match output {
-        Some(soap::BodyContent::RequestSecurityTokenResponseCollection(collection)) => {
+    let output = match webview::run_sessions(handler) {
+        Ok(output) => output.flatten(),
+        Err(_) => {
+            eprintln!("Sign-in failed before credentials were issued");
+            return ExitCode::FAILURE;
+        }
+    };
+    match validate_issued(output) {
+        Ok((issued, user)) => {
+            if tokens.replace_user_tokens(issued).is_err() || tokens.save_user(&user).is_err() {
+                eprintln!("Sign-in credentials could not be persisted");
+                return ExitCode::FAILURE;
+            }
+            ExitCode::SUCCESS
+        }
+        Err(reason) => {
+            eprintln!("{reason}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+#[derive(Debug)]
+struct LoginOutput {
+    body: soap::BodyContent,
+    user: secrets::User,
+}
+
+fn validate_issued(
+    output: Option<LoginOutput>,
+) -> Result<
+    (
+        std::collections::HashMap<String, secrets::Token>,
+        secrets::User,
+    ),
+    &'static str,
+> {
+    let output = output.ok_or("Sign-in was cancelled or no credentials were issued")?;
+    let issued = match output.body {
+        soap::BodyContent::RequestSecurityTokenResponseCollection(collection) => {
             collection.security_tokens
         }
-        Some(soap::BodyContent::RequestSecurityTokenResponse(token)) => vec![*token],
-        None => {
-            eprintln!("Didn't log in");
-            vec![]
-        }
-        _ => unreachable!(),
+        soap::BodyContent::RequestSecurityTokenResponse(token) => vec![*token],
+        _ => return Err("Sign-in did not return credential proof"),
     };
-
-    for token in issued_tokens {
-        let address = token.applies_to.endpoint_reference.address.clone();
-        let token = token.into();
-        let address = if let secrets::Token::Legacy(legacy) = &token {
-            legacy.key_name.clone().unwrap_or(address)
-        } else {
-            address
-        };
-        tokens.save_user_token(address, token).unwrap();
+    if issued.is_empty()
+        || output.user.puid.trim().is_empty()
+        || output.user.username.trim().is_empty()
+    {
+        return Err("Sign-in did not return nonempty credential proof");
     }
-
-    ExitCode::SUCCESS
+    let mut tokens = std::collections::HashMap::new();
+    for response in issued {
+        let address = response.applies_to.endpoint_reference.address.clone();
+        let token = secrets::Token::from_response_checked(response)?;
+        let address = match &token {
+            secrets::Token::Legacy(legacy) => legacy.key_name.clone().unwrap_or(address),
+            _ => address,
+        };
+        if tokens.insert(address, token).is_some() {
+            return Err("Sign-in returned duplicate credential audiences");
+        }
+    }
+    Ok((tokens, output.user))
 }
 
 struct LoginHandler {
@@ -51,21 +91,19 @@ struct LoginHandler {
     device: xodus::models::secrets::LegacyToken,
     client_id: String,
     finish: bool,
-    tokens: TokenManager,
 }
 
 impl LoginHandler {
     fn new(
         client: reqwest::Client,
         device: xodus::models::secrets::LegacyToken,
-        tokens: TokenManager,
+        _tokens: TokenManager,
     ) -> Self {
         Self {
             client,
             device,
             client_id: CLIENT_ID.to_string(),
             finish: false,
-            tokens,
         }
     }
 
@@ -119,7 +157,7 @@ impl LoginHandler {
 }
 
 impl webview::SessionHandler for LoginHandler {
-    type Output = Option<soap::BodyContent>;
+    type Output = Option<LoginOutput>;
 
     fn bootstrap(
         &mut self,
@@ -151,19 +189,20 @@ impl webview::SessionHandler for LoginHandler {
                     return Ok(webview::HandlerControl::Continue);
                 }
 
-                println!("User token exchange returned a fault without inline auth");
+                eprintln!("User token exchange returned a fault without inline auth");
                 runtime.close_session(session_id);
                 Ok(webview::HandlerControl::Complete(None))
             }
             ExchangeUserTokenOutcome::Issued(da) => {
                 runtime.close_session(session_id);
-                self.tokens
-                    .save_user(&xodus::models::secrets::User {
-                        puid: data.puid,
-                        username: data.username,
-                    })
-                    .unwrap();
-                Ok(webview::HandlerControl::Complete(Some(da)))
+                let user = xodus::models::secrets::User {
+                    puid: data.puid,
+                    username: data.username,
+                };
+                Ok(webview::HandlerControl::Complete(Some(LoginOutput {
+                    body: da,
+                    user,
+                })))
             }
         }
     }
@@ -174,5 +213,33 @@ impl webview::SessionHandler for LoginHandler {
         _runtime: &mut webview::RuntimeCommands,
     ) -> Result<webview::HandlerControl<Self::Output>, Box<dyn std::error::Error>> {
         Ok(webview::HandlerControl::Complete(None))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_webview_output_is_cancellation_not_success() {
+        assert!(validate_issued(None).is_err());
+    }
+
+    #[test]
+    fn empty_issued_collection_is_not_success() {
+        assert!(
+            validate_issued(Some(LoginOutput {
+                body: soap::BodyContent::RequestSecurityTokenResponseCollection(
+                    soap::RequestSecurityTokenResponseCollection {
+                        security_tokens: vec![]
+                    }
+                ),
+                user: secrets::User {
+                    puid: "fixture".to_owned(),
+                    username: "fixture".to_owned()
+                },
+            }))
+            .is_err()
+        );
     }
 }

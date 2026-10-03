@@ -1,0 +1,116 @@
+# Launcher management implementation ledger
+
+This branch implements a real native management process, not a full consumer
+Xbox launcher release. Requirement IDs follow public app foundation
+`4e9c963085d20943fd0ef1c452c67ab40a52ac99`. App/native UI and final adversarial
+review remain independently owned. No automatic merge or game launch.
+
+| Requirement | Implemented surface / evidence | Remaining release gate |
+| --- | --- | --- |
+| AUTH-01 | Existing XAL Microsoft/XboxLive flow, exact native WK callback, inherited private socket with bounded proof handoff, parent-only atomic Keychain commit, flow polling and owned-child cancel/EOF/logout/deadline tests | Real approved account consent, Keychain approval, successful XboxLive account result not executed unattended |
+| AUTH-02 | User-only disconnect, device preservation, shared-clone XSTS cache invalidation, storage-error propagation, flowID correlation | Real multi-account/Keychain failure/manual session refresh validation; no package credential conversion inferred |
+| LIB-01/02/03 | inventory.snapshot fails ACCESS_UNKNOWN with source/completeness; anonymous metadata never gains ownership | Consumer audience/authorization, paging, never-played PC purchase coverage, expiry and refresh evidence |
+| FIND-01 | Persistent observedPublicProducts corpus, title/ID search, PC/market/language scope, revision-pinned pagination | Full-text global catalog source and genuine owned library search absent |
+| ID-01 | Returned product and SKU IDs preserved, absent/mismatched IDs error, content IDs never become package IDs | Authorized edition/package/version/architecture/language resolution |
+| DETAIL-01 | Independent unknown access, unknown/blocked downloadability, unknown compatibility, management-only notInstalled facets | Authorized entitlement/download source and registry-backed live install state |
+| COMPAT-01 | No verified/experimental compatibility fabricated, runtimeFingerprint null | Exact signed/distributable runtime/OS evidence and opt-in experimental policy |
+| PLAN-01 | Local manifest size overflow, free-space allocation recheck and SHA256 validation implemented/tested; wire plan remains error-only | Authenticated complete MSIXVC file/hash semantics, expanded/staging/rollback estimates, immutable authorized plan |
+| QUEUE-01/02 | Actual public-catalog refresh jobs: atomic ordered state/events, snapshots/replay, idempotency, revisions, cancellation, bounded retries, interrupted recovery | Install/download/extract jobs are not connected; local transaction tests are not live package queue proof |
+| PLAY-01 | game.launch returns RUNTIME_MISMATCH without spawning game/runtime | Certified exact paired runtime, license/entitlement policy, real supervised process outcomes |
+| UPDATE-01 | Local file-set verify/atomic promote, retained version re-verification/rollback, interrupted journal recovery with save separation | Authorized package provider, complete extracted manifests and real install/update integration |
+| REMOVE-01 | UUID-owned uncommitted staging disposal refuses escapes/unexpected files and leaves saves | User-confirmed live installation removal and separate save policy; wire removal remains gated |
+| SETTINGS-01/PRIV-01 | Typed bounded diagnostics counts, no accounts/paths/tokens/URLs, no log subscriber in management/helper, plaintext fallback refused | Independent final public-source/privacy review and manual export/UI validation |
+| OFFLINE-01 | Explicit cached public detail/search and durable job/management snapshots | No offline access authorization or runtime launch is advertised |
+| RELEASE-01 | Public versioned schema, deterministic sanitized fixtures, native debug build under isolated tooling | Signed/notarized distribution, licenses/dependency audit, runtime/ownership proof and final coordinator review |
+
+## Source-based boundaries, not blanket runtime excuses
+
+- `api/displaycatalog.rs` provides public product-ID lookup. The new bounded
+  variant limits response size/time and refuses redirects. It does not discover
+  a global full-text catalog or a complete owned library.
+- `auth.rs::start_new_session` returns a XAL TokenStore scoped to XboxLive. The
+  new native callback deliberately reuses that flow/state validation. Existing
+  `package.rs::get_packages` instead requires legacy device/user SOAP tokens,
+  gets XSTS for `http://update.xboxlive.com`, and unwraps several failure paths.
+  `license.rs` uses `www.microsoft.com`, device license keys and consumer content
+  licensing. No source-proven XAL-to-legacy/broker conversion exists.
+- `PackageFile` contains FileSize/FileHash/KeyBlob/CDN paths, but this fork has no
+  FileHash algorithm/encoding validation or authoritative expanded-file space
+  calculation. No signed URL/key blob enters management results/state.
+  An anonymous live DisplayCatalog lookup of public product `9NBLGGH2JHXJ`
+  exposed PC MSIXVC candidate metadata, but its Version was `"0"`, Hash and
+  HashAlgorithm were empty, and MaxInstallSizeInBytes was zero while the download
+  bound was nonzero. These are not authoritative immutable version/digest or
+  expanded-space estimates. BCP47 `en-us` casing is normalized by comparison.
+  Public package IDs remain candidates under unknown installability.
+- Existing streaming extraction writes/truncates active paths directly and
+  reuses identical whole-file hashes/redownloads changed files, not block deltas.
+  It has no failure-safe ownership registry, atomic version promotion, safe
+  removed-file reconciliation or exact runtime pairing. Management never calls
+  that path. Its explicit license/key-count/space failures now return CLI
+  failure instead of unconditional success.
+- The local staged-file primitive is real file IO with durable journals and
+  verified promotion, but remains independent from consumer package providers.
+  No fixture manifest, authorization, installation or compatibility enters the
+  live adapter. There is no live install success endpoint in protocol 1.0.
+
+## Reproducible native verification
+
+Tooling root: `/Users/dragoshont/xodus-app-tooling/launcher-management-20a5b11d`.
+Source, target, schema virtualenv and test temp roots all stay in this scope.
+Existing Rust 1.98, CLT macOS 27, `/opt/homebrew/bin/protoc` and cmake are reused.
+Compilation is capped at two jobs. No Xcode installation/security/service or
+private-runtime changes. No real consent, game restart, DLL copying or tokens
+in files/logs/fixtures.
+
+```sh
+export PATH="/opt/homebrew/bin:$PATH"
+export PROTOC=/opt/homebrew/bin/protoc
+export CARGO_BUILD_JOBS=2
+export CARGO_TARGET_DIR="$HOME/xodus-app-tooling/launcher-management-20a5b11d/target"
+export TMPDIR="$HOME/xodus-app-tooling/launcher-management-20a5b11d/tmp"
+cargo test -q -p xodus-management --features live -p xodus-cli
+cargo test -q -p xodus --lib management
+cargo clippy -q -p xodus-management --features live --no-deps -- -D warnings
+cargo test -q -p xodus-management --features live,xodus/key-chain-file --lib \
+  native_capabilities_refuse_plaintext_fallback_configuration
+cargo build -q -p xodus-cli
+../schema-venv/bin/python tools/check_management_contract.py
+../schema-venv/bin/python tools/smoke_management.py \
+  --binary "$CARGO_TARGET_DIR/debug/xodus-cli" --root "$TMPDIR"
+```
+
+Native checks cover strict framing/limit/truncation/duplicates, schema decoding,
+capability gates, revision/idempotency/cancellation/replay/restart, Keychain
+memory facades, exact callback origin, CLI false-success regressions, bounded
+path/hash/space checks, interrupted verified/promoted/committed transactions,
+rollback integrity and preservation of separate saves/unrelated files.
+JSON Schema fixture checks are explicitly separate from live public API checks.
+Never hash CRLF worktree bytes as if they were the Git blob.
+
+## Verified results
+
+The isolated arm64 native run passed **48 Rust checks** (6 CLI/callback/private-channel,
+8 owned-auth/configuration/handoff lifecycle, 7 adapter, 9 local staging/recovery, 11 framing/state,
+2 frozen wire, 5 core token/Keychain-memory checks). The schema validator passed
+**68 positive, 10 negative and 4 evidence-edge fixtures**, preserving all nine
+foundation evidence definitions exactly.
+Management clippy passed with warnings denied. An additional alternate-feature
+run confirmed that `key-chain-file` disables all native auth capabilities and
+refuses the management token manager before any plaintext backend initialization.
+
+The actual native executable passed a separate anonymous public API/process
+smoke check: hello, live product detail, a real catalogRefresh job, durable
+snapshot, enqueue idempotency, ordered replay, limited cached search, explicit
+inventory/runtime gates, management-only installed snapshot, sanitized
+diagnostics and process reconnect with the same persisted session/job.
+Every emitted frame was validated against the canonical schema while
+XODUS_LOG/RUST_LOG were set to trace; there was no stdout/stderr contamination.
+No account consent, Keychain approvals, package downloads, ownership API or game
+launch was executed. Source-based/manual release gates in the table remain open.
+
+Canonical **committed LF bytes** schema SHA256:
+`b27dab79d05f985eb39ffbd638cab0dbd69e831fd37d29ace414f517229ba7f2`.
+Both schema additions (auth.logout and optional authData.flow) were explicitly
+agreed before integration. Fixtures are test-only; the native public smoke
+uses the real anonymous catalog provider, not the fixture provider.

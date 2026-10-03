@@ -22,6 +22,24 @@ struct Job {
     content: SegmentFile,
 }
 
+fn check_content_key_count(count: usize) -> Result<(), String> {
+    if count != 1 {
+        Err(format!("unexpected number of content keys {count}"))
+    } else {
+        Ok(())
+    }
+}
+
+fn check_space(required: u64, available: u64) -> Result<(), String> {
+    if available < required {
+        Err(format!(
+            "not enough free disk space: need {required} bytes, have {available} bytes"
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 enum ProgressEvent {
     Started { id: usize, name: String, total: u64 },
     Advanced { id: usize, delta: u64 },
@@ -56,7 +74,7 @@ pub async fn run(
                 return ExitCode::FAILURE;
             }
         };
-        run_cli_reader(
+        let result = run_cli_reader(
             client,
             tokens,
             destination,
@@ -70,6 +88,10 @@ pub async fn run(
             rx,
         )
         .await;
+        if let Err(error) = result {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
     } else {
         let vurl = if source.starts_with("http://") || source.starts_with("https://") {
             source
@@ -132,7 +154,7 @@ pub async fn run(
         .expect("ok");
         let l = http_file.len();
 
-        run_cli_reader(
+        let result = run_cli_reader(
             client,
             tokens,
             destination,
@@ -146,6 +168,10 @@ pub async fn run(
             rx,
         )
         .await;
+        if let Err(error) = result {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
     }
 
     ExitCode::SUCCESS
@@ -163,7 +189,7 @@ async fn run_cli_reader<Reader>(
     url: &str,
     tx: &Sender<ProgressEvent>,
     mut rx: Receiver<ProgressEvent>,
-) -> ()
+) -> Result<(), String>
 where
     Reader: AsyncRead + Unpin,
 {
@@ -236,7 +262,7 @@ async fn run_reader<Reader>(
     l: u64,
     url: &str,
     tx: &Sender<ProgressEvent>,
-) -> ()
+) -> Result<(), String>
 where
     Reader: AsyncRead + Unpin,
 {
@@ -314,19 +340,12 @@ where
     )
     .await;
     if let Err(err) = license {
-        eprintln!("{}", err);
-        return;
+        return Err(err);
     }
     let (key, game_splicense) = license.unwrap();
-    if game_splicense.content_keys.len() != 1 {
-        eprintln!(
-            "unexpected number of content keys {}",
-            game_splicense.content_keys.len()
-        );
-        return;
-    }
+    check_content_key_count(game_splicense.content_keys.len())?;
     let Some((_, content_key)) = game_splicense.content_keys.into_iter().next() else {
-        return;
+        return Err("No content key was returned".to_owned());
     };
 
     let full_key = content_key.unpack(&key).expect("failed to unpack");
@@ -341,31 +360,22 @@ where
             }
         })
         .map(|(_, v)| v.length)
-        .sum();
+        .try_fold(0u64, |total, size| total.checked_add(size))
+        .ok_or_else(|| "Required download size overflow".to_owned())?;
 
     let required_free_space = total_size;
     let available_free_space = match available_space(out) {
         Ok(space) => space,
         Err(err) => {
-            eprintln!(
+            return Err(format!(
                 "failed to determine available space for {}: {}",
                 out.display(),
                 err
-            );
-            return;
+            ));
         }
     };
 
-    if available_free_space < required_free_space {
-        eprintln!(
-            "not enough free disk space on {}: need {} bytes, have {} bytes (files: {})",
-            out.display(),
-            required_free_space,
-            available_free_space,
-            total_size
-        );
-        return;
-    }
+    check_space(required_free_space, available_free_space)?;
 
     tx.send(ProgressEvent::UpdateRemaining {
         name: "Downloading".to_owned(),
@@ -458,4 +468,24 @@ where
 
     std::fs::remove_file(&final_path).ok();
     std::fs::rename(&cache_path, &final_path).expect("ok");
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn content_key_failures_propagate() {
+        assert!(check_content_key_count(0).is_err());
+        assert!(check_content_key_count(2).is_err());
+        assert!(check_content_key_count(1).is_ok());
+    }
+
+    #[test]
+    fn exact_space_threshold_is_checked() {
+        assert!(check_space(8192, 8191).is_err());
+        assert!(check_space(8192, 8192).is_ok());
+        assert!(check_space(8192, 8193).is_ok());
+    }
 }

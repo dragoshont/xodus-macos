@@ -8,11 +8,26 @@ use xodus::tokens::TokenManager;
 
 mod commands;
 mod license;
+#[cfg(target_os = "macos")]
+mod management_auth;
 mod package;
 mod webview;
 
 #[derive(Subcommand)]
 enum SubCommand {
+    #[command(about = "Strict JSONL launcher management protocol")]
+    Manage {
+        #[arg(long)]
+        protocol: u32,
+        #[arg(long)]
+        state_dir: std::path::PathBuf,
+    },
+    #[cfg(target_os = "macos")]
+    #[command(hide = true)]
+    ManagementAuthWorker {
+        #[arg(long)]
+        flow_id: String,
+    },
     #[command(about = "Download msixvc or xsp files fo given game")]
     Download {
         product: String,
@@ -124,6 +139,18 @@ struct CliArgs {
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    let args = CliArgs::parse();
+    if let SubCommand::Manage {
+        protocol,
+        state_dir,
+    } = &args.command
+    {
+        return xodus_management::adapter::run(state_dir, *protocol).await;
+    }
+    #[cfg(target_os = "macos")]
+    if let SubCommand::ManagementAuthWorker { flow_id } = &args.command {
+        return management_auth::run(flow_id.clone()).await;
+    }
     let filter = tracing_subscriber::EnvFilter::from_env("XODUS_LOG");
     let registry =
         tracing_subscriber::registry().with(tracing_subscriber::fmt::layer().with_filter(filter));
@@ -148,7 +175,6 @@ async fn main() -> ExitCode {
         .connection_verbose(true)
         .build()
         .unwrap();
-    let args = CliArgs::parse();
 
     xodus::secrets::init_secrets().expect("Unable to initialize credentials");
     let tokens = TokenManager::with_keychain_and_memory();
@@ -168,6 +194,13 @@ async fn main() -> ExitCode {
     }
 
     let code = match args.command {
+        SubCommand::Manage { .. } => {
+            unreachable!("management returns before legacy initialization")
+        }
+        #[cfg(target_os = "macos")]
+        SubCommand::ManagementAuthWorker { .. } => {
+            unreachable!("auth worker returns before legacy initialization")
+        }
         SubCommand::Download {
             product,
             market,

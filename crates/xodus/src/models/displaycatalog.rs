@@ -9,7 +9,19 @@ pub struct DisplayCatalogProductsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Product {
+    #[serde(default)]
+    pub product_id: Option<String>,
+    #[serde(default)]
+    pub localized_properties: Vec<LocalizedProperties>,
     pub display_sku_availabilities: Vec<DisplaySkuAvailability>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct LocalizedProperties {
+    pub product_title: String,
+    #[serde(default)]
+    pub language: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,6 +34,8 @@ pub struct DisplaySkuAvailability {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Sku {
+    #[serde(default)]
+    pub sku_id: Option<String>,
     pub properties: SkuProperties,
 }
 
@@ -34,6 +48,10 @@ pub struct SkuProperties {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Package {
+    #[serde(default)]
+    pub package_id: Option<String>,
+    #[serde(default)]
+    pub version: Option<String>,
     #[serde(default)]
     pub content_id: Option<String>,
     pub platform_dependencies: Vec<PlatformDependency>,

@@ -42,9 +42,14 @@ impl<'de> Deserialize<'de> for Request {
         let operation = serde_json::from_value(serde_json::json!({
             "command": envelope.command,
             "params": envelope.params
-        })).map_err(serde::de::Error::custom)?;
-        Ok(Self { kind: envelope.kind, protocol: envelope.protocol,
-            request_id: envelope.request_id, operation })
+        }))
+        .map_err(serde::de::Error::custom)?;
+        Ok(Self {
+            kind: envelope.kind,
+            protocol: envelope.protocol,
+            request_id: envelope.request_id,
+            operation,
+        })
     }
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -305,7 +310,12 @@ pub enum ErrorCode {
 
 impl WireError {
     pub fn new(code: ErrorCode, message: &str, retryable: bool) -> Self {
-        Self { code, message: message.to_owned(), retryable, details: None }
+        Self {
+            code,
+            message: message.to_owned(),
+            retryable,
+            details: None,
+        }
     }
 }
 
@@ -335,11 +345,17 @@ pub struct True;
 impl TryFrom<bool> for True {
     type Error = &'static str;
     fn try_from(value: bool) -> Result<Self, Self::Error> {
-        if value { Ok(Self) } else { Err("expected true") }
+        if value {
+            Ok(Self)
+        } else {
+            Err("expected true")
+        }
     }
 }
 impl From<True> for bool {
-    fn from(_: True) -> Self { true }
+    fn from(_: True) -> Self {
+        true
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -348,11 +364,17 @@ pub struct False;
 impl TryFrom<bool> for False {
     type Error = &'static str;
     fn try_from(value: bool) -> Result<Self, Self::Error> {
-        if !value { Ok(Self) } else { Err("expected false") }
+        if !value {
+            Ok(Self)
+        } else {
+            Err("expected false")
+        }
     }
 }
 impl From<False> for bool {
-    fn from(_: False) -> Self { false }
+    fn from(_: False) -> Self {
+        false
+    }
 }
 
 impl ResultFrame {
@@ -361,7 +383,11 @@ impl ResultFrame {
             Ok(data) => Outcome::Success { ok: True, data },
             Err(error) => Outcome::Failure { ok: False, error },
         };
-        Self::Result { protocol: Protocol::default(), request_id, outcome }
+        Self::Result {
+            protocol: Protocol::default(),
+            request_id,
+            outcome,
+        }
     }
 }
 
@@ -409,11 +435,35 @@ pub struct AuthData {
     pub audience: Option<String>,
     pub expires_at: Option<String>,
     pub entitlement_authorized: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flow: Option<AuthFlow>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthFlow {
+    #[serde(rename = "flowID")]
+    pub flow_id: String,
+    pub state: AuthFlowState,
+    pub error: Option<WireError>,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AuthFlowState {
+    Pending,
+    Completed,
+    Cancelled,
+    Failed,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum AuthState { SignedOut, CredentialPresent, Expired, Invalid }
+pub enum AuthState {
+    SignedOut,
+    CredentialPresent,
+    Expired,
+    Invalid,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -438,7 +488,10 @@ pub struct ProductRecord {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum Freshness { Live, Cached }
+pub enum Freshness {
+    Live,
+    Cached,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -475,7 +528,12 @@ pub struct Entitlement {
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum EntitlementKind { Purchase, Subscription, None, Unknown }
+pub enum EntitlementKind {
+    Purchase,
+    Subscription,
+    None,
+    Unknown,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -490,7 +548,11 @@ pub struct Installability {
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum InstallabilityKind { Downloadable, Blocked, Unknown }
+pub enum InstallabilityKind {
+    Downloadable,
+    Blocked,
+    Unknown,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -507,7 +569,12 @@ pub struct Compatibility {
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum CompatibilityKind { Verified, Experimental, Unsupported, Unknown }
+pub enum CompatibilityKind {
+    Verified,
+    Experimental,
+    Unsupported,
+    Unknown,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -522,7 +589,12 @@ pub struct Installation {
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum InstallationKind { NotInstalled, Installed, Updating, Broken }
+pub enum InstallationKind {
+    NotInstalled,
+    Installed,
+    Updating,
+    Broken,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -537,7 +609,11 @@ pub struct InventoryMetadata {
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum Completeness { Complete, Partial, Unknown }
+pub enum Completeness {
+    Complete,
+    Partial,
+    Unknown,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -557,11 +633,19 @@ pub struct Job {
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum JobKind { CatalogRefresh }
+pub enum JobKind {
+    CatalogRefresh,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub enum JobState { Queued, Running, Completed, Failed, Cancelled }
+pub enum JobState {
+    Queued,
+    Running,
+    Completed,
+    Failed,
+    Cancelled,
+}
 
 impl JobState {
     pub fn terminal(&self) -> bool {
@@ -571,7 +655,10 @@ impl JobState {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct JobData { pub job: Job, pub watermark: u64 }
+pub struct JobData {
+    pub job: Job,
+    pub watermark: u64,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

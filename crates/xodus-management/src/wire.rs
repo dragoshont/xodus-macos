@@ -77,6 +77,8 @@ pub enum Operation {
     CatalogSearch(SearchParams),
     #[serde(rename = "catalog.discover")]
     CatalogDiscover(DiscoveryParams),
+    #[serde(rename = "catalog.query")]
+    CatalogQuery(QueryParams),
     #[serde(rename = "product.detail")]
     ProductDetail(ProductParams),
     #[serde(rename = "install.plan")]
@@ -174,6 +176,16 @@ pub struct SearchParams {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DiscoveryParams {
+    pub market: String,
+    pub language: String,
+    pub limit: u32,
+    pub cursor: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct QueryParams {
+    pub query: String,
     pub market: String,
     pub language: String,
     pub limit: u32,
@@ -409,6 +421,7 @@ pub enum Data {
     Auth(AuthData),
     Search(SearchData),
     Discovery(DiscoveryData),
+    Query(QueryData),
     Product(ProductData),
     Job(JobData),
     Jobs(JobsData),
@@ -537,6 +550,20 @@ pub struct DiscoveryFailure {
     #[serde(rename = "productID")]
     pub product_id: String,
     pub error: WireError,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct QueryData {
+    pub corpus: String,
+    pub completeness: String,
+    pub source: String,
+    pub checked_at: String,
+    pub freshness: Freshness,
+    pub query: String,
+    pub products: Vec<ProductRecord>,
+    pub failures: Vec<DiscoveryFailure>,
+    pub next_cursor: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

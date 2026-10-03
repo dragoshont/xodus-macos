@@ -35,6 +35,22 @@ del missing_provenance["checkedAt"]
 failed_cases.append(missing_provenance)
 for case in failed_cases:
     assert list(failed_validator.iter_errors(case)), "unsafe failed discovery details"
+failed_query_schema = {**schema, "oneOf": [{"$ref": "#/$defs/failedQueryData"}]}
+failed_query_validator = jsonschema.Draft202012Validator(
+    failed_query_schema, format_checker=jsonschema.FormatChecker())
+failed_query_frame = next(frame for frame in positive if frame.get("requestID") == "fixture-query-all-failed")
+failed_query = failed_query_frame["error"]["details"]
+failed_query_validator.validate(failed_query)
+failed_query_cases = [
+    {**failed_query, "failures": []},
+    {**failed_query, "failures": failed_query["failures"] * 17},
+    {**failed_query, "query": ""},
+    {**failed_query, "nextCursor": "https://attacker.invalid/"},
+    {**failed_query, "token": "fixture-not-a-token"},
+    {key: value for key, value in failed_query.items() if key != "checkedAt"},
+]
+for case in failed_query_cases:
+    assert list(failed_query_validator.iter_errors(case)), "unsafe failed query details"
 for case in negative:
     assert list(validator.iter_errors(case["frame"])), case["name"]
 for name in ("identifier", "protocol", "fingerprint", "entitlement", "installability",
@@ -48,4 +64,5 @@ for item in evidence:
 assert positive == [json.loads(line) for line in (fixtures / "positive.jsonl").read_text().splitlines()]
 print(f"Contract fixtures: {len(positive)} positive, {len(negative)} negative, "
       f"{len(failed_cases)} failed-page negative checks, "
+      f"{len(failed_query_cases)} failed-query negative checks, "
       f"{len(evidence)} evidence-edge; preserved 9 foundation definitions.")

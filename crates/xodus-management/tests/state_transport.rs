@@ -25,6 +25,53 @@ fn directory() -> (tempfile::TempDir, std::path::PathBuf) {
 }
 
 #[test]
+fn query_validation_preserves_exact_text_and_rejects_unsafe_parameters() {
+    let base = serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},
+        "requestID":"query-validation","command":"catalog.query","params":{
+        "query":" Halo ","market":"US","language":"en-US","limit":8,"cursor":null}});
+    let request = transport::parse(&serde_json::to_vec(&base).unwrap()).unwrap();
+    let Operation::CatalogQuery(params) = request.operation else {
+        panic!("query expected")
+    };
+    assert_eq!(params.query, " Halo ");
+    for (key, value) in [
+        ("query", serde_json::json!(" \u{2003} ")),
+        ("query", serde_json::json!("Halo\n")),
+        ("query", serde_json::json!("x".repeat(257))),
+        ("limit", serde_json::json!(17)),
+        ("cursor", serde_json::json!("q1-")),
+        ("cursor", serde_json::json!("q1-abc")),
+        ("cursor", serde_json::json!("https://attacker.invalid/")),
+    ] {
+        let mut frame = base.clone();
+        frame["params"][key] = value;
+        assert_eq!(
+            transport::parse(&serde_json::to_vec(&frame).unwrap())
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidRequest
+        );
+    }
+    for command in ["catalog.search", "catalog.discover", "catalog.query"] {
+        let mut frame = base.clone();
+        frame["command"] = serde_json::json!(command);
+        if command == "catalog.search" {
+            frame["params"]["platform"] = serde_json::json!("pc");
+        } else if command == "catalog.discover" {
+            frame["params"].as_object_mut().unwrap().remove("query");
+        }
+        transport::parse(&serde_json::to_vec(&frame).unwrap()).unwrap();
+        frame["params"].as_object_mut().unwrap().remove("cursor");
+        assert_eq!(
+            transport::parse(&serde_json::to_vec(&frame).unwrap())
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidRequest
+        );
+    }
+}
+
+#[test]
 fn durable_idempotency_revision_and_interruption() {
     let (_temporary, path) = directory();
     let mut store = Store::open(&path).unwrap();

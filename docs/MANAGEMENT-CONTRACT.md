@@ -45,6 +45,7 @@ runtime/version. Account scope is only `default`, without an account identifier.
 | product.detail | productData, anonymous public product-ID lookup or explicit cached lookup |
 | catalog.search | searchData, **observedPublicProducts** corpus only, partial catalog coverage |
 | catalog.discover | discoveryData, one bounded public PC GamePass page; not ownership or whole-store text search |
+| catalog.query | queryData, agreed real anonymous Microsoft Store game-query contract; capability gated until the provider is connected |
 | jobs.enqueue | jobData for catalogRefresh; install variant gated |
 | jobs.cancel / jobs.retry | jobData; expectedRevision required |
 | jobs.pause / jobs.resume | gated: no pause guarantee |
@@ -158,6 +159,45 @@ discovery, but no products and at least one bounded typed failure. Successful
 `discoveryData` still requires a nonempty product page. Error details are
 validated in the correlated discovery-command context, not accepted as arbitrary
 safe payloads merely because they arrived inside an error envelope.
+
+## Public Microsoft Store query extension
+
+`catalog.query` is explicitly agreed with the native consumer. Params:
+`{query,market,language,limit:1..16,cursor:null|string}`. Query is 1..256 Unicode
+characters, no controls or all-whitespace input; its result echoes the exact
+requested wire string, without implicit trimming. The UI can trim before sending.
+Existing `catalog.search` remains the observed-cache operation.
+
+`queryData` returns corpus `publicMicrosoftStoreSearch`, partial completeness,
+source `MicrosoftStoreEdge:v9.0/searchResults`, live freshness/checkedAt, exact
+query, bounded products/failures and nextCursor. Products require live resolved
+Windows.Desktop/pcCatalogCandidate evidence; a console-only source card is not a
+PC result. Requested market/language remain unchanged and `resolvedLanguage`
+exposes neutral-locale resolution. Visibility/PC metadata are not ownership,
+authorized download, subscription or Mac compatibility.
+
+A real zero-source-match page is an empty success without failures. Otherwise
+all failed metadata resolutions return typed `PACKAGE_UNAVAILABLE` details
+validated separately against `failedQueryData` (zero products, 1..16 failures).
+Failed items remain visible. No error-details blob becomes implicitly trusted.
+Sanitized fixtures include mixed failures, neutral locale, actual-zero shape,
+all-failure details, deadline/cancellation and console-only schema rejection.
+
+The verified production source begins at anonymous HTTPS
+`storeedgefd.dsx.mp.microsoft.com/v9.0/pages/searchResults` with market, locale,
+deviceFamily `windows.desktop`, query and mediaType `games`. Its server-provided
+next URI can use the same host `/v9.0/search`, with games product family and opaque
+server cursor. No redirects, credentials, cookies, CardActions or arbitrary URLs
+are executed. A bounded `q1-` opaque cursor binds exact query/market/language,
+validated source URI, unconsumed source-page offset and observed ID revision;
+an 8-item client page cannot discard the source page's remaining 12 cards.
+Cursor is public metadata, not a credential. Invalid/changed scope is rejected.
+
+The implementation budget is one source page (1 MiB/10 seconds), at most four
+metadata workers (8 seconds each), 30 seconds whole page, 896 KiB output, and
+at most 16 attempted IDs. EOF cancels pending work; no per-query wire cancellation
+is promised. This standalone schema/type freeze keeps the capability false until
+the real provider is connected and validated; fixtures are not live proof.
 
 `catalog.discover` is an agreed additive 1.0 extension. Parameters are
 `{"market":"US","language":"en-US","limit":8,"cursor":null}`; limit is 1..16.

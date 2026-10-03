@@ -1,5 +1,6 @@
 """Deterministic contract artifact generation; never contacts an account or API."""
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -71,6 +72,13 @@ commands = {
         "language": product_params["properties"]["language"],
         "limit": {"type": "integer", "minimum": 1, "maximum": 16},
         "cursor": nullable({"type": "string", "maxLength": 128}),
+    }),
+    "catalog.query": obj({
+        "query": {"type": "string", "minLength": 1, "maxLength": 256},
+        "market": product_params["properties"]["market"],
+        "language": product_params["properties"]["language"],
+        "limit": {"type": "integer", "minimum": 1, "maximum": 16},
+        "cursor": nullable({"type": "string", "maxLength": 16384, "pattern": "^q1-([0-9a-f]{2})+$"}),
     }),
     "product.detail": product_params,
     "install.plan": obj({
@@ -158,6 +166,22 @@ defs["discoveryData"] = obj({
 defs["failedDiscoveryData"] = copy.deepcopy(defs["discoveryData"])
 defs["failedDiscoveryData"]["properties"]["products"] = array(ref("productRecord"), 0)
 defs["failedDiscoveryData"]["properties"]["failures"]["minItems"] = 1
+defs["queryData"] = obj({
+    "corpus": {"const": "publicMicrosoftStoreSearch"}, "completeness": {"const": "partial"},
+    "source": {"const": "MicrosoftStoreEdge:v9.0/searchResults"}, "checkedAt": date,
+    "freshness": {"const": "live"}, "query": commands["catalog.query"]["properties"]["query"],
+    "products": array({"allOf": [ref("productRecord"),
+        {"properties": {"pcCatalogCandidate": {"const": True}, "freshness": {"const": "live"}}}]}, 16),
+    "failures": array(ref("discoveryFailure"), 16),
+    "nextCursor": commands["catalog.query"]["properties"]["cursor"],
+})
+defs["failedQueryData"] = copy.deepcopy(defs["queryData"])
+defs["failedQueryData"]["properties"]["products"]["maxItems"] = 0
+defs["failedQueryData"]["properties"]["failures"]["minItems"] = 1
+defs["queryData"]["allOf"] = [{
+    "if": {"properties": {"products": {"maxItems": 0}}},
+    "then": {"properties": {"failures": {"maxItems": 0}}},
+}]
 defs["job"] = obj({
     "jobID": identifier, "revision": uint, "kind": {"const": "catalogRefresh"},
     "state": enum("queued", "running", "completed", "failed", "cancelled"),
@@ -193,7 +217,7 @@ defs["diagnosticsData"] = obj({
     "runtimeCertified": {"const": False}, "inventoryAuthorized": {"const": False},
 })
 defs["success"]["properties"]["data"] = {"oneOf": [
-    ref(name) for name in ("helloData", "authData", "productData", "searchData", "discoveryData",
+    ref(name) for name in ("helloData", "authData", "productData", "searchData", "discoveryData", "queryData",
                           "jobData", "jobsData", "replayData", "installedData", "diagnosticsData")
 ]}
 
@@ -214,6 +238,7 @@ examples = {
     "catalog.search": {"query": "", "market": "US", "language": "en-US",
                        "platform": "pc", "limit": 100, "cursor": None},
     "catalog.discover": {"market": "US", "language": "en-US", "limit": 8, "cursor": None},
+    "catalog.query": {"query": "Fixture Harbor", "market": "US", "language": "en-US", "limit": 8, "cursor": None},
     "product.detail": {"productID": "FIXTURE00001", "market": "US",
                        "language": "en-US", "refresh": "network"},
     "install.plan": {"productID": "FIXTURE00001", "editionID": "fixture-edition",
@@ -262,6 +287,14 @@ discovery = {"corpus": "pcGamePassDiscovery", "completeness": "partial",
     "failures": [{"productID":"FIXTURE00002", "error":{"code":"NETWORK_UNAVAILABLE",
         "message":"Sanitized fixture lookup failure.", "retryable":True}}],
     "nextCursor":"d1-" + "a" * 64 + "-2"}
+query_scope = hashlib.sha256(b"publicMicrosoftStoreSearch\0US\0en-US\0Fixture Harbor\0").hexdigest()
+query_cursor = "q1-" + json.dumps({"version": 1, "scope": query_scope,
+    "page": "https://storeedgefd.dsx.mp.microsoft.com/v9.0/pages/searchResults?market=US&locale=en-US&deviceFamily=windows.desktop&query=Fixture+Harbor&mediaType=games",
+    "offset": 8, "revision": "a" * 64}, separators=(",", ":")).encode().hex()
+query_page = {"corpus": "publicMicrosoftStoreSearch", "completeness": "partial",
+    "source": "MicrosoftStoreEdge:v9.0/searchResults", "checkedAt": timestamp, "freshness": "live",
+    "query": "Fixture Harbor", "products": discovery["products"], "failures": discovery["failures"],
+    "nextCursor": query_cursor}
 results = [
     {"protocol": protocol, "backendVersion": "fixture", "runtimeFingerprint": None,
      "capabilities": [{"command": "game.launch", "supported": False,
@@ -274,6 +307,8 @@ results = [
     {"products": [record], "corpus": "observedPublicProducts", "completeness": "partial",
      "nextCursor": None, "cacheRevision": 1},
     discovery,
+    query_page,
+    {**query_page, "products": [], "failures": [], "nextCursor": None},
     {"job": job, "watermark": 2},
     {"sessionID": "fixture-session", "watermark": 2, "jobs": [job]},
     {"sessionID": "fixture-session", "watermark": 2, "events": [event], "hasMore": False},
@@ -332,6 +367,23 @@ negative.append({"name": "discoveryPageLimit", "frame": bad_discovery})
 positive.append({"kind":"result","protocol":protocol,"requestID":"fixture-discovery-all-failed",
     "ok":False,"error":{"code":"PACKAGE_UNAVAILABLE","message":"No metadata resolved.",
     "retryable":True,"details":{**discovery,"products":[]}}})
+positive.append({"kind":"result","protocol":protocol,"requestID":"fixture-query-all-failed",
+    "ok":False,"error":{"code":"PACKAGE_UNAVAILABLE","message":"No PC metadata resolved.",
+    "retryable":True,"details":{**query_page,"products":[]}}})
+for name, key, value in [("queryPageLimit", "limit", 17), ("queryEmpty", "query", ""),
+                         ("queryUntrustedCursor", "cursor", "https://attacker.invalid/")]:
+    frame = copy.deepcopy(next(frame for frame in positive if frame.get("command") == "catalog.query"))
+    frame["params"][key] = value
+    negative.append({"name": name, "frame": frame})
+console_result = copy.deepcopy(next(frame for frame in positive
+    if frame.get("ok") and frame.get("data", {}).get("corpus") == "publicMicrosoftStoreSearch"
+    and frame["data"]["products"]))
+console_result["data"]["products"][0]["pcCatalogCandidate"] = False
+negative.append({"name": "consoleOnlyQueryProduct", "frame": console_result})
+for code, message in [("NETWORK_UNAVAILABLE", "Public query exceeded its bounded deadline."),
+                      ("CANCELLED", "Transport closed before public query completed.")]:
+    positive.append({"kind":"result","protocol":protocol,"requestID":"fixture-query-"+code.lower(),
+        "ok":False,"error":{"code":code,"message":message,"retryable":True}})
 write(fixture_root / "positive.json", positive)
 write(fixture_root / "negative.json", negative)
 write(fixture_root / "evidence-edge.json", [

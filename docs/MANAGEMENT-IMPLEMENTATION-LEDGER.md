@@ -58,6 +58,27 @@ review remain independently owned. No automatic merge or game launch.
 
 ## Reproducible native verification
 
+### Agreed public query contract freeze
+
+The coordinator and app consumer agreed additive `catalog.query`, `queryData`
+and strict `failedQueryData`. Public source verification covers anonymous
+Microsoft Store Edge v9 initial array responses and same-host `/v9.0/search`
+object continuations, 20 cards each, with 40 distinct IDs across two actual
+source pages. Card visibility/actions never grant ownership or install access.
+The canonical contract now preserves exact query text and source-page offsets,
+separate PC product metadata and visible failures. A true source-zero response
+can succeed empty; an attempted all-failure response cannot.
+
+This commit freezes types/schema/fixtures only; its negotiated query capability
+remains false and returns `CAPABILITY_MISSING`. The native freeze run passed
+51 management Rust checks and **77 positive / 15 negative / 4 evidence-edge**
+fixtures, plus six failed-discovery and six failed-query detail rejection checks.
+An additional direct request-validation check covers exact spaces, whitespace,
+controls, page limits, malformed cursors and mandatory cursor presence. Real
+query implementation/validation follows independently; fixtures are not live
+proof. Schema committed LF SHA256:
+`655e1ed31772b35a8526ef5a0986557e7f6de689d5c4925ccde7041bc33b5f29`.
+
 Tooling root: `/Users/dragoshont/xodus-app-tooling/launcher-management-20a5b11d`.
 Source, target, schema virtualenv and test temp roots all stay in this scope.
 Existing Rust 1.98, CLT macOS 27, `/opt/homebrew/bin/protoc` and cmake are reused.

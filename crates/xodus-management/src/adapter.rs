@@ -495,6 +495,7 @@ impl Backend {
                     "inventory.snapshot" =>
                         "Consumer account audience, complete pagination and PC ownership coverage are not proven.",
                     "catalog.discover" => "No proved public PC discovery feed is available in this provider.",
+                    "catalog.query" => "The agreed anonymous Microsoft Store query provider is not connected yet.",
                     "game.launch" => "A signed, distributable, exact version-paired runtime is not certified.",
                     "jobs.pause" | "jobs.resume" => "Catalog refresh does not support durable pause.",
                     "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout" =>
@@ -728,6 +729,13 @@ impl Backend {
                 Data::Auth(status)
             }
             Operation::CatalogSearch(params) => Data::Search(search(&self.store, params)?),
+            Operation::CatalogQuery(_) => {
+                return Err(WireError::new(
+                    ErrorCode::CapabilityMissing,
+                    "The agreed public Microsoft Store query contract is not connected to this provider yet.",
+                    false,
+                ));
+            }
             Operation::CatalogDiscover(params) => {
                 if params
                     .cursor

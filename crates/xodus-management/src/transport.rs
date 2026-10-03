@@ -128,7 +128,11 @@ pub fn parse(bytes: &[u8]) -> Result<Request, WireError> {
             false,
         ));
     }
-    if command == "catalog.search" && value["params"].get("cursor").is_none() {
+    if matches!(
+        command,
+        "catalog.search" | "catalog.discover" | "catalog.query"
+    ) && value["params"].get("cursor").is_none()
+    {
         return Err(invalid());
     }
     let request: Request = serde_json::from_slice(bytes).map_err(|_| invalid())?;
@@ -148,6 +152,7 @@ pub const COMMANDS: &[&str] = &[
     "inventory.snapshot",
     "catalog.search",
     "catalog.discover",
+    "catalog.query",
     "product.detail",
     "install.plan",
     "jobs.enqueue",
@@ -230,6 +235,23 @@ pub fn validate_operation(operation: &Operation) -> Result<(), WireError> {
                     .cursor
                     .as_ref()
                     .is_none_or(|value| identifier_valid(value))
+        }
+        Operation::CatalogQuery(params) => {
+            !params.query.trim().is_empty()
+                && params.query.chars().count() <= 256
+                && !params.query.chars().any(char::is_control)
+                && locale_valid(&params.market, &params.language)
+                && (1..=16).contains(&params.limit)
+                && params.cursor.as_ref().is_none_or(|cursor| {
+                    cursor.len() <= 16384
+                        && cursor.strip_prefix("q1-").is_some_and(|hex| {
+                            !hex.is_empty()
+                                && hex.len().is_multiple_of(2)
+                                && hex.bytes().all(|byte| {
+                                    byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)
+                                })
+                        })
+                })
         }
         Operation::InstallPlan(params) => {
             identifier_valid(&params.edition_id)

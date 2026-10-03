@@ -68,6 +68,7 @@
             "inventory.snapshot",
             "catalog.search",
             "catalog.discover",
+            "catalog.query",
             "product.detail",
             "install.plan",
             "jobs.enqueue",
@@ -351,6 +352,62 @@
                       {
                         "type": "string",
                         "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "command": {
+                "const": "catalog.query"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "object",
+                "required": [
+                  "query",
+                  "market",
+                  "language",
+                  "limit",
+                  "cursor"
+                ],
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "market": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$"
+                  },
+                  "language": {
+                    "type": "string",
+                    "pattern": "^[a-z]{2,3}(-[A-Z]{2})?$"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 16
+                  },
+                  "cursor": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 16384,
+                        "pattern": "^q1-([0-9a-f]{2})+$"
                       },
                       {
                         "type": "null"
@@ -950,6 +1007,9 @@
             },
             {
               "$ref": "#/$defs/discoveryData"
+            },
+            {
+              "$ref": "#/$defs/queryData"
             },
             {
               "$ref": "#/$defs/jobData"
@@ -1848,6 +1908,181 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 1024
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "queryData": {
+      "type": "object",
+      "required": [
+        "corpus",
+        "completeness",
+        "source",
+        "checkedAt",
+        "freshness",
+        "query",
+        "products",
+        "failures",
+        "nextCursor"
+      ],
+      "properties": {
+        "corpus": {
+          "const": "publicMicrosoftStoreSearch"
+        },
+        "completeness": {
+          "const": "partial"
+        },
+        "source": {
+          "const": "MicrosoftStoreEdge:v9.0/searchResults"
+        },
+        "checkedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "freshness": {
+          "const": "live"
+        },
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "products": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/productRecord"
+              },
+              {
+                "properties": {
+                  "pcCatalogCandidate": {
+                    "const": true
+                  },
+                  "freshness": {
+                    "const": "live"
+                  }
+                }
+              }
+            ]
+          },
+          "maxItems": 16
+        },
+        "failures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/discoveryFailure"
+          },
+          "maxItems": 16
+        },
+        "nextCursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384,
+              "pattern": "^q1-([0-9a-f]{2})+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "products": {
+                "maxItems": 0
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "failures": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "failedQueryData": {
+      "type": "object",
+      "required": [
+        "corpus",
+        "completeness",
+        "source",
+        "checkedAt",
+        "freshness",
+        "query",
+        "products",
+        "failures",
+        "nextCursor"
+      ],
+      "properties": {
+        "corpus": {
+          "const": "publicMicrosoftStoreSearch"
+        },
+        "completeness": {
+          "const": "partial"
+        },
+        "source": {
+          "const": "MicrosoftStoreEdge:v9.0/searchResults"
+        },
+        "checkedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "freshness": {
+          "const": "live"
+        },
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "products": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/productRecord"
+              },
+              {
+                "properties": {
+                  "pcCatalogCandidate": {
+                    "const": true
+                  },
+                  "freshness": {
+                    "const": "live"
+                  }
+                }
+              }
+            ]
+          },
+          "maxItems": 0
+        },
+        "failures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/discoveryFailure"
+          },
+          "maxItems": 16,
+          "minItems": 1
+        },
+        "nextCursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384,
+              "pattern": "^q1-([0-9a-f]{2})+$"
             },
             {
               "type": "null"

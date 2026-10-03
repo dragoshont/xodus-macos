@@ -13,23 +13,19 @@ pub async fn handle(
     context: &mut SimpleContext,
 ) -> tokio::io::Result<()> {
     tracing::debug!("Parsing XML");
-    let message_type = socket.read_u16_le().await?;
+    let message_type = super::request_type(socket.read_u16_le().await?)?;
     let message_size = socket.read_u16_le().await?;
     let mut buffer = vec![0; message_size as usize];
     tracing::debug!("Reading buffer {message_size}");
     socket.read_exact(&mut buffer).await?;
     tracing::debug!("Read buffer");
-    let message_type = XodusMessageType::try_from(message_type as i32).unwrap_or_default();
+    let out_buf = parse_message(context, message_type, buffer)
+        .await
+        .map_err(|_| {
+            tokio::io::Error::new(tokio::io::ErrorKind::InvalidData, "Runtime request failed")
+        })?;
 
-    let out_buf = match parse_message(context, message_type, buffer).await {
-        Ok(buf) => buf,
-        Err(err) => {
-            tracing::error!("Failed parsing message: {err}");
-            vec![]
-        }
-    };
-
-    let data = super::encode_message(XML_MAGIC, message_type as u16 + 1, out_buf);
+    let data = super::encode_message(XML_MAGIC, message_type as u16 + 1, out_buf)?;
     socket.write_all(&data).await
 }
 
@@ -41,9 +37,7 @@ pub async fn parse_message(
     match message_type {
         XodusMessageType::Ping => Ok(buffer),
         XodusMessageType::MsaTokenRequest => {
-            tracing::debug!("Raw buffer: {buffer:?}");
             let string_buf = std::str::from_utf8(&buffer)?;
-            tracing::debug!("String buffer: {string_buf:?}");
             let req = quick_xml::de::from_str::<MSATokenRequest>(string_buf)?;
             let Token::Legacy(token) = context.tokens().get_user_sts_token()? else {
                 return Ok(vec![]);

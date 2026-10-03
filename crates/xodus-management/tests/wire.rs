@@ -10,7 +10,7 @@ fn all_frozen_requests_decode() {
         .iter()
         .filter(|frame| frame["kind"] == "request")
         .collect();
-    assert_eq!(requests.len(), 22);
+    assert_eq!(requests.len(), xodus_management::transport::COMMANDS.len());
     for frame in requests {
         let parsed: Request = serde_json::from_value(frame.clone()).unwrap();
         assert_eq!(serde_json::to_value(parsed).unwrap(), *frame);

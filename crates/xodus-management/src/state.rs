@@ -302,6 +302,35 @@ impl Store {
         self.commit(next)
     }
 
+    pub fn cache_discovery_products(&mut self, records: &[ProductRecord]) -> Result<(), WireError> {
+        if records.is_empty() || records.len() > 16 {
+            return Err(recovery());
+        }
+        let mut next = self.state.clone();
+        let mut page_keys = std::collections::BTreeSet::new();
+        for record in records {
+            let key = format!(
+                "{}:{}:{}",
+                record.product_id, record.market, record.language
+            );
+            page_keys.insert(key.clone());
+            next.catalog.insert(key, record.clone());
+        }
+        // Discovery is a bounded public cache, never an ownership/installation registry.
+        while next.catalog.len() > MAX_PRODUCTS {
+            let oldest = next
+                .catalog
+                .iter()
+                .filter(|(key, _)| !page_keys.contains(*key))
+                .min_by_key(|(_, record)| &record.checked_at)
+                .map(|(key, _)| key.clone())
+                .ok_or_else(recovery)?;
+            next.catalog.remove(&oldest);
+        }
+        next.cache_revision = increment(next.cache_revision)?;
+        self.commit(next)
+    }
+
     pub fn checked_job(&self, mutation: &JobMutation) -> Result<Job, WireError> {
         let job = self.state.jobs.get(&mutation.job_id).ok_or_else(|| {
             WireError::new(

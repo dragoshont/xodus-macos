@@ -75,6 +75,8 @@ pub enum Operation {
     InventorySnapshot(InventoryParams),
     #[serde(rename = "catalog.search")]
     CatalogSearch(SearchParams),
+    #[serde(rename = "catalog.discover")]
+    CatalogDiscover(DiscoveryParams),
     #[serde(rename = "product.detail")]
     ProductDetail(ProductParams),
     #[serde(rename = "install.plan")]
@@ -165,6 +167,15 @@ pub struct SearchParams {
     pub market: String,
     pub language: String,
     pub platform: Platform,
+    pub limit: u32,
+    pub cursor: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DiscoveryParams {
+    pub market: String,
+    pub language: String,
     pub limit: u32,
     pub cursor: Option<String>,
 }
@@ -397,6 +408,7 @@ pub enum Data {
     Hello(HelloData),
     Auth(AuthData),
     Search(SearchData),
+    Discovery(DiscoveryData),
     Product(ProductData),
     Job(JobData),
     Jobs(JobsData),
@@ -479,6 +491,8 @@ pub struct ProductRecord {
     pub title: String,
     pub market: String,
     pub language: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved_language: Option<String>,
     pub source: String,
     pub checked_at: String,
     pub freshness: Freshness,
@@ -486,7 +500,7 @@ pub struct ProductRecord {
     pub pc_catalog_candidate: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum Freshness {
     Live,
@@ -501,6 +515,28 @@ pub struct SearchData {
     pub completeness: String,
     pub next_cursor: Option<String>,
     pub cache_revision: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DiscoveryData {
+    pub corpus: String,
+    pub completeness: String,
+    pub source: String,
+    pub checked_at: String,
+    pub freshness: Freshness,
+    pub corpus_revision: String,
+    pub products: Vec<ProductRecord>,
+    pub failures: Vec<DiscoveryFailure>,
+    pub next_cursor: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DiscoveryFailure {
+    #[serde(rename = "productID")]
+    pub product_id: String,
+    pub error: WireError,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

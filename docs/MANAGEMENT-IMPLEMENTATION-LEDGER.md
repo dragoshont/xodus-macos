@@ -10,7 +10,7 @@ review remain independently owned. No automatic merge or game launch.
 | AUTH-01 | Existing XAL Microsoft/XboxLive flow, exact native WK callback, inherited private socket with bounded proof handoff, parent-only atomic Keychain commit, flow polling and owned-child cancel/EOF/logout/deadline tests | Real approved account consent, Keychain approval, successful XboxLive account result not executed unattended |
 | AUTH-02 | User-only disconnect, device preservation, shared-clone XSTS cache invalidation, storage-error propagation, flowID correlation | Real multi-account/Keychain failure/manual session refresh validation; no package credential conversion inferred |
 | LIB-01/02/03 | inventory.snapshot fails ACCESS_UNKNOWN with source/completeness; anonymous metadata never gains ownership | Consumer audience/authorization, paging, never-played PC purchase coverage, expiry and refresh evidence |
-| FIND-01 | Persistent observedPublicProducts corpus, title/ID search, PC/market/language scope, revision-pinned pagination | Full-text global catalog source and genuine owned library search absent |
+| FIND-01 | Persistent observedPublicProducts cache search plus live, user-paged official PC GamePass discovery with explicit per-ID failures, source/freshness, locale resolution and revision-bound cursors | Full-text whole-store query and genuine owned library search remain active requirements; discovery is not a substitute |
 | ID-01 | Returned product and SKU IDs preserved, absent/mismatched IDs error, content IDs never become package IDs | Authorized edition/package/version/architecture/language resolution |
 | DETAIL-01 | Independent unknown access, unknown/blocked downloadability, unknown compatibility, management-only notInstalled facets | Authorized entitlement/download source and registry-backed live install state |
 | COMPAT-01 | No verified/experimental compatibility fabricated, runtimeFingerprint null | Exact signed/distributable runtime/OS evidence and opt-in experimental policy |
@@ -109,8 +109,54 @@ XODUS_LOG/RUST_LOG were set to trace; there was no stdout/stderr contamination.
 No account consent, Keychain approvals, package downloads, ownership API or game
 launch was executed. Source-based/manual release gates in the table remain open.
 
-Canonical **committed LF bytes** schema SHA256:
+Published auth baseline (`b9cd60bf51cd4cb8e864318cd0c4316453b4b8df`)
+**committed LF bytes** schema SHA256:
 `b27dab79d05f985eb39ffbd638cab0dbd69e831fd37d29ace414f517229ba7f2`.
 Both schema additions (auth.logout and optional authData.flow) were explicitly
 agreed before integration. Fixtures are test-only; the native public smoke
 uses the real anonymous catalog provider, not the fixture provider.
+
+## Verified official discovery source (additive integration)
+
+The current official page `https://www.xbox.com/en-US/xbox-game-pass/games`
+references
+`https://www.xbox.com/en-us/xbox-game-pass/games/js/xgpcatPopulate-2025.js`.
+That script explicitly maps `allgamespc` to category
+`609d944c-d395-4c0a-9ea4-e9f39b52c1ad`, `platformContext=pc`, and
+`subscriptionContext=cfq7ttc0kgq8`. A bounded anonymous request to
+`https://catalog.gamepass.com/sigls/v3?id=609d944c-d395-4c0a-9ea4-e9f39b52c1ad&language=en-us&market=US&platformContext=pc&subscriptionContext=cfq7ttc0kgq8`
+returned HTTP 200, 12499 bytes, 557 array entries: a header with siglId/title/
+description/requiresShuffling/imageUrl, followed by 556 `{id:productID}` entries.
+No account credential, purchase, entitlement or active subscription was queried.
+The adapter uses only category/IDs, not remote artwork or guessed account APIs.
+This is curated PC GamePass public discovery; it does not close global text
+search, complete owned inventory, or package authorization requirements.
+
+The coordinator and sole app consumer explicitly agreed `catalog.discover`
+request/result/cursor/failure fields before implementation. The published auth
+binary remains separately preserved and byte-pinned while this extension is
+validated. All unmet end-to-end requirements remain active, not waived.
+
+The discovery/native account-status extension passed **56 native Rust checks**
+(6 CLI, 15 library auth/discovery, 8 adapter, 9 staging, 11 state/framing,
+2 wire, 5 core credential checks), clippy with warnings denied, and
+**71 positive / 11 negative / 4 evidence-edge** schema fixtures. A real
+two-page anonymous discovery process check resolved four distinct feed records,
+validated every stdout frame, retained unknown entitlement and partial corpus
+metadata, and passed the existing public catalog/job/replay/reconnect checks.
+The 512-record cache limit/eviction and concurrent auth.status during pending
+discovery are tested directly, not inferred from mocked DTO decoding.
+
+Actual source responses for `9NPDN9R45JX4` and `9P8LR42PTRGJ` return `en` for
+requested `en-US`. The explicitly agreed optional `resolvedLanguage` exposes
+that same-base neutral resolution; unrelated/regional alternatives are rejected.
+Malformed cached credential JSON is a typed invalid credential state; real
+Keychain/IO denial remains explicit AUTH_INVALID/credentialStoreUnavailable.
+No live consent, credential mutation, account inventory or game execution was
+performed by these checks.
+
+Canonical discovery schema LF SHA256:
+`11d8c9932a2e104a31491d4ecd4922af90c77207bee1cee062d7e7b3c4288898`.
+Preserved unsigned developer discovery executable SHA256:
+`14dd06466a201ddb77fe7c2d6f9a57bbbb79788f03413989e5158d9053c864ad`.
+This pin is an integration milestone, not completion of all user requirements.

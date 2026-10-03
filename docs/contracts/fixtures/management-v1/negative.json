@@ -214,5 +214,23 @@
         }
       }
     }
+  },
+  {
+    "name": "discoveryPageLimit",
+    "frame": {
+      "kind": "request",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-8",
+      "command": "catalog.discover",
+      "params": {
+        "market": "US",
+        "language": "en-US",
+        "limit": 17,
+        "cursor": null
+      }
+    }
   }
 ]

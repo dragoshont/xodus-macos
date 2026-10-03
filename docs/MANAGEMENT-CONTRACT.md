@@ -44,6 +44,7 @@ runtime/version. Account scope is only `default`, without an account identifier.
 | inventory.snapshot | gated: ACCESS_UNKNOWN; no catalog/history ownership substitution |
 | product.detail | productData, anonymous public product-ID lookup or explicit cached lookup |
 | catalog.search | searchData, **observedPublicProducts** corpus only, partial catalog coverage |
+| catalog.discover | discoveryData, one bounded public PC GamePass page; not ownership or whole-store text search |
 | jobs.enqueue | jobData for catalogRefresh; install variant gated |
 | jobs.cancel / jobs.retry | jobData; expectedRevision required |
 | jobs.pause / jobs.resume | gated: no pause guarantee |
@@ -112,6 +113,44 @@ the pending flow before removal, removes user/management-XAL entries, invalidate
 all process-local cached XSTS audiences, and preserves device identity/license.
 Keychain failure is an error, not signedOut. Live account consent remains a
 manual release validation gate; automated checks use memory-only fake proofs.
+
+## Public PC discovery extension
+
+`catalog.discover` is an agreed additive 1.0 extension. Parameters are
+`{"market":"US","language":"en-US","limit":8,"cursor":null}`; limit is 1..16.
+Its result contains `corpus:"pcGamePassDiscovery"`, `completeness:"partial"`,
+`source:"MicrosoftGamePassSigls:v3"`, `checkedAt`, `freshness:"live"`,
+`corpusRevision` (lowercase SHA256), `products` (existing productRecord),
+`failures:[{"productID":...,"error":WireError}]`, and `nextCursor`.
+Every attempted ID appears in products or failures; metadata failure is never
+silently omitted or replaced with cached/fabricated identity. If every lookup
+fails, the request returns PACKAGE_UNAVAILABLE with this same page shape in
+`error.details`, not a successful empty page.
+
+Cursor `d1-<revision>-<nextOffset>` pins ordered feed IDs, corpus, market and
+language. Feed/scope changes yield REVISION_CONFLICT; restart without a cursor.
+Malformed/out-of-range cursors yield INVALID_REQUEST. The first-page feed is
+not a promise of whole Xbox Store or owned-library completeness.
+
+One user-requested page has a **30-second total budget**, including a 10-second
+feed timeout. Each metadata lookup has an 8-second budget; at most four metadata
+lookups run within a page, and the live provider shares four HTTP permits across
+catalog operations. Remaining/failed lookups are explicit NETWORK_UNAVAILABLE
+failures. Feed size is capped at 512 KiB/2048 IDs; successful page metadata at
+896 KiB, with explicit LIMIT_EXCEEDED failures rather than oversized stdout.
+Discovery is asynchronous and cannot hold the management actor during network
+IO; auth/status and snapshots remain dispatchable.
+
+Successful records atomically seed the existing observed-products search cache.
+Discovery retains at most 512 cached records, evicting the oldest prior public
+metadata when necessary (never jobs, installations, account or saves); this
+advances cacheRevision and invalidates old cache-search cursors. No background
+full-feed walk, artwork download, ownership or subscription promotion occurs.
+
+productRecord's optional `resolvedLanguage` records the returned source tag.
+`language` remains the requested query/cache scope. Mapping prefers an exact
+BCP47 case-insensitive match, then a same-base neutral language (for example,
+en for en-US); unrelated/regional alternatives are rejected, not hidden.
 
 ## Persistence, snapshots, replay, cancellation
 

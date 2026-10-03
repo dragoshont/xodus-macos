@@ -66,6 +66,12 @@ commands = {
         "limit": {"type": "integer", "minimum": 1, "maximum": 100},
         "cursor": nullable({"type": "string", "maxLength": 128}),
     }),
+    "catalog.discover": obj({
+        "market": product_params["properties"]["market"],
+        "language": product_params["properties"]["language"],
+        "limit": {"type": "integer", "minimum": 1, "maximum": 16},
+        "cursor": nullable({"type": "string", "maxLength": 128}),
+    }),
     "product.detail": product_params,
     "install.plan": obj({
         "productID": product_params["properties"]["productID"], "editionID": identifier,
@@ -133,11 +139,21 @@ defs["productRecord"] = obj({
     "source": text, "checkedAt": date, "freshness": enum("live", "cached"),
     "editions": array(ref("productEvidence"), 256), "pcCatalogCandidate": boolean,
 })
+defs["productRecord"]["properties"]["resolvedLanguage"] = text
 defs["productData"] = obj({"product": ref("productRecord")})
 defs["searchData"] = obj({
     "products": array(ref("productRecord"), 100),
     "corpus": {"const": "observedPublicProducts"},
     "completeness": {"const": "partial"}, "nextCursor": nullable(text), "cacheRevision": uint,
+})
+defs["discoveryFailure"] = obj({"productID": product_params["properties"]["productID"], "error": ref("error")})
+defs["discoveryData"] = obj({
+    "corpus": {"const": "pcGamePassDiscovery"}, "completeness": {"const": "partial"},
+    "source": {"const": "MicrosoftGamePassSigls:v3"}, "checkedAt": date,
+    "freshness": {"const": "live"},
+    "corpusRevision": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "products": {**array(ref("productRecord"), 16), "minItems": 1},
+    "failures": array(ref("discoveryFailure"), 16), "nextCursor": nullable(text),
 })
 defs["job"] = obj({
     "jobID": identifier, "revision": uint, "kind": {"const": "catalogRefresh"},
@@ -174,7 +190,7 @@ defs["diagnosticsData"] = obj({
     "runtimeCertified": {"const": False}, "inventoryAuthorized": {"const": False},
 })
 defs["success"]["properties"]["data"] = {"oneOf": [
-    ref(name) for name in ("helloData", "authData", "productData", "searchData",
+    ref(name) for name in ("helloData", "authData", "productData", "searchData", "discoveryData",
                           "jobData", "jobsData", "replayData", "installedData", "diagnosticsData")
 ]}
 
@@ -194,6 +210,7 @@ examples = {
     "inventory.snapshot": {"accountScope": "default", "market": "US", "refresh": "cache"},
     "catalog.search": {"query": "", "market": "US", "language": "en-US",
                        "platform": "pc", "limit": 100, "cursor": None},
+    "catalog.discover": {"market": "US", "language": "en-US", "limit": 8, "cursor": None},
     "product.detail": {"productID": "FIXTURE00001", "market": "US",
                        "language": "en-US", "refresh": "network"},
     "install.plan": {"productID": "FIXTURE00001", "editionID": "fixture-edition",
@@ -236,6 +253,12 @@ evidence = {
 record = {"productID": "FIXTURE00001", "title": "Fixture Harbor", "market": "US",
           "language": "en-US", "source": "fixture", "checkedAt": timestamp,
           "freshness": "cached", "editions": [evidence], "pcCatalogCandidate": True}
+discovery = {"corpus": "pcGamePassDiscovery", "completeness": "partial",
+    "source": "MicrosoftGamePassSigls:v3", "checkedAt": timestamp, "freshness": "live",
+    "corpusRevision": "a" * 64, "products": [{**record, "freshness": "live", "resolvedLanguage":"en"}],
+    "failures": [{"productID":"FIXTURE00002", "error":{"code":"NETWORK_UNAVAILABLE",
+        "message":"Sanitized fixture lookup failure.", "retryable":True}}],
+    "nextCursor":"d1-" + "a" * 64 + "-2"}
 results = [
     {"protocol": protocol, "backendVersion": "fixture", "runtimeFingerprint": None,
      "capabilities": [{"command": "game.launch", "supported": False,
@@ -247,6 +270,7 @@ results = [
     {"product": record},
     {"products": [record], "corpus": "observedPublicProducts", "completeness": "partial",
      "nextCursor": None, "cacheRevision": 1},
+    discovery,
     {"job": job, "watermark": 2},
     {"sessionID": "fixture-session", "watermark": 2, "jobs": [job]},
     {"sessionID": "fixture-session", "watermark": 2, "events": [event], "hasMore": False},
@@ -299,6 +323,12 @@ negative.append({"name": "bothSuccessAndFailure", "frame": bad_result})
 bad_flow = copy.deepcopy(positive[-len(defs["error"]["properties"]["code"]["enum"]) - 1])
 bad_flow["data"]["flow"]["token"] = "fixture-not-a-token"
 negative.append({"name": "secretFieldInFlow", "frame": bad_flow})
+bad_discovery = copy.deepcopy(next(frame for frame in positive if frame.get("command") == "catalog.discover"))
+bad_discovery["params"]["limit"] = 17
+negative.append({"name": "discoveryPageLimit", "frame": bad_discovery})
+positive.append({"kind":"result","protocol":protocol,"requestID":"fixture-discovery-all-failed",
+    "ok":False,"error":{"code":"PACKAGE_UNAVAILABLE","message":"No metadata resolved.",
+    "retryable":True,"details":{**discovery,"products":[]}}})
 write(fixture_root / "positive.json", positive)
 write(fixture_root / "negative.json", negative)
 write(fixture_root / "evidence-edge.json", [

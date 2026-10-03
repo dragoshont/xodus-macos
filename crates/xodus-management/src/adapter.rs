@@ -110,10 +110,27 @@ pub trait CatalogProvider: Send + Sync {
         &self,
         params: ProductParams,
     ) -> Pin<Box<dyn Future<Output = Result<ProductRecord, WireError>> + Send + '_>>;
+    fn discovery_supported(&self) -> bool {
+        false
+    }
+    fn discover(
+        &self,
+        _: DiscoveryParams,
+    ) -> Pin<Box<dyn Future<Output = Result<DiscoveryData, WireError>> + Send + '_>> {
+        Box::pin(async {
+            Err(WireError::new(
+                ErrorCode::CapabilityMissing,
+                "This provider has no proved public discovery feed.",
+                false,
+            ))
+        })
+    }
 }
 
+#[derive(Clone)]
 pub struct PublicCatalog {
     client: reqwest::Client,
+    permits: Arc<tokio::sync::Semaphore>,
 }
 
 impl PublicCatalog {
@@ -131,7 +148,10 @@ impl PublicCatalog {
                     false,
                 )
             })?;
-        Ok(Self { client })
+        Ok(Self {
+            client,
+            permits: Arc::new(tokio::sync::Semaphore::new(4)),
+        })
     }
 }
 
@@ -141,6 +161,13 @@ impl CatalogProvider for PublicCatalog {
         params: ProductParams,
     ) -> Pin<Box<dyn Future<Output = Result<ProductRecord, WireError>> + Send + '_>> {
         Box::pin(async move {
+            let _permit = self.permits.acquire().await.map_err(|_| {
+                WireError::new(
+                    ErrorCode::NetworkUnavailable,
+                    "Public catalog request capacity is unavailable.",
+                    true,
+                )
+            })?;
             let response = find_products_by_id_bounded(
                 &self.client,
                 &params.product_id,
@@ -185,6 +212,20 @@ impl CatalogProvider for PublicCatalog {
             map_product(&params, response)
         })
     }
+    fn discovery_supported(&self) -> bool {
+        true
+    }
+    fn discover(
+        &self,
+        params: DiscoveryParams,
+    ) -> Pin<Box<dyn Future<Output = Result<DiscoveryData, WireError>> + Send + '_>> {
+        Box::pin(crate::discovery::fetch_page(
+            &self.client,
+            &self.permits,
+            Arc::new(self.clone()),
+            params,
+        ))
+    }
 }
 
 pub fn map_product(
@@ -210,6 +251,15 @@ pub fn map_product(
                 .language
                 .as_deref()
                 .is_some_and(|language| language.eq_ignore_ascii_case(&params.language))
+        })
+        .or_else(|| {
+            let (base, _) = params.language.split_once('-')?;
+            product.localized_properties.iter().find(|property| {
+                property
+                    .language
+                    .as_deref()
+                    .is_some_and(|language| language.eq_ignore_ascii_case(base))
+            })
         })
         .ok_or_else(invalid)?;
     let title = localized.product_title.trim();
@@ -289,6 +339,7 @@ pub fn map_product(
         title: title.to_owned(),
         market: params.market.clone(),
         language: params.language.clone(),
+        resolved_language: localized.language.clone(),
         source: "MicrosoftDisplayCatalog:v7.0".to_owned(),
         checked_at: now(),
         freshness: Freshness::Live,
@@ -298,6 +349,10 @@ pub fn map_product(
 }
 
 enum Completion {
+    Discovery {
+        request_id: String,
+        result: Result<DiscoveryData, WireError>,
+    },
     Product {
         request_id: String,
         result: Result<ProductRecord, WireError>,
@@ -365,6 +420,7 @@ impl Backend {
             let supported = matches!(*command, "hello" | "product.detail" | "catalog.search" |
                 "jobs.enqueue" | "jobs.cancel" | "jobs.retry" | "jobs.snapshot" |
                 "events.replay" | "installed.snapshot" | "diagnostics.export") ||
+                (*command == "catalog.discover" && self.provider.discovery_supported()) ||
                 (self.native_auth && matches!(*command, "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout"));
             let audience = match *command {
                 "auth.begin" | "auth.status" | "auth.logout" => Some("XboxLive only; package/consumer inventory not authorized"),
@@ -377,6 +433,7 @@ impl Backend {
                 Some(match *command {
                     "inventory.snapshot" =>
                         "Consumer account audience, complete pagination and PC ownership coverage are not proven.",
+                    "catalog.discover" => "No proved public PC discovery feed is available in this provider.",
                     "game.launch" => "A signed, distributable, exact version-paired runtime is not certified.",
                     "jobs.pause" | "jobs.resume" => "Catalog refresh does not support durable pause.",
                     "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout" =>
@@ -387,6 +444,8 @@ impl Backend {
                 Some("Only catalogRefresh jobs are supported; install jobs remain gated.".to_owned())
             } else if *command == "installed.snapshot" {
                 Some("Only management registry scope, not legacy installs or external folders.".to_owned())
+            } else if *command == "catalog.discover" {
+                Some("Partial public PC GamePass discovery, not ownership/subscription or whole-store text search.".to_owned())
             } else { None };
             Capability { command: (*command).to_owned(), supported,
                 audience: audience.map(str::to_owned), reason }
@@ -506,6 +565,27 @@ impl Backend {
                 Data::Auth(status)
             }
             Operation::CatalogSearch(params) => Data::Search(search(&self.store, params)?),
+            Operation::CatalogDiscover(params) => {
+                if params
+                    .cursor
+                    .as_ref()
+                    .is_some_and(|cursor| !crate::discovery::validate_cursor(cursor))
+                {
+                    return Err(transport::invalid());
+                }
+                self.reserve_worker()?;
+                let provider = self.provider.clone();
+                let params = params.clone();
+                let request_id = request.request_id.clone();
+                self.pending_requests.insert(request_id.clone());
+                self.tasks.spawn(async move {
+                    Completion::Discovery {
+                        request_id,
+                        result: provider.discover(params).await,
+                    }
+                });
+                return Ok(None);
+            }
             Operation::ProductDetail(params) => match params.refresh {
                 Refresh::Cache => {
                     let mut product = self.store.state.catalog.get(&catalog_key(params)).cloned()
@@ -882,16 +962,30 @@ impl Backend {
 
 pub fn auth_status(tokens: &TokenManager) -> Result<AuthData, WireError> {
     let keychain_error = || {
-        WireError::new(
+        let mut error = WireError::new(
             ErrorCode::AuthInvalid,
             "Stored account credentials could not be read. Review native Keychain access.",
             true,
-        )
+        );
+        error.details = serde_json::json!({"category":"credentialStoreUnavailable",
+            "action":"Review native Keychain permission or availability; do not replace stored credentials automatically."})
+            .as_object().cloned();
+        error
     };
-    if let Some(proof) = tokens
-        .get_xal_user_session()
-        .map_err(|_| keychain_error())?
-    {
+    let invalid_status = || AuthData {
+        state: AuthState::Invalid,
+        credential_store: "macOSKeychain".to_owned(),
+        audience: None,
+        expires_at: None,
+        entitlement_authorized: false,
+        flow: None,
+    };
+    let proof = match tokens.get_xal_user_session() {
+        Ok(proof) => proof,
+        Err(TokenStoreError::Serde(_)) => return Ok(invalid_status()),
+        Err(_) => return Err(keychain_error()),
+    };
+    if let Some(proof) = proof {
         let session = proof.session;
         let state = if !xal_session_structurally_valid(&session) {
             AuthState::Invalid
@@ -916,8 +1010,10 @@ pub fn auth_status(tokens: &TokenManager) -> Result<AuthData, WireError> {
         Err(TokenStoreError::NotFound) => match tokens.get_user() {
             Err(TokenStoreError::NotFound) => (AuthState::SignedOut, None, None),
             Ok(_) => (AuthState::Invalid, None, None),
+            Err(TokenStoreError::Serde(_)) => return Ok(invalid_status()),
             Err(_) => return Err(keychain_error()),
         },
+        Err(TokenStoreError::Serde(_)) => return Ok(invalid_status()),
         Err(_) => return Err(keychain_error()),
         Ok(Token::Legacy(token)) if !token.token.trim().is_empty() => {
             match DateTime::parse_from_rfc3339(&token.lifetime.expires) {
@@ -1210,6 +1306,18 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
             },
             completion = backend.tasks.join_next(), if !backend.tasks.is_empty() => {
                 match completion {
+                    Some(Ok(Completion::Discovery { request_id, result })) => {
+                        backend.pending_requests.remove(&request_id);
+                        let result = result.and_then(|page| {
+                            backend.store.cache_discovery_products(&page.products)?;
+                            Ok(Data::Discovery(page))
+                        });
+                        let fatal = result.as_ref().err().is_some_and(|error|
+                            error.code == ErrorCode::RegistryRecoveryRequired);
+                        write_result(writer, request_id, result).await?;
+                        if fatal { return Err(WireError::new(ErrorCode::RegistryRecoveryRequired,
+                            "Discovery cache persistence failed. Reconcile before retrying.", false)); }
+                    },
                     Some(Ok(Completion::Product {request_id, result})) => {
                         backend.pending_requests.remove(&request_id);
                         let result = result.and_then(|product| {
@@ -1554,12 +1662,134 @@ mod auth_lifecycle_tests {
                 backend.native_auth
             );
         }
+
         if !backend.native_auth {
             assert_eq!(
                 backend.token_manager().err().unwrap().code,
                 ErrorCode::UnsupportedConfiguration
             );
         }
+    }
+
+    #[test]
+    fn corrupt_credentials_are_invalid_but_store_permission_failure_stays_explicit() {
+        use xodus::tokens::backend::MemoryBackend;
+        use xodus::tokens::store::TokenBackend;
+        struct ReadFailure {
+            corrupt: bool,
+        }
+        impl TokenBackend for ReadFailure {
+            fn get(&self, _: &str) -> Result<Option<Vec<u8>>, TokenStoreError> {
+                if self.corrupt {
+                    Ok(Some(b"{}".to_vec()))
+                } else {
+                    Err(TokenStoreError::Io(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        "fixture-secret-not-for-output",
+                    )))
+                }
+            }
+            fn set(&self, _: &str, _: &[u8]) -> Result<(), TokenStoreError> {
+                unreachable!()
+            }
+            fn remove(&self, _: &str) -> Result<(), TokenStoreError> {
+                unreachable!()
+            }
+        }
+        let corrupt = TokenManager::new(
+            Arc::new(ReadFailure { corrupt: true }),
+            Arc::new(MemoryBackend::default()),
+        );
+        let status = auth_status(&corrupt).unwrap();
+        assert!(matches!(status.state, AuthState::Invalid));
+        assert!(!status.entitlement_authorized);
+        let inaccessible = TokenManager::new(
+            Arc::new(ReadFailure { corrupt: false }),
+            Arc::new(MemoryBackend::default()),
+        );
+        let error = auth_status(&inaccessible).unwrap_err();
+        assert_eq!(error.code, ErrorCode::AuthInvalid);
+        assert_eq!(
+            error.details.as_ref().unwrap()["category"],
+            "credentialStoreUnavailable"
+        );
+        assert!(
+            !serde_json::to_string(&error)
+                .unwrap()
+                .contains("fixture-secret")
+        );
+    }
+
+    #[tokio::test]
+    async fn account_status_remains_dispatchable_while_discovery_waits_and_eof_cancels_it() {
+        use tokio::io::AsyncBufReadExt;
+        struct PendingDiscovery;
+        impl CatalogProvider for PendingDiscovery {
+            fn fetch(
+                &self,
+                _: ProductParams,
+            ) -> Pin<Box<dyn Future<Output = Result<ProductRecord, WireError>> + Send + '_>>
+            {
+                Box::pin(std::future::pending())
+            }
+            fn discovery_supported(&self) -> bool {
+                true
+            }
+            fn discover(
+                &self,
+                _: DiscoveryParams,
+            ) -> Pin<Box<dyn Future<Output = Result<DiscoveryData, WireError>> + Send + '_>>
+            {
+                Box::pin(std::future::pending())
+            }
+        }
+        let (_temporary, mut backend) = backend();
+        backend.provider = Arc::new(PendingDiscovery);
+        let (client, server) = tokio::io::duplex(65536);
+        let (server_read, server_write) = tokio::io::split(server);
+        let task = tokio::spawn(serve(backend, BufReader::new(server_read), server_write));
+        let (client_read, mut client_write) = tokio::io::split(client);
+        let mut reader = BufReader::new(client_read);
+        for (id, command, params) in [
+            (
+                "hello",
+                "hello",
+                serde_json::json!({"client":"fixture","clientVersion":"1"}),
+            ),
+            (
+                "discover",
+                "catalog.discover",
+                serde_json::json!({"market":"US","language":"en-US","limit":8,"cursor":null}),
+            ),
+            ("status", "auth.status", serde_json::json!({})),
+        ] {
+            let request = serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},
+                    "requestID":id,"command":command,"params":params});
+            client_write
+                .write_all(format!("{request}\n").as_bytes())
+                .await
+                .unwrap();
+        }
+        for id in ["hello", "status"] {
+            let mut line = String::new();
+            tokio::time::timeout(Duration::from_secs(2), reader.read_line(&mut line))
+                .await
+                .unwrap()
+                .unwrap();
+            let result: serde_json::Value = serde_json::from_str(&line).unwrap();
+            assert_eq!(result["requestID"], id);
+            assert_eq!(result["ok"], true);
+            if id == "status" {
+                assert_eq!(result["data"]["state"], "signedOut");
+            }
+        }
+        client_write.shutdown().await.unwrap();
+        let mut line = String::new();
+        reader.read_line(&mut line).await.unwrap();
+        let result: serde_json::Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(result["requestID"], "discover");
+        assert_eq!(result["error"]["code"], "CANCELLED");
+        assert_eq!(task.await.unwrap().unwrap_err().code, ErrorCode::Cancelled);
     }
 
     #[tokio::test]

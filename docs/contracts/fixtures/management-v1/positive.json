@@ -94,6 +94,21 @@
       "minor": 0
     },
     "requestID": "fixture-8",
+    "command": "catalog.discover",
+    "params": {
+      "market": "US",
+      "language": "en-US",
+      "limit": 8,
+      "cursor": null
+    }
+  },
+  {
+    "kind": "request",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-9",
     "command": "product.detail",
     "params": {
       "productID": "FIXTURE00001",
@@ -108,7 +123,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-9",
+    "requestID": "fixture-10",
     "command": "install.plan",
     "params": {
       "productID": "FIXTURE00001",
@@ -126,7 +141,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-10",
+    "requestID": "fixture-11",
     "command": "jobs.enqueue",
     "params": {
       "kind": "catalogRefresh",
@@ -145,7 +160,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-11",
+    "requestID": "fixture-12",
     "command": "jobs.pause",
     "params": {
       "jobID": "fixture-job",
@@ -158,7 +173,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-12",
+    "requestID": "fixture-13",
     "command": "jobs.resume",
     "params": {
       "jobID": "fixture-job",
@@ -171,7 +186,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-13",
+    "requestID": "fixture-14",
     "command": "jobs.cancel",
     "params": {
       "jobID": "fixture-job",
@@ -184,7 +199,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-14",
+    "requestID": "fixture-15",
     "command": "jobs.retry",
     "params": {
       "jobID": "fixture-job",
@@ -197,7 +212,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-15",
+    "requestID": "fixture-16",
     "command": "jobs.snapshot",
     "params": {}
   },
@@ -207,7 +222,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-16",
+    "requestID": "fixture-17",
     "command": "events.replay",
     "params": {
       "sessionID": "fixture-session",
@@ -221,7 +236,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-17",
+    "requestID": "fixture-18",
     "command": "installed.snapshot",
     "params": {}
   },
@@ -231,7 +246,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-18",
+    "requestID": "fixture-19",
     "command": "game.launch",
     "params": {
       "installationID": "fixture-install",
@@ -244,7 +259,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-19",
+    "requestID": "fixture-20",
     "command": "game.rollback",
     "params": {
       "installationID": "fixture-install",
@@ -257,7 +272,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-20",
+    "requestID": "fixture-21",
     "command": "game.update",
     "params": {
       "installationID": "fixture-install",
@@ -272,7 +287,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-21",
+    "requestID": "fixture-22",
     "command": "game.remove",
     "params": {
       "installationID": "fixture-install",
@@ -287,7 +302,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-22",
+    "requestID": "fixture-23",
     "command": "diagnostics.export",
     "params": {}
   },
@@ -452,6 +467,77 @@
     "requestID": "fixture-result-4",
     "ok": true,
     "data": {
+      "corpus": "pcGamePassDiscovery",
+      "completeness": "partial",
+      "source": "MicrosoftGamePassSigls:v3",
+      "checkedAt": "2026-10-03T12:00:00Z",
+      "freshness": "live",
+      "corpusRevision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "products": [
+        {
+          "productID": "FIXTURE00001",
+          "title": "Fixture Harbor",
+          "market": "US",
+          "language": "en-US",
+          "source": "fixture",
+          "checkedAt": "2026-10-03T12:00:00Z",
+          "freshness": "live",
+          "editions": [
+            {
+              "productID": "FIXTURE00001",
+              "editionID": "fixture-edition",
+              "entitlement": {
+                "kind": "unknown",
+                "source": "notQueried",
+                "checkedAt": null
+              },
+              "installability": {
+                "kind": "unknown",
+                "reason": "Package authorization not established."
+              },
+              "compatibility": {
+                "kind": "unknown",
+                "source": "notCertified",
+                "checkedAt": null
+              },
+              "installation": {
+                "kind": "notInstalled"
+              },
+              "inventory": {
+                "completeness": "unknown",
+                "checkedAt": null,
+                "lastCompleteAt": null,
+                "source": "notQueried",
+                "reason": "No complete entitlement source."
+              }
+            }
+          ],
+          "pcCatalogCandidate": true,
+          "resolvedLanguage": "en"
+        }
+      ],
+      "failures": [
+        {
+          "productID": "FIXTURE00002",
+          "error": {
+            "code": "NETWORK_UNAVAILABLE",
+            "message": "Sanitized fixture lookup failure.",
+            "retryable": true
+          }
+        }
+      ],
+      "nextCursor": "d1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-2"
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-result-5",
+    "ok": true,
+    "data": {
       "job": {
         "jobID": "fixture-job",
         "revision": 2,
@@ -482,7 +568,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-5",
+    "requestID": "fixture-result-6",
     "ok": true,
     "data": {
       "sessionID": "fixture-session",
@@ -518,7 +604,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-6",
+    "requestID": "fixture-result-7",
     "ok": true,
     "data": {
       "sessionID": "fixture-session",
@@ -568,7 +654,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-7",
+    "requestID": "fixture-result-8",
     "ok": true,
     "data": {
       "registryVersion": {
@@ -587,7 +673,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-8",
+    "requestID": "fixture-result-9",
     "ok": true,
     "data": {
       "reportVersion": 1,
@@ -1175,6 +1261,40 @@
       "code": "LIMIT_EXCEEDED",
       "message": "Sanitized fixture error.",
       "retryable": false
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-discovery-all-failed",
+    "ok": false,
+    "error": {
+      "code": "PACKAGE_UNAVAILABLE",
+      "message": "No metadata resolved.",
+      "retryable": true,
+      "details": {
+        "corpus": "pcGamePassDiscovery",
+        "completeness": "partial",
+        "source": "MicrosoftGamePassSigls:v3",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "freshness": "live",
+        "corpusRevision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "products": [],
+        "failures": [
+          {
+            "productID": "FIXTURE00002",
+            "error": {
+              "code": "NETWORK_UNAVAILABLE",
+              "message": "Sanitized fixture lookup failure.",
+              "retryable": true
+            }
+          }
+        ],
+        "nextCursor": "d1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-2"
+      }
     }
   }
 ]

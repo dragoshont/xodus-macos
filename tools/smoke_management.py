@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--binary", type=Path, required=True)
 parser.add_argument("--root", type=Path, required=True)
 parser.add_argument("--product", default="9NBLGGH2JHXJ")
+parser.add_argument("--discover", action="store_true")
 args = parser.parse_args()
 schema = json.loads((Path(__file__).resolve().parents[1] /
                      "docs/contracts/management-v1.schema.json").read_text())
@@ -137,6 +138,30 @@ with tempfile.TemporaryDirectory(prefix="management-public-smoke-", dir=args.roo
         search = client.result("search")
         assert search["data"]["completeness"] == "partial"
         assert search["data"]["corpus"] == "observedPublicProducts"
+        if args.discover:
+            started = time.monotonic()
+            client.send("discover", "catalog.discover", {
+                "market":"US", "language":"en-US", "limit":2, "cursor":None})
+            discovered = client.result("discover")
+            assert time.monotonic() - started < 35
+            assert discovered["ok"], discovered
+            page = discovered["data"]
+            assert page["corpus"] == "pcGamePassDiscovery" and page["completeness"] == "partial"
+            assert page["source"] == "MicrosoftGamePassSigls:v3" and page["freshness"] == "live"
+            assert len(page["products"]) + len(page["failures"]) == 2
+            assert page["nextCursor"] and len(page["corpusRevision"]) == 64
+            for product in page["products"]:
+                for evidence in product["editions"]:
+                    assert evidence["entitlement"]["kind"] == "unknown"
+            client.send("discover-next", "catalog.discover", {
+                "market":"US", "language":"en-US", "limit":2, "cursor":page["nextCursor"]})
+            following = client.result("discover-next")
+            assert following["ok"], following
+            assert following["data"]["corpusRevision"] == page["corpusRevision"]
+            assert len(following["data"]["products"]) + len(following["data"]["failures"]) == 2
+            first_ids = {item["productID"] for item in page["products"] + page["failures"]}
+            next_ids = {item["productID"] for item in following["data"]["products"] + following["data"]["failures"]}
+            assert not first_ids & next_ids
         client.send("inventory", "inventory.snapshot", {
             "accountScope": "default", "market": "US", "refresh": "network"})
         assert client.result("inventory")["error"]["code"] == "ACCESS_UNKNOWN"
@@ -166,4 +191,5 @@ with tempfile.TemporaryDirectory(prefix="management-public-smoke-", dir=args.roo
 print(json.dumps({"nativeProcess": "passed", "publicCatalogDetail": "passed",
                   "publicRefreshJobReplayReconnect": "passed", "ownedInventory": "notQueried",
                   "accountConsent": "notExecuted", "gameLaunch": "gatedNotExecuted",
+                  "pcDiscovery": "passed" if args.discover else "notExecuted",
                   "schemaFrames": "validated", "binarySHA256": hashlib.sha256(args.binary.read_bytes()).hexdigest()}))

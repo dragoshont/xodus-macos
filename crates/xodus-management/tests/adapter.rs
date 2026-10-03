@@ -81,6 +81,21 @@ fn absent_or_mismatched_catalog_id_is_not_fabricated() {
 }
 
 #[test]
+fn neutral_same_language_is_explicit_but_unrelated_locale_is_rejected() {
+    let mut response = public_response();
+    response.product.localized_properties[0].language = Some("en".to_owned());
+    let product = map_product(&params(), response).unwrap();
+    assert_eq!(product.language, "en-US");
+    assert_eq!(product.resolved_language.as_deref(), Some("en"));
+    let mut response = public_response();
+    response.product.localized_properties[0].language = Some("fr".to_owned());
+    assert_eq!(
+        map_product(&params(), response).unwrap_err().code,
+        ErrorCode::PackageUnavailable
+    );
+}
+
+#[test]
 fn bcp47_casing_and_public_package_id_do_not_create_download_authorization() {
     let mut response = public_response();
     response.product.localized_properties[0].language = Some("en-us".to_owned());

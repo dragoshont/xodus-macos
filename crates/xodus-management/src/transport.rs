@@ -147,6 +147,7 @@ pub const COMMANDS: &[&str] = &[
     "auth.logout",
     "inventory.snapshot",
     "catalog.search",
+    "catalog.discover",
     "product.detail",
     "install.plan",
     "jobs.enqueue",
@@ -217,6 +218,14 @@ pub fn validate_operation(operation: &Operation) -> Result<(), WireError> {
                 && !params.query.chars().any(char::is_control)
                 && locale_valid(&params.market, &params.language)
                 && (1..=100).contains(&params.limit)
+                && params
+                    .cursor
+                    .as_ref()
+                    .is_none_or(|value| identifier_valid(value))
+        }
+        Operation::CatalogDiscover(params) => {
+            locale_valid(&params.market, &params.language)
+                && (1..=16).contains(&params.limit)
                 && params
                     .cursor
                     .as_ref()

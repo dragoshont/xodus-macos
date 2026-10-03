@@ -67,6 +67,7 @@
             "auth.logout",
             "inventory.snapshot",
             "catalog.search",
+            "catalog.discover",
             "product.detail",
             "install.plan",
             "jobs.enqueue",
@@ -295,6 +296,55 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 100
+                  },
+                  "cursor": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "command": {
+                "const": "catalog.discover"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "object",
+                "required": [
+                  "market",
+                  "language",
+                  "limit",
+                  "cursor"
+                ],
+                "properties": {
+                  "market": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$"
+                  },
+                  "language": {
+                    "type": "string",
+                    "pattern": "^[a-z]{2,3}(-[A-Z]{2})?$"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 16
                   },
                   "cursor": {
                     "anyOf": [
@@ -897,6 +947,9 @@
             },
             {
               "$ref": "#/$defs/searchData"
+            },
+            {
+              "$ref": "#/$defs/discoveryData"
             },
             {
               "$ref": "#/$defs/jobData"
@@ -1595,6 +1648,11 @@
         },
         "pcCatalogCandidate": {
           "type": "boolean"
+        },
+        "resolvedLanguage": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
         }
       },
       "additionalProperties": false
@@ -1650,6 +1708,87 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 18446744073709551615
+        }
+      },
+      "additionalProperties": false
+    },
+    "discoveryFailure": {
+      "type": "object",
+      "required": [
+        "productID",
+        "error"
+      ],
+      "properties": {
+        "productID": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]{12}$"
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        }
+      },
+      "additionalProperties": false
+    },
+    "discoveryData": {
+      "type": "object",
+      "required": [
+        "corpus",
+        "completeness",
+        "source",
+        "checkedAt",
+        "freshness",
+        "corpusRevision",
+        "products",
+        "failures",
+        "nextCursor"
+      ],
+      "properties": {
+        "corpus": {
+          "const": "pcGamePassDiscovery"
+        },
+        "completeness": {
+          "const": "partial"
+        },
+        "source": {
+          "const": "MicrosoftGamePassSigls:v3"
+        },
+        "checkedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "freshness": {
+          "const": "live"
+        },
+        "corpusRevision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "products": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/productRecord"
+          },
+          "maxItems": 16,
+          "minItems": 1
+        },
+        "failures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/discoveryFailure"
+          },
+          "maxItems": 16
+        },
+        "nextCursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false

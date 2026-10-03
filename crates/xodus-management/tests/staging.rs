@@ -398,10 +398,12 @@ fn rollback_reverifies_retained_content_and_manifest_identity_is_stable() {
 fn space_and_corrupt_registry_do_not_turn_into_empty_success() {
     let (_temporary, path) = directory();
     let mut store = StagingStore::open(&path).unwrap();
-    let available = fs2::available_space(&path).unwrap();
+    // Shared filesystem free space can change between a measurement and prepare.
+    let reserve = u64::MAX / 4;
+    assert!(fs2::available_space(&path).unwrap() < reserve);
     assert_eq!(
         store
-            .prepare(manifest(b"data"), None, 0, available)
+            .prepare(manifest(b"data"), None, 0, reserve)
             .unwrap_err()
             .code,
         ErrorCode::InsufficientSpace

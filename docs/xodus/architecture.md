@@ -101,6 +101,11 @@ rejects these three arguments before credential initialization; the lab gate
 exists only in the example. A source-order regression checks this guard without
 executing production. The smoke confirms distinctive gated refusal first, so
 it never tests no-argument fallback on an unidentified executable.
+All smoke pass/fail checks use unconditional guards, including this first
+recognition check; `python -O` and `PYTHONOPTIMIZE=1` cannot disable them.
+`tools/test_smoke_empty_runtime.py` runs the actual tool with mocked processes
+and proves production-shaped refusal stops before no-argument/startup calls
+in normal and optimized interpreters, without executing production.
 It performs an in-memory absence lookup, not a Keychain/user-credential
 read. Missing credentials return before device/account HTTP or mutation.
 The real internal result is AuthenticationRequired, but the wire remains

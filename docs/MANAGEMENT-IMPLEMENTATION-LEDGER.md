@@ -128,9 +128,12 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
-Current retained source-review status: **R01-R15 remain closed**; the backend's
-new SOAP nonce delta is accepted by review 34, while parent-owned **R17 remains
-open** in the standalone direct-core helper as described below. Coordinator
+Current retained source-review status: coordinator reports **R01-R18 closed**.
+**R19 MEDIUM remains open** from retained report 38 in this backend's developer
+fixture Python smoke; the correction below awaits the same reviewer's closure.
+The backend's SOAP nonce delta remains accepted by review 34. Historical
+parent-owned R17 discussion below describes its then-open state, not a current
+finding. Coordinator
 reports that the same retained reviewer's reports 28/29 close the parent's R15
 fresh-host fixture at the reported abbreviated pin `b380` and R14 public Windows
 runner lifecycle residual at exact
@@ -157,6 +160,79 @@ change, new provider or default-service initiation is implied or performed.
 Historical milestone evidence and then-pending reviews below do not override
 this status; genuinely new source deltas still require an immutable handoff to
 the same retained reviewer.
+
+### R19 optimization-safe developer fixture smoke
+
+Retained report 38 reproduced that Python optimization removed all `assert`
+checks in the 014d smoke tool. After a production-shaped refusal of the initial
+gated probe, `python -O` or `PYTHONOPTIMIZE=1` could continue to the **no-argument**
+probe, which would start the unchanged production service's native credential/
+device path if the wrong executable had been selected. The Rust fixture gate
+and the parent's hash-pinned, always-gated runner are unaffected.
+
+`tools/smoke_empty_runtime.py` now uses unconditional `require` checks that raise
+explicit static `RuntimeError` messages. Every pass/fail assertion was replaced,
+including binary/root validation, fixture recognition, refusal exit/stdout/
+stderr/state, framing/ping, valid MSA zero reply, process liveness, socket mode,
+SIGINT exit/cancellation, cleanup and final output checks. A mismatched first
+gated refusal always stops before any subsequent probe; optimization cannot
+remove this check. The production broker was **never executed**.
+
+The original committed `tools/test_smoke_empty_runtime.py` regression runs the
+actual tool with **all process invocations mocked**. Its nine-case matrix covers
+production-shaped stderr, wrong exit status and unexpected stdout under normal
+Python, `-O` and `PYTHONOPTIMIZE=1`. Each refusal must leave exactly one initial
+gated probe, no no-argument call, and no `Popen` attempt. A separate AST check
+rejects any `assert` statement in the smoke tool. Both tests are themselves
+optimization-safe `unittest` checks.
+
+Before editing the tool, the regression reproduced the exact 014d negative on
+Windows and native macOS: normal mode stopped, but both optimized modes recorded
+the no-argument call and later startup attempt (mocked, never real). The old
+suite failed with six optimized matrix failures plus the AST assertion check.
+The corrected suite passes on both hosts when the suite itself runs in normal,
+`-O` and `PYTHONOPTIMIZE=1` modes. Reproduction uses the original published script,
+not a copied parser or simulated assertion expression.
+
+The corrected real tool also passed three native fixture-only process smokes,
+one per interpreter mode, against the **unchanged immutable** 014d Rust binary
+`empty-management-broker-gated-v1-9e854df1e44042c0`, SHA256
+`9e854df1e44042c09067fc2d63ff6e4beeddeb73350c0329059cda28f2d13fb1`.
+Hash checked before and after, no rebuild/replacement. Gated refusal, valid
+MSA zero reply, ping before/after, exact payload-free output and bounded
+SIGINT/socket cleanup all remain enforced under optimization. Existing Rust
+tests/clippy/build are unchanged and were not rerun for this Python-only fix.
+
+```sh
+python3 tools/test_smoke_empty_runtime.py
+python3 -O tools/test_smoke_empty_runtime.py
+PYTHONOPTIMIZE=1 python3 tools/test_smoke_empty_runtime.py
+python3 -O tools/smoke_empty_runtime.py --fixture-binary "$PINNED_FIXTURE" --root "$TMPDIR"
+PYTHONOPTIMIZE=1 python3 tools/smoke_empty_runtime.py --fixture-binary "$PINNED_FIXTURE" --root "$TMPDIR"
+```
+
+Corrected LF tool SHA256:
+`9d79b40d7515a478221a41331a6fe7efe5532bc248f5be560f6b4340a4e45f52`;
+new regression LF SHA256:
+`b964edea0a7f06dab64bde4644500c550c48dcbf1e11c273299fb4dd288e60ad`.
+This is only a tool/test/docs correction, not a schema, backend, account,
+credential/profile, broker binary, app-engine or runtime change. R19 closure
+is not self-declared; the coordinator routes the immutable delta to the same
+retained reviewer.
+
+Separately, the coordinator attributes three signed-out public Windows
+gaming-COM interactions to parent source
+`0d5c610731d168a4c3faa854c01f349ba8b80349` with the final mandatory-gated
+014d/9e85 fixture, including the immutable archive. Reported outcomes were
+generic E_FAIL, one completion/null handle, PID-bound same-connection ping
+before/after, empty-memory banner plus one generic failure, graceful native
+SIGINT exit zero/socket cleanup and exact selected ntdll inspection. The parent
+reports hosted run
+[37185608767](https://github.com/dragoshont/xodus-macos/actions/runs/37185608767)
+succeeded. These are **parent/CI evidence**, not this worker's execution or
+reviewer reruns; superseded e386/f0d was never parent-executed. No successful
+tickets, live account/production profile, wire AuthenticationRequired,
+gameplay or complete launcher/review approval is claimed.
 
 ### Developer-only empty-account broker fixture
 
@@ -186,7 +262,8 @@ its early `exit(1)` precede initialization. Production is **not executed** by
 this test. The smoke first probes the gated missing-path refusal and checks the
 distinctive fixture-only usage error before attempting any no-argument test;
 a mistakenly selected production executable would reject that first probe,
-then fail the fixture error check without reaching no-argument fallback.
+then fail the unconditional fixture error check without reaching no-argument
+fallback, including under Python optimization after the R19 correction above.
 Existing endpoint admission validates the selected
 normalized absolute UTF-8 path, 103-byte limit, preexisting owned local 0700
 parent with no symlinks, absent socket name, same-UID peers, 0600 socket,
@@ -251,10 +328,11 @@ cancellation, admission and descriptor cleanup are reused, not duplicated.
 Additive unsigned native developer artifact (mode 0500):
 `artifacts/empty-management-broker-gated-v1-9e854df1e44042c0`, SHA256
 `9e854df1e44042c09067fc2d63ff6e4beeddeb73350c0329059cda28f2d13fb1`.
-Tested native source matches the published LF bytes: example SHA256
+The unchanged native example LF SHA256 remains
 `74fda34f8e573bc26cd2bba9486092e23fbf5438988123b64ab9ba80d70a184e`;
-smoke SHA256
-`e256444441768e2d77c6064cee9a7a3862d474d63ea8f777456fec6445c14264`.
+the original 014d smoke SHA256 was
+`e256444441768e2d77c6064cee9a7a3862d474d63ea8f777456fec6445c14264`,
+superseded only by the optimization-safe R19 tool correction above.
 This user-directed mandatory-gate correction supersedes the earlier e386688
 fixture invocation/artifact; retained prior artifacts are not the current
 handoff pin. The native mirror remains aligned to the exact public LF sources,

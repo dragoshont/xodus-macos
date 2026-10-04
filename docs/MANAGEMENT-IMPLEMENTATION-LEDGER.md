@@ -128,11 +128,30 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
-Current retained source-review status: **R01-R13 closed**. The latest closure
-is review 25 at exact R12 source `5805d89fc281367c0bd9161dd8ac86f627576122`
-versus `2d27032471a441934c15d85da78a38414e2adce7`. This is source/regression
-review, not reviewer execution of the owner's 173 native checks or product,
-manual-account, authorized managed installation or runtime certification.
+Current global retained source-review status: **R01-R15 closed**. Coordinator
+reports that the same retained reviewer's reports 28/29 close the parent's R15
+fresh-host fixture at the reported abbreviated pin `b380` and R14 public Windows
+runner lifecycle residual at exact
+`67adac4d17fa2e26ff610ff9fc0947d9387f6d40`. These are independently owned public
+component changes, not edits to this backend's latest core source
+`5805d89fc281367c0bd9161dd8ac86f627576122` or the GUI da548/C95 pins.
+Backend R12 remains closed by review 25 at exact 5805 versus
+`2d27032471a441934c15d85da78a38414e2adce7`.
+
+The parent reports exact remote verification, 11 native checks, four actual
+public delayed-Windows outcomes across five launches, exact native NTDLL absence,
+and independent hosted run
+[37172888303](https://github.com/dragoshont/xodus-macos/actions/runs/37172888303)
+succeeding at 67ad. Those are parent/CI execution evidence, not reviewer reruns
+or this worker's execution. The reviewer did not rerun owner, runtime or CI
+checks, including this backend's 173 native checks. Closure is source/regression
+review only, not full account, installation, Play or licensed-runtime
+certification.
+
+Original complete-owned inventory, authorization, immutable planning, managed
+installation/update/recovery/removal and licensed gameplay gates remain open.
+User-mediated Store issuance remains unavailable. No engine/profile/consent
+change, new provider or default-service initiation is implied or performed.
 Historical milestone evidence and then-pending reviews below do not override
 this status; genuinely new source deltas still require an immutable handoff to
 the same retained reviewer.
@@ -187,7 +206,8 @@ committed permissive-umask, original-inode/content and preservation regressions
 were sufficient, with no significant residual issue. The reviewer did not
 rerun the owner's 173 native checks. Coordinator also independently verified
 the backend branch's exact 5805 remote SHA with `git ls-remote`.
-**R01-R13 are now closed for source review only.**
+That review closed R01-R13 for source review only; the subsequent parent
+R14/R15 closures and current global status are recorded above.
 No additional reviewer is spawned. GUI da548/C95, capabilities and all real
 authorization/immutable-manifest/installed-lifecycle/runtime gates remain
 unchanged; no accounts, signed packages or games are executed.

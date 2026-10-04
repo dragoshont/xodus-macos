@@ -232,8 +232,8 @@ python3 tools/smoke_empty_runtime.py \
 
 The owned native process smoke executes only this example with
 `--empty-memory-fixture --management-socket`, including with trace logging
-variables. Five gated-fixture runs (initial, three repetitions, sealed-artifact
-run) prove missing-gate/no-argument/old-selector
+variables. Six gated-fixture runs (initial, three repetitions, sealed-artifact
+run and canonical-LF smoke replay) prove missing-gate/no-argument/old-selector
 refusal, real ping before and after a valid MSA refusal, zero reply bytes, empty
 stdout, exact payload-free stderr, cancellation of a pending partial header by
 SIGINT within the five-second test bound, and no remaining socket/state files.
@@ -254,7 +254,7 @@ Additive unsigned native developer artifact (mode 0500):
 Tested native source matches the published LF bytes: example SHA256
 `74fda34f8e573bc26cd2bba9486092e23fbf5438988123b64ab9ba80d70a184e`;
 smoke SHA256
-`c1bc0ace7edd9dd1cc02446a0559d302a821838a2d8862f1adc53c0fd6bdd26a`.
+`e256444441768e2d77c6064cee9a7a3862d474d63ea8f777456fec6445c14264`.
 This user-directed mandatory-gate correction supersedes the earlier e386688
 fixture invocation/artifact; retained prior artifacts are not the current
 handoff pin. The native mirror remains aligned to the exact public LF sources,

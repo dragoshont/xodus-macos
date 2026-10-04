@@ -197,12 +197,44 @@ def peer(listener, mode, stop, failures):
         failures.append(error)
 
 
-def main():
+def check_rps(directory, environment, executables, server, server_socket):
+    endpoint = directory / "r.sock"
+    for mode in ("success", "malformed", "expired", "timeout"):
+        wait_server_ready(server, server_socket)
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
+            listener.settimeout(20)
+            listener.bind(str(endpoint))
+            os.chmod(endpoint, 0o600)
+            listener.listen(1)
+            stop, failures = threading.Event(), []
+            worker = threading.Thread(target=peer, args=(listener, mode, stop, failures))
+            worker.start()
+            try:
+                expected = "protocol" if mode in ("malformed", "expired") else mode
+                output = run_owned([str(executables[0]), str(executables[2]),
+                                    str(endpoint), expected], environment, 25)
+                if "Isolated Windows RPS outcome passed." not in output:
+                    raise RuntimeError("The selected Windows check did not complete.")
+            finally:
+                stop.set()
+                worker.join(timeout=25)
+            if worker.is_alive():
+                raise RuntimeError("The owned synthetic peer did not stop.")
+            if failures:
+                raise RuntimeError("The owned synthetic peer failed.") from failures[0]
+        endpoint.unlink()
+        wait_server_ready(server, server_socket)
+        print(f"Windows/Wine synthetic {mode}: passed")
+    return "Four actual Windows-branch checks passed; no real credentials or game were used."
+
+
+def main(checks=check_rps):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("owned_root", type=Path)
     parser.add_argument("loader", type=Path)
     parser.add_argument("server", type=Path)
     parser.add_argument("executable", type=Path)
+    parser.add_argument("--library-directory", type=Path)
     args = parser.parse_args()
     if sys.platform != "darwin":
         parser.error("Run on the selected macOS host.")
@@ -221,6 +253,20 @@ def main():
         executables.append(path)
     if root.stat().st_uid != os.getuid() or root.stat().st_mode & 0o022:
         parser.error("The selected root must be owned and not group/world writable.")
+    libraries = None
+    if args.library_directory is not None:
+        supplied = args.library_directory.absolute()
+        if any(path.is_symlink() for path in (supplied, *supplied.parents)) or not supplied.is_dir():
+            parser.error("Select an existing non-aliased dependency library directory.")
+        libraries = supplied.resolve(strict=True)
+        if root not in libraries.parents:
+            parser.error("The dependency library directory must be inside the owned root.")
+        for directory in (libraries, *libraries.parents):
+            info = directory.stat()
+            if info.st_uid != os.getuid() or info.st_mode & 0o022:
+                parser.error("Dependency directories must be owned and not group/world writable.")
+            if directory == root:
+                break
     temporary = tempfile.mkdtemp(prefix="w-", dir=root)
     server = None
     clients_started = False
@@ -247,6 +293,8 @@ def main():
             "WINEFSYNC": "0",
             "WINEDLLOVERRIDES": "mscoree,mshtml,winemenubuilder.exe=",
         }
+        if libraries is not None:
+            environment["DYLD_FALLBACK_LIBRARY_PATH"] = str(libraries)
         with (directory / "server.log").open("wb") as log:
             server = subprocess.Popen([str(executables[1]), "-f", "-p"], env=environment,
                                       start_new_session=True, stdout=log, stderr=log)
@@ -257,33 +305,9 @@ def main():
             if "Isolated Windows check started; no credentials requested." not in output:
                 raise RuntimeError("The selected Windows harness did not reach its entry point.")
             wait_server_ready(server, endpoint_to_reconcile)
-            for mode in ("success", "malformed", "expired", "timeout"):
-                wait_server_ready(server, endpoint_to_reconcile)
-                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
-                    listener.settimeout(20)
-                    listener.bind(str(endpoint))
-                    os.chmod(endpoint, 0o600)
-                    listener.listen(1)
-                    stop, failures = threading.Event(), []
-                    worker = threading.Thread(target=peer,
-                                              args=(listener, mode, stop, failures))
-                    worker.start()
-                    try:
-                        expected = "protocol" if mode in ("malformed", "expired") else mode
-                        output = run_owned([str(executables[0]), str(executables[2]),
-                                            str(endpoint), expected], environment, 25)
-                        if "Isolated Windows RPS outcome passed." not in output:
-                            raise RuntimeError("The selected Windows check did not complete.")
-                    finally:
-                        stop.set()
-                        worker.join(timeout=25)
-                    if worker.is_alive():
-                        raise RuntimeError("The owned synthetic peer did not stop.")
-                    if failures:
-                        raise RuntimeError("The owned synthetic peer failed.") from failures[0]
-                endpoint.unlink()
-                wait_server_ready(server, endpoint_to_reconcile)
-                print(f"Windows/Wine synthetic {mode}: passed")
+            outcome = checks(directory, environment, executables, server, endpoint_to_reconcile)
+            if not isinstance(outcome, str) or not outcome:
+                raise RuntimeError("The component checks did not provide a completed outcome.")
     finally:
         if server is not None:
             try:
@@ -295,7 +319,7 @@ def main():
                     f"{temporary}"
                 ) from error
         shutil.rmtree(temporary)
-    print("Four actual Windows-branch checks passed; no real credentials or game were used.")
+    print(outcome)
 
 
 if __name__ == "__main__":

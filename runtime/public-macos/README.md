@@ -5,7 +5,7 @@ Wine `eab69739f15180b96797645ccade44c1c4414980`. It does not use private runtime
 code, enable Linux kernel interfaces on macOS, or certify a playable runtime.
 Original upstream LGPL notices remain in every changed source file.
 
-`apply_platform_fix.py` requires the exact revision and nine original source
+`apply_platform_fix.py` requires the exact revision and ten original source
 blobs. Selected checkout/ancestor aliases, source aliases and modified files
 are refused before application. Default operation verifies without writing.
 The patch input is newline-normalized so Windows transfers work correctly.
@@ -18,7 +18,7 @@ python3 tests.py /absolute/owned/public-wine
 
 The checks clone only the supplied public Git objects into new private temporary
 fixtures; they do not read credentials or run Wine. They exercise actual patch
-application, dry-run preservation, all-nine-file updates, repeated/changed
+application, dry-run preservation, all-ten-file updates, repeated/changed
 source rejection, wrong revision and directory/source alias rejection.
 
 The overlay guards Linux futex and ntsync interfaces, retaining the existing
@@ -111,7 +111,8 @@ clang -arch x86_64 -std=c11 -Wall -Wextra -Werror -pedantic \
 All three checks passed in the actual x64 executable. Inspection confirms its
 GnuTLS dependency and GMP/Nettle/libtasn1/libunistring dependencies are x64
 Mach-O libraries in the owned prefix, with remaining imports in system
-frameworks/libraries. No actual TLS peer or certificate validation was tested.
+frameworks/libraries. At that stage, no actual TLS peer or certificate
+validation was tested.
 
 The complete configured build is still separate from these successful targets.
 Its Linux DRM-dependent `amd_ags_x64` extension is explicitly disabled on this
@@ -177,5 +178,86 @@ scope and the exact PE executable hash.
 
 This exercises the client's actual Winsock DOS/ACP-to-Unix mapping, not a live
 gaming-shim/scoped-broker account exchange. No real credentials, consent, license,
-package or game was involved. Runtime/service version pairing, graphics, TLS-peer
-validation and licensed gameplay remain open; Play must remain gated.
+package or game was involved. Runtime/service version pairing, graphics and
+licensed gameplay remain open; Play must remain gated.
+
+## Actual Windows HTTPS certificate checks
+
+`windows_tls_smoke.c` is an original PE console client using actual WinHTTP and
+Crypt32 through the public Wine loader, native Schannel and owned x64 GnuTLS.
+`check_windows_tls.py` reuses the reviewed RPS runner's private-prefix lifecycle;
+it does not create a second server-ownership implementation. The default RPS
+callback still executes its original four cases.
+
+The first actual run exposed missing dynamic-library resolution despite a
+successful GnuTLS configure check. The shared runner now accepts an explicit
+`--library-directory` below its owned root. The selected directory and its
+ancestors up to that root must be non-aliased, current-user-owned and not
+group/world writable. Only the owned Wine children's
+`DYLD_FALLBACK_LIBRARY_PATH` is set; no global library configuration or private
+runtime is used. No implicit dependency-prefix discovery is performed.
+
+The next run independently reproduced a public WinHTTP error-propagation bug:
+the handshake succeeded and certificate verification reported invalid CA
+`12045`, but the failed branch returned generic secure-channel error `12157`.
+The tenth guarded source change preserves the actual verification error.
+Handshake failures without a more specific result still return the original
+secure-channel error. No validation policy, certificate-ignore flag or trusted
+success path is weakened.
+
+From the configured public build directory, after applying the exact-source
+overlay and rebuilding `dlls/winhttp/all`:
+
+```sh
+tools=/absolute/owned/public-wine-tools
+source=/absolute/owned/public-wine
+probe=/absolute/owned/runtime/public-macos
+root=/absolute/owned/output
+
+"$tools/tools/winegcc/winegcc" -b x86_64-w64-mingw32 \
+  --wine-objdir . --winebuild "$tools/tools/winebuild/winebuild" \
+  -std=c11 -Wall -Wextra -Werror -pedantic -D__WINE_PE_BUILD \
+  -isystem "$source/include" -isystem "$source/include/msvcrt" \
+  "$probe/windows_tls_smoke.c" -lwinhttp -lcrypt32 -lkernel32 -lucrtbase \
+  -o "$root/xodus-windows-tls-smoke.exe"
+
+python3 -B "$probe/check_windows_tls.py" "$root" \
+  "$root/public-wine-build-macos-x64/loader/wine" \
+  "$root/public-wine-build-macos-x64/server/wineserver" \
+  "$root/xodus-windows-tls-smoke.exe" \
+  --library-directory "$root/public-host-dependencies/x64/lib"
+python3 -B "$probe/test_tls_peer.py"
+```
+
+The loopback fixture generates a one-day RSA-2048 localhost certificate and
+owner-only private key in the new private prefix. Its single non-daemon HTTP
+worker uses TLS 1.2 or newer; shutdown interrupts its owned active connection
+before a bounded join. Two real socket regressions cover stalled TLS handshakes
+and incomplete HTTP headers, without Wine or host trust-store writes.
+
+Three actual Windows cases passed: unknown CA rejected with `12045`, explicitly
+trusted owned certificate accepted with HTTP 200 and exact bounded body, and
+wrong hostname rejected with `12038`. The helper imports only the generated
+public DER into the private Wine prefix's current-user registry ROOT store,
+never the native macOS trust configuration. Proxy use, authentication, cookies
+and redirects are disabled; certificate-ignore flags are never enabled.
+A separate native TLS request controls fixture readiness, not Windows validation.
+
+| Observed PE component | SHA-256 |
+|---|---|
+| Original TLS check | `4cd7da9b607d17bb52d17ad46a919d214329a73fe28d93abefff66c3732b015d` |
+| Corrected WinHTTP DLL | `ce7e92f95ef993778c2656fcfe69ff8e862f6b7796ba1ab9885d428cddee37ff` |
+
+All four actual RPS cases still passed after callback extraction. The eighteen
+Darwin runner checks cover the existing ownership regressions plus callback
+completion/failure and explicit dependency-directory guards. Exact selected
+native ntdll mapping checks confirm no Wine clients remain after the runs.
+Hosted checks cover the native client, runner, TLS-peer shutdown and guarded
+public patch application; they do not substitute for these owner-run Wine cases.
+
+This proves synthetic loopback HTTPS validation in the selected public
+candidate, not Microsoft endpoint coverage, account authorization, a complete
+runtime/shim/service pair, rendered graphics or licensed gameplay. No account,
+real game or private runtime was used; neither native trust configuration nor
+the launcher's Account flow was changed.
+Play remains gated, and this candidate is not a certified distribution.

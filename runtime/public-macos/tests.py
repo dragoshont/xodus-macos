@@ -70,13 +70,17 @@ class PlatformApplicationChecks(unittest.TestCase):
         self.assertEqual(after, self.snapshot())
 
     def test_changed_source_refused_before_any_write(self):
-        first = self.checkout / next(iter(SOURCE_BLOBS))
-        with first.open("a", encoding="utf-8") as source:
-            source.write("\n")
-        before = self.snapshot()
-        result = self.apply(write=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(before, self.snapshot())
+        original = self.snapshot()
+        for name in SOURCE_BLOBS:
+            with self.subTest(source=name):
+                selected = self.checkout / name
+                with selected.open("a", encoding="utf-8") as source:
+                    source.write("\n")
+                before = self.snapshot()
+                result = self.apply(write=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(before, self.snapshot())
+                selected.write_bytes(original[name])
 
     def test_wrong_revision_refused_before_any_write(self):
         self.git("-C", str(self.checkout), "-c", "user.name=Public fixture",

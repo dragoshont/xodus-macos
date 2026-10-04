@@ -18,6 +18,7 @@ SOURCE_BLOBS = {
     "dlls/ntdll/unix/system.c": "1821c6eb3cae85131b0b54cfe0447a294c14397c",
     "dlls/win32u/opengl.c": "03346f5b5f6a211be2944707edd29768ddebe817",
     "dlls/winegstreamer/media-converter/media-converter.h": "3dd8864d54f8acb80bb911315b2dd0b14a8c70fd",
+    "dlls/winhttp/net.c": "695b370a81020921676f8fa03342484e8dda8195",
 }
 
 

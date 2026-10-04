@@ -68,3 +68,14 @@ and a bounded timeout. This is Windows-branch component evidence, not a gaming
 shim/broker account exchange, supported version handshake, graphics/TLS-peer
 validation or licensed gameplay. See `runtime/public-rps/README.md`; genuine
 Store consent, account authorization and the complete runtime pair remain gates.
+
+A separate original PE HTTPS client now exercises actual WinHTTP/Crypt32,
+Schannel and owned x64 GnuTLS against an owned loopback fixture in that same
+reviewed private-prefix lifecycle. It rejects an unknown CA and wrong hostname,
+and accepts only an explicitly trusted fixture with HTTP 200 and exact body.
+The exact-source public overlay preserves WinHTTP's specific certificate errors;
+it does not disable validation. Dependency lookup is explicit and child-local.
+The fixture uses only private Wine registry trust, not native trust-store writes,
+and its single worker has verified bounded shutdown for stalled handshakes and
+headers. This is scoped TLS component evidence, not production endpoint coverage,
+account authorization, runtime pairing, graphics or gameplay certification.

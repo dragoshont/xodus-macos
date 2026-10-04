@@ -2,6 +2,8 @@
 """Darwin-only ownership regressions; helpers never execute Wine."""
 
 from pathlib import Path
+from contextlib import redirect_stdout, redirect_stderr
+import io
 import select
 import subprocess
 import sys
@@ -239,6 +241,100 @@ class OwnershipChecks(unittest.TestCase):
         replacement.wait(timeout=2)
         self.assertEqual(replacement.returncode, 77)
         self.assertTrue(self.root.is_dir())
+
+    def run_component(self, checks, library_directory=None):
+        binaries = [self.root / name for name in ("loader", "server", "helper.exe")]
+        for binary in binaries:
+            binary.touch()
+        original_popen = subprocess.Popen
+
+        def start_server(*arguments, **options):
+            process = original_popen([sys.executable, "-c", SERVER, str(self.endpoint), "0"],
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.children.append(process)
+            return process
+
+        arguments = ["check", str(self.root), *map(str, binaries)]
+        if library_directory is not None:
+            arguments.extend(["--library-directory", str(library_directory)])
+        with mock.patch.object(sys, "argv", arguments):
+            with mock.patch.object(subprocess, "Popen", side_effect=start_server):
+                with mock.patch.object(runner, "run_owned", return_value=
+                                       "Isolated Windows check started; no credentials requested."):
+                    with mock.patch.object(runner, "server_endpoint", return_value=self.endpoint):
+                        runner.main(checks=checks)
+
+    def test_component_callback_runs_only_with_owned_ready_prefix(self):
+        directories = []
+
+        def checks(directory, environment, binaries, controller, endpoint):
+            directories.append(directory)
+            self.assertTrue(Path(environment["WINEPREFIX"]).is_dir())
+            self.assertEqual(Path(environment["HOME"]), directory / "home")
+            connection, pid = runner.connected_server(endpoint, 1)
+            with connection:
+                self.assertEqual(pid, controller.pid)
+            return "Owned component finished."
+
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.run_component(checks)
+        self.assertEqual(output.getvalue(), "Owned component finished.\n")
+        self.assertFalse(directories[0].exists())
+
+    def test_component_failure_is_not_reported_as_success(self):
+        def checks(*arguments):
+            raise RuntimeError("Owned component failed.")
+
+        with self.assertRaisesRegex(RuntimeError, "Owned component failed"):
+            self.run_component(checks)
+        self.assertFalse(list(self.root.glob("w-*")))
+
+    def test_missing_component_outcome_is_not_reported_as_success(self):
+        with self.assertRaisesRegex(RuntimeError, "did not provide a completed outcome"):
+            self.run_component(lambda *arguments: None)
+        self.assertFalse(list(self.root.glob("w-*")))
+
+    def test_owned_dependency_directory_is_explicit_child_configuration(self):
+        libraries = self.root / "lib"
+        libraries.mkdir(mode=0o700)
+
+        def checks(directory, environment, *arguments):
+            self.assertEqual(environment["DYLD_FALLBACK_LIBRARY_PATH"], str(libraries))
+            return "Owned dependencies configured."
+
+        with redirect_stdout(io.StringIO()):
+            self.run_component(checks, libraries)
+
+    def reject_libraries(self, libraries):
+        binaries = [self.root / name for name in ("loader", "server", "helper.exe")]
+        for binary in binaries:
+            binary.touch()
+        arguments = ["check", str(self.root), *map(str, binaries),
+                     "--library-directory", str(libraries)]
+        with mock.patch.object(sys, "argv", arguments):
+            with mock.patch.object(subprocess, "Popen") as launch:
+                with redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit) as stopped:
+                        runner.main()
+                self.assertEqual(stopped.exception.code, 2)
+                launch.assert_not_called()
+
+    def test_outside_dependency_directory_is_refused_before_launch(self):
+        self.reject_libraries(self.root.parent)
+
+    def test_aliased_dependency_directory_is_refused_before_launch(self):
+        libraries = self.root / "lib"
+        libraries.mkdir(mode=0o700)
+        alias = self.root / "alias"
+        alias.symlink_to(libraries, target_is_directory=True)
+        self.reject_libraries(alias)
+
+    def test_writable_dependency_directory_is_refused_before_launch(self):
+        libraries = self.root / "lib"
+        libraries.mkdir(mode=0o700)
+        libraries.chmod(0o770)
+        self.reject_libraries(libraries)
 
 
 if __name__ == "__main__":

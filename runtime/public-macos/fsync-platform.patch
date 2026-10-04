@@ -316,3 +316,13 @@ diff --git a/dlls/winegstreamer/media-converter/media-converter.h b/dlls/winegst
  #include <stdarg.h>
  #include <stdbool.h>
  #include <inttypes.h>
+diff --git a/dlls/winhttp/net.c b/dlls/winhttp/net.c
+--- a/dlls/winhttp/net.c
++++ b/dlls/winhttp/net.c
+@@ -447,5 +447,5 @@ failed:
+     free(conn->ssl_write_buf);
+     conn->ssl_write_buf = NULL;
+     DeleteSecurityContext(&ctx);
+-    return ERROR_WINHTTP_SECURE_CHANNEL_ERROR;
++    return res != ERROR_SUCCESS ? res : ERROR_WINHTTP_SECURE_CHANNEL_ERROR;
+ }

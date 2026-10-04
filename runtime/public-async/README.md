@@ -209,7 +209,8 @@ The ten prior gaming-COM/core-loader/synthetic-RPS cases still pass with the
 new helper. Eighteen native component/lifetime/fixture-runner checks pass;
 Windows runs eleven and skips seven Unix ownership fixtures.
 Hosted tests cover these guards and compilation, not actual runtime/account
-integration.
+integration. The exact published consumer source `0d5c610731d168a4c3faa854c01f349ba8b80349`
+passes [Public async source and build run 37185608767](https://github.com/dragoshont/xodus-macos/actions/runs/37185608767).
 All thirteen existing public source/license/overlay guards also pass.
 The same failure-only interaction and the ten prior COM cases pass again
 using the readonly `artifacts/public-empty-memory-pair-v1` binaries. Original
@@ -226,5 +227,14 @@ above; earlier immutable artifacts are unchanged. These are observed developer
 binaries, not reproducible-build guarantees or supported distribution.
 Successful signed-in RPS, personal Store issuance, service/profile pairing,
 entitlement, installation and licensed gameplay remain unverified. Play stays
-gated. The new backend fixture and this consumer delta await the **same**
-retained adversarial reviewer; R01-R18 closure does not approve them.
+gated. Retained report 38 found no additional issue in this pinned consumer
+delta, but opened **R19 (Medium)** in the backend's separate
+`tools/smoke_empty_runtime.py` at `014d17b241a716e8c730e46153f080e72b32a2ff`.
+Its assertion-based fixture identification disappears under optimized Python,
+allowing a production-shaped refusal to be followed by an unsafe no-argument
+probe. Do not run that standalone smoke until its unconditional refusal checks
+and optimized-mode regression are corrected and reviewed. No production broker
+was executed to reproduce the finding. This parent checker always launches its
+hash-pinned fixture with the mandatory lab arguments and does not share that
+defect. R19 remains open with the same reviewer; R01-R18 remain closed, and the
+combined producer/consumer milestone is not yet approved.

@@ -93,6 +93,30 @@ class ForegroundChecks(unittest.TestCase):
                 guard.check_all(None, {}, [], None, None)
             default.assert_not_called()
 
+    @unittest.skipUnless(hasattr(guard.os, "getuid"), "POSIX file ownership")
+    def test_sibling_traversal_refuses_before_helper_execution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory).resolve(strict=True)
+            root, sibling = parent / "owned", parent / "sibling"
+            root.mkdir(mode=0o700)
+            sibling.mkdir(mode=0o700)
+            helper = sibling / "collector"
+            helper.write_text("must not execute")
+            helper.chmod(0o500)
+            for supplied in (helper, root / ".." / "sibling" / "collector"):
+                with self.subTest(supplied=supplied), \
+                        patch.object(guard.sys, "argv", [
+                            "guard", "--foreground-helper", str(supplied),
+                            str(root), "loader", "server", "check",
+                        ]), \
+                        patch.object(guard.drawable.graphics, "require_graphics_session"), \
+                        patch.object(guard.drawable.runner, "main") as run, \
+                        patch.object(guard.subprocess, "run") as execute:
+                    with self.assertRaisesRegex(RuntimeError, "inside"):
+                        guard.main()
+                    run.assert_not_called()
+                    execute.assert_not_called()
+
     def test_main_restores_global_runner_and_arguments_after_failure(self):
         arguments = ["guard", "--foreground-helper", "helper", "root", "loader", "server", "check"]
         original = guard.drawable.runner.run_owned

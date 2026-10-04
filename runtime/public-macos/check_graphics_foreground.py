@@ -17,6 +17,8 @@ def select_helper(supplied, root):
     root = root.absolute()
     if any(path.is_symlink() for path in (root, *root.parents)) or not root.is_dir():
         raise RuntimeError("Select a non-aliased owned output root.")
+    helper = helper.resolve(strict=True)
+    root = root.resolve(strict=True)
     if root not in helper.parents:
         raise RuntimeError("The foreground helper must be inside the owned output root.")
     for path in (helper, *helper.parents):

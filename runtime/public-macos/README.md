@@ -430,8 +430,8 @@ run and its independent cleanup evidence.
 Each completed job has a numerical zero exit, no active job PID, and is removed
 only after exit. Independent selected native ntdll mapping checks return
 status 1, no PIDs and no stderr. SSH admission still refuses before Wine startup.
-Twenty-two native admission/outcome/foreground checks pass on the Mac; Windows
-runs twenty-one and explicitly skips the POSIX file-ownership fixture.
+Twenty-three native admission/outcome/foreground checks pass on the Mac; Windows
+runs twenty-one and explicitly skips the two POSIX filesystem fixtures.
 Hosted checks compile the Swift collector and exercise these guards, not GPUs.
 
 | Observed unsigned component | SHA-256 |
@@ -447,5 +447,12 @@ WOW64 `rundll32` startup diagnostic; this does not establish 32-bit support.
 Earlier immutable offscreen and async artifacts are unchanged. No personal
 account, package, service/profile pairing, real game, private runtime, approved
 app/engine replacement or host graphics configuration was used or changed.
-Play and the remaining licensed journey stay gated. This new delta is pending
-the same retained adversarial review; previous closures do not approve it.
+Play and the remaining licensed journey stay gated. The same retained review
+of `da6f50c423f5cb29df1a3dcd02ca0f6dd0188baf` identified R18: lexical helper
+containment admitted a sibling path spelled with `..`. The correction preserves
+symlink refusal, canonicalizes both existing paths before containment and
+checks canonical ancestry. Its real-filesystem regression requires both direct
+and traversing sibling paths to fail before runner/helper execution.
+The new traversal regression fails against the exact published old function
+and passes with the correction; no helper is executed in either fixture.
+R18 closure is pending the same reviewer; earlier closures do not approve it.

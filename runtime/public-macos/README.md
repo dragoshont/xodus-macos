@@ -5,7 +5,7 @@ Wine `eab69739f15180b96797645ccade44c1c4414980`. It does not use private runtime
 code, enable Linux kernel interfaces on macOS, or certify a playable runtime.
 Original upstream LGPL notices remain in every changed source file.
 
-`apply_platform_fix.py` requires the exact revision and ten original source
+`apply_platform_fix.py` requires the exact revision and eleven original source
 blobs. Selected checkout/ancestor aliases, source aliases and modified files
 are refused before application. Default operation verifies without writing.
 The patch input is newline-normalized so Windows transfers work correctly.
@@ -18,7 +18,7 @@ python3 tests.py /absolute/owned/public-wine
 
 The checks clone only the supplied public Git objects into new private temporary
 fixtures; they do not read credentials or run Wine. They exercise actual patch
-application, dry-run preservation, all-ten-file updates, repeated/changed
+application, dry-run preservation, all-eleven-file updates, repeated/changed
 source rejection, wrong revision and directory/source alias rejection.
 
 The overlay guards Linux futex and ntsync interfaces, retaining the existing
@@ -276,3 +276,84 @@ runtime/shim/service pair, rendered graphics or licensed gameplay. No account,
 real game or private runtime was used; neither native trust configuration nor
 the launcher's Account flow was changed.
 Play remains gated, and this candidate is not a certified distribution.
+
+## Actual Windows offscreen graphics checks
+
+`windows_graphics_smoke.c` is an original PE client using only its own hidden
+32x32 window, WGL contexts and explicitly allocated RGBA8 framebuffer storage.
+It creates a legacy context and, in a separate invocation, requests a
+forward-compatible core context of at least OpenGL 3.2 and verifies its profile.
+Each context clears its own framebuffer and reads one of its own pixels.
+All four channels must match `[64, 128, 191, 255]` within one byte.
+Missing entry points, incomplete storage, initialization/operation errors and
+resource-release failures reject the check. Errors are not cleared to obtain
+a passing result.
+
+The first real execution exposed a launch-context prerequisite: SSH's security
+session returned attributes `0x5020`, without `sessionHasGraphicAccess` (`0x10`).
+An owned transient current-user GUI job returned `0x6030`. The checker now
+refuses missing graphics access before creating a prefix or launching Wine.
+Running as the same UID is not a substitute for the graphical security session;
+the failed `launchctl asuser` attempt was not escalated or bypassed.
+The normal native launcher inherits its graphical login session.
+
+The proper session then exposed genuine public OpenGL initialization defects.
+The overlay queries profile masks only for OpenGL 3.2 or newer, initializes
+legacy profile state, and queries `GL_TEXTURE_BINDING_2D`, not the texture
+target. Raw legacy drawables without split-framebuffer support no longer receive
+unsupported split bindings. Default-buffer restoration removes unused trailing
+draw buffers and uses the single-buffer API when appropriate; a `GL_BACK`
+selection is not submitted with the driver's full eight-buffer capacity.
+Unused framebuffer-surface gamma shaders stay behind the existing EGL feature
+boundary. Both EGL-enabled source branches pass strict actual-compiler syntax
+checks; their execution and gamma/scaling behavior were not tested.
+
+The hidden window's native default framebuffer remained unavailable
+(`GL_INVALID_FRAMEBUFFER_OPERATION`, `0x506`). The passing check therefore
+explicitly targets newly allocated **offscreen** storage. It never shows or
+activates a window, swaps its buffers, uses a desktop DC or reads another
+application's pixels. This is not window-presentation evidence.
+Temporary error-consuming diagnostic checkpoints were removed and the native
+libraries rebuilt before the normal, uninstrumented checks passed.
+
+From the configured public build directory, after applying the overlay and
+rebuilding `dlls/win32u/all` and `dlls/opengl32/all`:
+
+```sh
+"$tools/tools/winegcc/winegcc" -b x86_64-w64-mingw32 \
+  --wine-objdir . --winebuild "$tools/tools/winebuild/winebuild" \
+  -std=c11 -Wall -Wextra -Werror -pedantic -D__WINE_PE_BUILD \
+  -isystem "$source/include" -isystem "$source/include/msvcrt" \
+  "$probe/windows_graphics_smoke.c" -lopengl32 -lgdi32 -luser32 \
+  -lkernel32 -lucrtbase -o "$root/xodus-windows-graphics-smoke.exe"
+
+# Developer check from a graphical login session, not an SSH audit session.
+python3 -B "$probe/check_windows_graphics.py" "$root" \
+  "$root/public-wine-build-macos-x64/loader/wine" \
+  "$root/public-wine-build-macos-x64/server/wineserver" \
+  "$root/xodus-windows-graphics-smoke.exe" \
+  --library-directory "$root/public-host-dependencies/x64/lib"
+python3 -B "$probe/test_graphics_session.py" -v
+```
+
+Both actual legacy/core cases passed the byte threshold. Seven native tests
+cover session admission/refusal, both exact outcomes, wrong/missing mode
+markers and process-failure propagation. Twenty existing ownership checks,
+two TLS-peer checks and all six eleven-source application/refusal checks pass.
+All four actual RPS cases and three actual HTTPS cases still pass after the
+OpenGL changes. Exact selected native ntdll mapping checks find no remaining
+Wine clients, and owned transient GUI jobs are removed only after they exit.
+
+| Observed unsigned graphics component | SHA-256 |
+|---|---|
+| Original PE check | `51b38697a6e5afdf4814aa7f65f2a79172f202fbe7561c424e6be04f5b378e64` |
+| Native win32u | `ea41be9d342ecaf1388d6f8f7505859042b14a345bd1be84e39e9b09655e72de` |
+| Native opengl32 | `601e82ccea5a5970581c3cd7241ed1be9ac5de7f68eb7ec04f3e9b1a16b42c0b` |
+
+These are owned x64 artifacts from the configured public candidate, not
+reproducible-build guarantees or a certified runtime. Hosted tests cover the
+source guards and session/callback logic, not actual Wine GPU execution.
+Window presentation, production graphics coverage, current Store authorization,
+entitled installation, runtime/service pairing, licensed gameplay and signed
+distribution remain separate gates. No credentials, real game, private runtime,
+host graphics configuration or launcher Account flow was used or changed.

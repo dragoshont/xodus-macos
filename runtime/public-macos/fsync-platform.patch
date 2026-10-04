@@ -294,7 +294,40 @@ diff --git a/dlls/win32u/opengl.c b/dlls/win32u/opengl.c
  
      if (!ret && (ret = driver_funcs->p_make_current( draw, read, context->driver_private )))
      {
-@@ -2409,8 +2436,8 @@ static void pop_internal_context( struct wgl_context *context )
+@@ -2333,9 +2360,21 @@ static BOOL context_sync_drawables( struct wgl_context *context, HDC draw_hdc, HDC r
+         if (!context->share->reserved_textures)
+         {
+-            int profile, i, prev_texture;
++            const char *version;
++            unsigned int major, minor;
++            int profile = 0, i, prev_texture;
+
+             /* context->is_core exists but it may be not initialized yet. */
+-            funcs->p_glGetIntegerv( GL_CONTEXT_PROFILE_MASK, &profile );
++            version = (const char *)funcs->p_glGetString( GL_VERSION );
++            if (version && sscanf( version, "%u.%u", &major, &minor ) == 2)
++            {
++                if (major > 3 || (major == 3 && minor >= 2))
++                    funcs->p_glGetIntegerv( GL_CONTEXT_PROFILE_MASK, &profile );
++            }
++            else
++            {
++                ERR( "Cannot determine the current OpenGL version.\n" );
++                context->error = GL_INVALID_OPERATION;
++            }
+             if (profile & GL_CONTEXT_CORE_PROFILE_BIT)
+             {
+                 /* Binding texture names without allocation is not allowed on core profile,
+@@ -2347,7 +2386,7 @@ static BOOL context_sync_drawables( struct wgl_context *context, HDC draw_hdc, HDC r
+                 /* On compat profile the app may use texture names without allocation. Yet it is more common to allocate
+                  * the textures. So use high indexes to make it less likely that an app will want to use those directly
+                  * and allocate those so these names won't be generated for app. */
+-                funcs->p_glGetIntegerv( GL_TEXTURE_2D, &prev_texture );
++                funcs->p_glGetIntegerv( GL_TEXTURE_BINDING_2D, &prev_texture );
+                 for (i = 0; i < ARRAY_SIZE(context->share->framebuffer_textures); ++i)
+                 {
+                     context->share->framebuffer_textures[i] = 0x10000 + i;
+@@ -2409,8 +2448,8 @@ static void pop_internal_context( struct wgl_context *context )
  
      TRACE( "context %p\n", context );
  
@@ -304,6 +337,74 @@ diff --git a/dlls/win32u/opengl.c b/dlls/win32u/opengl.c
 +    read = get_native_opengl_drawable( context->read );
  
      driver_funcs->p_make_current( draw, read, context->driver_private );
+ }
+diff --git a/dlls/opengl32/unix_wgl.c b/dlls/opengl32/unix_wgl.c
+--- a/dlls/opengl32/unix_wgl.c
++++ b/dlls/opengl32/unix_wgl.c
+@@ -1393,1 +1393,2 @@
++#ifdef SONAME_LIBEGL
+ static const char *fs_hack_gamma_vertex_shader_src =
+@@ -1559,6 +1560,7 @@
+     ctx->gamma_program = program;
+     funcs->p_glUseProgram( prev_program );
+ }
++#endif
+
+ static void make_context_current( TEB *teb, const struct opengl_funcs *funcs, HDC draw_hdc, HDC read_hdc,
+                                   HGLRC hglrc, struct context *ctx )
+@@ -1566,7 +1568,7 @@
+     DWORD tid = HandleToULong(teb->ClientId.UniqueThread);
+     size_t size = ARRAYSIZE(legacy_extensions) - 1, count = 0;
+     const char *version, *rest = "", **extensions;
+-    int i, j, profile;
++    int i, j, profile = 0;
+
+     static const char *disabled, *enabled;
+
+@@ -1687,7 +1689,8 @@
+     if (TRACE_ON(opengl)) for (i = 0; i < count; i++) TRACE( "++ %s\n", extensions[i] );
+
+-    funcs->p_glGetIntegerv( GL_CONTEXT_PROFILE_MASK, &profile );
++    if (ctx->major_version > 3 || (ctx->major_version == 3 && ctx->minor_version >= 2))
++        funcs->p_glGetIntegerv( GL_CONTEXT_PROFILE_MASK, &profile );
+     ctx->base.is_core = !!(profile & GL_CONTEXT_CORE_PROFILE_BIT);
+     ctx->base.has_GL_ARB_viewport_array = is_extension_supported( ctx, "GL_ARB_viewport_array" );
+     ctx->base.has_GL_ARB_clip_control = is_extension_supported( ctx, "GL_ARB_clip_control" );
+     ctx->base.has_GL_ATI_fragment_shader = !ctx->base.is_core && is_extension_supported( ctx, "GL_ATI_fragment_shader" );
+@@ -1695,7 +1698,9 @@
+     ctx->base.has_GL_ARB_vertex_program = !ctx->base.is_core && is_extension_supported( ctx, "GL_ARB_vertex_program" );
+     ctx->base.integer_scaling = fs_hack_is_integer();
++#ifdef SONAME_LIBEGL
+     if (!ctx->base.gamma_program) fs_hack_setup_gamma_shader( &ctx->base, funcs );
++#endif
+     /* Drawable's FBO could've changed in driver. */
+     pop_default_fbo( teb );
+ }
+
+@@ -2180,6 +2185,9 @@
+
+     if (!(ctx = get_current_context( teb, &draw, &read ))) return;
++    if (!draw->draw_fbo && !read->read_fbo && ctx->major_version < 3
++        && !is_extension_supported( ctx, "GL_ARB_framebuffer_object" ))
++        return;
+     if (!ctx->draw_fbo) funcs->p_glBindFramebuffer( GL_DRAW_FRAMEBUFFER, draw->draw_fbo );
+     if (!ctx->read_fbo) funcs->p_glBindFramebuffer( GL_READ_FRAMEBUFFER, read->read_fbo );
+     if (!ctx->has_viewport && draw->draw_fbo && draw->client)
+     {
+@@ -2309,7 +2317,13 @@
+             if (dst[i] != buf) change = TRUE;
+         }
+-        if (change) funcs->p_glDrawBuffers( n, dst );
++        if (change)
++        {
++            while (n > 1 && dst[n - 1] == GL_NONE) n--;
++            if (n == 1)
++                funcs->p_glDrawBuffer( dst[0] );
++            else funcs->p_glDrawBuffers( n, dst );
++        }
+     }
+     if (!ctx->read_fbo && (buf = drawable_buffer_from_buffer( read, ctx->pixel_mode.read_buffer )))
+         funcs->p_glReadBuffer( buf );
  }
 diff --git a/dlls/winegstreamer/media-converter/media-converter.h b/dlls/winegstreamer/media-converter/media-converter.h
 --- a/dlls/winegstreamer/media-converter/media-converter.h

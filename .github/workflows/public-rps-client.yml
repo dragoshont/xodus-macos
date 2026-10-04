@@ -6,12 +6,18 @@ on:
       - runtime/public-rps/**
       - runtime/public-macos/check_windows_tls.py
       - runtime/public-macos/test_tls_peer.py
+      - runtime/public-macos/check_windows_graphics.py
+      - runtime/public-macos/test_graphics_session.py
+      - runtime/public-macos/windows_graphics_smoke.c
       - .github/workflows/public-rps-client.yml
   push:
     paths:
       - runtime/public-rps/**
       - runtime/public-macos/check_windows_tls.py
       - runtime/public-macos/test_tls_peer.py
+      - runtime/public-macos/check_windows_graphics.py
+      - runtime/public-macos/test_graphics_session.py
+      - runtime/public-macos/windows_graphics_smoke.c
       - .github/workflows/public-rps-client.yml
   workflow_dispatch:
 
@@ -44,3 +50,7 @@ jobs:
         working-directory: runtime/public-macos
         shell: bash
         run: python3 -B test_tls_peer.py
+      - name: Check graphics-session refusal before the owned runner
+        working-directory: runtime/public-macos
+        shell: bash
+        run: python3 -B test_graphics_session.py -v

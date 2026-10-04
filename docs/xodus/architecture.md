@@ -79,3 +79,16 @@ The fixture uses only private Wine registry trust, not native trust-store writes
 and its single worker has verified bounded shutdown for stalled handshakes and
 headers. This is scoped TLS component evidence, not production endpoint coverage,
 account authorization, runtime pairing, graphics or gameplay certification.
+
+The public graphics component subsequently executes both legacy and
+forward-compatible core WGL contexts in the graphical login session, rejecting
+SSH sessions without actual graphics access before launching Wine. Each uses
+its own hidden window and allocated 32x32 RGBA8 offscreen framebuffer, with
+actual clear/readback matching all four channels within one byte. The
+eleven-source guarded overlay fixes initialization queries and buffer
+restoration; no GL errors are cleared to claim success. The hidden window's
+native default framebuffer is unavailable, so this proves only owned offscreen
+rendering, not presentation or gameplay. Existing actual RPS/TLS checks still
+pass, and the owned-prefix lifecycle remains shared. This does not enable
+Play or establish account entitlement, package authorization, runtime pairing
+or a certified distribution.

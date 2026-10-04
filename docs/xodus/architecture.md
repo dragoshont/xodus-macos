@@ -92,6 +92,20 @@ requests **before** credential reads, a subsequent usable connection and exact
 owned-socket cleanup. Other tests use unnamed sockets and memory-only profiles.
 `tools/smoke_runtime.py` is not live RPS issuance or runtime evidence.
 
+The separate developer example `empty_management_broker` wraps the **same**
+`isolated::serve`/management XML route with an empty managed `MemoryBackend`.
+It accepts only `--fixture-socket <absolute-private-Unix-path>`; no arguments
+and the production selector fail, and it never initializes native credential
+storage. It performs an in-memory absence lookup, not a Keychain/user-credential
+read. Missing credentials return before device/account HTTP or mutation.
+The real internal result is AuthenticationRequired, but the wire remains
+zero reply bytes/connection closure, not an invented error frame or HRESULT.
+`tools/smoke_empty_runtime.py` verifies ping before/after this valid-request
+refusal and bounded SIGINT cancellation/owned cleanup. This native macOS-only,
+no-plaintext Cargo example is an additive fail-only developer artifact, **not**
+a new shipped memory mode, successful fake RPS, deployed broker replacement or
+public runtime pair certification.
+
 The public shim/core gaming API consumer is independently owned. Coordinator
 reports the public `runtime/public-async` milestone
 `f7d8d4eec2eb4aaab96230df29c76c6de2b060ad` wires the gaming COM and

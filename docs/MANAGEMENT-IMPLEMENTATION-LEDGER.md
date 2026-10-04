@@ -158,6 +158,98 @@ Historical milestone evidence and then-pending reviews below do not override
 this status; genuinely new source deltas still require an immutable handoff to
 the same retained reviewer.
 
+### Developer-only empty-account broker fixture
+
+`crates/xodus-service/examples/empty_management_broker.rs` is a standalone Cargo
+example, not a deployed service mode or a selectable production profile. It
+constructs `TokenManager::with_management_backend(Arc::new(MemoryBackend::default()))`
+and calls the unchanged public `isolated::serve` library entrypoint. No
+production source, backend, flags, dependency, frozen schema, wire or capability
+is changed. The existing native/no-plaintext guard still applies: this fixture
+requires macOS without `xodus/key-chain-file`.
+
+The only accepted invocation is:
+
+```text
+<empty-management-broker-fixture> --fixture-socket <absolute-private-Unix-path>
+```
+
+There is no default path/profile and no help/production selector. No arguments,
+the production `--management-socket` flag, missing/extra arguments and non-UTF-8
+paths fail explicitly. Existing endpoint admission validates the selected
+normalized absolute UTF-8 path, 103-byte limit, preexisting owned local 0700
+parent with no symlinks, absent socket name, same-UID peers, 0600 socket,
+eight-connection limit and descriptor/identity-preserving cleanup.
+SIGINT cancels the existing broker and joins its owned connections; the
+example's signal task is then aborted/joined. It never starts the default or
+published production broker.
+
+**Account isolation is by construction, not an empty directory masquerading as
+a production credential profile.** Neither native store initialization nor any
+Keychain backend or user credential is used. The persistent and ephemeral
+backends are empty process-local memory; no profile import, credential seed,
+prompt, persistent state or credential write exists. A valid MSA request does
+perform one **in-memory absence lookup**. Its missing bundle returns before the
+first device/account HTTP call or credential mutation. The unchanged production
+route constructs its usual no-redirect HTTP client, but this fixture never
+issues an account/device HTTP request or a ticket.
+
+The existing real service regression
+`rps::tests::signed_out_management_context_never_falls_back_to_default_credentials`
+establishes the internal `RpsError::AuthenticationRequired` result. The actual
+XML/frame path deliberately exposes **no authentication-error frame or
+HRESULT**: a valid MSA request closes with zero reply bytes and only the existing
+generic `Private runtime peer request failed` stderr diagnostic. Stdout remains
+empty. A consumer may assert missing response/closure, not an authentication
+category on the wire.
+
+Native verification executed **27 service-library checks plus 3 example
+argument checks**, strict service-library/example clippy and the example build:
+
+```sh
+cargo test --offline --locked -q -p xodus-service --lib \
+  --example empty_management_broker
+cargo clippy --offline --locked -q -p xodus-service --lib \
+  --example empty_management_broker --no-deps -- -D warnings
+cargo build --offline --locked -q -p xodus-service \
+  --example empty_management_broker
+python3 tools/smoke_empty_runtime.py \
+  --fixture-binary "$CARGO_TARGET_DIR/debug/examples/empty_management_broker" \
+  --root "$TMPDIR"
+```
+
+The owned native process smoke executes only this example with
+`--fixture-socket`, including with trace logging variables. Seven runs (initial,
+five repetitions, sealed-artifact run) prove no-argument/production-selector
+refusal, real ping before and after a valid MSA refusal, zero reply bytes, empty
+stdout, exact payload-free stderr, cancellation of a pending partial header by
+SIGINT within the five-second test bound, and no remaining socket/state files.
+The exact valid XML request is:
+
+```xml
+<MSATokenRequest><ClientId>0011223344556677</ClientId><AllowUi>false</AllowUi><MsaFullTrust>true</MsaFullTrust></MSATokenRequest>
+```
+
+Wire framing is the existing little-endian `u32 0x58445358`, `u16` message type
+and `u16` UTF-8 payload length. Ping 1/2 and request type 3 are unchanged; no
+success type 4 is returned for this fixture. Existing per-request budgets,
+cancellation, admission and descriptor cleanup are reused, not duplicated.
+
+Additive unsigned native developer artifact (mode 0500):
+`artifacts/empty-management-broker-v1-a92e4e4503d11255`, SHA256
+`a92e4e4503d112554fe06bd88a2ac167496a2e06f836ee197695df75c2e0affd`.
+Tested native source matches the published LF bytes: example SHA256
+`fd733fb3a22df2b0a3e3b99fa65f523e44dbd82736daadccacbbcf74c6c3b05c`;
+smoke SHA256
+`f01ebf4a550f6e5b95d2038eb5d849ce0a5bfd6aa73a164d8cc95508d423fa5b`.
+The immutable source commit is supplied in the publication handoff. This new
+fixture delta awaits the same retained reviewer's separate review; it does not
+inherit review 34's approval. The parent owns real public Windows gaming-COM
+consumer adaptation and its actual fixture-pair run. No successful fake/real
+RPS, Store sign-in, actual credential/license proof, runtime/game execution,
+production deployment, GUI da548/C95 swap or full-journey gate closure is
+claimed or performed.
+
 ### Checked SOAP derived-key identities
 
 Continued tracing of the existing public RPS/device/user SOAP response path

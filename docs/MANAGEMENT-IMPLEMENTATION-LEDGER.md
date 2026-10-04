@@ -128,6 +128,60 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
+### Explicit CLI transfer failures and staged byte-count commit
+
+The package helper now validates declared transfer-file metadata before the CLI
+picker can display it: one safe file-name component without path/control
+characters, a nonnegative size, a present parseable HTTP(S) CDN root, no URL
+credentials/fragment, and no concatenation-induced authority change. Both
+download and streaming reuse the checked source instead of unwrapping the first
+CDN root. Existing HTTP/HTTPS/query formats are preserved; these legacy helpers
+are not a management host/redirect policy or proof of hash semantics.
+
+The bare CLI downloader previously truncated its destination, wrote HTTP-error
+bodies without checking status, and could finish successfully with an incorrect
+byte count. It now requires a complete HTTP 200 response and the exact declared
+and streamed byte count. It writes to an existing-library private temporary
+directory/file beside the destination, flushes/synchronizes the complete file,
+then atomically replaces that one destination. Error/caller-abort cleanup leaves
+the prior destination unchanged. Existing symlink/nonregular destinations are
+refused before the request. Streaming open failures now return CLI failure
+instead of panicking. Errors omit provider URLs/query credentials/body contents.
+Valid CLI flags, selection and final ContentID output remain unchanged.
+
+This is a per-file legacy CLI transfer correction, not full package
+authorization, cryptographic file verification, a multi-file install transaction,
+an installed registry, crash-recovery journal or management install capability.
+Existing whole-file hash interpretation/extraction/runtime release gates remain.
+The caller's legacy redirect policy is preserved; a future management provider
+still must use the owned no-redirect client.
+
+**167 scoped native Rust checks** pass: 45 core management, 25 CLI,
+70 management and 27 service. Nine new actual synthetic metadata/owned-loopback/
+private-file regressions cover valid URLs, pre-picker malformed metadata,
+missing CDN/unsafe paths/negative sizes, HTTP-error/partial/redirect status,
+declared/actual overflow/truncation, exact-byte commit, symlink refusal,
+partial-body caller abort/cleanup and a real streaming CLI failure exit.
+The cancellation check passes five extra repetitions. Core/management/service
+clippy remain clean with warnings denied; native builds, unchanged contract
+corpus and anonymous management/private broker process smokes pass.
+
+Strict whole-CLI clippy exposes three existing errors, independently reproduced
+at exact published `77d190ca7cde509e79cf62516c1cbfb2bef3e7fb`: one unrelated
+`extract_eappx.rs` collapsible-if and two existing streaming argument-count
+warnings. They are not changed. CLI clippy passes with only those two lint
+categories allowed and every other warning denied; this is not reported as an
+unqualified strict whole-CLI lint pass.
+
+Additive immutable unsigned CLI:
+`artifacts/xodus-cli-download-errors-v1-57a17bf538c61f5e`, SHA256
+`57a17bf538c61f5ef946b2487125ff43a8baf5a4a7a4b310d72246d180562625`.
+The broker remains the unchanged 7c53 artifact. No real credentials/account
+requests, signed package URLs, consent, license issuance or games are exercised.
+Protocol C95, capabilities and approved GUI da548 remain unchanged. This
+independent delta requires the same retained reviewer; no earlier approval is
+inherited.
+
 ### Checked encrypted SOAP references
 
 A continued trace of the real device/user SOAP response path found that

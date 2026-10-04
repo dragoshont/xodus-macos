@@ -3,7 +3,7 @@ use inquire::Select;
 use xodus::XBOX_LIVE_PACKAGES_PC;
 use xodus::api::displaycatalog::find_products_by_id;
 use xodus::api::response::{PACKAGE_RESPONSE_LIMIT, request_json};
-use xodus::models::packagespc::{PackageDetails, PackageResponse};
+use xodus::models::packagespc::{PackageDetails, PackageFile, PackageResponse};
 use xodus::tokens::TokenManager;
 
 pub async fn get_content_id(
@@ -129,7 +129,52 @@ fn checked_package(
             "Package response does not match the requested content",
         )));
     }
+    for file in &package.package_files {
+        checked_package_file_source(file)?;
+    }
     Ok(package)
+}
+
+pub fn checked_package_file_source(
+    file: &PackageFile,
+) -> Result<(reqwest::Url, u64), std::io::Error> {
+    if file.file_name.is_empty()
+        || file
+            .file_name
+            .chars()
+            .any(|character| character.is_control() || matches!(character, '/' | '\\' | ':'))
+        || !matches!(
+            std::path::Path::new(&file.file_name)
+                .components()
+                .collect::<Vec<_>>()
+                .as_slice(),
+            [std::path::Component::Normal(_)]
+        )
+    {
+        return Err(std::io::Error::other(
+            "Package file has an invalid file name",
+        ));
+    }
+    let size = u64::try_from(file.file_size)
+        .map_err(|_| std::io::Error::other("Package file has an invalid size"))?;
+    let root = file
+        .cdn_root_paths
+        .first()
+        .ok_or_else(|| std::io::Error::other("Package file has no CDN root"))?;
+    let root_url = reqwest::Url::parse(root)
+        .map_err(|_| std::io::Error::other("Package file has an invalid CDN URL"))?;
+    let url = reqwest::Url::parse(&format!("{root}{}", file.relative_url))
+        .map_err(|_| std::io::Error::other("Package file has an invalid CDN URL"))?;
+    if !matches!(url.scheme(), "http" | "https")
+        || url.host_str().is_none()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.fragment().is_some()
+        || root_url.origin() != url.origin()
+    {
+        return Err(std::io::Error::other("Package file has an invalid CDN URL"));
+    }
+    Ok((url, size))
 }
 
 #[cfg(test)]
@@ -149,6 +194,106 @@ mod tests {
             "AvailabilityDate": "2000-01-01T00:00:00Z"
         }))
         .unwrap()
+    }
+
+    fn package_file() -> PackageFile {
+        serde_json::from_value(serde_json::json!({
+            "ContentId": CONTENT_ID,
+            "VersionId": "00000000-0000-0000-0000-000000000002",
+            "FileName": "fixture.msixvc",
+            "FileSize": 12,
+            "FileHash": "unverified-fixture",
+            "KeyBlob": "fixture-not-key",
+            "CdnRootPaths": ["https://fixture.invalid/files/"],
+            "BackgroundCdnRootPaths": [],
+            "RelativeUrl": "fixture?signature=fixture-only",
+            "UpdateType": 0,
+            "LicenseUsageType": 0,
+            "ModifiedDate": "2000-01-01T00:00:00Z"
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn package_file_source_preserves_http_https_and_query_without_asserting_hash_semantics() {
+        for scheme in ["http", "https"] {
+            let mut file = package_file();
+            file.cdn_root_paths = vec![format!("{scheme}://fixture.invalid/files/")];
+            let (url, size) = checked_package_file_source(&file).unwrap();
+            assert_eq!(
+                url.as_str(),
+                format!("{scheme}://fixture.invalid/files/fixture?signature=fixture-only")
+            );
+            assert_eq!(size, 12);
+        }
+    }
+
+    #[test]
+    fn package_file_source_rejects_unsafe_file_names_and_negative_sizes() {
+        for name in [
+            "",
+            ".",
+            "..",
+            "../fixture",
+            "folder/file",
+            "folder\\file",
+            "C:fixture",
+            "/fixture",
+            "fixture\0",
+            "fixture\n",
+        ] {
+            let mut file = package_file();
+            file.file_name = name.to_owned();
+            assert_eq!(
+                checked_package_file_source(&file).unwrap_err().to_string(),
+                "Package file has an invalid file name"
+            );
+        }
+        let mut file = package_file();
+        file.file_size = -1;
+        assert_eq!(
+            checked_package_file_source(&file).unwrap_err().to_string(),
+            "Package file has an invalid size"
+        );
+        let PackageResponse::Found(mut package) = response(true, CONTENT_ID) else {
+            panic!("Synthetic package did not decode");
+        };
+        file.file_name = "fixture\u{1b}[31m".to_owned();
+        file.file_size = 12;
+        package.package_files.push(file);
+        assert_eq!(
+            checked_package(
+                PackageResponse::Found(package),
+                uuid::Uuid::parse_str(CONTENT_ID).unwrap(),
+            )
+            .unwrap_err()
+            .to_string(),
+            "Package file has an invalid file name",
+        );
+    }
+
+    #[test]
+    fn package_file_source_rejects_missing_malformed_credentials_and_authority_changes() {
+        let mut file = package_file();
+        file.cdn_root_paths.clear();
+        assert_eq!(
+            checked_package_file_source(&file).unwrap_err().to_string(),
+            "Package file has no CDN root"
+        );
+        for (root, relative) in [
+            ("file:///fixture/", "fixture"),
+            ("not-url", "fixture"),
+            ("https://fixture-only@fixture.invalid/", "fixture"),
+            ("https://fixture.invalid/", "fixture#fixture-only"),
+            ("https://fixture.invalid", ".other.invalid/fixture"),
+        ] {
+            let mut file = package_file();
+            file.cdn_root_paths = vec![root.to_owned()];
+            file.relative_url = relative.to_owned();
+            let error = checked_package_file_source(&file).unwrap_err();
+            assert_eq!(error.to_string(), "Package file has an invalid CDN URL");
+            assert!(!format!("{error:?}").contains("fixture-only"));
+        }
     }
 
     #[test]

@@ -156,3 +156,17 @@ slicing a possibly empty or Unicode URI. Malformed metadata returns the existing
 static `InvalidEncryptedPayload`/`MissingNonce` errors. Actual synthetic XML
 decode/decrypt regressions preserve valid AES256-CBC output and reject missing,
 nonfragment/external and unknown nonce references without account access.
+
+Legacy package transfer files are checked before interactive presentation:
+single safe names, nonnegative sizes and present HTTP(S) CDN sources without
+credentials/fragments or concatenation-induced authority changes. The download
+and streaming commands share this validation. A streaming-open error returns
+CLI failure. Bare downloads require HTTP 200 and exact declared/actual bytes,
+write into private same-filesystem temporary staging, flush/synchronize and
+atomically replace one regular destination only on success. Failed/cancelled
+transfers retain the prior file and remove their staging; symlink destinations
+are refused. This is not cryptographic hash verification, a whole-package
+transaction or a crash-recovery journal, and is never called by management.
+The legacy caller redirect policy/valid HTTP and HTTPS source formats remain;
+future management downloads need the owned no-redirect client and all existing
+authorization/manifest/registry/runtime gates.

@@ -15,7 +15,7 @@ use uuid::Uuid;
 use xodus::tokens::TokenManager;
 
 use crate::license::get_license;
-use crate::package::{get_content_id, get_packages};
+use crate::package::{checked_package_file_source, get_content_id, get_packages};
 
 struct Job {
     name: String,
@@ -127,11 +127,13 @@ pub async fn run(
                 eprintln!("No .msixvc file found");
                 return ExitCode::FAILURE;
             };
-            format!(
-                "{}{}",
-                file.cdn_root_paths.first().unwrap(),
-                file.relative_url
-            )
+            match checked_package_file_source(file) {
+                Ok((url, _)) => url.to_string(),
+                Err(error) => {
+                    eprintln!("{error}");
+                    return ExitCode::FAILURE;
+                }
+            }
         };
         let url = &vurl;
         let mut pos = 0;
@@ -150,8 +152,14 @@ pub async fn run(
                 }
             }),
         )
-        .await
-        .expect("ok");
+        .await;
+        let http_file = match http_file {
+            Ok(reader) => reader,
+            Err(_) => {
+                eprintln!("Could not open the HTTP package stream");
+                return ExitCode::FAILURE;
+            }
+        };
         let l = http_file.len();
 
         let result = run_cli_reader(
@@ -487,5 +495,42 @@ mod tests {
         assert!(check_space(8192, 8191).is_err());
         assert!(check_space(8192, 8192).is_ok());
         assert!(check_space(8192, 8193).is_ok());
+    }
+
+    #[tokio::test]
+    async fn http_stream_open_failure_returns_cli_failure_without_credentials_or_output_files() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let peer = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0; 4096];
+            socket.read(&mut request).await.unwrap();
+            socket
+                .write_all(
+                    b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
+                .await
+                .unwrap();
+        });
+        let root = tempfile::tempdir().unwrap();
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .unwrap();
+        let result = run(
+            &client,
+            &TokenManager::with_memory(),
+            format!("http://{address}/fixture?secret=fixture-only"),
+            root.path().to_str().unwrap().to_owned(),
+            false,
+            Some(1),
+            None,
+        )
+        .await;
+        peer.await.unwrap();
+        assert_eq!(result, ExitCode::FAILURE);
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
     }
 }

@@ -126,12 +126,82 @@ winhttp, wininet and ws2_32.
 That individual build's DLL SHA-256 is
 `105532cbf0741ac4038abeef9b1b58cc3c79dd368a4d0d5886b764027e319259`.
 This identifies one observed artifact, not a reproducible-build claim or a
-runtime certificate. No Wine loader, credential exchange or game was executed.
+runtime certificate. That individual PE build did not execute a Wine loader,
+credential exchange or game.
 The host loader's architecture, its dependencies and prefix, service/profile
 pairing, Winsock execution and licensed gameplay still need separate proof
 before this candidate can be offered as a playable runtime.
 
 A separate [public macOS host probe](../public-macos/README.md) now builds
-genuine x64 Mach-O loader/server/ntdll components with original platform guards.
-It is still a partial build without runtime execution or licensed-operation
-proof, and must not be treated as a supported pair.
+the complete configured x64 macOS candidate, including genuine Mach-O
+loader/server/ntdll/Mac-driver/secur32 components and 613 PE DLL files, with
+reviewed original platform guards. Its explicit optional-feature omissions and
+artifact hashes are documented there. It is not a supported runtime pair or
+licensed-operation proof.
+
+## Actual Windows/Wine component checks
+
+`windows_smoke.c` is a small original Windows console executable linked to the
+unchanged client and Wine's static **PE** XML library. `check_windows.py` runs
+it through explicitly selected public loader/server binaries in a new private
+temporary prefix, with a private HOME and synthetic Unix peer only. It does
+not load the gaming shim or contact a Store, Xbox, license, or Xodus broker
+endpoint. It must not be pointed at private runtime candidates.
+
+The selected owned root must be non-aliased, current-user-owned and not
+group/world writable; all three selected binaries must be regular,
+non-aliased files inside it. Temporary directories are owner-only, the
+synthetic socket is mode 0600, and the endpoint must be short ASCII. Each
+Windows child has a bounded wait; the explicitly owned foreground server is
+stopped by its recorded PID. Logs use owned temporary files, not pipe EOF
+waits that can hang when Wine's boot children inherit stdout.
+
+For an already prepared complete public macOS build, run the following in
+its configured build directory. Paths below identify only owned public
+source/build outputs. `$tools` contains tools built from that public source,
+and `$client` contains this directory's source files.
+
+```sh
+tools=/absolute/owned/public-wine-tools
+source=/absolute/owned/public-wine
+client=/absolute/owned/public-rps
+root=/absolute/owned/output
+
+"$tools/tools/winegcc/winegcc" -b x86_64-w64-mingw32 \
+  --wine-objdir . --winebuild "$tools/tools/winebuild/winebuild" \
+  -std=c11 -Wall -Wextra -Werror -pedantic -Wno-cast-function-type \
+  -D__WINE_PE_BUILD -DLIBXML_STATIC \
+  -isystem "$source/include" -isystem "$source/include/msvcrt" \
+  -isystem "$source/libs/xml2/include" -I"$client" \
+  "$client/xodus_rps.c" "$client/windows_smoke.c" \
+  libs/xml2/x86_64-windows/libxml2.a -lws2_32 -lkernel32 -lucrtbase \
+  -o "$root/xodus-rps-windows-smoke.exe"
+
+python3 "$client/check_windows.py" "$root" \
+  "$root/public-wine-build-macos-x64/loader/wine" \
+  "$root/public-wine-build-macos-x64/server/wineserver" \
+  "$root/xodus-rps-windows-smoke.exe"
+```
+
+The GCC allowance is specific to Windows `GetProcAddress` function-pointer
+casts; the Wine headers are marked as external system headers. Other source
+warnings remain fatal.
+
+The actual x64 macOS candidate at platform overlay
+`a29baafbea2da6c310a847a3c7708ac8f3706ac1` executed all four checks:
+fragmented successful response with exact synthetic outputs, malformed
+response, expired tickets, and a stalled peer reaching the client's 1,500 ms
+deadline. The peer checks the real request frame and all three fields; failures
+must leave both ticket outputs NULL. Successful outputs are freed by the caller.
+The observed PE executable SHA-256 is
+`f4cc95d81e8c9c68bfe2c371a4b5c3bc47f958e906af81eba01759059650744d`.
+The production C source and header retain SHA-256
+`61d4f95934497f8c0b04874016bf9fd528f49a12e4123533ca975daf06475c4f`
+and `74c4e09fc5e13f65ea78b854b2b1f66e046c64c5b5e5107f34d5eed9011adba8`.
+
+This proves the actual Winsock DOS/ACP-to-Unix mapping and bounded client
+transport in that candidate, not merely COFF compilation or the POSIX branch.
+The private prefix/socket and owned runtime processes were absent after the
+check. No real credentials, native consent, broker issuance, shim account
+exchange, full runtime/service handshake, package, or game was used. Those
+authorization, pairing and licensed-gameplay requirements remain open.

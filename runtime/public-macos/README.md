@@ -162,3 +162,18 @@ Wine loader, Windows-branch RPS exchange, prefix, graphics, TLS peer, game or
 real credentials were executed to obtain this result. A successful complete
 **configured build** is not a supported runtime pair or licensed-gameplay
 certificate, and this candidate is not wired to the app's Play capability.
+
+## Subsequent isolated Windows client execution
+
+After the source review, the canonical public loader/server actually executed
+an original Windows console client in a new private prefix. Four synthetic-peer
+checks passed twice: successful fragmented RPS framing, malformed XML, expired
+tickets and a stalled-response deadline. Three actual path/permission guard
+refusals also passed. The owned runtime processes and private prefix were absent
+afterward. See [the client checks](../public-rps/README.md) for source, commands,
+scope and the exact PE executable hash.
+
+This exercises the client's actual Winsock DOS/ACP-to-Unix mapping, not a live
+gaming-shim/scoped-broker account exchange. No real credentials, consent, license,
+package or game was involved. Runtime/service version pairing, graphics, TLS-peer
+validation and licensed gameplay remain open; Play must remain gated.

@@ -59,3 +59,12 @@ execution, prefix isolation, graphics, TLS peer validation or licensed gameplay.
 No real credentials or game were used for this build. Its output hashes and
 limitations are recorded in the probe README; it must not enable the app's
 Play capability or be distributed as a certified runtime.
+
+A separate original Windows console check now actually executes the client
+through that public loader/server in a new private prefix against an owned
+synthetic Unix peer. Four checks cover the real DOS/ACP-to-Unix socket mapping,
+fragmented successful framing/output ownership, malformed and expired responses,
+and a bounded timeout. This is Windows-branch component evidence, not a gaming
+shim/broker account exchange, supported version handshake, graphics/TLS-peer
+validation or licensed gameplay. See `runtime/public-rps/README.md`; genuine
+Store consent, account authorization and the complete runtime pair remain gates.

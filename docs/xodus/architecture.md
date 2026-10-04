@@ -142,11 +142,22 @@ assert that the engine is an older bundled Wine version. Provider settings and
 management responses must preserve older consumers through an explicit
 backward-compatible capability contract.
 
+The approved integration boundary is a separate pure `runtime-plan` CLI
+entry, not a public C95 management operation. It accepts bounded, strict
+configuration JSON on stdin and returns a generation plan as JSON on stdout,
+before credential-manager or logging initialization. Invalid input must fail
+with static nonzero errors. Planning must not invoke a provider, runtime,
+filesystem discovery or GUI. The backend is implementing this boundary; native
+app selection and plan consumption remain unfinished.
+
 Each engine/backend generation needs an isolated prefix. Existing bottles and
 saves must not be reused, migrated or deleted silently when a selection changes.
 Configuration, installation, device preflight and game-specific verification
 are distinct states. Neither discovery nor a successful trial of one game
 establishes universal compatibility or authorizes another title.
+Declared engine/renderer hashes are configuration, not observed installation
+identities. Pure planning leaves installation, device preflight and per-game
+assessment unknown and reports `launchable=false`; it is not execution support.
 
 CrossOver remains user-installed and licensed; its binaries must not be copied
 or its licensing bypassed. Supporting Apple Toolkit 3 and 4 does not establish
@@ -469,8 +480,8 @@ not permission to resume authentication or inspect other game windows.
 
 ### macOS toolkit audit: source and deployed-file evidence
 
-The user's priority remains authentication first, then modern macOS UI.
-While the human sign-in gate is pending, the sole app owner completed a
+The initial audit was scoped to authentication first, then modern macOS UI.
+Before the later source-only UI request, the sole app owner completed a
 source-only audit of frozen consumer
 `e5a573aaca94f4cee46f591f9f927fcd0df0f782` and read-only metadata from the exact
 deployed app/engine pair above. No UI source changes, build, deployment,
@@ -516,15 +527,16 @@ establishes a specific adoption requirement: navigation pickers can use
 supported systems. The new style distinguishes navigation from value selection
 visually and announces options as tabs to VoiceOver. The source correction
 must preserve route bindings, shortcuts, search placement and the macOS 14
-deployment baseline. Native UI corrections and isolated headless builds are
-in progress; no changed app has been deployed or visually certified.
+deployment baseline. Native UI corrections are now frozen in source at
+`ced5ff9778ae00538d3d286d49997d7ba2d67ab1`; no changed app has been deployed or
+visually certified.
 Using the actual API requires an SDK/Xcode 27 build toolchain, not a compiler
 version proxy or runtime availability check alone. The existing native CI job
 is authorized to select the standard `xcode-27` runner and assert its actual
 Xcode, macOS SDK and OS versions; an older hosted result does not validate the
 new API or source.
 
-### Apple Games header: requested native layout
+### Apple Games header: frozen native source
 
 The user selected the actual Apple Games window as the visual reference and
 requested a single reference screenshot before the next header correction.
@@ -548,10 +560,13 @@ resizing, accessibility and safe-area spacing must be preserved, including
 system contrast and Reduce Transparency behavior.
 
 This explicitly supersedes the earlier preserve-header-layout scope, but does
-not authorize an unrelated redesign. The open anonymous preview is an
-unchanged work-in-progress stage, not deployment of this requested correction.
-The reference is inspected; source implementation and final verification are
-pending. The targeted native capture remedy reported no existing screen-capture
+not authorize an unrelated redesign. The requested shared live/fixture header
+is implemented in the frozen consumer source, including grouped principal
+navigation, stock compact search and hidden visible title. The preview shown
+earlier is an unchanged work-in-progress stage, not deployment of this frozen
+correction. Its current closure state is not inferred.
+
+The targeted native capture remedy reported no existing screen-capture
 permission and stopped before enumeration, capture or a permission request.
 There is no fresh screenshot. No privacy-setting change, other-window capture
 or preview closure is authorized by that failure. Source-only work must not
@@ -563,6 +578,20 @@ game testing. The earlier preview-close gate was released without inferring
 that the preview had closed. Further launcher/reference focus, input, capture
 and window checks are paused. Source implementation and nonactivating
 validation continue independently of the desktop slot.
+
+The parent independently verified the consumer's published commit and tree
+`549b6724e340b8f014593556fe5c0f11760af7ec`. The existing push
+[hosted run 37206889438](https://github.com/dragoshont/xodus-macos-app/actions/runs/37206889438)
+completed successfully on that exact source with Xcode 27.0 build `27A266a`,
+macOS SDK 27.0 and macOS 27.0. Its logs contain 548 passing checks: 14 core,
+267 management, 50 presentation, 144 mock native-session and 73 private-host
+checks, plus reproducible SVG output. The latter use detached synthetic WebKit,
+with no visible window or activation, not a Microsoft provider session.
+Compact search policy, actual detached 32/220-point editor geometry and native
+control behavior are covered; compositor tint and whole-toolbar live geometry
+remain unverified. The new paired adversarial source review withholds combined
+approval because of the two authentication-host defects described below;
+passing hosted checks do not close those defects.
 
 ### Swift-owned authentication host: source migration
 
@@ -585,5 +614,38 @@ cannot be supplied merely by translating Wry to Swift or adding a Microsoft
 domain locally. The fork's separate Xbox Live OAuth/XSTS route has not been
 shown equivalent to the required Passport Store proof; a system-browser URL
 callback is not a substitute for the existing ServerData exchange.
-Source implementation is authorized, while new operational artifacts,
-deployment and authentication attempts remain separately gated and paused.
+The source migration is frozen at producer
+`94353b5cc3196a2b73b89655855ec50c31d35b81` and consumer
+`ced5ff9778ae00538d3d286d49997d7ba2d67ab1`. The parent independently verified the
+producer commit and tree `96bf643d6ef58364546513dba340ecbc27d1466f`.
+The producer's final canonical Git/LF native run reports 80 selected passing
+checks, including three actual neutral process-chain cases, with lint/check,
+format and public/private corpus checks. Earlier CRLF-input intermediate runs
+are not this final exact-source qualification. It did not execute the actual
+Swift helper or authenticate with a provider.
+
+The implementation retains the original remaining deadline, continuously
+monitors the parent channel, and requires matching clean helper closure,
+worker exit and EOF before parent completion. Nonblocking worker-exit polling
+keeps cancellation and diagnostics dispatchable. The consumer's canonical
+metadata-path equality repair preserves file identity and no-follow checks;
+its close acknowledgement awaits the in-flight issuer-data writer and refuses
+a masked write failure. Public C95/21 and the private channel schema are
+unchanged. The new retained paired review uses these exact source deltas and
+does not inherit the earlier opaque-ticket review's closure.
+
+The review found two reproducible consumer blockers in the frozen `ced5`
+baseline. `Sources/XodusAuthHost/LegacyBridge.swift` rejects the inherited
+direct flat seven-string DA notification because it recognizes only a nested
+`DAProperty` wrapper. Separately, continuation handling in
+`Sources/XodusAuthHost/AuthHostMain.swift` can send readiness before the
+outstanding DA writer finishes, causing a false private-channel protocol
+failure. Strict direct-notification parity and a shared writer-drain/failure
+fence are being corrected with deterministic regressions. Producer `94353b5`
+remains unchanged. Combined source closure requires a new immutable consumer
+pin and review of those corrections; the baseline's 548 checks are not evidence
+that these paths are fixed.
+
+New operational artifacts, deployment and authentication attempts remain
+separately gated and paused. Passing source fixtures and hosted compilation
+do not establish a live sign-in, passkey capability or successful Store commit.

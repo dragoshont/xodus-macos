@@ -14,10 +14,13 @@ mod management_auth;
 mod native_auth_host;
 mod package;
 mod provider_credentials;
+mod runtime_plan;
 mod webview;
 
 #[derive(Subcommand)]
 enum SubCommand {
+    #[command(about = "Pure JSON runtime configuration generation planning; no provider execution")]
+    RuntimePlan,
     #[command(about = "Strict JSONL launcher management protocol")]
     Manage {
         #[arg(long)]
@@ -151,6 +154,16 @@ mod argument_tests {
     use super::*;
 
     #[test]
+    fn runtime_planning_has_its_own_source_only_command() {
+        assert!(matches!(
+            CliArgs::try_parse_from(["xodus", "runtime-plan"])
+                .unwrap()
+                .command,
+            SubCommand::RuntimePlan
+        ));
+    }
+
+    #[test]
     fn native_helper_binding_is_all_or_none_and_standalone_login_is_unchanged() {
         for flags in [
             vec!["--native-auth-host", "fixture-helper"],
@@ -206,6 +219,9 @@ mod argument_tests {
 #[tokio::main]
 async fn main() -> ExitCode {
     let args = CliArgs::parse();
+    if matches!(args.command, SubCommand::RuntimePlan) {
+        return runtime_plan::run().await;
+    }
     if let SubCommand::Manage {
         protocol,
         state_dir,
@@ -282,8 +298,8 @@ async fn main() -> ExitCode {
     }
 
     let code = match args.command {
-        SubCommand::Manage { .. } => {
-            unreachable!("management returns before legacy initialization")
+        SubCommand::Manage { .. } | SubCommand::RuntimePlan => {
+            unreachable!("management and pure planning return before legacy initialization")
         }
         #[cfg(target_os = "macos")]
         SubCommand::ManagementAuthWorker { .. } => {

@@ -1,5 +1,6 @@
 pub mod inspection;
 pub mod native_auth;
+pub mod runtime_provider;
 pub mod staging;
 pub mod state;
 pub mod transport;

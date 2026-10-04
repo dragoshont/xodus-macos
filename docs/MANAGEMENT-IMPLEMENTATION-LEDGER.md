@@ -172,6 +172,66 @@ Historical milestone evidence and then-pending reviews below do not override
 this status; genuinely new source deltas still require an immutable handoff to
 the parent-owned continuity reviewer.
 
+### Agreed static device-proof rejection sites
+
+After the wrapper correction, the coordinator and sole app owner explicitly
+agreed to four additive static pairs **before implementation**. The existing
+ten remain valid, including `providerProofInvalid` for an older producer.
+Details still contain exactly three strings, use category
+`nativeConsentFailure`, and are emitted only with `AUTH_INVALID`. The new pairs
+all have stage `devicePreparation`:
+
+| reason | exact existing rejection site |
+|---|---|
+| `registrationProofInvalid` | Decoded device-registration failure or missing required identity/license fields |
+| `tokenResponseInvalid` | The checked selector rejects an empty/multiple/fault/unexpected device-token body |
+| `tokenProofInvalid` | Checked response conversion rejects token content, audience, type or expiry |
+| `tokenStructureInvalid` | The converted token fails legacy/STS/cipher/4096-byte-version-four structure checks |
+
+`DeviceProofFailure` is a four-value static enum. The added
+`DeviceCredentialError::InvalidBrokerProofAt` carries only that enum; its
+Display text remains the same generic proof error. The older
+`InvalidBrokerProof` variant and private `ConsentFailure::DeviceResponse`
+remain readable and map to the old generic pair. The worker's exhaustive
+typed mapper sends the four new private enum values through the unchanged
+anonymous bounded handoff, and the parent maps them to the agreed pairs.
+There are no new fields, raw reasons, response values, URLs, status codes,
+identities, keys, credentials or exceptions. Signing/nonce/decryption failures
+remain the existing provider-request category rather than being relabelled
+as one of these content/proof sites. This does not identify the live cause.
+
+The registration field checks, response selector, token conversion and proof
+predicate are unchanged; only their existing failures become distinguishable.
+Two additional memory-only tests check exact registration/token conversion/
+structure categories, the unchanged generic Display text and secret-marked
+synthetic input rejection. The worker's mapping test now round-trips all eight
+typed device errors over its actual private socket writer. The existing parent
+round-trip matrix now covers all fourteen pairs, and malformed private-payload
+checks include an extra secret-marked field on each new variant and a public
+reason incorrectly used as a private enum. Existing cancellation, expiry,
+failed-exit, active-flow, profile and commit regressions are retained.
+
+**Final fourteen-pair native tests have not passed yet.** The shared native host
+reported `ENFILE`/errno 23, "Too many open files in system", followed by linker
+SIGBUS; this also blocked a one-job, serial-test retry. A separate native CLI
+check encountered missing cached dependency metadata. These are recorded
+validation blockers, not source findings or successful test evidence. No
+unfiltered account-provisioning tests, global file-limit changes, other-process
+descriptor inspection or process kills were attempted. Owned bounded compiler
+commands exited; no backend helper/service remains running.
+
+Core-library and management strict clippy, touched Rust format checks and the
+unchanged C95 contract corpus passed on the final source without test linking.
+CLI lint/check and the six device, five worker and twenty lifecycle test runs
+remain pending native-host recovery or an explicitly authorized safe native
+CI path. The wrapper-only **19** passing checks below predate this refinement
+and must not be attributed to the final fourteen-pair source.
+
+This is source-only pending the same continuity reviewer and successful
+bounded native validation. No new artifact, engine replacement, provider call
+or sign-in retry is performed or authorized by this publication. Separate
+review closure and explicit artifact authorization remain required.
+
 ### Device-authentication single-response compatibility
 
 After source closure and explicit artifact authorization, this worker built
@@ -247,8 +307,8 @@ incident used a collection wrapper**. The new correction is source-only
 pending the same parent-owned continuity reviewer. No newer production CLI
 artifact is authorized or sealed, no account/provider/credential/Keychain
 action or retry was executed by this worker, and the failed app is left under
-its sole owner's control. Additional static site distinctions require explicit
-producer/consumer agreement before changing the ten-pair diagnostic contract.
+its sole owner's control. The subsequently agreed additive site distinctions are recorded separately
+above; they do not change this wrapper-only milestone's evidence.
 
 ### Static private consent failure diagnostics
 
@@ -283,8 +343,9 @@ The exact optional details shape was explicitly agreed with the sole app owner:
 {"category":"nativeConsentFailure","stage":"devicePreparation","reason":"providerRequestFailed"}
 ```
 
-Exactly three string keys, the fixed category, and one of these ten pairs are
-recognized by the app's separate typed consumer:
+At the original e604 publication, exactly three string keys, the fixed category,
+and one of these ten pairs were agreed with the app's typed consumer. The four
+additive pairs above retain all ten and extend the current allowlist to fourteen:
 
 | stage | reason |
 |---|---|

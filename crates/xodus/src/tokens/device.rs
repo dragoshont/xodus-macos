@@ -17,6 +17,16 @@ pub enum DeviceCredentialError {
     BrokerFailure,
     #[error("Microsoft device response did not contain complete valid credential proof")]
     InvalidBrokerProof,
+    #[error("Microsoft device response did not contain complete valid credential proof")]
+    InvalidBrokerProofAt(DeviceProofFailure),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeviceProofFailure {
+    Registration,
+    TokenResponse,
+    TokenProof,
+    TokenStructure,
 }
 
 fn storage_error(error: TokenStoreError) -> DeviceCredentialError {
@@ -78,13 +88,12 @@ async fn provision_device(
     let dev = crate::api::live::login_device_credential(client, provision)
         .await
         .map_err(|_| DeviceCredentialError::BrokerFailure)?;
-    if !dev.success
-        || dev.puid.is_empty()
-        || dev.hw_device_id.is_empty()
-        || dev.license.splicense_block.is_empty()
-    {
-        return Err(DeviceCredentialError::InvalidBrokerProof);
-    }
+    validate_registration_proof(
+        dev.success,
+        &dev.puid,
+        &dev.hw_device_id,
+        &dev.license.splicense_block,
+    )?;
     let device = Device {
         username,
         password,
@@ -95,6 +104,20 @@ async fn provision_device(
     };
     tokens.save_device_license(&device).map_err(storage_error)?;
     Ok(device)
+}
+
+fn validate_registration_proof(
+    success: bool,
+    puid: &str,
+    hwid: &str,
+    splicense: &str,
+) -> Result<(), DeviceCredentialError> {
+    if !success || puid.is_empty() || hwid.is_empty() || splicense.is_empty() {
+        return Err(DeviceCredentialError::InvalidBrokerProofAt(
+            DeviceProofFailure::Registration,
+        ));
+    }
+    Ok(())
 }
 
 async fn reauthenticate_device(
@@ -121,12 +144,15 @@ fn save_device_response(
     tokens: &TokenManager,
     body: BodyContent,
 ) -> Result<(), DeviceCredentialError> {
-    let response = crate::api::live::single_device_response(body)
-        .map_err(|_| DeviceCredentialError::InvalidBrokerProof)?;
+    let response = crate::api::live::single_device_response(body).map_err(|_| {
+        DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenResponse)
+    })?;
     let token = Token::from_response_checked(response)
-        .map_err(|_| DeviceCredentialError::InvalidBrokerProof)?;
+        .map_err(|_| DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenProof))?;
     if !matches!(&token, Token::Legacy(token) if device_token_structurally_valid(token)) {
-        return Err(DeviceCredentialError::InvalidBrokerProof);
+        return Err(DeviceCredentialError::InvalidBrokerProofAt(
+            DeviceProofFailure::TokenStructure,
+        ));
     }
     tokens
         .save_device_token(PASSPORT_STS.to_owned(), token)
@@ -244,7 +270,9 @@ mod management_device_tests {
         ] {
             assert!(matches!(
                 save_device_response(&tokens, body),
-                Err(DeviceCredentialError::InvalidBrokerProof)
+                Err(DeviceCredentialError::InvalidBrokerProofAt(
+                    DeviceProofFailure::TokenResponse
+                ))
             ));
             assert_eq!(memory.get("device-tokens").unwrap().unwrap(), original);
         }
@@ -347,10 +375,72 @@ mod management_device_tests {
             ] {
                 assert!(matches!(
                     save_device_response(&tokens, body),
-                    Err(DeviceCredentialError::InvalidBrokerProof)
+                    Err(DeviceCredentialError::InvalidBrokerProofAt(
+                        DeviceProofFailure::TokenProof | DeviceProofFailure::TokenStructure
+                    ))
                 ));
                 assert_eq!(memory.get("device-tokens").unwrap().unwrap(), original);
             }
+        }
+    }
+
+    #[test]
+    fn device_registration_failure_is_static_and_preserves_the_same_field_guards() {
+        let sentinel = "SECRET_SENTINEL_DEVICE_METADATA<XML>identity=synthetic";
+        for (success, puid, hwid, license) in [
+            (false, sentinel, sentinel, sentinel),
+            (true, "", sentinel, sentinel),
+            (true, sentinel, "", sentinel),
+            (true, sentinel, sentinel, ""),
+        ] {
+            let error = validate_registration_proof(success, puid, hwid, license).unwrap_err();
+            assert!(matches!(
+                error,
+                DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::Registration)
+            ));
+            assert!(!error.to_string().contains(sentinel));
+            assert!(!format!("{error:?}").contains(sentinel));
+        }
+        assert!(validate_registration_proof(true, sentinel, sentinel, sentinel).is_ok());
+    }
+
+    #[test]
+    fn token_rejection_sites_remain_distinct_without_serializing_synthetic_proof() {
+        for (response, expected) in [
+            (
+                {
+                    let mut response = response();
+                    response.requested_security_token.encrypted_data = None;
+                    response
+                },
+                DeviceProofFailure::TokenProof,
+            ),
+            (
+                {
+                    let mut response = response();
+                    response.requested_proof_token = None;
+                    response
+                },
+                DeviceProofFailure::TokenStructure,
+            ),
+        ] {
+            let memory = Arc::new(MemoryBackend::default());
+            let tokens = TokenManager::with_management_backend(memory.clone());
+            let error = save_device_response(
+                &tokens,
+                BodyContent::RequestSecurityTokenResponse(Box::new(response)),
+            )
+            .unwrap_err();
+            assert!(matches!(
+                error,
+                DeviceCredentialError::InvalidBrokerProofAt(failure) if failure == expected
+            ));
+            assert_eq!(
+                error.to_string(),
+                "Microsoft device response did not contain complete valid credential proof"
+            );
+            assert!(!format!("{error:?}").contains("synthetic-not-a-device-ticket"));
+            assert!(memory.get("device-tokens").unwrap().is_none());
         }
     }
 

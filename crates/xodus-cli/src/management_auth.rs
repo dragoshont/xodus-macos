@@ -11,12 +11,18 @@ enum SessionFailure {
 }
 
 fn device_failure(error: xodus::tokens::device::DeviceCredentialError) -> SessionFailure {
-    use xodus::tokens::device::DeviceCredentialError;
+    use xodus::tokens::device::{DeviceCredentialError, DeviceProofFailure};
     SessionFailure::Failed(match error {
         DeviceCredentialError::StorageUnavailable => ConsentFailure::DeviceStorage,
         DeviceCredentialError::InvalidStoredCredential => ConsentFailure::DeviceCredential,
         DeviceCredentialError::BrokerFailure => ConsentFailure::DeviceRequest,
         DeviceCredentialError::InvalidBrokerProof => ConsentFailure::DeviceResponse,
+        DeviceCredentialError::InvalidBrokerProofAt(failure) => match failure {
+            DeviceProofFailure::Registration => ConsentFailure::DeviceRegistrationProof,
+            DeviceProofFailure::TokenResponse => ConsentFailure::DeviceTokenResponse,
+            DeviceProofFailure::TokenProof => ConsentFailure::DeviceTokenProof,
+            DeviceProofFailure::TokenStructure => ConsentFailure::DeviceTokenStructure,
+        },
     })
 }
 
@@ -232,7 +238,7 @@ mod tests {
 
     #[test]
     fn known_device_errors_remain_static_typed_failures_without_provider_details() {
-        use xodus::tokens::device::DeviceCredentialError;
+        use xodus::tokens::device::{DeviceCredentialError, DeviceProofFailure};
         for (error, expected) in [
             (
                 DeviceCredentialError::StorageUnavailable,
@@ -250,10 +256,47 @@ mod tests {
                 DeviceCredentialError::InvalidBrokerProof,
                 ConsentFailure::DeviceResponse,
             ),
+            (
+                DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::Registration),
+                ConsentFailure::DeviceRegistrationProof,
+            ),
+            (
+                DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenResponse),
+                ConsentFailure::DeviceTokenResponse,
+            ),
+            (
+                DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenProof),
+                ConsentFailure::DeviceTokenProof,
+            ),
+            (
+                DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenStructure),
+                ConsentFailure::DeviceTokenStructure,
+            ),
         ] {
             let (handoff, code) = failure_handoff(device_failure(error));
             assert_eq!(code, ExitCode::FAILURE);
-            assert!(matches!(handoff, ConsentHandoff::FailedAt { failure } if failure == expected));
+            assert!(
+                matches!(&handoff, ConsentHandoff::FailedAt { failure } if *failure == expected)
+            );
+            let (mut parent, child) = std::os::unix::net::UnixStream::pair().unwrap();
+            let mut channel = private_channel(child.into()).unwrap();
+            write_handoff(&mut channel, &handoff).unwrap();
+            drop(channel);
+            let mut bytes = Vec::new();
+            parent.read_to_end(&mut bytes).unwrap();
+            assert_eq!(
+                u32::from_be_bytes(bytes[..4].try_into().unwrap()) as usize,
+                bytes.len() - 4
+            );
+            assert!(matches!(
+                serde_json::from_slice::<ConsentHandoff>(&bytes[4..]).unwrap(),
+                ConsentHandoff::FailedAt { failure } if failure == expected
+            ));
+            let public = expected.wire_error();
+            assert_eq!(public.code, xodus_management::wire::ErrorCode::AuthInvalid);
+            let details = public.details.unwrap();
+            assert_eq!(details.len(), 3);
+            assert_eq!(details["category"], "nativeConsentFailure");
         }
     }
 

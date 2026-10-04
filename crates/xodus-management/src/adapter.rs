@@ -51,6 +51,10 @@ pub enum ConsentFailure {
     DeviceCredential,
     DeviceRequest,
     DeviceResponse,
+    DeviceRegistrationProof,
+    DeviceTokenResponse,
+    DeviceTokenProof,
+    DeviceTokenStructure,
     DeviceProof,
     NativeSignIn,
     StoreProof,
@@ -89,6 +93,26 @@ impl ConsentFailure {
                 "devicePreparation",
                 "providerProofInvalid",
                 "Microsoft device preparation did not return complete valid proof. No account sign-in was started.",
+            ),
+            Self::DeviceRegistrationProof => (
+                "devicePreparation",
+                "registrationProofInvalid",
+                "Device registration did not return complete identity and license proof. No account sign-in was started.",
+            ),
+            Self::DeviceTokenResponse => (
+                "devicePreparation",
+                "tokenResponseInvalid",
+                "Device authentication did not return exactly one usable token response. No account sign-in was started.",
+            ),
+            Self::DeviceTokenProof => (
+                "devicePreparation",
+                "tokenProofInvalid",
+                "Device authentication returned missing, unsupported or expired credential proof. No account sign-in was started.",
+            ),
+            Self::DeviceTokenStructure => (
+                "devicePreparation",
+                "tokenStructureInvalid",
+                "Device authentication returned an unsupported credential structure. No account sign-in was started.",
             ),
             Self::DeviceProof => (
                 "deviceProof",
@@ -2121,6 +2145,26 @@ mod auth_lifecycle_tests {
                 "providerProofInvalid",
             ),
             (
+                ConsentFailure::DeviceRegistrationProof,
+                "devicePreparation",
+                "registrationProofInvalid",
+            ),
+            (
+                ConsentFailure::DeviceTokenResponse,
+                "devicePreparation",
+                "tokenResponseInvalid",
+            ),
+            (
+                ConsentFailure::DeviceTokenProof,
+                "devicePreparation",
+                "tokenProofInvalid",
+            ),
+            (
+                ConsentFailure::DeviceTokenStructure,
+                "devicePreparation",
+                "tokenStructureInvalid",
+            ),
+            (
                 ConsentFailure::DeviceProof,
                 "deviceProof",
                 "proofUnavailable",
@@ -2243,6 +2287,11 @@ mod auth_lifecycle_tests {
         for payload in [
             serde_json::json!({"outcome":"failedAt","failure":"unknownFailure"}),
             serde_json::json!({"outcome":"failedAt","failure":"deviceRequest","error":secret}),
+            serde_json::json!({"outcome":"failedAt","failure":"deviceRegistrationProof","error":secret}),
+            serde_json::json!({"outcome":"failedAt","failure":"deviceTokenResponse","error":secret}),
+            serde_json::json!({"outcome":"failedAt","failure":"deviceTokenProof","error":secret}),
+            serde_json::json!({"outcome":"failedAt","failure":"deviceTokenStructure","error":secret}),
+            serde_json::json!({"outcome":"failedAt","failure":"tokenResponseInvalid"}),
             serde_json::json!({"outcome":"failedAt","failure":{"stage":secret}}),
             serde_json::json!({"outcome":"failedAt"}),
             serde_json::json!({"outcome":"failedAt","failure":null}),

@@ -23,7 +23,8 @@ The management Account worker uses its inherited anonymous channel, not the
 runtime socket. Failed consent stages are a closed static enum in the bounded
 private handoff; the parent maps them to existing `AUTH_INVALID` with optional
 three-string `details` (`category: nativeConsentFailure`, `stage`, `reason`).
-The ten agreed pairs are documented in the management implementation ledger.
+The fourteen agreed pairs, including the original ten, are documented in the
+management implementation ledger.
 No raw exception, provider response, page content or credential is serialized.
 The consumer uses only validated closed pairs and locally authored copy;
 absent/malformed/unknown/extra-key details are stage unavailable.
@@ -45,6 +46,12 @@ retains the same expiry, legacy/STS/cipher and 4096-byte version-four proof
 checks before persistence. Empty/multiple/fault/undecrypted bodies are refused.
 The collection compatibility correction requires its own continuity review;
 it does not establish which rejection site caused the observed live failure.
+Four explicitly agreed additive reasons distinguish registration fields,
+response shape, checked token conversion and token structure. Each is a typed
+static enum at its original rejection site, still using the same three-string
+details and `AUTH_INVALID`. The older generic `providerProofInvalid` remains
+valid. No raw provider value or new diagnostic field is carried; final native
+test execution is separately gated by the host-resource blocker in the ledger.
 
 ## Runtime transport boundary
 

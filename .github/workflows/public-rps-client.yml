@@ -32,3 +32,7 @@ jobs:
             -isystem "$sdk/usr/include/libxml2" \
             xodus_rps.c tests.c -lxml2 -o "$RUNNER_TEMP/rps-client-checks"
           "$RUNNER_TEMP/rps-client-checks"
+      - name: Check recorded server readiness and replacement ownership
+        working-directory: runtime/public-rps
+        shell: bash
+        run: python3 -B test_windows_runner.py -v

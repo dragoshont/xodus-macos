@@ -152,9 +152,22 @@ The selected owned root must be non-aliased, current-user-owned and not
 group/world writable; all three selected binaries must be regular,
 non-aliased files inside it. Temporary directories are owner-only, the
 synthetic socket is mode 0600, and the endpoint must be short ASCII. Each
-Windows child has a bounded wait; the explicitly owned foreground server is
-stopped by its recorded PID. Logs use owned temporary files, not pipe EOF
-waits that can hang when Wine's boot children inherit stdout.
+Windows child has a bounded wait. Before bootstrap and each check, a bounded
+socket connection verifies Darwin's peer PID against the recorded foreground
+server PID; process creation or mere socket-file existence is not readiness.
+The same identity is checked after each result.
+
+Cleanup sends Wine's client-killing `SIGINT` to the recorded PID and waits for
+its exit; `SIGTERM` only exits the server and is not sufficient. It reconciles any unexpected listening
+replacement on this prefix's exact socket. A replacement is stopped only after
+its actual executable path matches the explicitly selected public server.
+Darwin process-exit notification must confirm the replacement has ended.
+Unknown ownership, inaccessible identity or unsuccessful reconciliation raises
+an error and retains the private prefix instead of deleting live state. Wine's
+server socket is derived from this new prefix's device/inode under
+`/tmp/.wine-UID`, not from `TMPDIR`; no other prefix's socket is selected.
+Logs use owned temporary files, not pipe EOF waits that can hang when Wine's
+boot children inherit stdout.
 
 For an already prepared complete public macOS build, run the following in
 its configured build directory. Paths below identify only owned public
@@ -201,7 +214,35 @@ and `74c4e09fc5e13f65ea78b854b2b1f66e046c64c5b5e5107f34d5eed9011adba8`.
 
 This proves the actual Winsock DOS/ACP-to-Unix mapping and bounded client
 transport in that candidate, not merely COFF compilation or the POSIX branch.
-The private prefix/socket and owned runtime processes were absent after the
-check. No real credentials, native consent, broker issuance, shim account
+The initial transport runs did not prove complete background-client cleanup:
+a command-name scan missed Wine's Windows service processes. A subsequent
+check of the exact native ntdll mapping exposed them. Their individually
+verified public-loader PIDs were cleaned up, and shutdown was corrected to use
+Wine's client-killing `SIGINT`. The corrected runs below verify cleanup using
+the native ntdll mapping as well as prefix/socket and executable-path checks.
+No real credentials, native consent, broker issuance, shim account
 exchange, full runtime/service handshake, package, or game was used. Those
 authorization, pairing and licensed-gameplay requirements remain open.
+
+### Server-ownership regressions
+
+```sh
+python3 -B test_windows_runner.py -v
+```
+
+Eight Darwin-only checks use owned Python socket helpers, never Wine:
+delayed PID-bound readiness, actual main-loop client ordering, bounded
+startup timeout, exited server, wrong listening PID, recognized replacement
+cleanup, unknown-replacement refusal and main-loop retention after cleanup
+failure. The client-order regression fails on
+the original runner at `b7e9e9f8c730483386d24d1bdfa1fa86fbfc3ac6` before
+any Wine client is executed and passes with the readiness correction.
+Hosted macOS CI runs the same ownership suite.
+
+The corrected runner also completed the four actual Windows checks normally
+and with the real public server's same-PID `exec` deliberately delayed by
+600 ms. All five Windows launches, including bootstrap, waited for that
+server's ready socket. No selected runtime processes or private prefixes
+remained after either corrected run; `lsof` found no process retaining the exact
+selected native ntdll mapping. This closes the reproduced startup-order defect;
+retained adversarial review remains a separate source-level check.

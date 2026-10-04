@@ -169,8 +169,10 @@ After the source review, the canonical public loader/server actually executed
 an original Windows console client in a new private prefix. Four synthetic-peer
 checks passed twice: successful fragmented RPS framing, malformed XML, expired
 tickets and a stalled-response deadline. Three actual path/permission guard
-refusals also passed. The owned runtime processes and private prefix were absent
-afterward. See [the client checks](../public-rps/README.md) for source, commands,
+refusals also passed. The subsequent ownership correction adds PID-bound
+socket readiness and Wine's client-killing shutdown; exact native ntdll mapping
+checks confirm the corrected runs leave no selected background clients.
+See [the client checks](../public-rps/README.md) for source, commands,
 scope and the exact PE executable hash.
 
 This exercises the client's actual Winsock DOS/ACP-to-Unix mapping, not a live

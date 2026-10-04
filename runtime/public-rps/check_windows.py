@@ -2,11 +2,19 @@
 """Exercise a selected public Wine candidate against synthetic Unix peers only."""
 
 import argparse
+from contextlib import closing
+import ctypes
+import errno
 from pathlib import Path
 import os
+import select
+import shutil
+import signal
 import socket
+import stat
 import struct
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -14,6 +22,99 @@ import xml.etree.ElementTree as ET
 
 
 MAGIC = 0x58445358
+
+
+def server_endpoint(prefix):
+    info = prefix.stat()
+    return Path(f"/tmp/.wine-{os.getuid()}/server-{info.st_dev:x}-{info.st_ino:x}/socket")
+
+
+def connected_server(endpoint, timeout):
+    try:
+        for directory in (endpoint.parent.parent, endpoint.parent):
+            info = directory.lstat()
+            if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
+                    or info.st_mode & 0o077):
+                raise RuntimeError("The prefix's Wine server directory is not private and owned.")
+        info = endpoint.lstat()
+        if (not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_mode & 0o077):
+            raise RuntimeError("The prefix's Wine server socket is not private and owned.")
+        connection = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            connection.settimeout(timeout)
+            connection.connect(str(endpoint))
+            # Darwin SOL_LOCAL / LOCAL_PEERPID identifies the listening process.
+            pid = struct.unpack("=i", connection.getsockopt(0, 2, 4))[0]
+            if pid <= 0:
+                raise RuntimeError("The Wine server socket did not identify a peer PID.")
+            return connection, pid
+        except BaseException:
+            connection.close()
+            raise
+    except OSError as error:
+        if error.errno in (errno.ENOENT, errno.ECONNREFUSED):
+            return None, None
+        raise
+
+
+def wait_server_ready(server, endpoint, timeout=10):
+    deadline = time.monotonic() + timeout
+    while True:
+        if server.poll() is not None:
+            raise RuntimeError("The recorded Wine server exited before socket readiness.")
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError("The recorded Wine server did not become ready in time.")
+        connection, pid = connected_server(endpoint, min(remaining, 0.25))
+        if connection is not None:
+            connection.close()
+            if pid != server.pid or server.poll() is not None:
+                raise RuntimeError("The prefix's Wine socket is not owned by the recorded server.")
+            return
+        time.sleep(min(remaining, 0.05))
+
+
+def process_executable(pid):
+    library = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+    function = library.proc_pidpath
+    function.argtypes = (ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32)
+    function.restype = ctypes.c_int
+    buffer = ctypes.create_string_buffer(4096)
+    if function(pid, buffer, len(buffer)) <= 0:
+        raise OSError(ctypes.get_errno(), "Cannot identify the prefix's server executable.")
+    return Path(os.fsdecode(buffer.value)).resolve(strict=True)
+
+
+def reconcile_server(server, endpoint, executable, timeout=5):
+    if server.poll() is None:
+        server.send_signal(signal.SIGINT)
+        try:
+            server.wait(timeout=timeout)
+        except subprocess.TimeoutExpired as error:
+            raise RuntimeError("Recorded server shutdown timed out; private prefix retained.") from error
+    deadline = time.monotonic() + timeout
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError("Owned server reconciliation timed out; private prefix retained.")
+        connection, pid = connected_server(endpoint, min(remaining, 0.25))
+        if connection is None:
+            return
+        try:
+            with closing(select.kqueue()) as queue:
+                event = select.kevent(pid, filter=select.KQ_FILTER_PROC,
+                                      flags=select.KQ_EV_ADD | select.KQ_EV_ONESHOT,
+                                      fflags=select.KQ_NOTE_EXIT)
+                queue.control([event], 0, 0)
+                if process_executable(pid) != executable:
+                    raise RuntimeError("Unrecognized socket owner; private prefix retained.")
+                # Wine SIGINT shuts down its clients; SIGTERM only exits the server.
+                os.kill(pid, signal.SIGINT)
+                if not queue.control(None, 1, max(0, deadline - time.monotonic())):
+                    raise RuntimeError("Replacement server did not exit; private prefix retained.")
+        finally:
+            connection.close()
 
 
 def stop_owned_process(process):
@@ -94,7 +195,7 @@ def main():
     parser.add_argument("server", type=Path)
     parser.add_argument("executable", type=Path)
     args = parser.parse_args()
-    if os.name != "posix":
+    if sys.platform != "darwin":
         parser.error("Run on the selected macOS host.")
     root = args.owned_root.absolute()
     if any(path.is_symlink() for path in (root, *root.parents)) or not root.is_dir():
@@ -111,14 +212,18 @@ def main():
         executables.append(path)
     if root.stat().st_uid != os.getuid() or root.stat().st_mode & 0o022:
         parser.error("The selected root must be owned and not group/world writable.")
-    with tempfile.TemporaryDirectory(prefix="w-", dir=root) as temporary:
+    temporary = tempfile.mkdtemp(prefix="w-", dir=root)
+    server = None
+    endpoint_to_reconcile = None
+    try:
         directory = Path(temporary)
         home, prefix = directory / "home", directory / "prefix"
         home.mkdir(mode=0o700)
         prefix.mkdir(mode=0o700)
         endpoint = directory / "r.sock"
         if len(os.fsencode(endpoint)) > 103 or not str(endpoint).isascii():
-            parser.error("Use a short ASCII owned output root for the Wine socket check.")
+            raise RuntimeError("Use a short ASCII owned output root for the Wine socket check.")
+        endpoint_to_reconcile = server_endpoint(prefix)
         environment = {
             "HOME": str(home),
             "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
@@ -135,40 +240,49 @@ def main():
         with (directory / "server.log").open("wb") as log:
             server = subprocess.Popen([str(executables[1]), "-f", "-p"], env=environment,
                                       start_new_session=True, stdout=log, stderr=log)
+            wait_server_ready(server, endpoint_to_reconcile)
+            output = run_owned([str(executables[0]), str(executables[2]), "--bootstrap"],
+                               environment, 90)
+            if "Isolated Windows check started; no credentials requested." not in output:
+                raise RuntimeError("The selected Windows harness did not reach its entry point.")
+            wait_server_ready(server, endpoint_to_reconcile)
+            for mode in ("success", "malformed", "expired", "timeout"):
+                wait_server_ready(server, endpoint_to_reconcile)
+                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
+                    listener.settimeout(20)
+                    listener.bind(str(endpoint))
+                    os.chmod(endpoint, 0o600)
+                    listener.listen(1)
+                    stop, failures = threading.Event(), []
+                    worker = threading.Thread(target=peer,
+                                              args=(listener, mode, stop, failures))
+                    worker.start()
+                    try:
+                        expected = "protocol" if mode in ("malformed", "expired") else mode
+                        output = run_owned([str(executables[0]), str(executables[2]),
+                                            str(endpoint), expected], environment, 25)
+                        if "Isolated Windows RPS outcome passed." not in output:
+                            raise RuntimeError("The selected Windows check did not complete.")
+                    finally:
+                        stop.set()
+                        worker.join(timeout=25)
+                    if worker.is_alive():
+                        raise RuntimeError("The owned synthetic peer did not stop.")
+                    if failures:
+                        raise RuntimeError("The owned synthetic peer failed.") from failures[0]
+                endpoint.unlink()
+                wait_server_ready(server, endpoint_to_reconcile)
+                print(f"Windows/Wine synthetic {mode}: passed")
+    finally:
+        if server is not None:
             try:
-                output = run_owned([str(executables[0]), str(executables[2]), "--bootstrap"],
-                                   environment, 90)
-                if "Isolated Windows check started; no credentials requested." not in output:
-                    raise RuntimeError("The selected Windows harness did not reach its entry point.")
-                if server.poll() is not None:
-                    raise RuntimeError("The explicitly owned Wine server stopped unexpectedly.")
-                for mode in ("success", "malformed", "expired", "timeout"):
-                    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
-                        listener.settimeout(20)
-                        listener.bind(str(endpoint))
-                        os.chmod(endpoint, 0o600)
-                        listener.listen(1)
-                        stop, failures = threading.Event(), []
-                        worker = threading.Thread(target=peer,
-                                                  args=(listener, mode, stop, failures))
-                        worker.start()
-                        try:
-                            expected = "protocol" if mode in ("malformed", "expired") else mode
-                            output = run_owned([str(executables[0]), str(executables[2]),
-                                                str(endpoint), expected], environment, 25)
-                            if "Isolated Windows RPS outcome passed." not in output:
-                                raise RuntimeError("The selected Windows check did not complete.")
-                        finally:
-                            stop.set()
-                            worker.join(timeout=25)
-                        if worker.is_alive():
-                            raise RuntimeError("The owned synthetic peer did not stop.")
-                        if failures:
-                            raise RuntimeError("The owned synthetic peer failed.") from failures[0]
-                    endpoint.unlink()
-                    print(f"Windows/Wine synthetic {mode}: passed")
-            finally:
-                stop_owned_process(server)
+                reconcile_server(server, endpoint_to_reconcile, executables[1])
+            except (OSError, RuntimeError) as error:
+                raise RuntimeError(
+                    f"Server cleanup could not establish ownership; private directory retained: "
+                    f"{temporary}"
+                ) from error
+        shutil.rmtree(temporary)
     print("Four actual Windows-branch checks passed; no real credentials or game were used.")
 
 

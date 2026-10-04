@@ -69,3 +69,52 @@ Other DLLs, graphics, fonts, TLS, a controlled prefix, the Windows-branch RPS
 execution, service/profile pairing and licensed gameplay remain separate gates.
 No Wine loader, game or real credential operation was executed for this build.
 Do not bundle or advertise these partial outputs as a supported runtime.
+
+## Subsequent TLS dependency build
+
+The missing x64 GnuTLS dependency was subsequently built from verified public
+source into the same owned prefix, without global package installation:
+
+| Source | Archive SHA-256 |
+|---|---|
+| GMP 6.3.0 | `a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898` |
+| Nettle 4.0 | `3addbc00da01846b232fb3bc453538ea5468da43033f21bb345cb1e9073f5094` |
+| libtasn1 4.21.0 | `1d8a444a223cc5464240777346e125de51d8e6abf0b8bac742ac84609167dc87` |
+| libunistring 1.4.2 | `e82664b170064e62331962126b259d452d53b227bb4a93ab20040d846fec01d8` |
+| GnuTLS 3.8.13 | `ffed8ec1bf09c2426d4f14aae377de4753b53e537d685e604e99a8b16ca9c97e` |
+
+GMP/Nettle use portable C rather than optional assembler. The probe disables
+GnuTLS tools, tests, documentation, translation, C++/Guile, IDN and PKCS#11
+integrations; these omissions must not be represented as supported features.
+The actual GnuTLS dylib is Mach-O x86-64.
+
+Cross-configure requires explicit `PKG_CONFIG=/opt/homebrew/bin/pkg-config` and
+`PKG_CONFIG_LIBDIR` pointing only at the matching owned prefix. The subsequent
+Wine configure actually accepts the GnuTLS header and cipher symbol and defines
+`SONAME_LIBGNUTLS`; the previous no-Schannel warning is gone. Native secur32 and
+the PE ntdll, kernelbase, kernel32, ucrtbase, ws2_32 and patched xgameruntime
+targets then compile. Cross resource tools and their public locale data must
+also be built, rather than borrowed from an installed/private runtime.
+
+`tls_dependency_checks.c` checks the real dependency's minimum version,
+SHA-256 known answer and default TLS priorities **offline**, without accessing
+accounts, opening network connections or executing Wine:
+
+```sh
+clang -arch x86_64 -std=c11 -Wall -Wextra -Werror -pedantic \
+  -I/absolute/owned/dependencies/include tls_dependency_checks.c \
+  -L/absolute/owned/dependencies/lib -lgnutls \
+  -o /absolute/owned/output/tls-dependency-checks
+/absolute/owned/output/tls-dependency-checks
+```
+
+All three checks passed in the actual x64 executable. Inspection confirms its
+GnuTLS dependency and GMP/Nettle/libtasn1/libunistring dependencies are x64
+Mach-O libraries in the owned prefix, with remaining imports in system
+frameworks/libraries. No actual TLS peer or certificate validation was tested.
+
+The complete configured build is still separate from these successful targets.
+Its Linux DRM-dependent `amd_ags_x64` extension is explicitly disabled on this
+Mac candidate, not made to compile using invented Linux headers. Vulkan,
+GStreamer and actual graphics/TLS/gameplay remain unverified. A complete make
+result, if obtained, does not establish licensed operation or an approved pair.

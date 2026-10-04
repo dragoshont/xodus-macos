@@ -54,10 +54,13 @@ with tempfile.TemporaryDirectory(prefix="rps-", dir=args.root) as temporary:
             peer.sendall(frame(1, b""))
             assert read_exact(peer, 8) == frame(2, b"")
         # Invalid request syntax is rejected before any credential getter can run.
-        for payload in [
+        invalid_requests = [
             b"<MSATokenRequest><ClientId>invalid</ClientId></MSATokenRequest>",
             b"<MSATokenRequest><ClientId>000000004424da1f</ClientId><Scope>other</Scope></MSATokenRequest>",
-        ]:
+            b"<Other><ClientId>000000004424da1f</ClientId></Other>",
+            b"<MSATokenRequest><ClientId><Nested>000000004424da1f</Nested></ClientId></MSATokenRequest>",
+        ]
+        for payload in invalid_requests:
             with socket.socket(socket.AF_UNIX) as peer:
                 peer.settimeout(3)
                 peer.connect(str(endpoint))
@@ -74,7 +77,7 @@ with tempfile.TemporaryDirectory(prefix="rps-", dir=args.root) as temporary:
         assert not endpoint.exists(), "Owned private socket was not cleaned up"
         assert process.stdout.read() == b"", "Private broker emitted public stdout"
         lines = process.stderr.read().splitlines()
-        assert lines == [b"Private runtime peer request failed"] * 2, lines
+        assert lines == [b"Private runtime peer request failed"] * len(invalid_requests), lines
     finally:
         if process.poll() is None:
             process.kill()

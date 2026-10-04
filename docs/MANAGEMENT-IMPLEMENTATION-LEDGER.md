@@ -120,6 +120,40 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
+### Complete-profile, flat XML and live endpoint identity fences
+
+The follow-up broker snapshots and rechecks the entire same-profile credential
+bundle, not only flow/ticket strings. Memory-backed regressions prove the actual
+stored username is consumed, one-bundle reads remain byte-identical/no writes,
+username/device-license/expiry/flow changes fail, and logout never falls back to
+retained device/default user credentials. Deadline **and caller abort** tests
+prove blocking IO retains its permit until the owned OS work completes.
+
+Parent/socket identity, ownership, mode and link count are rechecked after
+creation and before accepting peers. Renamed/replacement directory tests prove
+failure and cleanup only through the original retained descriptor; replacements
+are preserved. Strict bounded flat MSA XML rejects unknown roots, nested fields,
+attributes, duplicate aliases and DTD/entities before any credential getter.
+The actual native broker process smoke now includes those unknown-root/nested
+requests, continued ping usability, empty stdout and owned socket cleanup.
+
+All **27 service checks**, service-library clippy, build, private process smoke
+and plaintext-fallback refusal pass. The unchanged 90 management/CLI/core checks
+bring the scoped count to **117**; the other management fallback/corpus/public
+process evidence is unchanged. New immutable unsigned service:
+`artifacts/xodus-service-rps-context-v1-8d94aa3221da5789`, SHA256
+`8d94aa3221da57892d834d9ebe22d918c000d7797ec68ed68fa683db403e2735`.
+CLI 0a/da548 and schema C95 are unchanged. Coordinator reports the retained
+reviewer found no significant issue in e729 source/tests; this newer delta still
+needs the **same** reviewer and does not inherit live issuance/pair approval.
+
+The approved da548 native consent/device-preparation chain does not call the
+newly guarded `exchange_device_token`: it uses `ensure_device_credentials` /
+`authenticate_device` and NativeTokenBroker `exchange_user_token`. Therefore
+that RPS consumer guard alone does not force a GUI engine swap before the
+coordinator's actual human consent readiness gate. No real account/package/
+runtime request was performed by these regressions.
+
 ### Checked RPS handler and explicit isolated native broker
 
 The Rust service now has a reusable checked handler and caller-owned

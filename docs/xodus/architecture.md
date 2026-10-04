@@ -43,8 +43,10 @@ device provisioning. The existing parent directory must be local, owned by the
 effective user, exactly mode 0700 and reachable without symlinks. Paths must be
 normalized UTF-8 and at most 103 bytes. An existing entry is refused, never
 removed/replaced. The created socket is mode 0600; only same-UID peers are
-accepted. Cleanup uses the retained directory descriptor and the exact original
-socket device/inode, leaving any replacement unchanged.
+accepted. Parent identity/ownership/mode and exact socket identity/mode/link
+count are rechecked after creation and before accepting peers. Cleanup uses the
+retained directory descriptor and the exact original socket device/inode,
+leaving any replacement unchanged.
 
 The paired client configuration is `XODUS_RUNTIME_SOCKET`, containing **only**
 that raw absolute Unix path. The broker receives its path explicitly in argv;
@@ -61,6 +63,10 @@ not a request to open a window: the broker always attempts silent issuance and
 returns an explicit Rust consent-required error for an upstream user fault.
 The wire has no invented error ABI: invalid/failed requests close without a
 success-shaped ticket response.
+The MSA payload itself is at most 4096 bytes and must be one flat
+`MSATokenRequest` with only those known children. Unknown roots, nested fields,
+attributes, duplicates/duplicate aliases and DTD/entity payloads are refused
+before any credential getter; the general 65,535-byte frame bound is unchanged.
 
 The handler reuses real NativeTokenBroker/SOAP device/user exchange functions.
 It uses the actual stored username, checks the requested audience, token kind,
@@ -68,7 +74,9 @@ nonempty bounded ticket, expiry and complete user/device result instead of
 positional collection assumptions, swallowed failures or panics. The response
 has all four required fields: `Token`, `Expiry`, `DeviceRps`, `DeviceExpiry`
 (UTC seconds). Management credentials are read noninteractively and rechecked
-for the same live profile before returning tickets. The broker never writes or
+for the same complete live bundle before returning tickets, including user,
+device, license and expiry fields, without depending on HashMap serialization
+order. The broker never writes or
 rotates the launcher bundle; native consent owns its atomic writes. Ordinary
 legacy refreshed-STS persistence errors are now propagated.
 

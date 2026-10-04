@@ -83,6 +83,7 @@ struct Endpoint {
     listener: UnixListener,
     directory: std::fs::File,
     name: CString,
+    parent: std::path::PathBuf,
     device: libc::dev_t,
     inode: libc::ino_t,
 }
@@ -149,6 +150,7 @@ impl Endpoint {
             listener,
             directory,
             name,
+            parent: parent.to_owned(),
             device: socket.st_dev,
             inode: socket.st_ino,
         };
@@ -164,11 +166,35 @@ impl Endpoint {
         {
             return Err(private());
         }
-        let current = open_directory(parent)?.metadata().map_err(|_| private())?;
-        if current.dev() != metadata.dev() || current.ino() != metadata.ino() {
+        endpoint.verify()?;
+        Ok(endpoint)
+    }
+
+    fn verify(&self) -> io::Result<()> {
+        let original = self.directory.metadata().map_err(|_| private())?;
+        let current = open_directory(&self.parent)?
+            .metadata()
+            .map_err(|_| private())?;
+        // SAFETY: geteuid takes no pointers and has no side effects.
+        let uid = unsafe { libc::geteuid() };
+        if original.dev() != current.dev()
+            || original.ino() != current.ino()
+            || current.uid() != uid
+            || current.mode() & 0o7777 != 0o700
+        {
             return Err(private());
         }
-        Ok(endpoint)
+        let socket = entry(&self.directory, &self.name).map_err(|_| socket_error())?;
+        if socket.st_dev != self.device
+            || socket.st_ino != self.inode
+            || socket.st_uid != uid
+            || socket.st_mode & libc::S_IFMT != libc::S_IFSOCK
+            || socket.st_mode & 0o7777 != 0o600
+            || socket.st_nlink != 1
+        {
+            return Err(socket_error());
+        }
+        Ok(())
     }
 }
 
@@ -218,6 +244,7 @@ pub async fn serve(
             }
             accepted = endpoint.listener.accept() => {
                 let (socket, _) = accepted.map_err(|_| io::Error::other("Private runtime accept failed"))?;
+                endpoint.verify()?;
                 // SAFETY: geteuid takes no pointers and has no side effects.
                 let uid = unsafe { libc::geteuid() };
                 if socket.peer_cred().map(|credential| credential.uid()).ok() != Some(uid) {
@@ -294,10 +321,33 @@ mod tests {
         let endpoint = Endpoint::bind(path.to_str().unwrap()).unwrap();
         std::fs::remove_file(&path).unwrap();
         std::fs::write(&path, b"replacement-owner-file").unwrap();
+        assert!(endpoint.verify().is_err());
         drop(endpoint);
         assert_eq!(std::fs::read(&path).unwrap(), b"replacement-owner-file");
         std::fs::remove_file(path).unwrap();
         std::fs::remove_dir(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn changed_parent_identity_fails_closed_and_cleanup_stays_on_original_descriptor() {
+        let root = directory();
+        let path = root.join("private.sock");
+        let endpoint = Endpoint::bind(path.to_str().unwrap()).unwrap();
+        let moved = root.with_extension("moved");
+        std::fs::rename(&root, &moved).unwrap();
+        std::fs::create_dir(&root).unwrap();
+        std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::write(&path, b"replacement-directory-owner-file").unwrap();
+        assert!(endpoint.verify().is_err());
+        drop(endpoint);
+        assert!(!moved.join("private.sock").exists());
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            b"replacement-directory-owner-file"
+        );
+        std::fs::remove_file(path).unwrap();
+        std::fs::remove_dir(root).unwrap();
+        std::fs::remove_dir(moved).unwrap();
     }
 
     #[cfg(target_os = "macos")]

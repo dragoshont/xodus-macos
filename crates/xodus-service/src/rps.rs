@@ -56,11 +56,7 @@ struct Credentials {
     stamp: Option<ProfileStamp>,
 }
 
-struct ProfileStamp {
-    flow_id: String,
-    user_ticket: String,
-    device_ticket: String,
-}
+struct ProfileStamp(serde_json::Value);
 
 fn credential_error(error: xodus::tokens::store::TokenStoreError) -> RpsError {
     match error {
@@ -86,13 +82,11 @@ fn credentials(
             .map_err(|_| RpsError::CredentialStoreUnavailable)?
             .filter(|session| session.valid())
             .ok_or(RpsError::AuthenticationRequired)?;
+        let stamp = ProfileStamp(
+            serde_json::to_value(&session).map_err(|_| RpsError::CredentialStoreUnavailable)?,
+        );
         let Some(Token::Legacy(user)) = session.tokens.remove(PASSPORT_STS) else {
             return Err(RpsError::AuthenticationRequired);
-        };
-        let stamp = ProfileStamp {
-            flow_id: session.flow_id,
-            user_ticket: user.token.clone(),
-            device_ticket: session.device_token.token.clone(),
         };
         Ok(Credentials {
             user,
@@ -125,8 +119,16 @@ fn credentials(
 async fn credential_io<T: Send + 'static>(
     read: impl FnOnce() -> Result<T, RpsError> + Send + 'static,
 ) -> Result<T, RpsError> {
-    let deadline = tokio::time::Instant::now() + IO_DEADLINE;
-    let permit = tokio::time::timeout_at(deadline, IO_PERMITS.acquire())
+    bounded_credential_io(&IO_PERMITS, IO_DEADLINE, read).await
+}
+
+async fn bounded_credential_io<T: Send + 'static>(
+    permits: &'static tokio::sync::Semaphore,
+    timeout: Duration,
+    read: impl FnOnce() -> Result<T, RpsError> + Send + 'static,
+) -> Result<T, RpsError> {
+    let deadline = tokio::time::Instant::now() + timeout;
+    let permit = tokio::time::timeout_at(deadline, permits.acquire())
         .await
         .map_err(|_| RpsError::Deadline)?
         .map_err(|_| RpsError::CredentialStoreUnavailable)?;
@@ -229,10 +231,7 @@ fn current_profile(tokens: &TokenManager, stamp: ProfileStamp) -> Result<(), Rps
         .map_err(|_| RpsError::CredentialStoreUnavailable)?
         .filter(|session| session.valid())
         .ok_or(RpsError::ProfileChanged)?;
-    if session.flow_id != stamp.flow_id
-        || session.device_token.token != stamp.device_ticket
-        || !matches!(session.tokens.get(PASSPORT_STS),
-            Some(Token::Legacy(token)) if token.token == stamp.user_ticket)
+    if serde_json::to_value(&session).map_err(|_| RpsError::CredentialStoreUnavailable)? != stamp.0
     {
         return Err(RpsError::ProfileChanged);
     }
@@ -504,5 +503,152 @@ mod tests {
     fn unknown_runtime_xml_parameters_are_not_ignored() {
         let xml = "<MSATokenRequest><ClientId>000000004424da1f</ClientId><Scope>arbitrary</Scope></MSATokenRequest>";
         assert!(quick_xml::de::from_str::<MSATokenRequest>(xml).is_err());
+    }
+
+    fn fixture_session() -> xodus::models::secrets::ManagementStoreSession {
+        use xodus::models::secrets::{Device, ManagementStoreSession, User};
+        let device = LegacyToken {
+            key_name: Some(PASSPORT_STS.to_owned()),
+            token: quick_xml::se::to_string(&soap::EncryptedData::devicesoftware(
+                "Zml4dHVyZS1ub3QtYS1jcmVkZW50aWFs".to_owned(),
+            ))
+            .unwrap(),
+            // Base64 for a 4096-byte version-4 test state, not a usable device secret.
+            binary_secret: Some(format!("BAAA{}AA==", "AAAA".repeat(1364))),
+            tpm_key: None,
+            lifetime: Timestamp {
+                id: None,
+                created: "2000-01-01T00:00:00Z".to_owned(),
+                expires: "2099-01-01T00:00:00Z".to_owned(),
+            },
+        };
+        ManagementStoreSession {
+            flow_id: "fixture-flow-only".to_owned(),
+            user: User {
+                puid: "fixture-user-only".to_owned(),
+                username: "fixture@example.invalid".to_owned(),
+            },
+            tokens: std::collections::HashMap::from([(
+                PASSPORT_STS.to_owned(),
+                Token::Legacy(device.clone()),
+            )]),
+            device: Device {
+                puid: "fixture-device-only".to_owned(),
+                hwid: "fixture-hardware-only".to_owned(),
+                device_id: "fixture-device-only".to_owned(),
+                splicense: "fixture-not-a-license".to_owned(),
+                username: "fixture-device-only".to_owned(),
+                password: "fixture-not-a-password".to_owned(),
+            },
+            device_token: device,
+        }
+    }
+
+    #[test]
+    fn management_credentials_are_one_read_only_bundle_and_all_profile_changes_are_fenced() {
+        use xodus::tokens::backend::MemoryBackend;
+        use xodus::tokens::store::TokenBackend;
+        let memory = Arc::new(MemoryBackend::default());
+        let tokens = TokenManager::with_management_backend(memory.clone());
+        tokens
+            .save_management_store_session(fixture_session())
+            .unwrap();
+        let original = memory.get("management-store-user").unwrap().unwrap();
+        let proof = credentials(&tokens, true, None).unwrap();
+        assert_eq!(proof.username, "fixture@example.invalid");
+        assert!(current_profile(&tokens, proof.stamp.unwrap()).is_ok());
+        assert_eq!(
+            memory.get("management-store-user").unwrap().unwrap(),
+            original
+        );
+        for change in 0..4 {
+            tokens
+                .save_management_store_session(fixture_session())
+                .unwrap();
+            let proof = credentials(&tokens, true, None).unwrap();
+            let mut changed = fixture_session();
+            match change {
+                0 => changed.user.username = "different@example.invalid".to_owned(),
+                1 => changed.device.splicense = "changed-license-only".to_owned(),
+                2 => changed.device_token.lifetime.expires = "2098-01-01T00:00:00Z".to_owned(),
+                _ => changed.flow_id = "different-fixture-flow".to_owned(),
+            }
+            tokens.save_management_store_session(changed).unwrap();
+            assert_eq!(
+                current_profile(&tokens, proof.stamp.unwrap()).err(),
+                Some(RpsError::ProfileChanged)
+            );
+        }
+        tokens
+            .save_management_store_session(fixture_session())
+            .unwrap();
+        let proof = credentials(&tokens, true, None).unwrap();
+        tokens.remove_user_credentials().unwrap();
+        assert_eq!(
+            current_profile(&tokens, proof.stamp.unwrap()).err(),
+            Some(RpsError::ProfileChanged)
+        );
+        assert_eq!(
+            credentials(&tokens, true, None).err(),
+            Some(RpsError::AuthenticationRequired)
+        );
+        assert!(tokens.get_device_sts_token().is_ok());
+    }
+
+    #[tokio::test]
+    async fn credential_deadline_and_dropped_response_do_not_release_owned_io_early() {
+        static PERMITS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(1);
+        let (release, waiting) = std::sync::mpsc::channel();
+        let (started, began) = tokio::sync::oneshot::channel();
+        let task = tokio::spawn(bounded_credential_io(
+            &PERMITS,
+            Duration::from_millis(100),
+            move || {
+                started.send(()).unwrap();
+                waiting.recv().unwrap();
+                Ok(())
+            },
+        ));
+        began.await.unwrap();
+        assert_eq!(task.await.unwrap().err(), Some(RpsError::Deadline));
+        assert_eq!(PERMITS.available_permits(), 0);
+        assert_eq!(
+            bounded_credential_io(&PERMITS, Duration::from_millis(10), || Ok(()))
+                .await
+                .err(),
+            Some(RpsError::Deadline)
+        );
+        release.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while PERMITS.available_permits() == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(
+            bounded_credential_io(&PERMITS, IO_DEADLINE, || Ok(()))
+                .await
+                .is_ok()
+        );
+        let (release, waiting) = std::sync::mpsc::channel();
+        let (started, began) = tokio::sync::oneshot::channel();
+        let task = tokio::spawn(bounded_credential_io(&PERMITS, IO_DEADLINE, move || {
+            started.send(()).unwrap();
+            waiting.recv().unwrap();
+            Ok(())
+        }));
+        began.await.unwrap();
+        task.abort();
+        assert!(task.await.unwrap_err().is_cancelled());
+        assert_eq!(PERMITS.available_permits(), 0);
+        release.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while PERMITS.available_permits() == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
     }
 }

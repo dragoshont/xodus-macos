@@ -2,7 +2,6 @@
 """Darwin-only ownership regressions; helpers never execute Wine."""
 
 from pathlib import Path
-import os
 import subprocess
 import sys
 import tempfile
@@ -66,20 +65,13 @@ class OwnershipChecks(unittest.TestCase):
         for binary in binaries:
             binary.touch()
         original_popen = subprocess.Popen
-        endpoint = None
+        endpoint = self.endpoint
         launched = []
 
         class CheckedClient(Exception):
             pass
 
         def delayed_server(arguments, **options):
-            nonlocal endpoint
-            prefix = Path(options["env"]["WINEPREFIX"])
-            info = prefix.stat()
-            endpoint = Path(
-                f"/tmp/.wine-{os.getuid()}/server-{info.st_dev:x}-{info.st_ino:x}/socket"
-            )
-            endpoint.parent.mkdir(mode=0o700)
             process = original_popen(
                 [sys.executable, "-c", SERVER, str(endpoint), "0.3"],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
@@ -97,16 +89,16 @@ class OwnershipChecks(unittest.TestCase):
             with mock.patch.object(sys, "argv", ["check", str(self.root), *map(str, binaries)]):
                 with mock.patch.object(subprocess, "Popen", side_effect=delayed_server):
                     with mock.patch.object(runner, "run_owned", side_effect=checked_client):
-                        with self.assertRaises(CheckedClient):
-                            runner.main()
+                        with mock.patch.object(runner, "server_endpoint",
+                                               return_value=endpoint, create=True):
+                            with self.assertRaises(CheckedClient):
+                                runner.main()
             self.assertFalse(list(self.root.glob("w-*")))
         finally:
             for process in self.children:
                 runner.stop_owned_process(process)
-            if endpoint is not None:
-                if endpoint.exists():
-                    endpoint.unlink()
-                endpoint.parent.rmdir()
+            if endpoint.exists():
+                endpoint.unlink()
 
     def test_wait_is_bounded_without_launching_any_client(self):
         process = self.server(2)

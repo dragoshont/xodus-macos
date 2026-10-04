@@ -4,6 +4,7 @@ use base64::prelude::*;
 use xal::cvlib::CorrelationVector;
 //use xal::extensions::CorrelationVectorReqwestBuilder;
 
+use crate::api::response::{LICENSE_RESPONSE_LIMIT, ProviderResponseError, request_json};
 use crate::licensing::utils;
 use crate::models::devicecredential::License;
 use crate::models::licensing::{
@@ -23,6 +24,9 @@ pub enum LicenseContentError {
 
     #[error("license service returned an invalid or incomplete response")]
     InvalidResponse,
+
+    #[error("{0}")]
+    Provider(#[from] ProviderResponseError),
 }
 
 // we might need a bump in xal-rs concerning reqwest,
@@ -36,7 +40,8 @@ pub async fn get_license_content(
     market: String,
 ) -> Result<(LicenseContent, License), LicenseContentError> {
     let cv = CorrelationVector::new();
-    let response = client
+    let response = request_json::<LicenseContentResponse>(
+        client
         .post("https://licensing.mp.microsoft.com/v7.0/licenses/content")
         .header("from", "XboxLicenseManager")
         .header("Authorization", device_ms_token)
@@ -59,16 +64,19 @@ pub async fn get_license_content(
                     local_ticket_reference: ticket_reference,
                 }])],
             ),
-        })
-        .send()
-        .await?;
+        }),
+        LICENSE_RESPONSE_LIMIT,
+    )
+    .await?;
 
-    let status_error = response.error_for_status_ref().err();
-    let content_res = response.json::<LicenseContentResponse>().await?;
-    let content = match content_res {
+    let (status, body) = response.into_parts();
+    let content = match body {
         LicenseContentResponse::Success { license } => {
-            if let Some(error) = status_error {
-                return Err(error.into());
+            if !status.is_success() {
+                return Err(ProviderResponseError::HttpRejected {
+                    status: status.as_u16(),
+                }
+                .into());
             }
             license
         }
@@ -163,29 +171,33 @@ pub async fn get_license_token(
     products: Vec<String>,
     custom_developer_string: String,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .post("https://licensing.mp.microsoft.com/v8.0/licenseToken")
-        .header("from", "XboxLicenseManager")
-        .header("Authorization", device_ms_token)
-        .header(
-            "user-agent",
-            "XboxLm-PC/Microsoft.GamingServices_32.107.4002.0_x64__8wekyb3d8bbwe",
-        )
-        .json(&LicenseTokenRequest {
-            parent_product_id,
-            enforce_sellable_by: true,
-            related_product_ids: products,
-            custom_developer_string,
-            beneficiaries: vec![LicenseUserIdentity {
-                identity_type: "Msa".to_string(),
-                identity_value: user_ms_token,
-                local_ticket_reference: ticket_reference,
-            }],
-        })
-        .send()
-        .await?;
-
-    let token_resp: LicenseTokenResponse = response.json().await?;
+    let token_resp: LicenseTokenResponse = request_json(
+        client
+            .post("https://licensing.mp.microsoft.com/v8.0/licenseToken")
+            .header("from", "XboxLicenseManager")
+            .header("Authorization", device_ms_token)
+            .header(
+                "user-agent",
+                "XboxLm-PC/Microsoft.GamingServices_32.107.4002.0_x64__8wekyb3d8bbwe",
+            )
+            .json(&LicenseTokenRequest {
+                parent_product_id,
+                enforce_sellable_by: true,
+                related_product_ids: products,
+                custom_developer_string,
+                beneficiaries: vec![LicenseUserIdentity {
+                    identity_type: "Msa".to_string(),
+                    identity_value: user_ms_token,
+                    local_ticket_reference: ticket_reference,
+                }],
+            }),
+        LICENSE_RESPONSE_LIMIT,
+    )
+    .await?
+    .require_success()?;
+    if token_resp.license_token.trim().is_empty() {
+        return Err(Box::new(LicenseContentError::InvalidResponse));
+    }
 
     Ok(token_resp.license_token)
 }

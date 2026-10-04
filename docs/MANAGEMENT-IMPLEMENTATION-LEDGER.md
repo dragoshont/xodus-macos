@@ -45,8 +45,8 @@ fallback was used. Public comparison:
   is not a successful package/license call or complete purchasing-account library.
   The existing CLI helpers now propagate missing-credential, exchange, HTTP and
   malformed-response failures instead of panicking. They still are not a
-  management provider: per-operation profile reconciliation, bounded authenticated
-  metadata, authoritative authorization/manifest checks and transactional queue
+  management provider: per-operation profile reconciliation, authoritative
+  authorization/manifest checks and transactional queue
   integration remain necessary.
 - `PackageFile` contains FileSize/FileHash/KeyBlob/CDN paths, but this fork has no
   FileHash algorithm/encoding validation or authoritative expanded-file space
@@ -124,6 +124,54 @@ JSON Schema fixture checks are explicitly separate from live public API checks.
 Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
+
+### Bounded authenticated JSON responses
+
+The existing package, Xbox user/XSTS authentication and licensing content/token
+HTTP paths now share one streaming JSON reader. Xbox authentication responses
+are capped at **1 MiB**; package and licensing responses at **4 MiB**. Declared
+oversize is rejected before body accumulation, and actual chunks are checked
+even without a content length. One **30-second total deadline** covers response
+headers and body; dropping a caller cancels its async request. Typed failures
+contain only static messages, byte limits and HTTP status, never URLs, tickets,
+headers or raw provider/JSON error content.
+
+Success-only callers explicitly require a successful HTTP status. Licensing
+content explicitly classifies the status/body pair so its existing structured
+entitlement-denial result is preserved; an HTTP-error body shaped like success
+cannot succeed. Empty license-token results fail. Public authenticated helpers
+now return `ProviderResponseError` rather than raw reqwest errors. The reader
+inherits the supplied client's redirect policy: future management integration
+must use the existing owned no-redirect client, not a default legacy client.
+No new endpoint, management capability, global client policy or implicit
+credential/profile import is added.
+
+Ten native owned-loopback regressions cover exact declared/chunked byte
+boundaries, declared/actual oversize, non-JSON HTTP errors, malformed/truncated
+data, incompatible typed JSON, structured denial preservation, header/body
+deadlines, invalid budgets and caller abort. The synthetic peers disable
+proxies and terminate before returning; none contact a real account/provider.
+The cancellation case accepts only EOF or connection reset as proof of closure
+and passed five additional repetitions.
+
+With the R11 correction included, **145 scoped Rust checks** pass: 36 core,
+12 CLI, 70 management and 27 service. Core/service-library clippy with warnings
+denied and native CLI/service builds pass. The unchanged 79-positive,
+20-negative, four-edge and six-each failed-page/query contract corpus passes.
+Actual anonymous management and malformed-before-credential private broker
+process checks pass without consent, ticket issuance or gameplay. Exact
+transferred source mtimes are advanced after snapshot restoration to invalidate
+Cargo's timestamp-based dependency cache; no dependencies or broad target
+directories are cleaned.
+
+Immutable unsigned developer CLI:
+`artifacts/xodus-cli-provider-bounds-v1-6c62b6fd74bdaa2a`, SHA256
+`6c62b6fd74bdaa2ad8920fdd048f88a0c22208d4c7fd126a460be2fbb3375c51`.
+The earlier f1d5 provider artifact predates R11 and is not a current deployment
+candidate. All app-approved da548/C95 and broker 8d pins remain unchanged.
+This independent delta requires the same retained review and does not establish
+consumer inventory, live authorization, immutable manifests, adoption or
+runtime compatibility.
 
 ### R11 checked device-key derivation
 

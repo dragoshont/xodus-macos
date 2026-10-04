@@ -1,3 +1,4 @@
+use crate::api::response::{AUTH_RESPONSE_LIMIT, ProviderResponseError, request_json};
 use crate::models::xbox::{
     UserAuthProperties, UserAuthRequest, XstsPropertyBag, XstsRequest, XstsResponse,
 };
@@ -10,12 +11,14 @@ pub enum XboxAuthError {
     ExchangeFailed,
     #[error("Xbox authentication returned an invalid or incomplete response")]
     InvalidResponse,
+    #[error("{0}")]
+    Provider(#[from] ProviderResponseError),
 }
 
 pub async fn authenticate_xbox_user(
     client: &reqwest::Client,
     rps_ticket: String,
-) -> reqwest::Result<XstsResponse> {
+) -> Result<XstsResponse, ProviderResponseError> {
     let body = UserAuthRequest {
         relying_party: "http://auth.xboxlive.com".to_string(),
         token_type: "JWT".to_string(),
@@ -26,23 +29,23 @@ pub async fn authenticate_xbox_user(
         },
     };
 
-    let resp = client
-        .post("https://user.auth.xboxlive.com/user/authenticate")
-        .header("Content-Type", "application/json")
-        .header("x-xbl-contract-version", "1")
-        .json(&body)
-        .send()
-        .await?
-        .error_for_status()?;
-
-    resp.json().await
+    request_json(
+        client
+            .post("https://user.auth.xboxlive.com/user/authenticate")
+            .header("Content-Type", "application/json")
+            .header("x-xbl-contract-version", "1")
+            .json(&body),
+        AUTH_RESPONSE_LIMIT,
+    )
+    .await?
+    .require_success()
 }
 
 pub async fn request_xsts_token(
     client: &reqwest::Client,
     token: String,
     relying_party: &str,
-) -> reqwest::Result<XstsResponse> {
+) -> Result<XstsResponse, ProviderResponseError> {
     let body = XstsRequest {
         relying_party: Some(relying_party.to_string()),
         token_type: Some("JWT".to_string()),
@@ -54,16 +57,16 @@ pub async fn request_xsts_token(
         },
     };
 
-    let resp = client
-        .post("https://xsts.auth.xboxlive.com/xsts/authorize")
-        .header("Content-Type", "application/json")
-        .header("x-xbl-contract-version", "1")
-        .json(&body)
-        .send()
-        .await?
-        .error_for_status()?;
-
-    resp.json().await
+    request_json(
+        client
+            .post("https://xsts.auth.xboxlive.com/xsts/authorize")
+            .header("Content-Type", "application/json")
+            .header("x-xbl-contract-version", "1")
+            .json(&body),
+        AUTH_RESPONSE_LIMIT,
+    )
+    .await?
+    .require_success()
 }
 
 pub fn get_xsts_auth_header(xsts: XstsResponse) -> Result<String, XboxAuthError> {

@@ -71,6 +71,7 @@ pub async fn get_license(
         xodus::licensing::content::LicenseContentError::NotEntitled { .. } => {
             "The account is not entitled to this content".to_owned()
         }
+        xodus::licensing::content::LicenseContentError::Provider(error) => error.to_string(),
         _ => "License service request failed or returned an invalid response".to_owned(),
     })?;
 

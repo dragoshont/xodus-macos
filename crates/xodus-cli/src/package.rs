@@ -1,6 +1,7 @@
 use inquire::Select;
 use xodus::XBOX_LIVE_PACKAGES_PC;
 use xodus::api::displaycatalog::find_products_by_id;
+use xodus::api::response::{PACKAGE_RESPONSE_LIMIT, request_json};
 use xodus::models::packagespc::{PackageDetails, PackageResponse};
 use xodus::models::secrets::Token;
 use xodus::tokens::TokenManager;
@@ -106,25 +107,20 @@ pub async fn get_packages(
     )
     .await?;
 
-    let response = client
-        .get(format!(
-            "{XBOX_LIVE_PACKAGES_PC}/GetBasePackage/{content_id}"
-        ))
-        .header("x-xbl-contract-version", "3")
-        .header(
-            "Authorization",
-            xodus::api::xbox::get_xsts_auth_header(xsts_token)?,
-        )
-        .send()
-        .await
-        .map_err(|_| std::io::Error::other("Package request failed"))?
-        .error_for_status()
-        .map_err(|_| std::io::Error::other("Package service rejected the request"))?;
-
-    let res: PackageResponse = response
-        .json()
-        .await
-        .map_err(|_| std::io::Error::other("Package response is invalid"))?;
+    let res: PackageResponse = request_json(
+        client
+            .get(format!(
+                "{XBOX_LIVE_PACKAGES_PC}/GetBasePackage/{content_id}"
+            ))
+            .header("x-xbl-contract-version", "3")
+            .header(
+                "Authorization",
+                xodus::api::xbox::get_xsts_auth_header(xsts_token)?,
+            ),
+        PACKAGE_RESPONSE_LIMIT,
+    )
+    .await?
+    .require_success()?;
 
     checked_package(res, content_id)
 }

@@ -115,6 +115,16 @@ profile reconciliation, bounded authenticated metadata, complete identity and
 manifest validation, and the durable verified staging/commit lifecycle before
 any install capability can be advertised.
 
+Existing authenticated JSON calls now share streaming byte bounds and a
+30-second total headers/body deadline: 1 MiB for Xbox authentication and 4 MiB
+for package/licensing data. Typed errors reveal only static categories, limits
+and HTTP status. Success callers require a successful status; licensing content
+explicitly preserves structured denial while rejecting success-shaped HTTP
+errors. Async caller cancellation closes its owned partial-body request.
+The reader inherits the caller's redirect policy, so a management provider must
+use its owned no-redirect client. Bounded response handling alone is not
+authorization, full manifest validation or an installed-state transaction.
+
 Encrypted device-key derivation is likewise fallible:
 `derive_device_key` returns `Result<DeviceKey, DeviceKeyDerivationError>` and
 rejects inconsistent size, unsupported version and corrupt ciphertext using

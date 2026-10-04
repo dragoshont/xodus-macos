@@ -35,14 +35,10 @@ pub async fn run(
     let user_token =
         crate::api::live::compact_ticket_from_outcome(user_token, "user.auth.xboxlive.com")
             .map_err(|_| XboxAuthError::InvalidResponse)?;
-    let resp = authenticate_xbox_user(client, user_token)
-        .await
-        .map_err(|_| XboxAuthError::ExchangeFailed)?;
+    let resp = authenticate_xbox_user(client, user_token).await?;
     get_xsts_auth_header(resp.clone())?;
 
-    let response = request_xsts_token(client, resp.token, relying_party)
-        .await
-        .map_err(|_| XboxAuthError::ExchangeFailed)?;
+    let response = request_xsts_token(client, resp.token, relying_party).await?;
     get_xsts_auth_header(response.clone())?;
     Ok(response)
 }

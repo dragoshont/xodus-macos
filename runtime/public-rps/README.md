@@ -58,9 +58,9 @@ connecting elsewhere.
 Win64 client and exact adapter **COFF objects** can also be compiled with Clang
 against headers from public Wine
 `eab69739f15180b96797645ccade44c1c4414980` and the existing XML headers.
-This checks the real Windows branch and API declarations. It does not link a
-full PE DLL or execute Wine; macOS XML headers are not a delivered PE XML
-library.
+This checks the real Windows branch and API declarations. These standalone
+object checks do not link a full PE DLL or execute Wine; macOS XML headers are
+not a delivered PE XML library.
 
 ## Apply to the pinned public shim
 
@@ -85,5 +85,48 @@ an LGPL-only binary.
 
 The pinned development shim is **not** the public Wine fork's default gitlink.
 Applying the source patch or compiling the client is not a supported Wine/shim
-pair. Full PE/DLL compilation, version pairing and actual licensed operation
-remain separate requirements.
+pair. Version pairing and actual licensed operation remain separate
+requirements.
+
+## Full public PE build probe
+
+A complete PE32+ x86-64 shim DLL was separately compiled and linked on macOS
+from public Wine `eab69739f15180b96797645ccade44c1c4414980`, the development
+shim pin above, and this repository's client/adapter at
+`8375d0d586ec9c903c7408542eaed65c3caf0d33`. Wine's default shim gitlink is
+`64aebcabb8c66121eae25d3bf0ace4b582ebb0da`; this probe deliberately overrides
+it and is not an upstream-supported composition.
+
+After preparing an owned disposable Wine checkout, checking out the exact
+development shim in `dlls/xgameruntime`, and applying the guarded adapter:
+
+```sh
+cd /absolute/owned/public-wine
+sh autogen.sh
+mkdir -p /absolute/owned/public-wine-build
+cd /absolute/owned/public-wine-build
+/absolute/owned/public-wine/configure \
+  --disable-tests --without-x --without-wayland --without-vulkan \
+  --without-gstreamer --enable-archs=x86_64
+make -j2 dlls/xgameruntime/x86_64-windows/xgameruntime.dll
+```
+
+The observed host was aarch64 macOS, using existing Autoconf 2.73, Bison 3.8.2
+and `x86_64-w64-mingw32-gcc` 16.2.0. Bootstrap must use the public `autogen.sh`,
+not just Autoconf: it also generates required Wine headers. No packages were
+installed for this probe.
+
+The actual link command contains both `xodus_rps.o` and `xuser.o`, the Winsock
+import library, and Wine's **static PE** `libs/xml2/.../libxml2.a`. This is not a
+DLL linked against macOS XML headers or an unimplemented stub. The resulting
+imports include `WSASocketW`, `GetEnvironmentVariableW` and `GetTickCount64`.
+Other imported DLLs are bcrypt, combase, kernel32, ntdll, shlwapi, ucrtbase,
+winhttp, wininet and ws2_32.
+
+That individual build's DLL SHA-256 is
+`105532cbf0741ac4038abeef9b1b58cc3c79dd368a4d0d5886b764027e319259`.
+This identifies one observed artifact, not a reproducible-build claim or a
+runtime certificate. No Wine loader, credential exchange or game was executed.
+The host loader's architecture, its dependencies and prefix, service/profile
+pairing, Winsock execution and licensed gameplay still need separate proof
+before this candidate can be offered as a playable runtime.

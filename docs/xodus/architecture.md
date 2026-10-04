@@ -366,12 +366,36 @@ as EncryptedData. It does not locally decrypt its CipherValue. HMAC derives
 from the separately issued BinarySecret; SOAP-envelope ciphertext and nonces
 have their own strict decoding and cryptographic verification paths.
 The added independent Base64 requirement on the opaque ticket is therefore an
-unsupported admission assumption at this boundary. A scoped compatibility
-repair is being implemented, retaining bounded, reparsed, nonempty ticket
+unsupported admission assumption at this boundary. The scoped compatibility
+repair at `e7e61fa820b771099fd90516ccaca056f265966d` retains bounded, reparsed,
+nonblank, unmodified ticket
 validation and the separate proof, signature, HMAC, AES, nonce, scope, expiry,
-namespace-isolation and atomic-commit safeguards. Its regression evidence,
-final source review, new artifact and actual native outcome are still pending;
-this source finding does not yet establish successful authentication.
+namespace-isolation and atomic-commit safeguards. It intentionally corrects
+shared legacy-CLI and management admission; it does not globally relax XML
+decoding or establish the provider's actual ticket encoding.
+
+Two native regressions fail against the exact preceding producer with
+test-only additions: actual checked managed storage and a checked ticket
+after signed-envelope verification and AES decryption. The correction passes
+those paths and preserves the issuer ticket in both actual request builders;
+signed-ciphertext tampering remains rejected. The backend owner passed 59
+selected checks in one bounded validation run, plus the qualified lint,
+build checks, formatting and unchanged contract corpus. A test-only outgoing
+versus incoming signature-model inspection error was corrected separately;
+production signature parsing was not changed.
+
+The parent independently verified the new immutable source archive with SHA256
+`40e2a6a5751313ed82f62d3f6b6e5674fd01362fecc09a683988714f91999aa4` and native
+evidence with SHA256
+`039d9a8fbfa912e24516f9ad34f265e02f61f6f5baea04187c78659b8a4a359a`,
+including ownership, stable identities, owner-only modes and all 190 archive
+files matching the final Git blobs exactly. The continuity reviewer closed
+the exact correction without significant issues, confirming unchanged
+cryptographic paths, authentication mutation gates and compatibility with
+the unchanged twenty-one-reason consumer. The historical encoding reason
+remains compatible but is no longer emitted by opaque-ticket admission.
+An additive CLI build is authorized; successful live authentication still
+requires the changed-engine native retry.
 
 The user's current priority is explicit: fix authentication first, then verify
 and correct the modern macOS UI. The requested toolkit audit remains deferred;

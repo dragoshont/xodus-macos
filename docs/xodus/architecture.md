@@ -209,7 +209,15 @@ when otherwise valid XML base64 values contain permitted space, tab, CR or LF.
 Full SOAP decryption succeeds before the wrapped proof is rejected; the
 canonical no-whitespace case passes. This establishes a source defect, not that
 the actual provider response contained whitespace or caused the live failure.
-The shared bounded XML-only decoder correction remains in progress.
+Published backend source `2acb452a7ee66b2c9d3ad75ecf85e2be2f94fbc3` now applies a
+shared strict, bounded XML-only decoder across proof, HMAC, nonce and AES
+consumers. It normalizes only XML whitespace for binary decoding, bounds raw
+input to 1 MiB, and preserves original signed XML, non-XML decoding policy,
+token/proof bounds and existing cryptographic checks. The backend owner reports
+54 selected native checks passing, including signed-envelope verification,
+ciphertext-tamper rejection and lexical/bounds regressions, plus qualified
+lint, build checks, formatting and the unchanged contract corpus. The public LF
+source mirror matched before and after those checks.
 
 Before producer implementation, the parent and sole app owner agreed four
 additional static device-preparation reasons: `tokenKindInvalid`,
@@ -222,11 +230,25 @@ succeeded; the app owner reports 398 checks and editable SVG verification.
 The parent independently verified the exact run SHA, successful job metadata
 and four zero-failure log summaries totaling 398 checks.
 
-The same continuity reviewer provisionally closed the final consumer-only delta
-without significant issues. Source assertions confirmed the retained reasons,
-exact privacy restrictions and unchanged schema, navigation and session
-mutation gates. This is not combined producer/consumer approval: the immutable
-producer final pin, its native evidence and the same-context compatibility
-review remain pending. This source-only consumer update is not deployed; a new
-immutable engine and fresh paired native retest are still required. The existing
-signed pair remains unchanged.
+The same continuity reviewer closed the combined exact producer and consumer
+source deltas without significant issues. Independent source assertions
+confirmed all eighteen matching pairs, unchanged dependencies and schema,
+diagnostic privacy, original signature-verification input and retained session
+mutation gates. The reviewer did not rerun the supplied native checks or certify
+the live failure's cause.
+
+The backend owner sealed the exact public LF source archive with SHA256
+`9d1366907990d156d540c65be4ab7335ce5fae2ee1acc92d1e11bfeec9f583b0` and
+native validation evidence with SHA256
+`773767f6f288519033abf57802dedf57a1bf1343949e1c48d2eab9c03654fa01`.
+All 190 archive files match the published source and native mirror; the eight
+Rust files match the actual tested code. The evidence explicitly separates
+earlier baseline/fixture/tool failures from the final passing checks.
+The parent independently verified both sealed hashes, sizes, owner-only read
+modes and ownership on the Mac, the 190-file archive without links, and the
+evidence's exact source pin and native check totals.
+
+Source closure is not a working-login certificate. The parent authorized an
+additive immutable CLI build followed by separate app signing, fresh owned-pair
+checks and an actual native retry under the user's existing authorization.
+Those operational steps remain pending; the existing signed pair is unchanged.

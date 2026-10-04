@@ -132,6 +132,15 @@ is off-actor, with a two-second total acquisition/result budget and four permits
 held through completion of any started OS work after timeout/caller abort.
 There is no ordinary-profile or plaintext fallback.
 
+Manager clones also share an active-mutation counter. Management Store commit,
+logout/removal and user-token replacement hold a RAII fence across their
+blocking backend work, including nested/overlapping operations. Fresh snapshots
+and stamp verification fail while any mutation remains active, even when the
+backend still contains the previous valid bundle. Entry/exit epoch changes
+invalidate outstanding stamps; error/unwind releases the counter without
+reviving old stamps. No blocking lock spans OS IO. This fence is local to
+shared clones, not independently constructed managers or processes.
+
 Existing authenticated JSON calls now share streaming byte bounds and a
 30-second total headers/body deadline: 1 MiB for Xbox authentication and 4 MiB
 for package/licensing data. Typed errors reveal only static categories, limits

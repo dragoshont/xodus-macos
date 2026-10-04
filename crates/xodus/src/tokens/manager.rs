@@ -28,7 +28,20 @@ pub struct TokenManager {
     persistent: Arc<dyn TokenBackend>,
     ephemeral: Arc<dyn ExpiringTokenBackend>,
     cache_epoch: Arc<AtomicU64>,
+    management_mutations: Arc<AtomicU64>,
     management_profile: bool,
+}
+
+struct ManagementMutation {
+    epoch: Arc<AtomicU64>,
+    active: Arc<AtomicU64>,
+}
+
+impl Drop for ManagementMutation {
+    fn drop(&mut self) {
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+        self.active.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 #[derive(Clone)]
@@ -50,6 +63,7 @@ impl TokenManager {
             persistent,
             ephemeral,
             cache_epoch: Arc::new(AtomicU64::new(0)),
+            management_mutations: Arc::new(AtomicU64::new(0)),
             management_profile: false,
         }
     }
@@ -105,6 +119,7 @@ impl TokenManager {
         if !self.management_profile || !session.valid() {
             return Err(TokenStoreError::InvalidCredential);
         }
+        let _mutation = self.begin_management_mutation();
         self.cache_epoch.fetch_add(1, Ordering::SeqCst);
         self.persistent
             .set(keys::STORE_USER_SESSION, &serde_json::to_vec(&session)?)
@@ -119,7 +134,7 @@ impl TokenManager {
         ),
         TokenStoreError,
     > {
-        if !self.management_profile {
+        if !self.management_profile || self.management_mutations.load(Ordering::SeqCst) != 0 {
             return Err(TokenStoreError::InvalidCredential);
         }
         let epoch = self.cache_epoch.load(Ordering::SeqCst);
@@ -130,7 +145,9 @@ impl TokenManager {
             return Err(TokenStoreError::InvalidCredential);
         }
         let fingerprint = Arc::new(serde_json::to_value(&session)?);
-        if self.cache_epoch.load(Ordering::SeqCst) != epoch {
+        if self.management_mutations.load(Ordering::SeqCst) != 0
+            || self.cache_epoch.load(Ordering::SeqCst) != epoch
+        {
             return Err(TokenStoreError::InvalidCredential);
         }
         Ok((session, ManagementProfileStamp { epoch, fingerprint }))
@@ -140,17 +157,33 @@ impl TokenManager {
         &self,
         stamp: &ManagementProfileStamp,
     ) -> Result<(), TokenStoreError> {
-        if !self.management_profile || self.cache_epoch.load(Ordering::SeqCst) != stamp.epoch {
+        if !self.management_profile
+            || self.management_mutations.load(Ordering::SeqCst) != 0
+            || self.cache_epoch.load(Ordering::SeqCst) != stamp.epoch
+        {
             return Err(TokenStoreError::InvalidCredential);
         }
         let (_, current) = self.management_store_snapshot()?;
         if current.epoch != stamp.epoch
             || current.fingerprint != stamp.fingerprint
+            || self.management_mutations.load(Ordering::SeqCst) != 0
             || self.cache_epoch.load(Ordering::SeqCst) != stamp.epoch
         {
             return Err(TokenStoreError::InvalidCredential);
         }
         Ok(())
+    }
+
+    fn begin_management_mutation(&self) -> Option<ManagementMutation> {
+        if !self.management_profile {
+            return None;
+        }
+        self.management_mutations.fetch_add(1, Ordering::SeqCst);
+        self.cache_epoch.fetch_add(1, Ordering::SeqCst);
+        Some(ManagementMutation {
+            epoch: self.cache_epoch.clone(),
+            active: self.management_mutations.clone(),
+        })
     }
 
     /// Keychain for persistent storage, in-memory for ephemeral - the default
@@ -163,12 +196,14 @@ impl TokenManager {
     }
 
     pub fn remove_persistent(&self) -> Result<(), TokenStoreError> {
+        let _mutation = self.begin_management_mutation();
         self.persistent.remove(keys::DEVICE_TOKENS)?;
         self.remove_user_credentials()
     }
 
     /// Disconnect the account without removing the separately owned device identity.
     pub fn remove_user_credentials(&self) -> Result<(), TokenStoreError> {
+        let _mutation = self.begin_management_mutation();
         if let Some(session) = self.get_management_store_session()? {
             self.save_device_license(&session.device)?;
             self.save_device_token(PASSPORT_STS.to_owned(), Token::Legacy(session.device_token))?;
@@ -272,6 +307,7 @@ impl TokenManager {
         &self,
         tokens: HashMap<String, Token>,
     ) -> Result<(), TokenStoreError> {
+        let _mutation = self.begin_management_mutation();
         self.cache_epoch.fetch_add(1, Ordering::SeqCst);
         self.persistent.set(
             keys::USER_TOKENS,
@@ -578,6 +614,233 @@ mod management_tests {
                 .unwrap();
             assert!(tokens.verify_management_profile(&stamp).is_err());
         }
+    }
+
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum MutationOperation {
+        Set,
+        Remove,
+    }
+
+    struct PausedMutation {
+        operation: MutationOperation,
+        ready: std::sync::mpsc::Sender<()>,
+        release: std::sync::mpsc::Receiver<()>,
+    }
+
+    #[derive(Default)]
+    struct PausedBackend {
+        memory: MemoryBackend,
+        pending: std::sync::Mutex<Option<PausedMutation>>,
+        fail_set: std::sync::atomic::AtomicBool,
+    }
+
+    impl PausedBackend {
+        fn pause(
+            &self,
+            operation: MutationOperation,
+        ) -> (std::sync::mpsc::Receiver<()>, std::sync::mpsc::Sender<()>) {
+            let (ready, wait) = std::sync::mpsc::channel();
+            let (release, receive) = std::sync::mpsc::channel();
+            *self.pending.lock().unwrap() = Some(PausedMutation {
+                operation,
+                ready,
+                release: receive,
+            });
+            (wait, release)
+        }
+
+        fn checkpoint(
+            &self,
+            operation: MutationOperation,
+            key: &str,
+        ) -> Result<(), TokenStoreError> {
+            if key != keys::STORE_USER_SESSION {
+                return Ok(());
+            }
+            let checkpoint = {
+                let mut pending = self.pending.lock().unwrap();
+                if pending
+                    .as_ref()
+                    .is_some_and(|pause| pause.operation == operation)
+                {
+                    pending.take()
+                } else {
+                    None
+                }
+            };
+            if let Some(checkpoint) = checkpoint {
+                checkpoint
+                    .ready
+                    .send(())
+                    .map_err(|_| std::io::Error::other("Synthetic mutation peer closed"))?;
+                checkpoint
+                    .release
+                    .recv_timeout(std::time::Duration::from_secs(2))
+                    .map_err(|_| {
+                        std::io::Error::other("Synthetic mutation peer did not release")
+                    })?;
+            }
+            Ok(())
+        }
+    }
+
+    impl TokenBackend for PausedBackend {
+        fn get(&self, key: &str) -> Result<Option<Vec<u8>>, TokenStoreError> {
+            self.memory.get(key)
+        }
+
+        fn set(&self, key: &str, value: &[u8]) -> Result<(), TokenStoreError> {
+            self.checkpoint(MutationOperation::Set, key)?;
+            if self.fail_set.load(Ordering::SeqCst) {
+                return Err(std::io::Error::other("Synthetic credential write failed").into());
+            }
+            self.memory.set(key, value)
+        }
+
+        fn remove(&self, key: &str) -> Result<(), TokenStoreError> {
+            self.checkpoint(MutationOperation::Remove, key)?;
+            self.memory.remove(key)
+        }
+    }
+
+    #[test]
+    fn management_snapshot_refuses_commit_until_blocked_backend_write_finishes() {
+        let backend = Arc::new(PausedBackend::default());
+        let manager = TokenManager::with_management_backend(backend.clone());
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let (_, stamp) = manager.management_store_snapshot().unwrap();
+        let (ready, release) = backend.pause(MutationOperation::Set);
+        let writer = manager.clone();
+        let work = std::thread::spawn(move || {
+            writer.save_management_store_session(fixture_store_session())
+        });
+        ready
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .unwrap();
+        assert!(
+            backend
+                .memory
+                .get(keys::STORE_USER_SESSION)
+                .unwrap()
+                .is_some()
+        );
+        assert!(matches!(
+            manager.management_store_snapshot(),
+            Err(TokenStoreError::InvalidCredential)
+        ));
+        assert!(manager.verify_management_profile(&stamp).is_err());
+        release.send(()).unwrap();
+        work.join().unwrap().unwrap();
+        let (_, current) = manager.management_store_snapshot().unwrap();
+        manager.verify_management_profile(&current).unwrap();
+        assert!(manager.verify_management_profile(&stamp).is_err());
+    }
+
+    #[test]
+    fn management_snapshot_refuses_logout_until_blocked_backend_delete_finishes() {
+        let backend = Arc::new(PausedBackend::default());
+        let manager = TokenManager::with_management_backend(backend.clone());
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let (_, stamp) = manager.management_store_snapshot().unwrap();
+        let (ready, release) = backend.pause(MutationOperation::Remove);
+        let writer = manager.clone();
+        let work = std::thread::spawn(move || writer.remove_user_credentials());
+        ready
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .unwrap();
+        assert!(
+            backend
+                .memory
+                .get(keys::STORE_USER_SESSION)
+                .unwrap()
+                .is_some()
+        );
+        assert!(matches!(
+            manager.management_store_snapshot(),
+            Err(TokenStoreError::InvalidCredential)
+        ));
+        assert!(manager.verify_management_profile(&stamp).is_err());
+        release.send(()).unwrap();
+        work.join().unwrap().unwrap();
+        assert!(matches!(
+            manager.management_store_snapshot(),
+            Err(TokenStoreError::NotFound)
+        ));
+        assert!(manager.get_device_sts_token().is_ok());
+    }
+
+    #[test]
+    fn management_snapshot_stays_fenced_until_every_overlapping_write_finishes() {
+        let backend = Arc::new(PausedBackend::default());
+        let manager = TokenManager::with_management_backend(backend.clone());
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let (ready, release) = backend.pause(MutationOperation::Set);
+        let writer = manager.clone();
+        let work = std::thread::spawn(move || {
+            writer.save_management_store_session(fixture_store_session())
+        });
+        ready
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .unwrap();
+        let mut replacement = fixture_store_session();
+        replacement.user.username = "different-fixture".to_owned();
+        manager
+            .clone()
+            .save_management_store_session(replacement)
+            .unwrap();
+        assert!(matches!(
+            manager.management_store_snapshot(),
+            Err(TokenStoreError::InvalidCredential)
+        ));
+        release.send(()).unwrap();
+        work.join().unwrap().unwrap();
+        let (current, stamp) = manager.management_store_snapshot().unwrap();
+        assert_eq!(current.user.username, "fixture");
+        manager.verify_management_profile(&stamp).unwrap();
+    }
+
+    #[test]
+    fn management_snapshot_write_failure_releases_fence_but_invalidates_previous_stamp() {
+        let backend = Arc::new(PausedBackend::default());
+        let manager = TokenManager::with_management_backend(backend.clone());
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let (_, stamp) = manager.management_store_snapshot().unwrap();
+        backend.fail_set.store(true, Ordering::SeqCst);
+        assert!(
+            manager
+                .save_management_store_session(fixture_store_session())
+                .is_err()
+        );
+        assert!(manager.verify_management_profile(&stamp).is_err());
+        let (_, current) = manager.management_store_snapshot().unwrap();
+        manager.verify_management_profile(&current).unwrap();
+    }
+
+    #[test]
+    fn management_snapshot_unwind_releases_fence_without_reviving_previous_stamp() {
+        let manager = TokenManager::with_management_backend(Arc::new(MemoryBackend::default()));
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let (_, stamp) = manager.management_store_snapshot().unwrap();
+        let writer = manager.clone();
+        let work = std::thread::spawn(move || {
+            let _mutation = writer.begin_management_mutation();
+            panic!("Synthetic mutation unwind");
+        });
+        assert!(work.join().is_err());
+        assert!(manager.verify_management_profile(&stamp).is_err());
+        let (_, current) = manager.management_store_snapshot().unwrap();
+        manager.verify_management_profile(&current).unwrap();
     }
 
     #[test]

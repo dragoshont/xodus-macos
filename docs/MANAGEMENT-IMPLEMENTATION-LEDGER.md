@@ -128,6 +128,45 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
+### Pending credential mutation fence
+
+The initial shared epoch rejected stamps created before a mutation, but a fresh
+snapshot could start after the epoch increment while a blocking backend write/
+delete still retained the previous valid bundle. It could then capture that
+new epoch and verify the old bundle before the mutation finished. Management
+clones now share an active-mutation counter in addition to the epoch. A RAII
+guard surrounds management Store commits, logout/removal and user-token
+replacement, invalidates the epoch on entry/exit, and keeps fresh snapshots and
+verification refused until every nested/overlapping mutation completes.
+Failure/unwind releases the counter without reviving any previous stamp.
+No blocking lock is held across credential IO; ordinary CLI mutation/cache
+behavior is unchanged.
+
+Five additional native regressions pause the actual synthetic backend write/
+delete while the old Store bundle still exists, check snapshot/stamp refusal,
+then release and verify the resulting state. Cases cover commit, logout with
+device retention, an overlapping writer completing while another remains
+paused, backend failure, and an owned thread unwind. Channels are bounded and
+cannot leave a failed test waiting indefinitely on a blocking worker.
+**172 scoped native Rust checks** pass: 50 core management, 25 CLI,
+70 management and 27 service. Core/management/service-library strict clippy,
+native builds, unchanged contract corpus and actual anonymous management/
+malformed-before-credential private broker process smokes pass.
+
+Additive immutable unsigned artifacts:
+
+- `artifacts/xodus-cli-active-mutation-v1-0288a6e55e55ba48`, SHA256
+  `0288a6e55e55ba48553b4c05081e497aeee6dbe08bdf5c13b0d0d482b2b1e431`.
+- `artifacts/xodus-service-active-mutation-v1-806543487763031b`, SHA256
+  `806543487763031bf15c022ae5475dbe9f53c4dd30940c0bfbfe9c604885f23e`.
+
+This protects clones sharing one manager, not independently constructed
+managers or other processes, and cannot undo an already-sent RPC. External
+profile contents still require the full-bundle recheck. No protocol/capability,
+GUI da548/C95, actual account/authorization, immutable-manifest/lifecycle or
+runtime release gate changes. It is an independent correction after d8d610a,
+requiring the same retained review rather than inheriting b16/77/d8 approval.
+
 ### Explicit CLI transfer failures and staged byte-count commit
 
 The package helper now validates declared transfer-file metadata before the CLI

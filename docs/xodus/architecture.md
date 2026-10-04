@@ -151,9 +151,12 @@ filesystem discovery or GUI. The backend boundary is published separately at
 `9ef0f298481fb48840734b538e0f6d22e1c98ff3`, tree
 `8b2f7abb54f91e347afe013eee18c93873b111a5`, atop the unchanged authentication
 source pin. Native selection and plan consumption are implemented separately
-at consumer `7477d4794d79968c5e9dbd96d245b0fa6d9be2c2`, tree
-`4c7018f9794daa13363e4e1eba160a352b8a5aae`, but final consumer review closure
-is withheld for the Quit-cleanup defect below.
+at final consumer `43d0d190517a545f856b123749bdec10a885ced1`, tree
+`af09fa41333f50f06188094684e03e6fb4b34d6e`. The retained review grants scoped
+runtime-consumer source closure from authentication-corrected consumer
+`6196399e7390eca854a5c50a1a4356287041c565` through this final pin against the
+frozen planning producer. This closes the installation-copy and Quit-cleanup
+findings, not runtime execution or deployment.
 
 The parent reviewed the seven-file planning delta, including startup before
 account/log initialization, explicit stdin EOF, the 16,384-byte input limit,
@@ -196,17 +199,52 @@ The parent's bounded raw-byte check found 39 of 56 inputs differed from Git:
 38 Swift/package files with CRLF and one artwork-provenance JSON file.
 Binary artwork remains binary, not subject to text newline normalization.
 That stage is retained as local intermediate evidence, not literal Git-byte
-qualification. The owner subsequently reports a new isolated canonical-Git
-stage and a fresh 658-check run for `7477d4`; neither run closes the remaining
-source defect or qualifies a future correction.
+qualification. The owner subsequently built a new isolated canonical-Git
+stage and reran 658 checks for `7477d4`. The parent independently verified all
+56 raw compiler inputs against that immutable Git pin, stable before/after,
+without normalization. This qualifies the historical stage, not the later
+Quit correction.
 
-The retained review found that ordinary Quit awaits management disconnect but
-does not cancel and await the independently owned planning task. Without a
-management connection, the app can exit while planning, losing its child
-deadline and cleanup. A shared bounded planning shutdown fence, integrated
-with normal application termination and tested with an owned neutral child
-that ignores SIGTERM, is being added. Consumer source closure requires a new
-immutable correction, exact-source qualification and scoped re-review.
+The retained review found that ordinary Quit awaited management disconnect but
+could leave an independently owned planning task running. Final correction
+`43d0d1` adds the shared `ApplicationTerminationCoordinator` to the normal
+`PreviewDelegate` termination path, with owners attached in both main and
+Settings scenes. Shutdown fences planning edits/spawns and new management
+connects, cancels and joins the actual planning task through owned-child cleanup
+and reap, reconciles retained planning-client ownership, and concurrently awaits
+management disconnect. Quit succeeds only after both closures succeed. Failure
+refuses termination, surfaces the error and restores interactions after both
+attempts finish, preserving ownership for reconciliation and retry.
+
+The new checks use that same coordinator with actual neutral children,
+including zero-management Quit with a SIGTERM-ignoring planner,
+concurrent/repeated shutdown, cancellation, unavailable planning and retained
+management-child refusal/retry. Retained review turn 16 closes the Quit finding
+with high confidence and finds no significant tightly coupled regression.
+Authentication, host binding, native header and public C95 policies are unchanged.
+
+The final isolated native stage was assembled from immutable Git, not a
+Windows working-tree tar. The parent independently verified all 58 raw
+`Package.swift`/`Sources`/`Tests` inputs against final `43d0d1`, with stable
+owned regular files, no text normalization and unchanged binary resources.
+The owner reports SDK 27, Swift 6.4, arm64 Release and 668 passing checks.
+The parent separately verified the stable Release artifacts without executing
+them: launcher SHA-256
+`5505dd7e6cab234198eee16a1e612859c23a05b5ed01bb2c94c5a799ffcb7186`
+(4,543,040 bytes) and host
+`063d0fe5aafc34c71e71110e22ff8180f8be0f38fb60affaa7fbe3c505021b6d`
+(537,408 bytes), both owned regular files with mode `0755`.
+
+The parent also independently verified final `43d0d1` normal push
+[hosted run 37212933441](https://github.com/dragoshont/xodus-macos-app/actions/runs/37212933441):
+Xcode 27.0 build `27A266a`, SDK 27.0 and macOS 27.0 passed 15 core,
+352 management, 60 preview, 154 native-session and 87 private-host checks,
+668 total with zero failures, plus SVG reproducibility. This is fresh
+exact-correction evidence, not inherited `7477d4` qualification. Native-session
+children are neutral mocks and private-host WebKit is detached and synthetic.
+No live provider, runtime, game, authentication, visual-conformance or
+deployment approval is implied; the deployed pair and desktop holds remain
+unchanged.
 
 Each engine/backend generation needs an isolated prefix. Existing bottles and
 saves must not be reused, migrated or deleted silently when a selection changes.
@@ -220,7 +258,7 @@ assessment unknown and reports `launchable=false`; it is not execution support.
 CrossOver remains user-installed and licensed; its binaries must not be copied
 or its licensing bypassed. Supporting Apple Toolkit 3 and 4 does not establish
 a blanket commercial redistribution license. This provider follow-up is
-source-only and separate from the in-flight native authentication source
+source-only and separate from the reviewed native authentication source
 freeze; no private runtime inspection, live game probe or app GUI action is
 authorized by this product requirement.
 

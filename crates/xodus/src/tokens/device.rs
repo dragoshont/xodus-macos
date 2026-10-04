@@ -2,7 +2,10 @@ use crate::hardware;
 use crate::licensing::splicense::SPLicense;
 use crate::licensing::utils::{generate_string, parse_bcrypt_rsa_private};
 use crate::models::devicecredential::{Authentication, ClientInfo, DeviceAddRequest, DeviceInfo};
-use crate::models::secrets::{Device, Token, device_token_structurally_valid, legacy_token_valid};
+use crate::models::secrets::{
+    Device, DeviceTokenStructureFailure, Token, device_token_structurally_valid,
+    device_token_structure_failure, legacy_token_valid,
+};
 use crate::models::soap::BodyContent;
 use crate::tokens::manager::{PASSPORT_STS, TokenManager};
 use crate::tokens::store::TokenStoreError;
@@ -27,6 +30,10 @@ pub enum DeviceProofFailure {
     TokenResponse,
     TokenProof,
     TokenStructure,
+    TokenKind,
+    TokenAudience,
+    TokenCipher,
+    TokenSecret,
 }
 
 fn storage_error(error: TokenStoreError) -> DeviceCredentialError {
@@ -149,10 +156,18 @@ fn save_device_response(
     })?;
     let token = Token::from_response_checked(response)
         .map_err(|_| DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenProof))?;
-    if !matches!(&token, Token::Legacy(token) if device_token_structurally_valid(token)) {
-        return Err(DeviceCredentialError::InvalidBrokerProofAt(
-            DeviceProofFailure::TokenStructure,
-        ));
+    let failure = match &token {
+        Token::Legacy(token) => {
+            device_token_structure_failure(token).map(|failure| match failure {
+                DeviceTokenStructureFailure::Audience => DeviceProofFailure::TokenAudience,
+                DeviceTokenStructureFailure::Cipher => DeviceProofFailure::TokenCipher,
+                DeviceTokenStructureFailure::Secret => DeviceProofFailure::TokenSecret,
+            })
+        }
+        Token::Compact(_) => Some(DeviceProofFailure::TokenKind),
+    };
+    if let Some(failure) = failure {
+        return Err(DeviceCredentialError::InvalidBrokerProofAt(failure));
     }
     tokens
         .save_device_token(PASSPORT_STS.to_owned(), token)
@@ -196,7 +211,13 @@ mod management_device_tests {
     }
 
     fn decode_response(collection: bool) -> BodyContent {
-        let response = response();
+        decode_fixture_response(collection, response())
+    }
+
+    fn decode_fixture_response(
+        collection: bool,
+        response: soap::RequestSecurityTokenResponse,
+    ) -> BodyContent {
         let encrypted = quick_xml::se::to_string(
             response
                 .requested_security_token
@@ -223,6 +244,58 @@ mod management_device_tests {
             .unwrap()
             .body
             .body
+    }
+
+    fn xml_base64_whitespace(value: &str) -> String {
+        value
+            .as_bytes()
+            .chunks(4)
+            .map(|chunk| std::str::from_utf8(chunk).unwrap())
+            .collect::<Vec<_>>()
+            .join(" \t\r\n")
+    }
+
+    #[test]
+    fn management_xml_base64_device_proof_preserves_xml_and_memory_admission() {
+        for collection in [false, true] {
+            for (wrap_cipher, wrap_secret) in
+                [(false, false), (true, false), (false, true), (true, true)]
+            {
+                let mut response = response();
+                let cipher = &mut response
+                    .requested_security_token
+                    .encrypted_data
+                    .as_mut()
+                    .unwrap()
+                    .cipher_data
+                    .cipher_value;
+                if wrap_cipher {
+                    *cipher = xml_base64_whitespace(cipher);
+                }
+                let secret = &mut response
+                    .requested_proof_token
+                    .as_mut()
+                    .unwrap()
+                    .binary_secret;
+                if wrap_secret {
+                    *secret = xml_base64_whitespace(secret);
+                }
+                let memory = Arc::new(MemoryBackend::default());
+                let tokens = TokenManager::with_management_backend(memory.clone());
+                save_device_response(&tokens, decode_fixture_response(collection, response))
+                    .unwrap();
+                let Token::Legacy(token) = tokens.get_device_sts_token().unwrap() else {
+                    panic!("Expected only a synthetic legacy device proof");
+                };
+                assert!(device_token_structurally_valid(&token));
+                let encrypted: soap::EncryptedData = quick_xml::de::from_str(&token.token).unwrap();
+                assert_eq!(
+                    encrypted.cipher_data.cipher_value.contains('\t'),
+                    wrap_cipher
+                );
+                assert_eq!(token.binary_secret.unwrap().contains('\t'), wrap_secret);
+            }
+        }
     }
 
     #[test]
@@ -364,6 +437,52 @@ mod management_device_tests {
             .cipher_value
             .clear();
         malformed.push(token);
+        for encoded in [
+            "",
+            " \t\r\n",
+            "AA==!",
+            "AB==",
+            "AA===",
+            "AA-_",
+            "AA\u{00a0}==",
+            "AA\u{000b}==",
+            "AA\u{000c}==",
+        ] {
+            let mut token = response();
+            token.requested_proof_token.as_mut().unwrap().binary_secret = encoded.to_owned();
+            malformed.push(token);
+            let mut token = response();
+            token
+                .requested_security_token
+                .encrypted_data
+                .as_mut()
+                .unwrap()
+                .cipher_data
+                .cipher_value = encoded.to_owned();
+            malformed.push(token);
+        }
+        for secret in [
+            BASE64_STANDARD.encode([4; 4095]),
+            BASE64_STANDARD.encode([0; 4096]),
+        ] {
+            let mut token = response();
+            token.requested_proof_token.as_mut().unwrap().binary_secret =
+                xml_base64_whitespace(&secret);
+            malformed.push(token);
+        }
+        let mut token = response();
+        token.requested_proof_token.as_mut().unwrap().binary_secret =
+            " ".repeat(soap::MAX_XML_RESPONSE_BYTES + 1);
+        malformed.push(token);
+        let mut token = response();
+        token
+            .requested_security_token
+            .encrypted_data
+            .as_mut()
+            .unwrap()
+            .cipher_data
+            .cipher_value = format!("{}AA==", " ".repeat(64 * 1024));
+        malformed.push(token);
         for response in malformed {
             for body in [
                 BodyContent::RequestSecurityTokenResponse(Box::new(response.clone())),
@@ -376,7 +495,11 @@ mod management_device_tests {
                 assert!(matches!(
                     save_device_response(&tokens, body),
                     Err(DeviceCredentialError::InvalidBrokerProofAt(
-                        DeviceProofFailure::TokenProof | DeviceProofFailure::TokenStructure
+                        DeviceProofFailure::TokenProof
+                            | DeviceProofFailure::TokenKind
+                            | DeviceProofFailure::TokenAudience
+                            | DeviceProofFailure::TokenCipher
+                            | DeviceProofFailure::TokenSecret
                     ))
                 ));
                 assert_eq!(memory.get("device-tokens").unwrap().unwrap(), original);
@@ -421,7 +544,50 @@ mod management_device_tests {
                     response.requested_proof_token = None;
                     response
                 },
-                DeviceProofFailure::TokenStructure,
+                DeviceProofFailure::TokenSecret,
+            ),
+            (
+                {
+                    let mut response = response();
+                    response.token_type = "urn:passport:compact".to_owned();
+                    response.requested_security_token.encrypted_data = None;
+                    response.requested_security_token.binary_security_token =
+                        Some(soap::BinarySecurityTokenRes {
+                            id: "synthetic-only".to_owned(),
+                            value: "synthetic-not-a-device-ticket".to_owned(),
+                            value_type: None,
+                        });
+                    response
+                },
+                DeviceProofFailure::TokenKind,
+            ),
+            (
+                {
+                    let mut response = response();
+                    response
+                        .requested_security_token
+                        .encrypted_data
+                        .as_mut()
+                        .unwrap()
+                        .key_info
+                        .key_name = Some("SECRET_SENTINEL_CONTEXT".to_owned());
+                    response
+                },
+                DeviceProofFailure::TokenAudience,
+            ),
+            (
+                {
+                    let mut response = response();
+                    response
+                        .requested_security_token
+                        .encrypted_data
+                        .as_mut()
+                        .unwrap()
+                        .cipher_data
+                        .cipher_value = "SECRET_SENTINEL_BAD_CIPHER!".to_owned();
+                    response
+                },
+                DeviceProofFailure::TokenCipher,
             ),
         ] {
             let memory = Arc::new(MemoryBackend::default());
@@ -440,6 +606,7 @@ mod management_device_tests {
                 "Microsoft device response did not contain complete valid credential proof"
             );
             assert!(!format!("{error:?}").contains("synthetic-not-a-device-ticket"));
+            assert!(!format!("{error:?}").contains("SECRET_SENTINEL"));
             assert!(memory.get("device-tokens").unwrap().is_none());
         }
     }

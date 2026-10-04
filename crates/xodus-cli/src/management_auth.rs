@@ -22,6 +22,10 @@ fn device_failure(error: xodus::tokens::device::DeviceCredentialError) -> Sessio
             DeviceProofFailure::TokenResponse => ConsentFailure::DeviceTokenResponse,
             DeviceProofFailure::TokenProof => ConsentFailure::DeviceTokenProof,
             DeviceProofFailure::TokenStructure => ConsentFailure::DeviceTokenStructure,
+            DeviceProofFailure::TokenKind => ConsentFailure::DeviceTokenKind,
+            DeviceProofFailure::TokenAudience => ConsentFailure::DeviceTokenAudience,
+            DeviceProofFailure::TokenCipher => ConsentFailure::DeviceTokenCipher,
+            DeviceProofFailure::TokenSecret => ConsentFailure::DeviceTokenSecret,
         },
     })
 }
@@ -271,6 +275,22 @@ mod tests {
             (
                 DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenStructure),
                 ConsentFailure::DeviceTokenStructure,
+            ),
+            (
+                DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenKind),
+                ConsentFailure::DeviceTokenKind,
+            ),
+            (
+                DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenAudience),
+                ConsentFailure::DeviceTokenAudience,
+            ),
+            (
+                DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenCipher),
+                ConsentFailure::DeviceTokenCipher,
+            ),
+            (
+                DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenSecret),
+                ConsentFailure::DeviceTokenSecret,
             ),
         ] {
             let (handoff, code) = failure_handoff(device_failure(error));

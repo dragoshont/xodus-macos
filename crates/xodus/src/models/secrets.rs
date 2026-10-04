@@ -46,27 +46,54 @@ impl ManagementStoreSession {
 }
 
 pub fn device_token_structurally_valid(token: &LegacyToken) -> bool {
-    use base64::Engine;
-    legacy_token_structurally_valid(token)
-        && token.key_name.as_deref() == Some(crate::tokens::PASSPORT_STS)
-        && token.binary_secret.as_ref().is_some_and(|secret| {
-            base64::prelude::BASE64_STANDARD
-                .decode(secret)
-                .is_ok_and(|bytes| bytes.len() == 4096 && bytes[..4] == 4u32.to_le_bytes())
-        })
+    device_token_structure_failure(token).is_none()
 }
 
 pub fn legacy_token_structurally_valid(token: &LegacyToken) -> bool {
-    use base64::Engine;
-    token.token.len() <= 64 * 1024
-        && quick_xml::de::from_str::<soap::EncryptedData>(&token.token).is_ok_and(|encrypted| {
-            encrypted.key_info.key_name.as_deref() == Some(crate::tokens::PASSPORT_STS)
-                && token.key_name.as_deref() == Some(crate::tokens::PASSPORT_STS)
-                && base64::prelude::BASE64_STANDARD
-                    .decode(&encrypted.cipher_data.cipher_value)
-                    .is_ok_and(|cipher| !cipher.is_empty())
-        })
-        && chrono::DateTime::parse_from_rfc3339(&token.lifetime.expires).is_ok()
+    legacy_token_structure_failure(token).is_none()
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DeviceTokenStructureFailure {
+    Audience,
+    Cipher,
+    Secret,
+}
+
+fn legacy_token_structure_failure(token: &LegacyToken) -> Option<DeviceTokenStructureFailure> {
+    if token.token.len() > 64 * 1024 {
+        return Some(DeviceTokenStructureFailure::Cipher);
+    }
+    let Ok(encrypted) = quick_xml::de::from_str::<soap::EncryptedData>(&token.token) else {
+        return Some(DeviceTokenStructureFailure::Cipher);
+    };
+    if encrypted.key_info.key_name.as_deref() != Some(crate::tokens::PASSPORT_STS)
+        || token.key_name.as_deref() != Some(crate::tokens::PASSPORT_STS)
+    {
+        return Some(DeviceTokenStructureFailure::Audience);
+    }
+    if !soap::decode_xml_base64(&encrypted.cipher_data.cipher_value)
+        .is_ok_and(|cipher| !cipher.is_empty())
+        || chrono::DateTime::parse_from_rfc3339(&token.lifetime.expires).is_err()
+    {
+        return Some(DeviceTokenStructureFailure::Cipher);
+    }
+    None
+}
+
+pub(crate) fn device_token_structure_failure(
+    token: &LegacyToken,
+) -> Option<DeviceTokenStructureFailure> {
+    legacy_token_structure_failure(token).or_else(|| {
+        if token.binary_secret.as_ref().is_some_and(|secret| {
+            soap::decode_xml_base64(secret)
+                .is_ok_and(|bytes| bytes.len() == 4096 && bytes[..4] == 4u32.to_le_bytes())
+        }) {
+            None
+        } else {
+            Some(DeviceTokenStructureFailure::Secret)
+        }
+    })
 }
 
 pub fn legacy_token_valid(token: &LegacyToken) -> bool {

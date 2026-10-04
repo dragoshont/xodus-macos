@@ -3,7 +3,6 @@ use std::collections::HashMap;
 
 use aes::cipher::block_padding::Pkcs7;
 use aes::cipher::{BlockModeDecrypt, KeyIvInit};
-use base64::prelude::*;
 use hmac::{Hmac, KeyInit, Mac};
 use rsa::rand_core::{OsRng, RngCore};
 use sha2::Sha256;
@@ -258,9 +257,11 @@ pub fn decrypt_soap_encrypted_data<T: serde::de::DeserializeOwned>(
         .filter(|id| !id.is_empty())
         .ok_or(rst::RSTError::MissingNonce)?;
     let nonce = nonces.get(id).ok_or(rst::RSTError::MissingNonce)?;
-    let nonce = BASE64_STANDARD.decode(nonce)?;
+    let nonce =
+        soap::decode_xml_base64(nonce).map_err(|_| rst::RSTError::InvalidEncryptedPayload)?;
     let key = signature.hmac_key(&nonce).ok_or(rst::RSTError::HmacKey)?;
-    let cipher_value = BASE64_STANDARD.decode(encrypted_data.cipher_data.cipher_value)?;
+    let cipher_value = soap::decode_xml_base64(&encrypted_data.cipher_data.cipher_value)
+        .map_err(|_| rst::RSTError::InvalidEncryptedPayload)?;
 
     let plaintext = decrypt_cipher_value(&cipher_value, &key)?;
     let result = std::str::from_utf8(&plaintext)?;

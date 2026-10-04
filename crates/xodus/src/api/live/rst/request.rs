@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use base64::prelude::*;
-
 use crate::api::live::utils;
 use crate::models::soap;
 
@@ -13,7 +11,7 @@ pub struct RSTRequest<'a> {
 pub(crate) async fn bounded_response_text(
     mut response: reqwest::Response,
 ) -> Result<String, super::RSTError> {
-    const MAX: usize = 1024 * 1024;
+    const MAX: usize = soap::MAX_XML_RESPONSE_BYTES;
     let mut bytes = Vec::new();
     while let Some(chunk) = response.chunk().await? {
         if chunk.len() > MAX - bytes.len() {
@@ -83,7 +81,8 @@ fn verify_and_decrypt_envelope<'a>(
             .filter(|id| !id.is_empty())
             .ok_or(super::RSTError::MissingNonce)?;
         let nonce = nonces.get(id).ok_or(super::RSTError::MissingNonce)?;
-        let nonce = BASE64_STANDARD.decode(nonce)?;
+        let nonce =
+            soap::decode_xml_base64(nonce).map_err(|_| super::RSTError::InvalidEncryptedPayload)?;
         let key = signature.signing_key(&nonce)?;
         let mut kmgr = bergshamra::KeysManager::new();
         kmgr.add_key(bergshamra::Key::new(key, bergshamra::KeyUsage::Verify));
@@ -121,6 +120,7 @@ fn verify_and_decrypt_envelope<'a>(
 mod management_tests {
     use super::*;
     use aes::cipher::{BlockModeEncrypt, KeyIvInit, block_padding::Pkcs7};
+    use base64::prelude::*;
 
     fn signature() -> super::super::RSTSignature<'static> {
         super::super::RSTSignature::Hmac {
@@ -159,8 +159,12 @@ mod management_tests {
     }
 
     fn response_xml(keys: &[(&str, &[u8])]) -> String {
-        let nonce = [7; 32];
         let payload = b"<RequestSecurityTokenResponse><TokenType>urn:passport:compact</TokenType><AppliesTo><EndpointReference><Address>synthetic.invalid</Address></EndpointReference></AppliesTo><Lifetime><Created>2000-01-01T00:00:00Z</Created><Expires>2099-01-01T00:00:00Z</Expires></Lifetime><RequestedSecurityToken><BinarySecurityToken Id=\"synthetic-ticket\">fixture-not-a-ticket</BinarySecurityToken></RequestedSecurityToken></RequestSecurityTokenResponse>";
+        response_xml_with_payload(keys, payload)
+    }
+
+    fn response_xml_with_payload(keys: &[(&str, &[u8])], payload: &[u8]) -> String {
+        let nonce = [7; 32];
         let body = quick_xml::se::to_string(&encrypted("UniqueFixture", &nonce, payload)).unwrap();
         let pp = quick_xml::se::to_string(&encrypted(
             "UniqueFixture",
@@ -182,6 +186,67 @@ mod management_tests {
         verify_and_decrypt_envelope(Some(signature()), xml.to_owned(), envelope)
     }
 
+    fn wrap_xml_base64(value: &str) -> String {
+        value
+            .as_bytes()
+            .chunks(4)
+            .map(|chunk| std::str::from_utf8(chunk).unwrap())
+            .collect::<Vec<_>>()
+            .join(" \t\r\n")
+    }
+
+    fn wrapped_envelope(xml: &str) -> String {
+        let envelope: soap::Envelope = quick_xml::de::from_str(xml).unwrap();
+        let soap::BodyContent::EncryptedData(body) = envelope.body.body else {
+            panic!("Expected only a synthetic encrypted body");
+        };
+        let mut wrapped = xml.to_owned();
+        for value in [
+            envelope.header.security.derived_key_tokens[0]
+                .nonce
+                .as_str(),
+            envelope
+                .header
+                .encrypted_pp
+                .as_ref()
+                .unwrap()
+                .encrypted_data
+                .cipher_data
+                .cipher_value
+                .as_str(),
+            body.cipher_data.cipher_value.as_str(),
+        ] {
+            wrapped = wrapped.replace(value, &wrap_xml_base64(value));
+        }
+        wrapped
+    }
+
+    fn signed_fixture_envelope(xml: String) -> String {
+        let xml = xml
+            .replacen(
+                "<Envelope>",
+                "<Envelope xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\" xmlns:wsse=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\">",
+                1,
+            )
+            .replacen("Id=\"synthetic-ciphertext\"", "Id=\"SignedPP\"", 1)
+            .replacen("Id=\"synthetic-ciphertext\"", "Id=\"SignedBody\"", 1);
+        let mut signature_node = soap::Signature::empty_hmac();
+        signature_node.signed_info.reference = vec![
+            soap::SignatureReference::exclusive("#SignedPP"),
+            soap::SignatureReference::exclusive("#SignedBody"),
+        ];
+        signature_node
+            .key_info
+            .as_mut()
+            .unwrap()
+            .security_token_reference
+            .reference
+            .uri = "#UniqueFixture".to_owned();
+        let signature_xml = quick_xml::se::to_string(&signature_node).unwrap();
+        let xml = xml.replace("</Security>", &format!("{signature_xml}</Security>"));
+        utils::sign_xml(Some(&signature()), &[7; 32], xml).unwrap()
+    }
+
     fn assert_static_rejection(xml: &str) {
         let error = parse_and_decrypt(xml).unwrap_err();
         assert!(matches!(
@@ -193,6 +258,105 @@ mod management_tests {
             "Response contains an invalid encrypted payload"
         );
         assert_eq!(format!("{error:?}"), "InvalidEncryptedPayload");
+    }
+
+    #[test]
+    fn management_xml_base64_device_proof_after_real_envelope_decryption() {
+        use crate::models::secrets::{Token, device_token_structurally_valid};
+
+        let mut secret = [0; 4096];
+        secret[..4].copy_from_slice(&4u32.to_le_bytes());
+        let encoded_secret = BASE64_STANDARD.encode(secret);
+        let encoded_cipher = BASE64_STANDARD.encode(b"synthetic-not-a-provider-ticket");
+        for (wrap_cipher, wrap_secret) in
+            [(false, false), (true, false), (false, true), (true, true)]
+        {
+            let cipher = if wrap_cipher {
+                wrap_xml_base64(&encoded_cipher)
+            } else {
+                encoded_cipher.clone()
+            };
+            let secret = if wrap_secret {
+                wrap_xml_base64(&encoded_secret)
+            } else {
+                encoded_secret.clone()
+            };
+            let encrypted_ticket =
+                quick_xml::se::to_string(&soap::EncryptedData::devicesoftware(cipher)).unwrap();
+            let payload = format!(
+                "<RequestSecurityTokenResponse><TokenType>urn:passport:legacy</TokenType><AppliesTo><EndpointReference><Address>http://Passport.NET/tb</Address></EndpointReference></AppliesTo><Lifetime><Created>2000-01-01T00:00:00Z</Created><Expires>2099-01-01T00:00:00Z</Expires></Lifetime><RequestedSecurityToken>{encrypted_ticket}</RequestedSecurityToken><RequestedProofToken><BinarySecret>{secret}</BinarySecret></RequestedProofToken></RequestSecurityTokenResponse>"
+            );
+            let xml = signed_fixture_envelope(response_xml_with_payload(
+                &[("UniqueFixture", &[7; 32])],
+                payload.as_bytes(),
+            ));
+            let envelope = parse_and_decrypt(&xml).unwrap();
+            assert!(envelope.header.encrypted_pp.is_none());
+            assert_eq!(
+                envelope.header.pp.unwrap().req_status.as_deref(),
+                Some("fixture-only")
+            );
+            let response = crate::api::live::single_device_response(envelope.body.body).unwrap();
+            let Token::Legacy(token) = Token::from_response_checked(response).unwrap() else {
+                panic!("Expected only a synthetic legacy proof");
+            };
+            assert!(
+                device_token_structurally_valid(&token),
+                "XML base64 lexical whitespace rejected after AES envelope decryption"
+            );
+        }
+    }
+
+    #[test]
+    fn management_xml_base64_signed_envelope_preserves_original_verification_and_decryption() {
+        let original = response_xml(&[("UniqueFixture", &[7; 32])]);
+        for xml in [original.clone(), wrapped_envelope(&original)] {
+            let signed = signed_fixture_envelope(xml);
+            let envelope = parse_and_decrypt(&signed).unwrap();
+            assert!(envelope.header.encrypted_pp.is_none());
+            assert_eq!(
+                envelope.header.pp.unwrap().req_status.as_deref(),
+                Some("fixture-only")
+            );
+            assert!(matches!(
+                envelope.body.body,
+                soap::BodyContent::RequestSecurityTokenResponse(_)
+            ));
+            let parsed: soap::Envelope = quick_xml::de::from_str(&signed).unwrap();
+            let soap::BodyContent::EncryptedData(cipher) = parsed.body.body else {
+                panic!("Expected only a synthetic encrypted body");
+            };
+            let mut altered = cipher.cipher_data.cipher_value.clone();
+            let replacement = if altered.starts_with('A') { "B" } else { "A" };
+            altered.replace_range(..1, replacement);
+            let tampered = signed.replace(&cipher.cipher_data.cipher_value, &altered);
+            assert!(matches!(
+                parse_and_decrypt(&tampered),
+                Err(super::super::RSTError::InvalidResponseSignature(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn management_xml_base64_envelope_rejects_invalid_nonce_and_cipher_lexical_forms() {
+        let xml = response_xml(&[("UniqueFixture", &[7; 32])]);
+        let parsed: soap::Envelope = quick_xml::de::from_str(&xml).unwrap();
+        let soap::BodyContent::EncryptedData(cipher) = parsed.body.body else {
+            panic!("Expected only a synthetic encrypted body");
+        };
+        let nonce = &parsed.header.security.derived_key_tokens[0].nonce;
+        for invalid in [
+            "AB==",
+            "AA===",
+            "AA-_",
+            "AA\u{00a0}==",
+            "AA\u{000b}==",
+            "AA\u{000c}==",
+        ] {
+            for value in [nonce.as_str(), cipher.cipher_data.cipher_value.as_str()] {
+                assert_static_rejection(&xml.replace(value, invalid));
+            }
+        }
     }
 
     #[test]

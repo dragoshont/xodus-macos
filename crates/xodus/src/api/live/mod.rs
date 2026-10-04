@@ -1,7 +1,6 @@
-use base64::prelude::*;
 use zerocopy::transmute;
 
-use crate::licensing::splicense::ClepHmacState;
+use crate::licensing::splicense::{ClepHmacState, HmacBinarySecret};
 use crate::models::devicecredential::{DeviceAddRequest, DeviceAddResponse};
 use crate::models::live::ExchangeUserTokenOutcome;
 use crate::models::secrets::{LegacyToken, Token};
@@ -52,19 +51,7 @@ pub async fn exchange_device_token(
     scope: String,
     policy: Option<soap::PolicyReference>,
 ) -> Result<soap::RequestSecurityTokenResponse, rst::RSTError> {
-    let secret = BASE64_STANDARD.decode(
-        token
-            .binary_secret
-            .as_ref()
-            .ok_or(rst::RSTError::InvalidEncryptedPayload)?,
-    )?;
-    let secret: [u8; 4096] = secret
-        .try_into()
-        .map_err(|_| rst::RSTError::InvalidEncryptedPayload)?;
-    let secret: ClepHmacState = transmute!(secret);
-    let hmac_secret = secret
-        .try_get_hmac_state()
-        .map_err(|_| rst::RSTError::InvalidEncryptedPayload)?;
+    let hmac_secret = device_hmac_secret(&token)?;
 
     let request = rst::RSTRequestBuilder::new()
         .sso_flags("SsoRestr")
@@ -80,6 +67,23 @@ pub async fn exchange_device_token(
     let envelope = request.request(client).await?;
 
     single_device_response(envelope.body.body)
+}
+
+fn device_hmac_secret(token: &LegacyToken) -> Result<HmacBinarySecret, rst::RSTError> {
+    let secret = soap::decode_xml_base64(
+        token
+            .binary_secret
+            .as_ref()
+            .ok_or(rst::RSTError::InvalidEncryptedPayload)?,
+    )
+    .map_err(|_| rst::RSTError::InvalidEncryptedPayload)?;
+    let secret: [u8; 4096] = secret
+        .try_into()
+        .map_err(|_| rst::RSTError::InvalidEncryptedPayload)?;
+    let secret: ClepHmacState = transmute!(secret);
+    secret
+        .try_get_hmac_state()
+        .map_err(|_| rst::RSTError::InvalidEncryptedPayload)
 }
 
 pub(crate) fn single_device_response(
@@ -145,19 +149,7 @@ pub async fn exchange_user_token(
     hosting_app: String,
     scope_policies: &[(String, Option<soap::PolicyReference>)],
 ) -> Result<ExchangeUserTokenOutcome, rst::RSTError> {
-    let secret = BASE64_STANDARD.decode(
-        device_token
-            .binary_secret
-            .as_ref()
-            .ok_or(rst::RSTError::InvalidEncryptedPayload)?,
-    )?;
-    let secret: [u8; 4096] = secret
-        .try_into()
-        .map_err(|_| rst::RSTError::InvalidEncryptedPayload)?;
-    let secret: ClepHmacState = transmute!(secret);
-    let hmac_secret = secret
-        .try_get_hmac_state()
-        .map_err(|_| rst::RSTError::InvalidEncryptedPayload)?;
+    let hmac_secret = device_hmac_secret(&device_token)?;
 
     let mut builder = rst::RSTRequestBuilder::new()
         .username(soap::UsernameToken::user_hint(username))
@@ -197,6 +189,59 @@ mod test {
     use crate::models::soap;
     use crate::tokens::TokenManager;
     use crate::tokens::device::ensure_device_credentials;
+
+    fn synthetic_hmac_token(secret: Option<String>) -> crate::models::secrets::LegacyToken {
+        crate::models::secrets::LegacyToken {
+            key_name: Some(crate::tokens::PASSPORT_STS.to_owned()),
+            token: "synthetic-not-a-ticket".to_owned(),
+            binary_secret: secret,
+            tpm_key: None,
+            lifetime: soap::Timestamp {
+                id: None,
+                created: "2000-01-01T00:00:00Z".to_owned(),
+                expires: "2099-01-01T00:00:00Z".to_owned(),
+            },
+        }
+    }
+
+    #[test]
+    fn management_xml_base64_both_exchange_consumers_share_identical_checked_hmac_secret() {
+        use base64::prelude::*;
+
+        let mut bytes = [0; 4096];
+        bytes[..4].copy_from_slice(&4u32.to_le_bytes());
+        let encoded = BASE64_STANDARD.encode(bytes);
+        let wrapped = encoded
+            .as_bytes()
+            .chunks(4)
+            .map(|chunk| std::str::from_utf8(chunk).unwrap())
+            .collect::<Vec<_>>()
+            .join(" \t\r\n");
+        let original = super::device_hmac_secret(&synthetic_hmac_token(Some(encoded))).unwrap();
+        let normalized = super::device_hmac_secret(&synthetic_hmac_token(Some(wrapped))).unwrap();
+        assert!(*original == *normalized);
+    }
+
+    #[test]
+    fn management_xml_base64_exchange_secret_rejects_missing_invalid_and_unsupported_proof() {
+        use base64::prelude::*;
+
+        for encoded in [
+            None,
+            Some("AA\u{00a0}==".to_owned()),
+            Some("AA\u{000b}==".to_owned()),
+            Some("AA\u{000c}==".to_owned()),
+            Some("AB==".to_owned()),
+            Some(BASE64_STANDARD.encode([4; 4095])),
+            Some(BASE64_STANDARD.encode([0; 4096])),
+            Some(" ".repeat(soap::MAX_XML_RESPONSE_BYTES + 1)),
+        ] {
+            assert!(matches!(
+                super::device_hmac_secret(&synthetic_hmac_token(encoded)),
+                Err(super::rst::RSTError::InvalidEncryptedPayload)
+            ));
+        }
+    }
 
     fn compact_response(
         audience: &str,

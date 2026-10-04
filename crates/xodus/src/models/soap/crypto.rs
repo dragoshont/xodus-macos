@@ -2,6 +2,28 @@ use serde::{Deserialize, Serialize};
 
 use super::base::ReferenceUri;
 
+pub(crate) const MAX_XML_RESPONSE_BYTES: usize = 1024 * 1024;
+
+pub(crate) fn decode_xml_base64(value: &str) -> Result<Vec<u8>, &'static str> {
+    use base64::prelude::*;
+
+    if value.len() > MAX_XML_RESPONSE_BYTES {
+        return Err("XML base64 value exceeds the response bound");
+    }
+    // XML Schema base64Binary permits only SP/TAB/CR/LF in its lexical form.
+    let xml_whitespace = |byte: u8| matches!(byte, b' ' | b'\t' | b'\r' | b'\n');
+    if value.bytes().any(xml_whitespace) {
+        let encoded: Vec<_> = value
+            .bytes()
+            .filter(|byte| !xml_whitespace(*byte))
+            .collect();
+        BASE64_STANDARD.decode(encoded)
+    } else {
+        BASE64_STANDARD.decode(value)
+    }
+    .map_err(|_| "Invalid XML base64 encoding")
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptionMethod {
     #[serde(rename = "@Algorithm")]
@@ -276,6 +298,67 @@ pub struct EncryptedPP {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn management_xml_base64_preserves_bytes_and_canonical_input() {
+        use base64::prelude::*;
+
+        let bytes: Vec<_> = (0..=255).collect();
+        let encoded = BASE64_STANDARD.encode(&bytes);
+        let original = encoded.clone();
+        for whitespace in [" ", "\t", "\r", "\n", " \t\r\n"] {
+            let wrapped = encoded
+                .as_bytes()
+                .chunks(4)
+                .map(|chunk| std::str::from_utf8(chunk).unwrap())
+                .collect::<Vec<_>>()
+                .join(whitespace);
+            assert_eq!(decode_xml_base64(&wrapped).unwrap(), bytes);
+        }
+        assert_eq!(decode_xml_base64(&encoded).unwrap(), bytes);
+        assert_eq!(encoded, original);
+        assert_eq!(decode_xml_base64(" \tA A = = \r\n").unwrap(), [0]);
+        assert!(decode_xml_base64(" \t\r\n").unwrap().is_empty());
+    }
+
+    #[test]
+    fn management_xml_base64_rejects_invalid_alphabet_padding_and_non_xml_whitespace() {
+        for encoded in [
+            "AA",
+            "AA=",
+            "AA===",
+            "AB==",
+            "AAB=",
+            "AA==AAAA",
+            "AA-_",
+            "AA\u{00a0}==",
+            "AA\u{2003}==",
+            "AA\u{000b}==",
+            "AA\u{000c}==",
+            "AA==SECRET_SENTINEL_XML_BASE64",
+        ] {
+            assert_eq!(
+                decode_xml_base64(encoded),
+                Err("Invalid XML base64 encoding")
+            );
+        }
+    }
+
+    #[test]
+    fn management_xml_base64_checks_raw_bound_before_whitespace_normalization() {
+        let at_bound = " ".repeat(MAX_XML_RESPONSE_BYTES);
+        assert!(decode_xml_base64(&at_bound).unwrap().is_empty());
+        let over_bound = format!("{at_bound} ");
+        assert_eq!(
+            decode_xml_base64(&over_bound),
+            Err("XML base64 value exceeds the response bound")
+        );
+        let canonical_at_bound = "A".repeat(MAX_XML_RESPONSE_BYTES);
+        assert_eq!(
+            decode_xml_base64(&canonical_at_bound).unwrap().len(),
+            MAX_XML_RESPONSE_BYTES / 4 * 3
+        );
+    }
 
     #[test]
     fn key_info_wrap_deserializes_ds_key_info_key_name() {

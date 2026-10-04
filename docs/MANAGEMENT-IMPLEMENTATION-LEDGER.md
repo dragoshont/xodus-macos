@@ -141,6 +141,13 @@ combined diagnostic producer `e60481fc918b4cc2cc599a5db2aba17a04738872` versus
 232a and final app consumer 360e versus f680. This separate source-only closure
 does not approve the newer device-response wrapper correction below, which
 requires another immutable handoff to that same continuity reviewer.
+Subsequently, the coordinator reported that the same continuity reviewer
+found no significant issues in `bace09c1be95ff35864b8c8593b974b2aeee934f`
+versus e604 and the app's da0 consumer versus 360e. The owner's fresh-target
+native validation passed 45 selected checks; the earlier ENFILE/metadata
+failures below remain historical failures, not successes. Reviewed CLI 342
+was separately built and sealed after explicit authorization. None of those
+closures or checks approves the newer XML lexical/refinement delta below.
 The backend's SOAP nonce delta remains accepted by review 34. Historical
 parent-owned R17 discussion below describes its then-open state, not a current
 finding. Coordinator
@@ -172,7 +179,87 @@ Historical milestone evidence and then-pending reviews below do not override
 this status; genuinely new source deltas still require an immutable handoff to
 the parent-owned continuity reviewer.
 
-### Agreed static device-proof rejection sites
+### XML base64 lexical compatibility and four structure subsites
+
+The sole app owner reports a later, single user-directed attempt with reviewed
+bace/da0 and a separately signed CLI 342 failed with
+`AUTH_INVALID/devicePreparation/tokenStructureInvalid`, before an observed
+native sign-in window. That identifies the converted-token structural guard,
+not which condition failed. Its live cause, the earlier collection-wrapper
+causality, and the first generic attempt's cause remain unestablished.
+
+Public source contained an independently reproducible XML lexical bug:
+RFC 4648-only decoding rejected valid whitespace in XML `CipherValue` and
+`BinarySecret`. [XML Schema Part 2, section 3.2.16](https://www.w3.org/TR/xmlschema-2/#base64Binary)
+allows exactly XML SP/TAB/CR/LF within `base64Binary`, while preserving the
+standard alphabet, padding and padding-bit restrictions. Two native baseline
+regressions failed on reviewed bace plus test-only additions, exit 101:
+full SOAP parsing into the actual memory-only save route returned
+`InvalidBrokerProofAt(TokenStructure)`; a real synthetic AES-encrypted
+header/body successfully decrypted but the resulting legacy proof failed the
+same predicate. An additional baseline ordering independently exercised
+wrapped `BinarySecret` rather than failing first on wrapped `CipherValue`.
+Canonical counterparts passed. These fixtures are synthetic, not issued
+accounts or successful provider tickets; the live proof was never inspected.
+
+The shared crate-private XML decoder removes only those four characters
+from its local decoding buffer, never the original XML or signature input.
+It checks the original encoded input against the unchanged 1 MiB SOAP
+response ceiling before normalization/allocation. The 64 KiB serialized
+credential bound, 4096-byte/version-four device secret, exact STS keys,
+expiry, signature verification and nonce-ID/reference guards remain enforced.
+Both device/user exchange routes reuse the same checked HMAC-secret parser;
+XML nonce and encrypted-header/body consumers use the same lexical decoder.
+Non-XML base64, digests, signature algorithms, endpoints, client IDs, licensing
+and authorization are unchanged.
+
+The coordinator and sole app owner explicitly agreed **before implementation**
+to four more static `devicePreparation` reasons. All previous fourteen,
+including `tokenStructureInvalid`, remain valid; the current total is eighteen.
+`AUTH_INVALID`, `nativeConsentFailure` and the exact three-string details
+shape remain unchanged; no raw length, version, key, XML, HTTP or identity
+is reported.
+
+| reason | existing structural rejection group |
+|---|---|
+| `tokenKindInvalid` | Checked conversion produced a non-legacy token |
+| `tokenAudienceInvalid` | Copied or parsed STS key name does not match |
+| `tokenCipherInvalid` | Serialized credential exceeds its bound, cannot parse, or has missing/invalid encoded ciphertext |
+| `tokenSecretInvalid` | Secret is missing, invalid XML base64, or not the supported 4096-byte/version-four layout |
+
+The shared legacy predicate retains its existing expiry-syntax guard;
+conversion already checks future expiry before these issuer-side groups.
+Their authored copy does not infer a cryptographic failure or provider rejection.
+The older generic structural enum/pair remains readable for older producers.
+The private-channel matrix and extra-secret-field rejection include all
+eighteen; failure-exit, cancellation, profile and commit fencing are unchanged.
+
+Regression coverage includes unchanged canonical bytes, valid wrapped
+XML/secret admission in both response forms, actual shared HMAC derivation,
+signed encrypted envelopes (including rejection of changed signed ciphertext),
+AES/nonce guards, strict padding/alphabet and NBSP/VT/FF rejection, original
+encoded bounds and preserved memory destinations for malformed proofs.
+This new source requires the same continuity review. It does not authorize an artifact, provider request or
+sign-in retry, and is not evidence of live authentication success.
+
+Owner validation for this delta passed **54 native checks**: seven memory
+device, seven response/nonce/signature, six AES/reference, six shared-response/
+HMAC, three XML lexical/bound, five private-worker and twenty auth-lifecycle
+tests. Core and management strict clippy, CLI clippy with only the two
+pre-existing `collapsible_if`/`too_many_arguments` allowances, native CLI/
+management check, touched Rust formatting and the unchanged C95 corpus passed.
+All 190 public LF files matched the staged source before and after code validation;
+the publication-only documentation status update followed without Rust changes.
+An initial CRLF validation-script transport failure was corrected and its
+accidental owned build directory/empty file removed; it is not a passing run.
+The signed synthetic fixture initially lacked namespace declarations; those
+fixture-construction failures were corrected before its verification,
+tamper-rejection and final 54 checks passed. The contract checker reused the
+existing owned schema environment after the default Python lacked jsonschema.
+No production artifact, service, account endpoint, credential read, native
+window or consent action was used for these checks.
+
+### Earlier agreed static device-proof rejection sites
 
 After the wrapper correction, the coordinator and sole app owner explicitly
 agreed to four additive static pairs **before implementation**. The existing
@@ -188,7 +275,7 @@ all have stage `devicePreparation`:
 | `tokenProofInvalid` | Checked response conversion rejects token content, audience, type or expiry |
 | `tokenStructureInvalid` | The converted token fails legacy/STS/cipher/4096-byte-version-four structure checks |
 
-`DeviceProofFailure` is a four-value static enum. The added
+At that publication, `DeviceProofFailure` was a four-value static enum. The added
 `DeviceCredentialError::InvalidBrokerProofAt` carries only that enum; its
 Display text remains the same generic proof error. The older
 `InvalidBrokerProof` variant and private `ConsentFailure::DeviceResponse`
@@ -211,7 +298,7 @@ checks include an extra secret-marked field on each new variant and a public
 reason incorrectly used as a private enum. Existing cancellation, expiry,
 failed-exit, active-flow, profile and commit regressions are retained.
 
-**Final fourteen-pair native tests have not passed yet.** The shared native host
+**Historical pre-fresh-target blocker (subsequently resolved):** the shared native host
 reported `ENFILE`/errno 23, "Too many open files in system", followed by linker
 SIGBUS; this also blocked a one-job, serial-test retry. A separate native CLI
 check encountered missing cached dependency metadata. These are recorded
@@ -227,7 +314,7 @@ remain pending native-host recovery or an explicitly authorized safe native
 CI path. The wrapper-only **19** passing checks below predate this refinement
 and must not be attributed to the final fourteen-pair source.
 
-This is source-only pending the same continuity reviewer and successful
+At that publication, this was source-only pending the same continuity reviewer and successful
 bounded native validation. No new artifact, engine replacement, provider call
 or sign-in retry is performed or authorized by this publication. Separate
 review closure and explicit artifact authorization remain required.
@@ -345,7 +432,8 @@ The exact optional details shape was explicitly agreed with the sole app owner:
 
 At the original e604 publication, exactly three string keys, the fixed category,
 and one of these ten pairs were agreed with the app's typed consumer. The four
-additive pairs above retain all ten and extend the current allowlist to fourteen:
+first additive pairs above retained all ten and extended the then-current
+allowlist to fourteen; the later structure refinement extends it to eighteen:
 
 | stage | reason |
 |---|---|

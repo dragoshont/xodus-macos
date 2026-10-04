@@ -67,6 +67,13 @@ class ModuleLifetimeChecks(unittest.TestCase):
         self.assertIn("GetModuleHandleW(filename) != module", tail)
         self.assertIn("module was not retained through queue cleanup", tail)
 
+    def test_closed_peer_is_only_a_generic_transport_failure(self):
+        source = (Path(__file__).parent / "windows_async_smoke.cpp").read_text()
+        self.assertIn('std::strcmp(argv[1], "rps-peer-closed")', source)
+        self.assertIn('"rps-peer-closed") ? E_FAIL : E_UNEXPECTED', source)
+        self.assertIn("context.callback.load() == 1", source)
+        self.assertIn("IXUserImpl6_XUserAddResult(user, &block, &handle) == expected && !handle", source)
+
 
 if __name__ == "__main__":
     unittest.main()

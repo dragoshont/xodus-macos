@@ -92,6 +92,7 @@ int main(int argc, char **argv)
                       && std::strcmp(argv[1], "rps-malformed")
                       && std::strcmp(argv[1], "rps-expired")
                       && std::strcmp(argv[1], "rps-missing")
+                      && std::strcmp(argv[1], "rps-peer-closed")
                       && std::strcmp(argv[1], "core-missing")
                       && std::strcmp(argv[1], "core-bad-abi")
                       && std::strcmp(argv[1], "core-missing-export")
@@ -301,7 +302,8 @@ int main(int argc, char **argv)
 #ifdef XODUS_SHIM_CHECK
         XUserHandle handle = nullptr;
         const HRESULT expected = !std::strcmp(argv[1], "rps-missing")
-            ? HRESULT_FROM_WIN32(ERROR_BAD_CONFIGURATION) : E_UNEXPECTED;
+            ? HRESULT_FROM_WIN32(ERROR_BAD_CONFIGURATION)
+            : (!std::strcmp(argv[1], "rps-peer-closed") ? E_FAIL : E_UNEXPECTED);
         if (started_operation && result == expected && context.callback.load() == 1 &&
             IXUserImpl6_XUserAddResult(user, &block, &handle) == expected && !handle)
             exit_code = 0;

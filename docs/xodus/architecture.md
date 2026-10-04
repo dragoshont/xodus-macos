@@ -108,3 +108,13 @@ unconsumed user allocations. This is controlled failure/component evidence, not
 successful account authorization or a production service/runtime pair. Its
 source, licensing, checks and limitations are in that directory's README; the
 approved native app engine and Play gate are unchanged.
+
+A subsequent developer-only integration uses the actual Rust broker library
+with an explicitly empty in-memory account and the real public Windows
+gaming-COM user-add consumer. The mandatory fixture argv and exact binary pin
+prevent accidental production-Keychain broker selection. Before/after ping is
+bound to the recorded native PID; the actual failed user add has `E_FAIL`, one
+completion and no handle, followed by graceful socket cleanup. Peer closure
+does not encode an authentication category. This proves signed-out component
+interoperation, not successful Store RPS, credential-profile pairing, entitlement
+or licensed gameplay; it changes no approved app engine or Play capability.

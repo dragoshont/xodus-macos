@@ -41,7 +41,7 @@ jobs:
           set -euo pipefail
           python3 -B test_source_guards.py --shim-source "$RUNNER_TEMP/public-shim" \
             --async-source "$RUNNER_TEMP/public-async" -v
-          python3 -B test_components.py -v
+          python3 -B -m unittest test_components test_empty_broker -v
       - name: Restore the declared cross compiler if missing
         shell: bash
         run: |

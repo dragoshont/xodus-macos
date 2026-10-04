@@ -150,3 +150,81 @@ current entitlement, authorized manifests/installations, service/profile/prefix
 pairing, supported runtime lifecycle, window presentation, licensed gameplay
 and signed distribution remain separate gates. This must not enable **Play** or
 turn catalog/marker evidence into ownership or verified installation.
+
+## Real empty-memory broker/public consumer failure
+
+`check_empty_broker.py` exercises the actual Windows gaming-COM user-add
+consumer against the real Rust private broker library with an explicitly
+empty **in-memory** account. This is a developer fixture, not the production
+broker and not a new credential profile selector. A fresh socket or management
+state directory does not isolate the production broker's fixed Keychain
+namespace; that binary must not be used for this check.
+
+The backend fixture source is pinned at
+`014d17b241a716e8c730e46153f080e72b32a2ff` (example
+`crates/xodus-service/examples/empty_management_broker.rs`). Its mandatory
+`--empty-memory-fixture --management-socket RAWABS` argv is rejected by the
+unchanged production parser before native credential initialization. The
+example constructs `TokenManager::with_management_backend` with only an empty
+`MemoryBackend`, then reuses the real isolated server/framing/XML route.
+It does not initialize, import, read or mutate native credentials, seed tickets,
+prompt or perform device/account HTTP. One in-memory absence lookup is real.
+Internal `AuthenticationRequired` is established by the backend's separate
+memory regression, **not exposed on the wire**.
+
+The production failure route closes without response bytes. New helper mode
+`rps-peer-closed` requires generic transport `E_FAIL`, exactly one completion
+and a null `XUserAddResult` handle. It cannot distinguish authentication,
+request, store or exchange failure from peer closure. No fake success response
+is supplied to the game API, and failure occurs before the shim's account HTTP.
+
+The checker requires the exact sealed fixture hash before execution, including
+when the selected file is an otherwise owned executable. Alias paths are refused
+and canonical component ancestry is checked. PID-bound ping uses the reviewed
+Darwin peer-identity helper on the same connection as its echo, before and after
+the actual Windows consumer. This avoids generating unrelated failed health
+connections. The fixture emits exactly its empty-memory banner and one
+payload-free failed-request diagnostic, not credential/request payloads.
+Its private directory is independent of the Wine prefix so uncertain native
+cleanup retains evidence rather than being deleted by Wine cleanup.
+Only the recorded subprocess receives SIGINT; successful shutdown must exit
+zero within five seconds and remove its socket without persistent state.
+Forced shutdown is reported as failure and retains private evidence.
+
+```sh
+# Use only the independently built/pinned developer fixture, inside this owned root.
+python3 -B check_empty_broker.py \
+  --broker-fixture "$root/public-shim-empty-broker-v1/empty-memory-broker" \
+  "$root" "$root/public-wine-build-macos-x64/loader/wine" \
+  "$root/public-wine-build-macos-x64/server/wineserver" \
+  "$root/public-shim-empty-broker-v1/xodus-async-smoke.exe" \
+  --library-directory "$root/public-host-dependencies/x64/lib"
+python3 -B -m unittest test_components test_empty_broker -v
+```
+
+The actual selected Mac candidate passes this failure-only interaction:
+real Rust process, before/after PID-bound ping, real Windows gaming COM,
+`E_FAIL`/one completion/no handle, graceful fixture exit and no socket/state.
+The ten prior gaming-COM/core-loader/synthetic-RPS cases still pass with the
+new helper. Eighteen native component/lifetime/fixture-runner checks pass;
+Windows runs eleven and skips seven Unix ownership fixtures.
+Hosted tests cover these guards and compilation, not actual runtime/account
+integration.
+All thirteen existing public source/license/overlay guards also pass.
+The same failure-only interaction and the ten prior COM cases pass again
+using the readonly `artifacts/public-empty-memory-pair-v1` binaries. Original
+sources/licenses, the verified public LF backend archive and actual logs are
+preserved; final replay/cleanup logs are in a separate evidence archive.
+
+| Observed unsigned component | SHA-256 |
+|---|---|
+| Generic closed-peer gaming-COM helper | `d184873d3364ed67b7875fa379d818cac7fd0c8e565c78f6659596bee3972f3a` |
+| Mandatory-gated empty-memory Rust fixture | `9e854df1e44042c09067fc2d63ff6e4beeddeb73350c0329059cda28f2d13fb1` |
+
+The public async core and gaming DLL hashes remain the reviewed R17 values
+above; earlier immutable artifacts are unchanged. These are observed developer
+binaries, not reproducible-build guarantees or supported distribution.
+Successful signed-in RPS, personal Store issuance, service/profile pairing,
+entitlement, installation and licensed gameplay remain unverified. Play stays
+gated. The new backend fixture and this consumer delta await the **same**
+retained adversarial reviewer; R01-R18 closure does not approve them.

@@ -128,6 +128,15 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
+Current retained source-review status: **R01-R13 closed**. The latest closure
+is review 25 at exact R12 source `5805d89fc281367c0bd9161dd8ac86f627576122`
+versus `2d27032471a441934c15d85da78a38414e2adce7`. This is source/regression
+review, not reviewer execution of the owner's 173 native checks or product,
+manual-account, authorized managed installation or runtime certification.
+Historical milestone evidence and then-pending reviews below do not override
+this status; genuinely new source deltas still require an immutable handoff to
+the same retained reviewer.
+
 ### R12 private download staging at creation
 
 Retained Astra review 19 confirmed that the default `tempfile::tempdir_in`
@@ -171,7 +180,14 @@ not an approved GUI replacement or real package/account/runtime proof.
 Coordinator reports retained reviews 16/17 approved b16 profile fencing and
 77 SOAP references, source-only; review 21 named the fresh-snapshot pending-IO
 race R13, and review 22 closed R13 at 2d270 with no other significant issue.
-R12 remains open until the same reviewer independently closes this correction.
+Coordinator reports the same retained reviewer's review 25 **closed R12** at
+exact `5805d89fc281367c0bd9161dd8ac86f627576122` versus
+`2d27032471a441934c15d85da78a38414e2adce7`. Creation-time 0700/0600 and the
+committed permissive-umask, original-inode/content and preservation regressions
+were sufficient, with no significant residual issue. The reviewer did not
+rerun the owner's 173 native checks. Coordinator also independently verified
+the backend branch's exact 5805 remote SHA with `git ls-remote`.
+**R01-R13 are now closed for source review only.**
 No additional reviewer is spawned. GUI da548/C95, capabilities and all real
 authorization/immutable-manifest/installed-lifecycle/runtime gates remain
 unchanged; no accounts, signed packages or games are executed.
@@ -212,10 +228,11 @@ This protects clones sharing one manager, not independently constructed
 managers or other processes, and cannot undo an already-sent RPC. External
 profile contents still require the full-bundle recheck. No protocol/capability,
 GUI da548/C95, actual account/authorization, immutable-manifest/lifecycle or
-runtime release gate changes. It is an independent correction after d8d610a,
+runtime release gate changes. It is an independent correction after d8d610a.
 Coordinator reports retained review 22 closed the separately named R13 at
 2d270, source-only, with no other significant issue. This does not close the
-independent R12 staging finding or approve real credential/runtime execution.
+independent R12 staging finding, subsequently closed in review 25 as recorded
+above, or approve real credential/runtime execution.
 
 ### Explicit CLI transfer failures and staged byte-count commit
 
@@ -268,8 +285,8 @@ Additive immutable unsigned CLI:
 The broker remains the unchanged 7c53 artifact. No real credentials/account
 requests, signed package URLs, consent, license issuance or games are exercised.
 Protocol C95, capabilities and approved GUI da548 remain unchanged. This
-independent delta requires the same retained reviewer; no earlier approval is
-inherited.
+independent delta received the separate review 19 R12 finding; the correction
+and review 25 closure are recorded above. No earlier approval was inherited.
 
 ### Checked encrypted SOAP references
 

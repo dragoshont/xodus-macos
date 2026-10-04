@@ -125,6 +125,34 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
+### R11 checked device-key derivation
+
+The same retained reviewer found that a present 4096-byte encrypted-device-key
+block still reached version/key-equality assertions after the missing-key fix.
+The equality assertion could print both key arrays. `derive_device_key` now
+returns `Result<DeviceKey, DeviceKeyDerivationError>` with static, non-secret
+size/version/ciphertext errors instead of assertions. The sole production
+caller, `get_license`, propagates that result. There is no panic-catching or
+assertion wrapper retaining the old unsafe path.
+
+Four native **decode then derive** regressions cover a full-size unsupported
+version, corrupted version-four ciphertext, a valid synthetic version-four
+block with unchanged output, and inconsistent internal size. Error `Display`
+and `Debug` contain only static strings/variant names, never key material.
+The tests generate their own synthetic ciphertext; no actual account/license
+data or private worker artifacts are read.
+
+This narrow correction was validated against exact published f7 source with
+only these two source files overlaid, excluding the pending provider-JSON
+changes. **135 scoped Rust checks** pass: 26 core management, 12 CLI,
+70 management and 27 service checks. Core clippy with warnings denied,
+CLI/service builds, the unchanged contract corpus and anonymous management
+process detail/refresh/replay/reconnect/framing checks pass. Immutable unsigned
+developer CLI: `artifacts/xodus-cli-device-key-r11-v1-173b2f4327bb643c`,
+SHA256 `173b2f4327bb643c3f4547ab29ce5099a940c48ebc513a91cca6db82fb89d3cb`.
+R11 still needs closure by that same reviewer; this is not live license,
+authorized installation, an app-engine replacement or runtime certification.
+
 ### Unconnected package/license provider error propagation
 
 The legacy CLI package and license paths now fail explicitly when credentials

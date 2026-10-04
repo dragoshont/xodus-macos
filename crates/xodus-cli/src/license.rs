@@ -85,7 +85,8 @@ pub async fn get_license(
     let key = device_license
         .encrypted_device_key
         .ok_or_else(|| "Device license has no device key".to_owned())?
-        .derive_device_key();
+        .derive_device_key()
+        .map_err(|error| error.to_string())?;
     Ok((key, game_splicense))
 }
 

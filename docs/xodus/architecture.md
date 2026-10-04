@@ -114,3 +114,10 @@ download/extraction paths. A future authorized provider must add isolated
 profile reconciliation, bounded authenticated metadata, complete identity and
 manifest validation, and the durable verified staging/commit lifecycle before
 any install capability can be advertised.
+
+Encrypted device-key derivation is likewise fallible:
+`derive_device_key` returns `Result<DeviceKey, DeviceKeyDerivationError>` and
+rejects inconsistent size, unsupported version and corrupt ciphertext using
+static non-secret errors. The license caller propagates the result; no assertion
+or panic diagnostic can print the compared keys. Valid synthetic version-four
+decode/derive tests preserve the previous output without implying entitlement.

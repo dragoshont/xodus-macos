@@ -394,6 +394,82 @@ impl SPLicense {
 #[cfg(test)]
 mod management_license_tests {
     use super::*;
+    use aes::cipher::BlockCipherEncrypt;
+
+    fn synthetic_device_key() -> EncryptedDeviceKey {
+        let key_schedule = [0; 58];
+        let expected = decryption_key(key_schedule);
+        let cipher = aes::Aes128::new(&expected.into());
+        let mut encrypted = expected.into();
+        cipher.encrypt_block(&mut encrypted);
+        EncryptedDeviceKey {
+            size: 4096,
+            version: 4,
+            key_schedule,
+            _unknown1: [0; 280],
+            device_key: encrypted.into(),
+            _unknown2: [0; 3562],
+        }
+    }
+
+    fn decode_device_key(block: EncryptedDeviceKey) -> SPLicense {
+        let mut bytes = vec![0; 8];
+        bytes.extend_from_slice(&(BlockId::EncryptedDeviceKey as u32).to_le_bytes());
+        bytes.extend_from_slice(&4096u32.to_le_bytes());
+        let payload: [u8; 4096] = transmute!(block);
+        bytes.extend_from_slice(&payload);
+        SPLicense::decode(bytes.as_slice()).unwrap()
+    }
+
+    #[test]
+    fn management_device_key_decode_then_derive_preserves_valid_version_four_output() {
+        let block = synthetic_device_key();
+        let expected = decryption_key(block.key_schedule);
+        let license = decode_device_key(block);
+        let key = license
+            .encrypted_device_key
+            .unwrap()
+            .derive_device_key()
+            .unwrap();
+        assert!(key.0 == expected);
+    }
+
+    #[test]
+    fn management_device_key_decode_then_derive_rejects_size_correct_unsupported_version() {
+        let mut block = synthetic_device_key();
+        block.version = 3;
+        let license = decode_device_key(block);
+        assert!(matches!(
+            license.encrypted_device_key.unwrap().derive_device_key(),
+            Err(DeviceKeyDerivationError::UnsupportedVersion)
+        ));
+    }
+
+    #[test]
+    fn management_device_key_decode_then_derive_rejects_corrupted_version_four_ciphertext() {
+        let mut block = synthetic_device_key();
+        block.device_key[0] ^= 1;
+        let license = decode_device_key(block);
+        let error = match license.encrypted_device_key.unwrap().derive_device_key() {
+            Err(error) => error,
+            Ok(_) => panic!("Corrupted synthetic device key succeeded"),
+        };
+        assert_eq!(error, DeviceKeyDerivationError::InvalidCiphertext);
+        assert_eq!(error.to_string(), "Device key data is invalid");
+        assert_eq!(format!("{error:?}"), "InvalidCiphertext");
+    }
+
+    #[test]
+    fn management_device_key_decode_then_derive_rejects_inconsistent_internal_size() {
+        let mut block = synthetic_device_key();
+        block.size = 4095;
+        let license = decode_device_key(block);
+        assert!(matches!(
+            license.encrypted_device_key.unwrap().derive_device_key(),
+            Err(DeviceKeyDerivationError::InvalidSize)
+        ));
+    }
+
     #[test]
     fn untrusted_device_license_lengths_and_versions_return_errors_not_panics() {
         for (id, size) in [
@@ -422,16 +498,32 @@ mod management_license_tests {
     }
 }
 
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum DeviceKeyDerivationError {
+    #[error("Device key size is invalid")]
+    InvalidSize,
+    #[error("Unsupported device key version")]
+    UnsupportedVersion,
+    #[error("Device key data is invalid")]
+    InvalidCiphertext,
+}
+
 impl EncryptedDeviceKey {
-    pub fn derive_device_key(&self) -> DeviceKey {
-        assert!(self.version == 4);
+    pub fn derive_device_key(&self) -> Result<DeviceKey, DeviceKeyDerivationError> {
+        if self.size != 4096 {
+            return Err(DeviceKeyDerivationError::InvalidSize);
+        }
+        if self.version != 4 {
+            return Err(DeviceKeyDerivationError::UnsupportedVersion);
+        }
 
         let device_key = decrypt_cbc_zero_iv(self.key_schedule, &self.device_key);
 
-        // Sanity check: the decrypted device key must be equal to the decryption key
-        assert_eq!(device_key, decryption_key(self.key_schedule));
+        if device_key != decryption_key(self.key_schedule) {
+            return Err(DeviceKeyDerivationError::InvalidCiphertext);
+        }
 
-        DeviceKey(device_key)
+        Ok(DeviceKey(device_key))
     }
 }
 

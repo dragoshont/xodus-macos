@@ -150,7 +150,10 @@ with static nonzero errors. Planning must not invoke a provider, runtime,
 filesystem discovery or GUI. The backend boundary is published separately at
 `9ef0f298481fb48840734b538e0f6d22e1c98ff3`, tree
 `8b2f7abb54f91e347afe013eee18c93873b111a5`, atop the unchanged authentication
-source pin. Native app selection and plan consumption remain unfinished.
+source pin. Native selection and plan consumption are implemented separately
+at consumer `7477d4794d79968c5e9dbd96d245b0fa6d9be2c2`, tree
+`4c7018f9794daa13363e4e1eba160a352b8a5aae`, but final consumer review closure
+is withheld for the Quit-cleanup defect below.
 
 The parent reviewed the seven-file planning delta, including startup before
 account/log initialization, explicit stdin EOF, the 16,384-byte input limit,
@@ -167,8 +170,43 @@ The canonical schema SHA-256 is
 `90c094e4585af059b5ebcfc3201260362e88aa642b50ec0388a03427260d55e9`,
 and fixtures SHA-256 is
 `76a0d791c99a6c77e12581a4361dbe6e37a0dbd29f2e556ef292bbbc360bc40c`.
-These source checks do not qualify the still-unfinished consumer integration,
+These backend source checks do not themselves qualify the consumer integration,
 an installed runtime or a game.
+
+The consumer wires live and fixture native Settings to all four presets,
+initially unconfigured, with independent declared engine/graphics metadata and
+explicit required JSON nulls. Its live action invokes the separate bounded
+planning client; fixture execution is disabled. Returned configuration,
+canonical identity hash, generation/path agreement, fixed unknown evidence
+and nonlaunchability are checked. Nonzero output is discarded; an older engine
+without the entry reports planning unavailable rather than falling back to
+authentication or a provider. Installation copy now says "Installation not
+inspected", not that an already installed runtime is absent.
+
+The parent independently verified exact consumer `7477d4` normal push
+[hosted run 37211343959](https://github.com/dragoshont/xodus-macos-app/actions/runs/37211343959)
+with Xcode 27.0 build `27A266a`, SDK 27.0 and macOS 27.0: 15 core,
+352 management, 60 preview, 144 mock-session and 87 private-host checks passed
+with zero failures, plus SVG reproducibility. These are source-only synthetic
+checks, not an installed runtime or actual game execution.
+
+The first local 658-check stage was assembled from Windows working-tree bytes;
+its manifest compared LF-normalized text rather than the raw compiler inputs.
+The parent's bounded raw-byte check found 39 of 56 inputs differed from Git:
+38 Swift/package files with CRLF and one artwork-provenance JSON file.
+Binary artwork remains binary, not subject to text newline normalization.
+That stage is retained as local intermediate evidence, not literal Git-byte
+qualification. The owner subsequently reports a new isolated canonical-Git
+stage and a fresh 658-check run for `7477d4`; neither run closes the remaining
+source defect or qualifies a future correction.
+
+The retained review found that ordinary Quit awaits management disconnect but
+does not cancel and await the independently owned planning task. Without a
+management connection, the app can exit while planning, losing its child
+deadline and cleanup. A shared bounded planning shutdown fence, integrated
+with normal application termination and tested with an owned neutral child
+that ignores SIGTERM, is being added. Consumer source closure requires a new
+immutable correction, exact-source qualification and scoped re-review.
 
 Each engine/backend generation needs an isolated prefix. Existing bottles and
 saves must not be reused, migrated or deleted silently when a selection changes.

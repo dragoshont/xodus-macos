@@ -94,9 +94,14 @@ owned-socket cleanup. Other tests use unnamed sockets and memory-only profiles.
 
 The separate developer example `empty_management_broker` wraps the **same**
 `isolated::serve`/management XML route with an empty managed `MemoryBackend`.
-It accepts only `--fixture-socket <absolute-private-Unix-path>`; no arguments
-and the production selector fail, and it never initializes native credential
-storage. It performs an in-memory absence lookup, not a Keychain/user-credential
+It accepts only `--empty-memory-fixture --management-socket
+<absolute-private-Unix-path>`; no arguments or a missing/misplaced gate fail,
+and it never initializes native credential storage. The production parser
+rejects these three arguments before credential initialization; the lab gate
+exists only in the example. A source-order regression checks this guard without
+executing production. The smoke confirms distinctive gated refusal first, so
+it never tests no-argument fallback on an unidentified executable.
+It performs an in-memory absence lookup, not a Keychain/user-credential
 read. Missing credentials return before device/account HTTP or mutation.
 The real internal result is AuthenticationRequired, but the wire remains
 zero reply bytes/connection closure, not an invented error frame or HRESULT.

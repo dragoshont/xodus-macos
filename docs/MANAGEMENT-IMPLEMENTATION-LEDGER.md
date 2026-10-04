@@ -171,12 +171,23 @@ requires macOS without `xodus/key-chain-file`.
 The only accepted invocation is:
 
 ```text
-<empty-management-broker-fixture> --fixture-socket <absolute-private-Unix-path>
+<empty-management-broker-fixture> --empty-memory-fixture --management-socket <absolute-private-Unix-path>
 ```
 
-There is no default path/profile and no help/production selector. No arguments,
-the production `--management-socket` flag, missing/extra arguments and non-UTF-8
-paths fail explicitly. Existing endpoint admission validates the selected
+The one lab gate is mandatory and ordered; it is never added to production.
+There is no default path/profile or help selector. No arguments, ungated
+`--management-socket`, the superseded `--fixture-socket` spelling, misplaced
+gate, missing/extra arguments and non-UTF-8 paths fail explicitly.
+The unchanged production parser rejects this three-argument fixture invocation
+in its exact-two-argument guard, before path conversion, the native-feature
+check, `init_secrets`, Keychain manager construction or any service start.
+The example's source-order regression checks that actual production guard and
+its early `exit(1)` precede initialization. Production is **not executed** by
+this test. The smoke first probes the gated missing-path refusal and checks the
+distinctive fixture-only usage error before attempting any no-argument test;
+a mistakenly selected production executable would reject that first probe,
+then fail the fixture error check without reaching no-argument fallback.
+Existing endpoint admission validates the selected
 normalized absolute UTF-8 path, 103-byte limit, preexisting owned local 0700
 parent with no symlinks, absent socket name, same-UID peers, 0600 socket,
 eight-connection limit and descriptor/identity-preserving cleanup.
@@ -203,8 +214,9 @@ generic `Private runtime peer request failed` stderr diagnostic. Stdout remains
 empty. A consumer may assert missing response/closure, not an authentication
 category on the wire.
 
-Native verification executed **27 service-library checks plus 3 example
-argument checks**, strict service-library/example clippy and the example build:
+Native verification executed **27 service-library checks plus 4 example
+argument/source-order checks**, strict service-library/example clippy and the
+example build:
 
 ```sh
 cargo test --offline --locked -q -p xodus-service --lib \
@@ -219,9 +231,9 @@ python3 tools/smoke_empty_runtime.py \
 ```
 
 The owned native process smoke executes only this example with
-`--fixture-socket`, including with trace logging variables. Nine runs (seven
-initial/repetition checks and two final exact-LF-source/sealed-artifact checks)
-prove no-argument/production-selector
+`--empty-memory-fixture --management-socket`, including with trace logging
+variables. Five gated-fixture runs (initial, three repetitions, sealed-artifact
+run) prove missing-gate/no-argument/old-selector
 refusal, real ping before and after a valid MSA refusal, zero reply bytes, empty
 stdout, exact payload-free stderr, cancellation of a pending partial header by
 SIGINT within the five-second test bound, and no remaining socket/state files.
@@ -237,17 +249,16 @@ success type 4 is returned for this fixture. Existing per-request budgets,
 cancellation, admission and descriptor cleanup are reused, not duplicated.
 
 Additive unsigned native developer artifact (mode 0500):
-`artifacts/empty-management-broker-v1-f0d0523b7a2c2620`, SHA256
-`f0d0523b7a2c2620d738e079b2a1e94d8ac495a1a5b7d8319f1aa003138c0fcc`.
+`artifacts/empty-management-broker-gated-v1-9e854df1e44042c0`, SHA256
+`9e854df1e44042c09067fc2d63ff6e4beeddeb73350c0329059cda28f2d13fb1`.
 Tested native source matches the published LF bytes: example SHA256
-`fd733fb3a22df2b0a3e3b99fa65f523e44dbd82736daadccacbbcf74c6c3b05c`;
+`74fda34f8e573bc26cd2bba9486092e23fbf5438988123b64ab9ba80d70a184e`;
 smoke SHA256
-`f01ebf4a550f6e5b95d2038eb5d849ce0a5bfd6aa73a164d8cc95508d423fa5b`.
-The final native tests/clippy/build ran again after aligning the entire native
-mirror to the exact published LF tree. Previous differences were newline-only,
-not source/dependency changes, but the rebuilt binary hash changed; the earlier
-developer artifact is not the handoff pin. Git source archives disable Windows
-checkout newline conversion explicitly.
+`c1bc0ace7edd9dd1cc02446a0559d302a821838a2d8862f1adc53c0fd6bdd26a`.
+This user-directed mandatory-gate correction supersedes the earlier e386688
+fixture invocation/artifact; retained prior artifacts are not the current
+handoff pin. The native mirror remains aligned to the exact public LF sources,
+and Git source archives disable Windows checkout newline conversion explicitly.
 The immutable source commit is supplied in the publication handoff. This new
 fixture delta awaits the same retained reviewer's separate review; it does not
 inherit review 34's approval. The parent owns real public Windows gaming-COM

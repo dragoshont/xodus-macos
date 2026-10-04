@@ -43,15 +43,25 @@ with tempfile.TemporaryDirectory(prefix="empty-rps-", dir=args.root) as temporar
     endpoint = root / "peer.sock"
     assert len(os.fsencode(endpoint)) <= 103
     env = dict(os.environ, XODUS_LOG="trace", RUST_LOG="trace")
-    for arguments in [[], ["--management-socket", str(endpoint)]]:
+    # First probe contains the lab gate, so the production executable would refuse
+    # before initialization. Never try no-argument fallback on an unidentified binary.
+    for arguments in [
+        ["--empty-memory-fixture", "--management-socket"],
+        [],
+        ["--management-socket", str(endpoint)],
+        ["--fixture-socket", str(endpoint)],
+    ]:
         rejected = subprocess.run(
             [str(binary), *arguments], cwd=root, env=env,
             capture_output=True, timeout=5)
         assert rejected.returncode == 1 and rejected.stdout == b""
-        assert rejected.stderr == b"Expected --fixture-socket with one absolute private Unix path\n"
+        assert rejected.stderr == (
+            b"Expected --empty-memory-fixture --management-socket "
+            b"with one absolute private Unix path\n"
+        )
         assert not endpoint.exists() and list(root.iterdir()) == []
     process = subprocess.Popen(
-        [str(binary), "--fixture-socket", str(endpoint)], cwd=root,
+        [str(binary), "--empty-memory-fixture", "--management-socket", str(endpoint)], cwd=root,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
     try:
         deadline = time.monotonic() + 5

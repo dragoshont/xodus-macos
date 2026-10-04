@@ -2,10 +2,15 @@
 
 #[cfg(unix)]
 fn fixture_path(arguments: &[std::ffi::OsString]) -> Result<&str, &'static str> {
-    if arguments.len() != 2 || arguments[0] != "--fixture-socket" {
-        return Err("Expected --fixture-socket with one absolute private Unix path");
+    if arguments.len() != 3
+        || arguments[0] != "--empty-memory-fixture"
+        || arguments[1] != "--management-socket"
+    {
+        return Err(
+            "Expected --empty-memory-fixture --management-socket with one absolute private Unix path",
+        );
     }
-    arguments[1]
+    arguments[2]
         .to_str()
         .ok_or("Empty-profile fixture socket path must be valid UTF-8")
 }
@@ -72,8 +77,20 @@ mod tests {
             vec![],
             vec!["--help"],
             vec!["--management-socket", "/owned/peer.sock"],
-            vec!["--fixture-socket"],
-            vec!["--fixture-socket", "/owned/peer.sock", "--profile"],
+            vec!["--fixture-socket", "/owned/peer.sock"],
+            vec!["--empty-memory-fixture"],
+            vec!["--empty-memory-fixture", "--management-socket"],
+            vec![
+                "--management-socket",
+                "/owned/peer.sock",
+                "--empty-memory-fixture",
+            ],
+            vec![
+                "--empty-memory-fixture",
+                "--management-socket",
+                "/owned/peer.sock",
+                "--profile",
+            ],
         ] {
             let arguments: Vec<_> = arguments.into_iter().map(Into::into).collect();
             assert!(fixture_path(&arguments).is_err());
@@ -82,15 +99,43 @@ mod tests {
 
     #[test]
     fn explicit_fixture_path_is_passed_unchanged_to_existing_endpoint_validation() {
-        let arguments = ["--fixture-socket".into(), "/owned/peer.sock".into()];
+        let arguments = [
+            "--empty-memory-fixture".into(),
+            "--management-socket".into(),
+            "/owned/peer.sock".into(),
+        ];
         assert_eq!(fixture_path(&arguments), Ok("/owned/peer.sock"));
+    }
+
+    #[test]
+    fn production_source_rejects_fixture_argv_before_native_initialization() {
+        let source = include_str!("../src/main.rs");
+        let guard = r#"if arguments.len() != 2 || arguments[0] != "--management-socket" {
+            eprintln!("Expected --management-socket with one absolute private Unix path");
+            std::process::exit(1);
+        }"#;
+        let guard_offset = source
+            .find(guard)
+            .expect("Production early argv guard changed");
+        let initialization = source.find("xodus::secrets::init_secrets()").unwrap();
+        let profile = source
+            .find("TokenManager::with_management_keychain_and_memory()")
+            .unwrap();
+        assert!(guard_offset < initialization && initialization < profile);
+        let arguments = [
+            "--empty-memory-fixture",
+            "--management-socket",
+            "/owned/peer.sock",
+        ];
+        assert!(arguments.len() != 2 || arguments[0] != "--management-socket");
     }
 
     #[test]
     fn non_utf8_path_is_rejected_before_the_broker() {
         use std::os::unix::ffi::OsStringExt;
         let arguments = [
-            "--fixture-socket".into(),
+            "--empty-memory-fixture".into(),
+            "--management-socket".into(),
             std::ffi::OsString::from_vec(vec![0xff]),
         ];
         assert!(fixture_path(&arguments).is_err());

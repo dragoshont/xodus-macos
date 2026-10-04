@@ -434,9 +434,11 @@ unclassified symptom. At that point, the active flow was preserved.
 
 The user has since explicitly paused sign-in to test games and requested
 source-only native Swift app updates. Shared Mac desktop ownership was released
-for those tests. Authentication recovery, window inspection, focus, capture,
-launch, retry and deployment are paused; this handover does not establish
-successful sign-in or credential commit.
+for those tests. Authentication recovery, provider-window inspection, retry
+and deployment remain paused; this handover does not establish successful
+sign-in or credential commit. The user's subsequent anonymous launcher preview
+and single Apple Games reference-window screenshot are narrow UI exceptions,
+not permission to resume authentication or inspect other game windows.
 
 ### macOS toolkit audit: source and deployed-file evidence
 
@@ -489,6 +491,51 @@ visually and announces options as tabs to VoiceOver. The source correction
 must preserve route bindings, shortcuts, search placement and the macOS 14
 deployment baseline. Native UI corrections and isolated headless builds are
 in progress; no changed app has been deployed or visually certified.
+Using the actual API requires an SDK/Xcode 27 build toolchain, not a compiler
+version proxy or runtime availability check alone. The existing native CI job
+is authorized to select the standard `xcode-27` runner and assert its actual
+Xcode, macOS SDK and OS versions; an older hosted result does not validate the
+new API or source.
+
+### Apple Games header: requested native layout
+
+The user selected the actual Apple Games window as the visual reference and
+requested a single reference screenshot before the next header correction.
+The first fresh window-capture command failed without producing an image.
+The parent instead inspected an existing actual Apple Games window capture,
+clearly labeled as an earlier reference rather than a fresh screenshot.
+It shows a centered native navigation/search group, separate trailing account
+control and artwork-toned translucent titlebar without app-name text.
+
+The in-window navigation toolbar should sit over the hero artwork, with native
+translucency naturally taking on the artwork's color. This is not a request to
+modify the global macOS menu bar, manually sample a tint or replace the system
+toolbar with a custom overlay.
+
+The same shared preview/live layout must keep functional native search with
+the centered navigation group, existing navigation and keyboard shortcuts,
+and catalog/library query scoping. No app-name/title text should be visible in
+the window header; app, menu and Dock identity remain intact.
+System window controls, dragging,
+resizing, accessibility and safe-area spacing must be preserved, including
+system contrast and Reduce Transparency behavior.
+
+This explicitly supersedes the earlier preserve-header-layout scope, but does
+not authorize an unrelated redesign. The open anonymous preview is an
+unchanged work-in-progress stage, not deployment of this requested correction.
+The reference is inspected; source implementation and final verification are
+pending. The targeted native capture remedy reported no existing screen-capture
+permission and stopped before enumeration, capture or a permission request.
+There is no fresh screenshot. No privacy-setting change, other-window capture
+or preview closure is authorized by that failure. Source-only work must not
+prolong the reference desktop slot; the user's preview-close decision is
+preserved.
+
+After reference inspection, the user explicitly returned desktop ownership to
+game testing. The earlier preview-close gate was released without inferring
+that the preview had closed. Further launcher/reference focus, input, capture
+and window checks are paused. Source implementation and nonactivating
+validation continue independently of the desktop slot.
 
 ### Swift-owned authentication host: source migration
 

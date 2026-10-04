@@ -1,3 +1,5 @@
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::process::ExitCode;
 
 use futures_util::StreamExt;
@@ -43,8 +45,12 @@ async fn download_file(
     {
         return Err("Download length does not match package metadata");
     }
-    let staging =
-        tempfile::tempdir_in(directory).map_err(|_| "Could not create private download staging")?;
+    let mut staging_builder = tempfile::Builder::new();
+    #[cfg(unix)]
+    staging_builder.permissions(std::fs::Permissions::from_mode(0o700));
+    let staging = staging_builder
+        .tempdir_in(directory)
+        .map_err(|_| "Could not create private download staging")?;
     let temporary = tempfile::NamedTempFile::new_in(staging.path())
         .map_err(|_| "Could not create the staged download file")?;
     let mut file = tokio::fs::File::from_std(
@@ -201,6 +207,142 @@ mod tests {
             .map(|entry| entry.unwrap().file_name())
             .collect();
         assert_eq!(entries, ["fixture.msixvc"]);
+    }
+
+    #[cfg(unix)]
+    async fn assert_private_staging_commits_exact_file(root: &std::path::Path) {
+        use std::os::unix::fs::MetadataExt;
+
+        let destination = root.join("fixture.msixvc");
+        std::fs::write(&destination, b"known-good").unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let (release, complete) = tokio::sync::oneshot::channel();
+        let peer = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0; 4096];
+            socket.read(&mut request).await.unwrap();
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 12\r\nConnection: close\r\n\r\nfixt",
+                )
+                .await
+                .unwrap();
+            tokio::time::timeout(std::time::Duration::from_secs(2), complete)
+                .await
+                .unwrap()
+                .unwrap();
+            socket.write_all(b"ure-only").await.unwrap();
+        });
+        let progress = ProgressBar::hidden();
+        let observed = progress.clone();
+        let target = destination.clone();
+        let caller = tokio::spawn(async move {
+            download_file(
+                &client(),
+                reqwest::Url::parse(&format!("http://{address}/fixture")).unwrap(),
+                12,
+                &target,
+                &progress,
+            )
+            .await
+        });
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while observed.position() < 4 {
+                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .unwrap();
+        let mut staged_directories = std::fs::read_dir(root)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path != &destination);
+        let staging = staged_directories.next().unwrap();
+        assert!(staged_directories.next().is_none());
+        let metadata = std::fs::symlink_metadata(&staging).unwrap();
+        assert!(metadata.is_dir() && !metadata.file_type().is_symlink());
+        assert_eq!(metadata.permissions().mode() & 0o777, 0o700);
+        let mut staged_files = std::fs::read_dir(&staging)
+            .unwrap()
+            .map(|entry| entry.unwrap().path());
+        let staged = staged_files.next().unwrap();
+        assert!(staged_files.next().is_none());
+        let original = std::fs::File::open(&staged).unwrap();
+        let identity = original.metadata().unwrap();
+        assert!(identity.is_file());
+        assert_eq!(identity.permissions().mode() & 0o777, 0o600);
+        assert_eq!(std::fs::read(&destination).unwrap(), b"known-good");
+        release.send(()).unwrap();
+        caller.await.unwrap().unwrap();
+        peer.await.unwrap();
+        let committed = std::fs::symlink_metadata(&destination).unwrap();
+        assert!(committed.is_file() && !committed.file_type().is_symlink());
+        assert_eq!(
+            (committed.dev(), committed.ino()),
+            (identity.dev(), identity.ino())
+        );
+        assert_eq!(committed.permissions().mode() & 0o777, 0o600);
+        assert_eq!(std::fs::read(&destination).unwrap(), b"fixture-only");
+        let mut contents = Vec::new();
+        std::io::Read::read_to_end(&mut &original, &mut contents).unwrap();
+        assert_eq!(contents, b"fixture-only");
+        assert_only_destination(root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn download_staging_is_private_at_creation_under_permissive_umask() {
+        const CHILD_ROOT: &str = "XODUS_TEST_DOWNLOAD_UMASK_ROOT";
+        const CHILD_MASK: &str = "XODUS_TEST_DOWNLOAD_UMASK";
+        if let Some(root) = std::env::var_os(CHILD_ROOT) {
+            let root = std::path::PathBuf::from(root);
+            let mask = match std::env::var(CHILD_MASK).unwrap().as_str() {
+                "0002" => 0o002,
+                "0000" => 0o000,
+                _ => panic!("Unexpected isolated umask"),
+            };
+            let directory = root.join(format!("mask-{mask:o}"));
+            std::fs::create_dir(&directory).unwrap();
+            assert_eq!(
+                std::fs::metadata(&directory).unwrap().permissions().mode() & 0o777,
+                0o777 & !mask
+            );
+            let control = tempfile::tempdir_in(&directory).unwrap();
+            assert_eq!(
+                control.path().metadata().unwrap().permissions().mode() & 0o777,
+                0o777 & !mask
+            );
+            drop(control);
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(assert_private_staging_commits_exact_file(&directory));
+            download_size_and_stream_failures_preserve_known_good_file_and_clean_staging();
+            download_caller_abort_cleans_partial_staging_and_preserves_destination();
+            return;
+        }
+        let root = tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(0o700))
+            .tempdir()
+            .unwrap();
+        for mask in ["0002", "0000"] {
+            let output = std::process::Command::new("/bin/sh")
+                .args(["-c", "umask \"$1\"; shift; exec \"$@\"", "xodus-isolated-umask", mask])
+                .arg(std::env::current_exe().unwrap())
+                .args(["--exact", "commands::download::tests::download_staging_is_private_at_creation_under_permissive_umask", "--test-threads=1"])
+                .env(CHILD_ROOT, root.path())
+                .env(CHILD_MASK, mask)
+                .output().unwrap();
+            assert!(
+                output.status.success(),
+                "Isolated umask {mask} regression failed:\n{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
+        }
     }
 
     #[tokio::test]

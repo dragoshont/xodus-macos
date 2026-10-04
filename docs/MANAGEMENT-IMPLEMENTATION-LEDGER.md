@@ -128,6 +128,54 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
+### R12 private download staging at creation
+
+Retained Astra review 19 confirmed that the default `tempfile::tempdir_in`
+creation mode is 0777 before umask: umask 0002 produces a group-writable 0775
+directory. A same-group peer could replace a named staging file while the
+downloader counted/synchronized its original open file and later renamed the
+unchecked pathname. Download staging now uses the locked tempfile 3.27.0
+`Builder::permissions(Permissions::from_mode(0o700))` at directory creation.
+Named files retain tempfile's 0600 creation mode. There is no later chmod,
+global umask change or replacement of the transfer/commit algorithm.
+
+The isolated native regression runs its own exact test binary through child
+shells with inherited umasks 0002 and 0000; the parent test process's umask is
+never changed. A control default tempdir proves the permissive umask is real.
+While a synthetic loopback transfer is paused after its first bytes, the test
+checks the actual staging directory is 0700 and its sole named file is 0600,
+retains an open handle and records the original device/inode, then releases the
+rest of the response. The committed destination is a regular nonsymlink file
+with exactly that original device/inode, 0600 mode and the same complete bytes
+read through the retained handle; the previous destination remains unchanged
+until commit and staging is cleaned afterward. Existing failed/truncated/
+oversized transfer and partial-body cancellation preservation cases also run
+inside each permissive-umask child.
+
+With the new regression and old production creation call, the native test
+fails at actual mode 0775 versus required 0700. Restoring the explicit creation
+mode passes, including five additional selected repetitions. **173 scoped
+native Rust checks** pass: 50 core management, 26 CLI, 70 management and
+27 service. Core/management/service-library strict clippy, native builds,
+unchanged wire corpus and anonymous management/private malformed-before-
+credential broker process smokes pass. CLI clippy passes with only the two
+previously reproduced baseline lint categories allowed; no strict whole-CLI
+pass is claimed.
+
+Additive immutable unsigned CLI:
+`artifacts/xodus-cli-private-staging-r12-v1-76238c81398c1cc9`, SHA256
+`76238c81398c1cc9f401a9ca9ced71232473bc756b7b6f40fcada4daf194a454`.
+The existing 8065 broker remains unchanged. These are developer artifacts,
+not an approved GUI replacement or real package/account/runtime proof.
+
+Coordinator reports retained reviews 16/17 approved b16 profile fencing and
+77 SOAP references, source-only; review 21 named the fresh-snapshot pending-IO
+race R13, and review 22 closed R13 at 2d270 with no other significant issue.
+R12 remains open until the same reviewer independently closes this correction.
+No additional reviewer is spawned. GUI da548/C95, capabilities and all real
+authorization/immutable-manifest/installed-lifecycle/runtime gates remain
+unchanged; no accounts, signed packages or games are executed.
+
 ### Pending credential mutation fence
 
 The initial shared epoch rejected stamps created before a mutation, but a fresh
@@ -165,7 +213,9 @@ managers or other processes, and cannot undo an already-sent RPC. External
 profile contents still require the full-bundle recheck. No protocol/capability,
 GUI da548/C95, actual account/authorization, immutable-manifest/lifecycle or
 runtime release gate changes. It is an independent correction after d8d610a,
-requiring the same retained review rather than inheriting b16/77/d8 approval.
+Coordinator reports retained review 22 closed the separately named R13 at
+2d270, source-only, with no other significant issue. This does not close the
+independent R12 staging finding or approve real credential/runtime execution.
 
 ### Explicit CLI transfer failures and staged byte-count commit
 

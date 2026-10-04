@@ -176,6 +176,13 @@ atomically replace one regular destination only on success. Failed/cancelled
 transfers retain the prior file and remove their staging; symlink destinations
 are refused. This is not cryptographic hash verification, a whole-package
 transaction or a crash-recovery journal, and is never called by management.
+The temporary directory explicitly requests mode 0700 through the tempfile
+builder at creation, rather than relying on the default 0777-before-umask
+directory mode. Named staged files retain their 0600 creation mode. There is
+no post-creation chmod or process-global umask change. Isolated child-process
+0002/0000-umask tests check the actual paused transfer's directory/file modes
+and that commit preserves the original staged file's device/inode and bytes,
+with failed-transfer/cancellation preservation exercised under the same masks.
 The legacy caller redirect policy/valid HTTP and HTTPS source formats remain;
 future management downloads need the owned no-redirect client and all existing
 authorization/manifest/registry/runtime gates.

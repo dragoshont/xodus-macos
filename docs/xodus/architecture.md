@@ -118,8 +118,12 @@ completion and no handle, followed by graceful socket cleanup. Peer closure
 does not encode an authentication category. This proves signed-out component
 interoperation, not successful Store RPS, credential-profile pairing, entitlement
 or licensed gameplay; it changes no approved app engine or Play capability.
-Retained report 38 found no additional issue in that consumer, but opened R19 in
-the backend's separate assertion-based fixture smoke under optimized Python.
-That standalone tool must not be used until corrected and reviewed; the combined
-milestone remains unapproved. See `runtime/public-async/README.md` for the exact
-source, hosted evidence and review disposition.
+Retained report 38 found no additional issue in that consumer. Report 39 closed
+R19 in the backend's separate fixture smoke at
+`924824ff63938307425e7f7cb87252e3512f48f2`: unconditional checks and actual-script
+mocked optimization regressions prevent an unsafe ungated production probe.
+The Rust fixture and approved app engine are unchanged; the old sealed source
+archive's standalone smoke is superseded and must not be run.
+All R01-R19 findings are closed only for their reviewed component scopes. See
+`runtime/public-async/README.md` for the exact source, hosted evidence, archive
+pins and unchanged account/gameplay gates.

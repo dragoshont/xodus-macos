@@ -160,7 +160,7 @@ broker and not a new credential profile selector. A fresh socket or management
 state directory does not isolate the production broker's fixed Keychain
 namespace; that binary must not be used for this check.
 
-The backend fixture source is pinned at
+The unchanged Rust fixture was built from
 `014d17b241a716e8c730e46153f080e72b32a2ff` (example
 `crates/xodus-service/examples/empty_management_broker.rs`). Its mandatory
 `--empty-memory-fixture --management-socket RAWABS` argv is rejected by the
@@ -206,7 +206,8 @@ The actual selected Mac candidate passes this failure-only interaction:
 real Rust process, before/after PID-bound ping, real Windows gaming COM,
 `E_FAIL`/one completion/no handle, graceful fixture exit and no socket/state.
 The ten prior gaming-COM/core-loader/synthetic-RPS cases still pass with the
-new helper. Eighteen native component/lifetime/fixture-runner checks pass;
+new helper. All eighteen native component/lifetime/fixture-runner checks pass
+normally and under both `-O` and `PYTHONOPTIMIZE=1`;
 Windows runs eleven and skips seven Unix ownership fixtures.
 Hosted tests cover these guards and compilation, not actual runtime/account
 integration. The exact published consumer source `0d5c610731d168a4c3faa854c01f349ba8b80349`
@@ -228,13 +229,27 @@ binaries, not reproducible-build guarantees or supported distribution.
 Successful signed-in RPS, personal Store issuance, service/profile pairing,
 entitlement, installation and licensed gameplay remain unverified. Play stays
 gated. Retained report 38 found no additional issue in this pinned consumer
-delta, but opened **R19 (Medium)** in the backend's separate
-`tools/smoke_empty_runtime.py` at `014d17b241a716e8c730e46153f080e72b32a2ff`.
-Its assertion-based fixture identification disappears under optimized Python,
-allowing a production-shaped refusal to be followed by an unsafe no-argument
-probe. Do not run that standalone smoke until its unconditional refusal checks
-and optimized-mode regression are corrected and reviewed. No production broker
-was executed to reproduce the finding. This parent checker always launches its
-hash-pinned fixture with the mandatory lab arguments and does not share that
-defect. R19 remains open with the same reviewer; R01-R18 remain closed, and the
-combined producer/consumer milestone is not yet approved.
+delta, but opened **R19 (Medium)** in the backend's separate assertion-based
+`tools/smoke_empty_runtime.py`. Report 39 **closed R19** at
+`924824ff63938307425e7f7cb87252e3512f48f2`: every pass/fail check is unconditional,
+and the actual-script mocked regression rejects a production-shaped refusal,
+wrong exit status or unexpected stdout before any subsequent ungated probe in
+normal and optimized Python. The owner reproduced the old optimized failure and
+verified the correction on Windows and Mac, including five native fixture-only
+smokes. No production broker, real credential or account was used.
+
+The unchanged native fixture still has the `9e854...` hash above; no Rust binary,
+approved app engine or profile was replaced. This parent checker always launches
+its hash-pinned fixture with mandatory lab arguments and did not share R19.
+All R01-R19 findings are closed for their reviewed component scopes, not the
+complete launcher/account/gameplay journey.
+
+The original sealed `014d17...` source archive remains historical evidence and
+contains the superseded unsafe standalone smoke: **do not run that old tool**.
+Use corrected companion tools from `924824...`. The owner's readonly full
+public LF source archive
+`empty-management-broker-r19-source-924824ff63938307.tar` has independently
+verified SHA-256
+`e61483d0320e01d4d252377ffe498a2a89247520881dab1941be2c280bfa3041`.
+The owner's 136-file source-byte check and native fixture smokes are owner
+evidence, not additional consumer or reviewer execution.

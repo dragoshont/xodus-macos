@@ -1,7 +1,49 @@
 use std::process::ExitCode;
 use xodus::models::secrets::{ManagementStoreSession, Token};
 use xodus::tokens::{PASSPORT_STS, TokenManager};
-use xodus_management::adapter::{ConsentBootstrap, ConsentHandoff, MAX_AUTH_HANDOFF_BYTES};
+use xodus_management::adapter::{
+    ConsentBootstrap, ConsentFailure, ConsentHandoff, MAX_AUTH_HANDOFF_BYTES,
+};
+
+enum SessionFailure {
+    Cancelled,
+    Failed(ConsentFailure),
+}
+
+fn device_failure(error: xodus::tokens::device::DeviceCredentialError) -> SessionFailure {
+    use xodus::tokens::device::DeviceCredentialError;
+    SessionFailure::Failed(match error {
+        DeviceCredentialError::StorageUnavailable => ConsentFailure::DeviceStorage,
+        DeviceCredentialError::InvalidStoredCredential => ConsentFailure::DeviceCredential,
+        DeviceCredentialError::BrokerFailure => ConsentFailure::DeviceRequest,
+        DeviceCredentialError::InvalidBrokerProof => ConsentFailure::DeviceResponse,
+    })
+}
+
+fn login_failure(error: &'static str) -> SessionFailure {
+    match error {
+        "Sign-in was cancelled or no credentials were issued" => SessionFailure::Cancelled,
+        "Device credential proof is invalid or expired" => {
+            SessionFailure::Failed(ConsentFailure::DeviceProof)
+        }
+        "Sign-in did not return credential proof"
+        | "Sign-in did not return nonempty credential proof"
+        | "Sign-in returned duplicate credential audiences"
+        | "Sign-in did not issue the required Passport store credential" => {
+            SessionFailure::Failed(ConsentFailure::StoreProof)
+        }
+        _ => SessionFailure::Failed(ConsentFailure::NativeSignIn),
+    }
+}
+
+fn failure_handoff(error: SessionFailure) -> (ConsentHandoff, ExitCode) {
+    match error {
+        SessionFailure::Cancelled => (ConsentHandoff::Cancelled, ExitCode::from(2)),
+        SessionFailure::Failed(failure) => {
+            (ConsentHandoff::FailedAt { failure }, ExitCode::FAILURE)
+        }
+    }
+}
 
 fn private_channel(fd: std::os::fd::OwnedFd) -> std::io::Result<std::os::unix::net::UnixStream> {
     let channel = std::os::unix::net::UnixStream::from(fd);
@@ -57,36 +99,37 @@ fn write_handoff(
 
 async fn issue_session(
     bootstrap: ConsentBootstrap,
-) -> Result<ManagementStoreSession, &'static str> {
+) -> Result<ManagementStoreSession, SessionFailure> {
     let tokens = TokenManager::with_memory();
     if let Some(device) = bootstrap.device {
         tokens
             .save_device_license(&device)
-            .map_err(|_| "Device bootstrap failed")?;
+            .map_err(|_| SessionFailure::Failed(ConsentFailure::Bootstrap))?;
     }
     if let Some(token) = bootstrap.device_token {
         tokens
             .save_device_token(PASSPORT_STS.to_owned(), Token::Legacy(token))
-            .map_err(|_| "Device bootstrap failed")?;
+            .map_err(|_| SessionFailure::Failed(ConsentFailure::Bootstrap))?;
     }
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .redirect(reqwest::redirect::Policy::none())
         .build()
-        .map_err(|_| "Microsoft authentication client unavailable")?;
+        .map_err(|_| SessionFailure::Failed(ConsentFailure::ClientInitialization))?;
     xodus::tokens::device::ensure_device_credentials(&client, &tokens)
         .await
-        .map_err(|_| "Device credential preparation failed")?;
+        .map_err(device_failure)?;
     let Token::Legacy(device_token) = tokens
         .get_device_sts_token()
-        .map_err(|_| "Device proof unavailable")?
+        .map_err(|_| SessionFailure::Failed(ConsentFailure::DeviceProof))?
     else {
-        return Err("Device proof unavailable");
+        return Err(SessionFailure::Failed(ConsentFailure::DeviceProof));
     };
     let device = tokens
         .get_device_license()
-        .map_err(|_| "Device identity unavailable")?;
-    let (issued, user) = crate::commands::login::issue_credentials(client, device_token.clone())?;
+        .map_err(|_| SessionFailure::Failed(ConsentFailure::DeviceProof))?;
+    let (issued, user) = crate::commands::login::issue_credentials(client, device_token.clone())
+        .map_err(login_failure)?;
     let session = ManagementStoreSession {
         flow_id: bootstrap.flow_id,
         user,
@@ -95,7 +138,7 @@ async fn issue_session(
         device_token,
     };
     if !session.valid() {
-        return Err("Incomplete or expired store credential proof");
+        return Err(SessionFailure::Failed(ConsentFailure::StoreProof));
     }
     Ok(session)
 }
@@ -115,6 +158,12 @@ pub async fn run(flow_id: String) -> ExitCode {
         return ExitCode::FAILURE;
     };
     let Ok(bootstrap) = read_bootstrap(&mut channel, &flow_id) else {
+        let _ = write_handoff(
+            &mut channel,
+            &ConsentHandoff::FailedAt {
+                failure: ConsentFailure::Bootstrap,
+            },
+        );
         return ExitCode::FAILURE;
     };
     let (outcome, code) = match issue_session(bootstrap).await {
@@ -124,10 +173,7 @@ pub async fn run(flow_id: String) -> ExitCode {
             },
             ExitCode::SUCCESS,
         ),
-        Err("Sign-in was cancelled or no credentials were issued") => {
-            (ConsentHandoff::Cancelled, ExitCode::from(2))
-        }
-        Err(_) => (ConsentHandoff::Failed, ExitCode::FAILURE),
+        Err(error) => failure_handoff(error),
     };
     if write_handoff(&mut channel, &outcome).is_ok() {
         code
@@ -181,6 +227,85 @@ mod tests {
                 .unwrap();
             parent.write_all(&bytes).unwrap();
             assert!(read_bootstrap(&mut child, "fixture").is_err());
+        }
+    }
+
+    #[test]
+    fn known_device_errors_remain_static_typed_failures_without_provider_details() {
+        use xodus::tokens::device::DeviceCredentialError;
+        for (error, expected) in [
+            (
+                DeviceCredentialError::StorageUnavailable,
+                ConsentFailure::DeviceStorage,
+            ),
+            (
+                DeviceCredentialError::InvalidStoredCredential,
+                ConsentFailure::DeviceCredential,
+            ),
+            (
+                DeviceCredentialError::BrokerFailure,
+                ConsentFailure::DeviceRequest,
+            ),
+            (
+                DeviceCredentialError::InvalidBrokerProof,
+                ConsentFailure::DeviceResponse,
+            ),
+        ] {
+            let (handoff, code) = failure_handoff(device_failure(error));
+            assert_eq!(code, ExitCode::FAILURE);
+            assert!(matches!(handoff, ConsentHandoff::FailedAt { failure } if failure == expected));
+        }
+    }
+
+    #[test]
+    fn secret_marked_unknown_error_cannot_reach_private_or_public_failure_payload() {
+        let secret = "SECRET_SENTINEL_AUTH_DIAGNOSTIC<XML>ticket=user-secret&device=private";
+        let (handoff, code) = failure_handoff(login_failure(secret));
+        assert_eq!(code, ExitCode::FAILURE);
+        let ConsentHandoff::FailedAt { failure } = handoff else {
+            panic!("Expected a static failure category");
+        };
+        assert_eq!(failure, ConsentFailure::NativeSignIn);
+        let (mut parent, child) = std::os::unix::net::UnixStream::pair().unwrap();
+        let mut channel = private_channel(child.into()).unwrap();
+        write_handoff(&mut channel, &ConsentHandoff::FailedAt { failure }).unwrap();
+        drop(channel);
+        let mut bytes = Vec::new();
+        parent.read_to_end(&mut bytes).unwrap();
+        assert!(
+            !bytes
+                .windows(secret.len())
+                .any(|window| window == secret.as_bytes())
+        );
+        let public = serde_json::to_string(&failure.wire_error()).unwrap();
+        assert!(!public.contains("SECRET_SENTINEL") && !public.contains("<XML>"));
+        assert_eq!(
+            failure.wire_error().details.unwrap()["reason"],
+            "pipelineFailed"
+        );
+    }
+
+    #[test]
+    fn cancellation_and_known_store_proof_errors_keep_distinct_outcomes() {
+        let (cancelled, code) = failure_handoff(login_failure(
+            "Sign-in was cancelled or no credentials were issued",
+        ));
+        assert!(matches!(cancelled, ConsentHandoff::Cancelled));
+        assert_eq!(code, ExitCode::from(2));
+        for error in [
+            "Sign-in did not return credential proof",
+            "Sign-in did not return nonempty credential proof",
+            "Sign-in returned duplicate credential audiences",
+            "Sign-in did not issue the required Passport store credential",
+        ] {
+            let (failure, code) = failure_handoff(login_failure(error));
+            assert!(matches!(
+                failure,
+                ConsentHandoff::FailedAt {
+                    failure: ConsentFailure::StoreProof
+                }
+            ));
+            assert_eq!(code, ExitCode::FAILURE);
         }
     }
 }

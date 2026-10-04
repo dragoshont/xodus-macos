@@ -37,6 +37,105 @@ pub enum ConsentHandoff {
     },
     Cancelled,
     Failed,
+    FailedAt {
+        failure: ConsentFailure,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ConsentFailure {
+    Bootstrap,
+    ClientInitialization,
+    DeviceStorage,
+    DeviceCredential,
+    DeviceRequest,
+    DeviceResponse,
+    DeviceProof,
+    NativeSignIn,
+    StoreProof,
+    StageUnavailable,
+}
+
+impl ConsentFailure {
+    pub fn wire_error(self) -> WireError {
+        let (stage, reason, message) = match self {
+            Self::Bootstrap => (
+                "privateBootstrap",
+                "bootstrapInvalid",
+                "The private sign-in bootstrap was unavailable or invalid. Review the owned application and engine pairing.",
+            ),
+            Self::ClientInitialization => (
+                "clientInitialization",
+                "clientUnavailable",
+                "The sign-in HTTP client could not be initialized. Review the local engine configuration.",
+            ),
+            Self::DeviceStorage => (
+                "devicePreparation",
+                "credentialStorageUnavailable",
+                "The sign-in worker could not access its temporary device credential storage. No account sign-in was started.",
+            ),
+            Self::DeviceCredential => (
+                "devicePreparation",
+                "storedCredentialInvalid",
+                "Device preparation encountered invalid credential proof. Stored launcher credentials were not replaced.",
+            ),
+            Self::DeviceRequest => (
+                "devicePreparation",
+                "providerRequestFailed",
+                "The Microsoft device preparation request failed before account sign-in. The provider response is not exposed.",
+            ),
+            Self::DeviceResponse => (
+                "devicePreparation",
+                "providerProofInvalid",
+                "Microsoft device preparation did not return complete valid proof. No account sign-in was started.",
+            ),
+            Self::DeviceProof => (
+                "deviceProof",
+                "proofUnavailable",
+                "Complete device identity or proof was unavailable before native sign-in. Review device preparation.",
+            ),
+            Self::NativeSignIn => (
+                "nativeSignIn",
+                "pipelineFailed",
+                "The native Microsoft sign-in or token-exchange pipeline failed. Its exact substage is unavailable.",
+            ),
+            Self::StoreProof => (
+                "storeProof",
+                "proofInvalid",
+                "Sign-in did not return complete valid store credential proof. No account credential commit was started.",
+            ),
+            Self::StageUnavailable => (
+                "stageUnavailable",
+                "workerOutcomeUnavailable",
+                "The sign-in worker did not return a validated failure stage. Do not infer an authentication cause or retry automatically.",
+            ),
+        };
+        let mut error = WireError::new(ErrorCode::AuthInvalid, message, true);
+        error.details = serde_json::json!({
+            "category": "nativeConsentFailure", "stage": stage, "reason": reason
+        })
+        .as_object()
+        .cloned();
+        error
+    }
+}
+
+fn reconcile_handoff(
+    result: Result<ConsentHandoff, WireError>,
+    worker_failed: bool,
+) -> Result<ConsentHandoff, WireError> {
+    if !worker_failed {
+        return result;
+    }
+    match result {
+        Ok(
+            outcome @ (ConsentHandoff::FailedAt { .. }
+            | ConsentHandoff::Failed
+            | ConsentHandoff::Cancelled),
+        ) => Ok(outcome),
+        _ => Err(ConsentFailure::StageUnavailable.wire_error()),
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -50,16 +149,11 @@ pub struct ConsentBootstrap {
 struct ConsentReader {
     flow_id: String,
     task: JoinHandle<Result<ConsentHandoff, WireError>>,
+    worker_failed: bool,
 }
 
 async fn read_consent<R: AsyncRead + Unpin>(mut reader: R) -> Result<ConsentHandoff, WireError> {
-    let invalid = || {
-        WireError::new(
-            ErrorCode::AuthInvalid,
-            "Native consent did not return a complete bounded private session.",
-            true,
-        )
-    };
+    let invalid = || ConsentFailure::StageUnavailable.wire_error();
     let length = reader.read_u32().await.map_err(|_| invalid())? as usize;
     if length == 0 || length > MAX_AUTH_HANDOFF_BYTES {
         return Err(invalid());
@@ -109,6 +203,7 @@ fn spawn_consent(
             child,
             ConsentReader {
                 flow_id: flow_id.to_owned(),
+                worker_failed: false,
                 task: tokio::spawn(async move {
                     tokio::time::timeout(Duration::from_secs(5), async {
                         parent.write_u32(bytes.len() as u32).await?;
@@ -1082,7 +1177,10 @@ impl Backend {
             return Ok(());
         };
         self.auth_child = None;
-        if exit.success() && self.auth_handoff.is_some() && !expired {
+        if let Some(handoff) = &mut self.auth_handoff
+            && !expired
+        {
+            handoff.worker_failed = !exit.success();
             return Ok(());
         }
         if let Some(handoff) = self.auth_handoff.take() {
@@ -1101,15 +1199,15 @@ impl Backend {
                 ));
             } else {
                 flow.state = AuthFlowState::Failed;
-                flow.error = Some(WireError::new(
-                    if expired {
-                        ErrorCode::AuthExpired
-                    } else {
-                        ErrorCode::AuthInvalid
-                    },
-                    "Consent did not produce an approved nonempty XboxLive session. No package authorization is implied.",
-                    true,
-                ));
+                flow.error = Some(if expired {
+                    WireError::new(
+                        ErrorCode::AuthExpired,
+                        "Native consent exceeded its ten-minute deadline.",
+                        true,
+                    )
+                } else {
+                    ConsentFailure::StageUnavailable.wire_error()
+                });
             }
         }
         Ok(())
@@ -1195,11 +1293,8 @@ impl Backend {
                 "The native consent window closed before authorization completed.",
                 false,
             )),
-            Ok(ConsentHandoff::Failed) => Err(WireError::new(
-                ErrorCode::AuthInvalid,
-                "Native Microsoft/XboxLive consent failed. No package authorization is implied.",
-                true,
-            )),
+            Ok(ConsentHandoff::Failed) => Err(ConsentFailure::StageUnavailable.wire_error()),
+            Ok(ConsentHandoff::FailedAt { failure }) => Err(failure.wire_error()),
             Err(error) => Err(error),
         };
         self.finish_auth(outcome);
@@ -1837,8 +1932,9 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
             completion = async { (&mut backend.auth_handoff.as_mut().unwrap().task).await },
                 if backend.auth_handoff.is_some() => {
                 let handoff = backend.auth_handoff.take().unwrap();
-                let result = completion.map_err(|_| WireError::new(ErrorCode::AuthInvalid,
-                    "Private native consent receiver failed.", true)).and_then(|result| result);
+                let result = completion.map_err(|_| ConsentFailure::StageUnavailable.wire_error())
+                    .and_then(|result| result);
+                let result = reconcile_handoff(result, handoff.worker_failed);
                 backend.complete_auth(handoff.flow_id, result).await?;
             },
             _ = auth_poll.tick(), if backend.auth_child.is_some() || backend.auth_handoff.is_some() => {
@@ -1936,6 +2032,281 @@ mod auth_lifecycle_tests {
             .output()
             .unwrap();
         assert!(result.stdout.is_empty());
+    }
+
+    #[tokio::test]
+    async fn failed_worker_exit_preserves_its_private_failure_for_reconciliation() {
+        let (_temporary, mut backend) = backend();
+        let pid = own_worker(&mut backend);
+        backend.auth_handoff = Some(ConsentReader {
+            flow_id: "fixture-flow".to_owned(),
+            worker_failed: false,
+            task: tokio::spawn(async {
+                Ok(ConsentHandoff::FailedAt {
+                    failure: ConsentFailure::DeviceRequest,
+                })
+            }),
+        });
+        backend.auth_child.as_mut().unwrap().kill().await.unwrap();
+        backend.poll_auth().unwrap();
+        assert!(backend.auth_child.is_none());
+        assert!(
+            backend.auth_handoff.is_some(),
+            "A failed exit discarded the private failure outcome before it could be reconciled"
+        );
+        let handoff = backend.auth_handoff.take().unwrap();
+        let result = reconcile_handoff(handoff.task.await.unwrap(), handoff.worker_failed);
+        backend
+            .complete_auth(handoff.flow_id, result)
+            .await
+            .unwrap();
+        assert!(matches!(
+            backend.auth_flow.as_ref().unwrap().state,
+            AuthFlowState::Failed
+        ));
+        let error = backend.auth_flow.as_ref().unwrap().error.as_ref().unwrap();
+        assert_eq!(error.code, ErrorCode::AuthInvalid);
+        assert_eq!(
+            error.details.as_ref().unwrap()["stage"],
+            "devicePreparation"
+        );
+        assert_eq!(
+            error.details.as_ref().unwrap()["reason"],
+            "providerRequestFailed"
+        );
+        assert!(
+            backend
+                .tokens
+                .as_ref()
+                .unwrap()
+                .get_management_store_session()
+                .unwrap()
+                .is_none()
+        );
+        no_owned_process(pid);
+    }
+
+    #[tokio::test]
+    async fn all_failure_categories_cross_the_bounded_private_channel_as_static_details() {
+        use tokio::io::AsyncWriteExt;
+        for (failure, stage, reason) in [
+            (
+                ConsentFailure::Bootstrap,
+                "privateBootstrap",
+                "bootstrapInvalid",
+            ),
+            (
+                ConsentFailure::ClientInitialization,
+                "clientInitialization",
+                "clientUnavailable",
+            ),
+            (
+                ConsentFailure::DeviceStorage,
+                "devicePreparation",
+                "credentialStorageUnavailable",
+            ),
+            (
+                ConsentFailure::DeviceCredential,
+                "devicePreparation",
+                "storedCredentialInvalid",
+            ),
+            (
+                ConsentFailure::DeviceRequest,
+                "devicePreparation",
+                "providerRequestFailed",
+            ),
+            (
+                ConsentFailure::DeviceResponse,
+                "devicePreparation",
+                "providerProofInvalid",
+            ),
+            (
+                ConsentFailure::DeviceProof,
+                "deviceProof",
+                "proofUnavailable",
+            ),
+            (
+                ConsentFailure::NativeSignIn,
+                "nativeSignIn",
+                "pipelineFailed",
+            ),
+            (ConsentFailure::StoreProof, "storeProof", "proofInvalid"),
+            (
+                ConsentFailure::StageUnavailable,
+                "stageUnavailable",
+                "workerOutcomeUnavailable",
+            ),
+        ] {
+            let (_temporary, mut backend) = backend();
+            backend.auth_flow = Some(AuthFlow {
+                flow_id: "fixture-flow".to_owned(),
+                state: AuthFlowState::Pending,
+                error: None,
+            });
+            let (mut writer, reader) = tokio::net::UnixStream::pair().unwrap();
+            let bytes = serde_json::to_vec(&ConsentHandoff::FailedAt { failure }).unwrap();
+            writer.write_u32(bytes.len() as u32).await.unwrap();
+            writer.write_all(&bytes).await.unwrap();
+            drop(writer);
+            let outcome = read_consent(reader).await;
+            backend
+                .complete_auth("fixture-flow".to_owned(), outcome)
+                .await
+                .unwrap();
+            let error = backend.auth_flow.as_ref().unwrap().error.as_ref().unwrap();
+            assert_eq!(error.code, ErrorCode::AuthInvalid);
+            assert_eq!(error.details.as_ref().unwrap().len(), 3);
+            assert_eq!(
+                serde_json::to_value(error.details.as_ref().unwrap()).unwrap(),
+                serde_json::json!({"category":"nativeConsentFailure","stage":stage,"reason":reason})
+            );
+            assert!(
+                backend
+                    .tokens
+                    .as_ref()
+                    .unwrap()
+                    .get_management_store_session()
+                    .unwrap()
+                    .is_none()
+            );
+            assert!(
+                backend
+                    .tokens
+                    .as_ref()
+                    .unwrap()
+                    .get_xal_user_session()
+                    .unwrap()
+                    .is_none()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn pending_failed_handoff_keeps_begin_cancel_and_started_commit_gates() {
+        let (_temporary, mut backend) = backend();
+        let pid = own_worker(&mut backend);
+        let (reader, _writer) = tokio::net::UnixStream::pair().unwrap();
+        backend.auth_handoff = Some(ConsentReader {
+            flow_id: "fixture-flow".to_owned(),
+            worker_failed: false,
+            task: tokio::spawn(read_consent(reader)),
+        });
+        backend.auth_child.as_mut().unwrap().kill().await.unwrap();
+        backend.poll_auth().unwrap();
+        let begin = Request {
+            kind: RequestKind::Request,
+            protocol: Protocol::default(),
+            request_id: "second-begin".to_owned(),
+            operation: Operation::AuthBegin(AccountParams {
+                account_scope: "consumerXbox".to_owned(),
+            }),
+        };
+        assert_eq!(
+            backend.dispatch(&begin).await.err().unwrap().code,
+            ErrorCode::InvalidTransition
+        );
+        let cancel = Request {
+            kind: RequestKind::Request,
+            protocol: Protocol::default(),
+            request_id: "cancel".to_owned(),
+            operation: Operation::AuthCancel(AuthCancelParams {
+                flow_id: "fixture-flow".to_owned(),
+            }),
+        };
+        backend.account_mutation_pending = true;
+        assert_eq!(
+            backend.dispatch(&cancel).await.err().unwrap().code,
+            ErrorCode::InvalidTransition
+        );
+        backend.account_mutation_pending = false;
+        backend.dispatch(&cancel).await.unwrap();
+        assert!(matches!(
+            backend.auth_flow.as_ref().unwrap().state,
+            AuthFlowState::Cancelled
+        ));
+        assert!(backend.auth_handoff.is_none());
+        assert!(
+            backend
+                .tokens
+                .as_ref()
+                .unwrap()
+                .get_management_store_session()
+                .unwrap()
+                .is_none()
+        );
+        no_owned_process(pid);
+    }
+
+    #[tokio::test]
+    async fn unknown_or_secret_marked_private_failure_fields_are_unavailable_not_forwarded() {
+        let secret = "SECRET_SENTINEL_AUTH_CHANNEL";
+        for payload in [
+            serde_json::json!({"outcome":"failedAt","failure":"unknownFailure"}),
+            serde_json::json!({"outcome":"failedAt","failure":"deviceRequest","error":secret}),
+            serde_json::json!({"outcome":"failedAt","failure":{"stage":secret}}),
+            serde_json::json!({"outcome":"failedAt"}),
+            serde_json::json!({"outcome":"failedAt","failure":null}),
+        ] {
+            let bytes = serde_json::to_vec(&payload).unwrap();
+            let frame = [
+                (bytes.len() as u32).to_be_bytes().as_slice(),
+                bytes.as_slice(),
+            ]
+            .concat();
+            let error = read_consent(frame.as_slice()).await.err().unwrap();
+            let public = serde_json::to_string(&error).unwrap();
+            assert!(!public.contains(secret) && !public.contains("unknownFailure"));
+            assert_eq!(error.details.as_ref().unwrap()["stage"], "stageUnavailable");
+            assert_eq!(
+                error.details.as_ref().unwrap()["reason"],
+                "workerOutcomeUnavailable"
+            );
+        }
+    }
+
+    #[test]
+    fn failed_exit_cannot_promote_success_or_expose_an_unobserved_error() {
+        for success in [
+            ConsentHandoff::Completed {
+                session: Box::new(fixture_session()),
+            },
+            ConsentHandoff::StoreCompleted {
+                session: Box::new(fixture_store_session()),
+            },
+        ] {
+            let error = reconcile_handoff(Ok(success), true).err().unwrap();
+            assert_eq!(error.code, ErrorCode::AuthInvalid);
+            assert_eq!(error.details.as_ref().unwrap()["stage"], "stageUnavailable");
+        }
+        let error = reconcile_handoff(
+            Err(WireError::new(
+                ErrorCode::AuthInvalid,
+                "SECRET_SENTINEL_CRASH",
+                true,
+            )),
+            true,
+        )
+        .err()
+        .unwrap();
+        assert!(
+            !serde_json::to_string(&error)
+                .unwrap()
+                .contains("SECRET_SENTINEL")
+        );
+        assert!(matches!(
+            reconcile_handoff(Ok(ConsentHandoff::Cancelled), true).unwrap(),
+            ConsentHandoff::Cancelled
+        ));
+        assert!(matches!(
+            reconcile_handoff(
+                Ok(ConsentHandoff::Completed {
+                    session: Box::new(fixture_session()),
+                }),
+                false
+            )
+            .unwrap(),
+            ConsentHandoff::Completed { .. }
+        ));
     }
 
     fn fixture_session() -> xodus::xal::TokenStore {
@@ -2169,6 +2540,7 @@ mod auth_lifecycle_tests {
         let (parent, _peer) = tokio::net::UnixStream::pair().unwrap();
         backend.auth_handoff = Some(ConsentReader {
             flow_id: "fixture-flow".to_owned(),
+            worker_failed: false,
             task: tokio::spawn(read_consent(parent)),
         });
         backend
@@ -2233,7 +2605,12 @@ mod auth_lifecycle_tests {
         let pid = own_worker(&mut backend);
         backend.auth_started = Some(std::time::Instant::now() - Duration::from_secs(601));
         backend
-            .complete_auth("fixture-flow".to_owned(), Ok(ConsentHandoff::Failed))
+            .complete_auth(
+                "fixture-flow".to_owned(),
+                Ok(ConsentHandoff::FailedAt {
+                    failure: ConsentFailure::DeviceRequest,
+                }),
+            )
             .await
             .unwrap();
         assert_eq!(

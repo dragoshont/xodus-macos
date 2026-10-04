@@ -134,6 +134,8 @@ Same retained report 39 closes R19 at exact
 the reviewed correction. Report 38 found no additional issue in the parent's
 0d5 consumer/runner. These are scoped source-review closures, not live account,
 production runtime-pair or complete-product approval.
+The newer diagnostic-only consent correction below awaits separate review 41
+by the same retained reviewer; previous closures do not approve this new delta.
 The backend's SOAP nonce delta remains accepted by review 34. Historical
 parent-owned R17 discussion below describes its then-open state, not a current
 finding. Coordinator
@@ -163,6 +165,117 @@ change, new provider or default-service initiation is implied or performed.
 Historical milestone evidence and then-pending reviews below do not override
 this status; genuinely new source deltas still require an immutable handoff to
 the same retained reviewer.
+
+### Static private consent failure diagnostics
+
+The coordinator and sole app owner report one user-directed native Account
+entry using reviewed 2a47/57d, a separate signed copy, and C95. The app showed
+its authored generic failed-flow label, but the cached wire error was not
+safely observable. **The actual failure cause remains unknown.** No
+retrospective credential/page/memory/log inspection, new status request or
+retry was performed by this worker. This correction makes a future authorized
+failure diagnosable; it does not claim to fix the old authentication cause.
+
+Source traced two concrete diagnostic losses: the worker reduced all
+non-cancellation errors to a bare private `Failed`, and the parent poller could
+discard a failure handoff when it observed a nonzero worker exit. An isolated
+native regression with an empty managed memory backend and an owned `/bin/sleep`
+child reproduces the latter on the original source: the handoff is lost before
+reconciliation. No auth worker, native account or provider request is run.
+
+The worker now maps errors to the closed `ConsentFailure` enum and sends only
+`{"outcome":"failedAt","failure":"<enum>"}` on its existing anonymous private
+channel. It never serializes an exception, Debug output, HTTP/XML response,
+username, device identity or credential. The existing 256 KiB private frame
+bound, complete session proof, anonymous-channel checks and same-executable
+worker launch remain unchanged. The original bare `Failed` remains readable
+but means stage unavailable.
+
+The parent maps these static failures to the existing `AUTH_INVALID` error and
+optional `flow.error.details`, without changing C95 bytes or public error codes.
+The exact optional details shape was explicitly agreed with the sole app owner:
+
+```json
+{"category":"nativeConsentFailure","stage":"devicePreparation","reason":"providerRequestFailed"}
+```
+
+Exactly three string keys, the fixed category, and one of these ten pairs are
+recognized by the app's separate typed consumer:
+
+| stage | reason |
+|---|---|
+| `privateBootstrap` | `bootstrapInvalid` |
+| `clientInitialization` | `clientUnavailable` |
+| `devicePreparation` | `credentialStorageUnavailable` |
+| `devicePreparation` | `storedCredentialInvalid` |
+| `devicePreparation` | `providerRequestFailed` |
+| `devicePreparation` | `providerProofInvalid` |
+| `deviceProof` | `proofUnavailable` |
+| `nativeSignIn` | `pipelineFailed` |
+| `storeProof` | `proofInvalid` |
+| `stageUnavailable` | `workerOutcomeUnavailable` |
+
+`nativeSignIn/pipelineFailed` deliberately means native UI **or** token-exchange
+pipeline failure, not an observed window, endpoint or precise HTTP cause.
+Device preparation categories distinguish existing typed storage/credential/
+request/proof errors, not individual unobserved provider endpoints. Parent
+profile/proof/commit errors retain their existing meanings and absent details;
+no worker stage is invented for them.
+
+The consumer accepts diagnostic details only with `AUTH_INVALID`. Missing,
+malformed, unknown, mismatched or extra-key details (including a secret-marked
+extra key) are discarded and rendered as locally authored stage unavailable.
+It never renders arbitrary server messages/details and never automates retry,
+logout or profile deletion. The public schema still allows an optional details
+object; this closed diagnostic allowlist is an agreed interpretation, not a
+schema alteration.
+
+The poller now retains the receiver after an observed worker failure so its
+validated failure outcome can be consumed. An observed failed exit cannot
+promote a successful session; missing/invalid/unobserved/crashed outcomes
+produce explicit `stageUnavailable`, not a fabricated reason. Cancellation
+remains `AUTH_CANCELLED`; the existing deadline overrides diagnostic failures
+as `AUTH_EXPIRED`. Active-flow, duplicate-begin, cancellation, completed proof,
+already-started commit, profile reconciliation and OS mutation semantics remain
+unchanged. No secrets move to management stdout or worker diagnostics.
+
+**104 scoped native checks passed**: 29 CLI and 75 management tests (42 library,
+8 adapter, 11 staging, 12 state/transport and 2 wire). Eight new tests cover all
+ten failure categories over real anonymous private channels, preservation after
+failed exit, rejection of success from an observed failed exit, malformed/
+unknown/secret-marked private payloads, injected secret-marked worker errors,
+typed device error mapping, cancellation/store-proof classification and
+duplicate-begin/cancel/already-started commit gates. Existing success, foreign
+flow, expiry, storage and mutation regressions remain included.
+The two secret-injection regressions also ran with `--nocapture`; captured
+stdout/stderr contained none of the injected secret sentinel, XML marker or
+ticket bytes. These are isolated payload/output checks, not live provider logs.
+
+```sh
+cargo test --offline --locked -q -p xodus-cli -p xodus-management \
+  --features xodus-management/live
+cargo clippy --offline --locked -q -p xodus-management --features live \
+  --no-deps -- -D warnings
+cargo clippy --offline --locked -q -p xodus-cli --no-deps -- \
+  -D warnings -A clippy::collapsible_if -A clippy::too_many_arguments
+cargo check --offline --locked -q -p xodus-cli -p xodus-management \
+  --features xodus-management/live
+../schema-venv/bin/python tools/check_management_contract.py
+```
+
+CLI lint retains only the two previously documented baseline allowances; this
+is not a clean strict whole-CLI lint claim. Management strict lint and native
+compilation/test build checks passed. The unchanged contract corpus passed.
+Tested LF source SHA256 values:
+adapter `e3ca748f68e965f3eff6d328702cd906f35db070a39f5c0f6e621f37b026b550`;
+worker `1744621b103125ee0f316980cb9fd3ea6df24ed813b532aa07d2e2033b2cef90`.
+
+Publication is **source only** pending same retained review 41. No new
+production CLI binary was sealed, published, deployed or executed; the held
+app/engine pair and historical artifacts remain unchanged. No live auth,
+credential read, account/device RPC, runtime service, consent prompt or
+package/game action was initiated. A diagnostic engine artifact and any further
+human retry require separate reviewed provenance and coordinator approval.
 
 ### R19 optimization-safe developer fixture smoke
 

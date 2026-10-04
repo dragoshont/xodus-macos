@@ -17,6 +17,24 @@
 - Steam games using Microsoft services should be able to use Xodus login
 - Users want to use their launcher of preference, not another launcher. Integration should be simple
 
+## Private native consent diagnostics
+
+The management Account worker uses its inherited anonymous channel, not the
+runtime socket. Failed consent stages are a closed static enum in the bounded
+private handoff; the parent maps them to existing `AUTH_INVALID` with optional
+three-string `details` (`category: nativeConsentFailure`, `stage`, `reason`).
+The ten agreed pairs are documented in the management implementation ledger.
+No raw exception, provider response, page content or credential is serialized.
+The consumer uses only validated closed pairs and locally authored copy;
+absent/malformed/unknown/extra-key details are stage unavailable.
+
+A failed worker exit does not discard a validated failure handoff, but cannot
+promote a successful session. Missing/invalid/unobserved outcomes remain stage
+unavailable. Cancellation, expiry, proof, active-flow and already-started
+Keychain commit semantics are preserved. This is diagnostic-only source,
+pending separate retained review, not a fix or precise explanation for an
+earlier unobserved failure and not permission to retry or deploy a new engine.
+
 ## Runtime transport boundary
 
 The service's XML framing uses little-endian `u32` magic `0x58445358`,

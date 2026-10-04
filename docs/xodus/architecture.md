@@ -43,5 +43,19 @@ and one overall IO deadline, and suppresses response-parser credential dumps.
 Its pinned-source applicator also removes directly coupled public shim
 JSON/HTTP-body/header debug dumps. See that directory's README for isolated
 native checks, exact public source provenance and licensing. This client does
-not establish a PE build, a supported Wine/shim/service version pair or live
+not itself establish a supported Wine/shim/service version pair or live
 authorization. The backend's separate scoped broker remains required.
+
+The separate `runtime/public-macos` probe now compiles the complete configured
+public Wine candidate with an actual x64 macOS loader, server, native Mac
+driver, Schannel dependency and patched x64 PE shim. It uses exact public source
+pins and checked original platform overlays, not a private runtime. Vulkan,
+GStreamer, the Linux DRM AMD extension and the fork's optional duplicate legacy
+loader are explicitly excluded. The default Wine shim gitlink is deliberately
+overridden by the development shim, so this is not an upstream-supported pair.
+
+Compilation and offline dependency checks do not prove Windows-branch RPS
+execution, prefix isolation, graphics, TLS peer validation or licensed gameplay.
+No real credentials or game were used for this build. Its output hashes and
+limitations are recorded in the probe README; it must not enable the app's
+Play capability or be distributed as a certified runtime.

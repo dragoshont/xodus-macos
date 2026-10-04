@@ -8,6 +8,11 @@ on:
       - runtime/public-macos/test_tls_peer.py
       - runtime/public-macos/check_windows_graphics.py
       - runtime/public-macos/test_graphics_session.py
+      - runtime/public-macos/check_default_drawable.py
+      - runtime/public-macos/test_default_drawable.py
+      - runtime/public-macos/check_graphics_foreground.py
+      - runtime/public-macos/test_graphics_foreground.py
+      - runtime/public-macos/foreground_pid.swift
       - runtime/public-macos/windows_graphics_smoke.c
       - .github/workflows/public-rps-client.yml
   push:
@@ -17,6 +22,11 @@ on:
       - runtime/public-macos/test_tls_peer.py
       - runtime/public-macos/check_windows_graphics.py
       - runtime/public-macos/test_graphics_session.py
+      - runtime/public-macos/check_default_drawable.py
+      - runtime/public-macos/test_default_drawable.py
+      - runtime/public-macos/check_graphics_foreground.py
+      - runtime/public-macos/test_graphics_foreground.py
+      - runtime/public-macos/foreground_pid.swift
       - runtime/public-macos/windows_graphics_smoke.c
       - .github/workflows/public-rps-client.yml
   workflow_dispatch:
@@ -50,7 +60,9 @@ jobs:
         working-directory: runtime/public-macos
         shell: bash
         run: python3 -B test_tls_peer.py
-      - name: Check graphics-session refusal before the owned runner
+      - name: Check graphics admission, outcomes and metadata-only foreground guards
         working-directory: runtime/public-macos
         shell: bash
-        run: python3 -B test_graphics_session.py -v
+        run: |
+          python3 -B -m unittest test_graphics_session test_default_drawable test_graphics_foreground -v
+          xcrun swiftc foreground_pid.swift -o "$RUNNER_TEMP/foreground-pid-check"

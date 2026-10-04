@@ -88,7 +88,12 @@ actual clear/readback matching all four channels within one byte. The
 eleven-source guarded overlay fixes initialization queries and buffer
 restoration; no GL errors are cleared to claim success. The hidden window's
 native default framebuffer is unavailable, so this proves only owned offscreen
-rendering, not presentation or gameplay. Existing actual RPS/TLS checks still
+rendering, not presentation or gameplay. A subsequent explicit nonactivating
+window probe now verifies an owned default RGBA8 back buffer, clear/readback
+and successful buffer-swap API in both contexts. Guest activation checks and
+metadata-only native foreground-PID snapshots reject observed changes. These
+snapshots are not continuous activation monitoring, and buffer submission is
+not compositor capture or licensed gameplay. Existing actual RPS/TLS checks still
 pass, and the owned-prefix lifecycle remains shared. This does not enable
 Play or establish account entitlement, package authorization, runtime pairing
 or a certified distribution.

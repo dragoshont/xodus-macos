@@ -61,7 +61,8 @@ int main(int argc, char **argv)
     PFNGLRENDERBUFFERSTORAGEEXTPROC renderbuffer_storage = NULL;
     PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC framebuffer_renderbuffer = NULL;
     PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC check_framebuffer = NULL;
-    int format, result = 1, current = 0, core = 0;
+    int format, result = 1, current = 0, core = 0, present = 0;
+    HWND original_foreground = NULL;
     size_t channel;
 
     if (argc == 2 && !strcmp(argv[1], "--bootstrap"))
@@ -69,10 +70,11 @@ int main(int argc, char **argv)
         puts("Isolated Windows check started; no credentials requested.");
         return 0;
     }
-    core = argc == 2 && !strcmp(argv[1], "--core");
-    if (argc != 1 && !core)
+    core = argc == 2 && (!strcmp(argv[1], "--core") || !strcmp(argv[1], "--present-core"));
+    present = argc == 2 && (!strcmp(argv[1], "--present") || !strcmp(argv[1], "--present-core"));
+    if (argc != 1 && !core && !present)
     {
-        fputs("Usage: xodus-windows-graphics-smoke.exe [--bootstrap|--core]\n", stderr);
+        fputs("Usage: xodus-windows-graphics-smoke.exe [--bootstrap|--core|--present|--present-core]\n", stderr);
         return 2;
     }
     window_class.style = CS_OWNDC;
@@ -81,11 +83,40 @@ int main(int argc, char **argv)
     window_class.lpszClassName = class_name;
     registered = RegisterClassW(&window_class);
     if (!registered) goto failed;
-    operation = "create hidden window";
+    original_foreground = GetForegroundWindow();
+    operation = "create owned nonactivating window";
     window = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, class_name,
-                             L"Xodus owned hidden graphics check", WS_POPUP,
+                             present ? L"Xodus owned nonactivating drawable check"
+                                     : L"Xodus owned hidden graphics check", WS_POPUP,
                              0, 0, 32, 32, NULL, NULL, instance, NULL);
     if (!window) goto failed;
+    if (present)
+    {
+        MSG message;
+        unsigned count = 0;
+        int width = GetSystemMetrics(SM_CXSCREEN), height = GetSystemMetrics(SM_CYSCREEN);
+        if (width < 64 || height < 64)
+        {
+            fputs("The owned drawable has no bounded screen location.\n", stderr);
+            goto done;
+        }
+        operation = "show the owned window without activation";
+        if (!SetWindowPos(window, HWND_BOTTOM, width - 64, height - 64, 32, 32,
+                          SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_SHOWWINDOW))
+            goto failed;
+        while (count < 64 && PeekMessageW(&message, NULL, 0, 0, PM_REMOVE))
+        {
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+            ++count;
+        }
+        if (count == 64 || !IsWindowVisible(window) ||
+            GetForegroundWindow() != original_foreground || GetActiveWindow() == window)
+        {
+            fputs("The owned drawable did not become visible without guest activation.\n", stderr);
+            goto done;
+        }
+    }
     operation = "obtain owned window DC";
     device = GetDC(window);
     if (!device) goto failed;
@@ -164,6 +195,48 @@ int main(int argc, char **argv)
         !load_framebuffer_proc(&framebuffer_renderbuffer, sizeof(framebuffer_renderbuffer), "glFramebufferRenderbuffer", core) ||
         !load_framebuffer_proc(&check_framebuffer, sizeof(check_framebuffer), "glCheckFramebufferStatus", core))
         goto done;
+    if (present)
+    {
+        GLenum status;
+        bind_framebuffer(GL_FRAMEBUFFER_EXT, 0);
+        if (!check_gl("select the owned default framebuffer")) goto done;
+        status = check_framebuffer(GL_FRAMEBUFFER_EXT);
+        if (!check_gl("check the owned default framebuffer")) goto done;
+        if (status != GL_FRAMEBUFFER_COMPLETE_EXT)
+        {
+            fprintf(stderr, "The owned default framebuffer is incomplete: %#x.\n", (unsigned)status);
+            goto done;
+        }
+        glViewport(0, 0, 32, 32);
+        glDisable(GL_DITHER);
+        glDrawBuffer(GL_BACK);
+        glReadBuffer(GL_BACK);
+        if (!check_gl("configure the owned default back buffer")) goto done;
+        glClearColor(0.25f, 0.5f, 0.75f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glFinish();
+        if (!check_gl("clear the owned default back buffer")) goto done;
+        glReadPixels(16, 16, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+        if (!check_gl("read the owned default back-buffer pixel")) goto done;
+        for (channel = 0; channel < sizeof(pixel); ++channel)
+        {
+            if (abs((int)pixel[channel] - expected[channel]) > 1)
+            {
+                fputs("The owned default back buffer did not match RGBA within one byte.\n", stderr);
+                goto done;
+            }
+        }
+        operation = "swap the owned default back buffer";
+        if (!SwapBuffers(device)) goto failed;
+        if (!check_gl("submit the owned default buffer swap")) goto done;
+        if (GetForegroundWindow() != original_foreground || GetActiveWindow() == window)
+        {
+            fputs("The owned drawable unexpectedly took guest activation during its swap.\n", stderr);
+            goto done;
+        }
+        result = 0;
+        goto done;
+    }
     gen_framebuffers(1, &framebuffer);
     if (!check_gl("allocate the owned framebuffer")) goto done;
     if (!framebuffer)
@@ -251,7 +324,12 @@ done:
         fputs("Cannot unregister the owned graphics window class.\n", stderr);
         result = 1;
     }
-    if (!result) puts(core ? "Isolated Windows core graphics outcome passed."
-                           : "Isolated Windows legacy graphics outcome passed.");
+    if (!result)
+    {
+        if (present) puts(core ? "Isolated Windows core default-drawable outcome passed."
+                              : "Isolated Windows legacy default-drawable outcome passed.");
+        else puts(core ? "Isolated Windows core graphics outcome passed."
+                       : "Isolated Windows legacy graphics outcome passed.");
+    }
     return result;
 }

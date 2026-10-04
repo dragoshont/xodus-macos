@@ -375,3 +375,77 @@ failure path; they are no longer solely standalone-client evidence. This is
 still not successful Store/account authorization, licensed gameplay, a supported
 service/runtime pair or signed distribution. The shared owned Wine lifecycle
 and the existing graphics limitations remain unchanged.
+
+## Owned default drawable and buffer-swap API
+
+The graphics helper additionally accepts `--present` and `--present-core`.
+These explicitly create and show only an owned 32x32 `WS_EX_NOACTIVATE`
+tool window at `HWND_BOTTOM`, using `SWP_NOACTIVATE`. The public Mac driver's
+corresponding nonactivating-panel path does not request application activation.
+A bounded message pump and guest foreground/active-window assertions reject
+observed activation. The original hidden offscreen modes remain separate.
+
+Each default-drawable case requires a complete framebuffer zero, the selected
+double-buffered RGBA8 format, an owned `GL_BACK` pixel matching
+`[64, 128, 191, 255]` within one byte, successful `SwapBuffers`, no GL error and
+normal resource release. There is no `GL_FRONT`/desktop/compositor capture or
+fallback from failed default storage to passing offscreen storage.
+This establishes an owned default drawable and buffer-swap **API** outcome,
+not physical presentation, broader production compatibility or gameplay.
+
+`foreground_pid.swift` reads only the native foreground application's PID,
+without names, application contents, screenshots, accessibility access or
+consent prompts. `check_graphics_foreground.py` runs both offscreen cases and
+both default-drawable cases using the unchanged reviewed prefix lifecycle.
+Native PID snapshots before and after each owned process, including bootstrap,
+must match; invalid/unavailable metadata or a changed PID rejects the check.
+The original process failure remains in the exception chain if the final
+snapshot also fails. Snapshot comparison is **not continuous** evidence that
+no intermediate activation occurred, and the checker never restores focus.
+The selected metadata helper and its ancestors through the owned root must be
+non-aliased, current-user-owned and not writable by other users.
+
+Build the updated PE source using the existing strict command above, changing
+only its output to `$root/xodus-windows-default-drawable-v1.exe`. Run the
+following only from the normal graphical login session:
+
+```sh
+xcrun swiftc "$probe/foreground_pid.swift" -o "$root/foreground-pid-check"
+python3 -B "$probe/check_graphics_foreground.py" \
+  --foreground-helper "$root/foreground-pid-check" "$root" \
+  "$root/public-wine-build-macos-x64/loader/wine" \
+  "$root/public-wine-build-macos-x64/server/wineserver" \
+  "$root/xodus-windows-default-drawable-v1.exe" \
+  --library-directory "$root/public-host-dependencies/x64/lib"
+(cd "$probe" && python3 -B -m unittest \
+  test_graphics_session test_default_drawable test_graphics_foreground -v)
+```
+
+The updated PE source compiled with the actual public Win64 toolchain. A normal
+current-user GUI job passed both default-drawable cases; a subsequent four-mode
+run also passed the original offscreen cases and all native snapshots.
+All four cases passed again using the immutable archived binaries; the
+separate `public-default-drawable-v1-evidence` archive preserves that final
+run and its independent cleanup evidence.
+Each completed job has a numerical zero exit, no active job PID, and is removed
+only after exit. Independent selected native ntdll mapping checks return
+status 1, no PIDs and no stderr. SSH admission still refuses before Wine startup.
+Twenty-two native admission/outcome/foreground checks pass on the Mac; Windows
+runs twenty-one and explicitly skips the POSIX file-ownership fixture.
+Hosted checks compile the Swift collector and exercise these guards, not GPUs.
+
+| Observed unsigned component | SHA-256 |
+|---|---|
+| Updated original PE helper | `9f2ce44810ab00ff1929ff94751923f7a3a56b6cca29bae377237f01a6ba3b05` |
+| Metadata-only native collector | `9095bfe92207ef3d0de8a406095f59bcaf3a5249a609eced1f7cc23bda7e7fef` |
+
+These identify the owned `artifacts/public-default-drawable-v1` binaries, not
+reproducible-build guarantees or a distribution. Their original GPL sources,
+license and actual logs are preserved with the binaries. The captured bootstrap
+log includes working-directory diagnostics and the x64-only candidate's missing
+WOW64 `rundll32` startup diagnostic; this does not establish 32-bit support.
+Earlier immutable offscreen and async artifacts are unchanged. No personal
+account, package, service/profile pairing, real game, private runtime, approved
+app/engine replacement or host graphics configuration was used or changed.
+Play and the remaining licensed journey stay gated. This new delta is pending
+the same retained adversarial review; previous closures do not approve it.

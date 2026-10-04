@@ -188,7 +188,38 @@ failures are not relabeled as passing or assigned an unproved host cause.
 The additive, immutable unsigned CLI built from the reviewed backend source has
 SHA256 `34214ee29b3582a6d146ccd029991a70949514c58bcaa99f834db930d41e96ca`.
 Source review, isolated checks and inert artifact readiness do not prove that
-the response-wrapper bug caused the observed failure. Separate app signing,
-fresh process pairing and a new user-authorized native sign-in attempt are
-required before claiming a working login popup; account credentials and consent
-must still be supplied by the user.
+the response-wrapper bug caused the observed failure. The app owner subsequently
+verified a separately signed embedded copy with SHA256
+`5d6bb07936559ea44a0fd81ad96ed7e118bf6346d8d09a83f8212a543ee1329a`,
+gracefully retired the idle older pair, and verified the fresh app/engine
+relationship, native toolbar controls and read-only readiness.
+
+The new user-authorized native Sign In action still failed before the login
+window at `AUTH_INVALID / devicePreparation / tokenStructureInvalid`. The
+locally authored failure title was visibly presented; no pending cancel control
+or auth child remained. This narrows the refusal to the supported token/proof
+structure guard, not a specific legacy-kind, STS-key, cipher/base64 or v4-secret
+cause. No working Microsoft popup or authenticated Store session is established.
+Account credentials and consent must still be supplied by the user once the
+preparation blocker is resolved.
+
+The backend owner's next isolated trace reproduced a separate XML lexical
+false rejection: both new regressions fail against the exact reviewed baseline
+when otherwise valid XML base64 values contain permitted space, tab, CR or LF.
+Full SOAP decryption succeeds before the wrapped proof is rejected; the
+canonical no-whitespace case passes. This establishes a source defect, not that
+the actual provider response contained whitespace or caused the live failure.
+The shared bounded XML-only decoder correction remains in progress.
+
+Before producer implementation, the parent and sole app owner agreed four
+additional static device-preparation reasons: `tokenKindInvalid`,
+`tokenAudienceInvalid`, `tokenCipherInvalid` and `tokenSecretInvalid`. App source
+`5ae30fd4bd4e17cb235857e5c41fba1627c317f7` retains all fourteen existing pairs,
+including the coarse structure reason, and preserves the AUTH_INVALID-only,
+exact three-key format and C95 schema. Its exact hosted run
+[37193138334](https://github.com/dragoshont/xodus-macos-app/actions/runs/37193138334)
+succeeded; the app owner reports 398 checks and editable SVG verification.
+The parent independently verified the exact run SHA and successful job metadata.
+This source-only consumer update is not deployed. The combined producer/consumer
+delta still requires the same continuity review, new immutable engine and fresh
+paired native retest; the existing signed pair remains unchanged.

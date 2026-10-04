@@ -259,3 +259,14 @@ server's ready socket. No selected runtime processes or private prefixes
 remained after either corrected run; `lsof` found no process retaining the exact
 selected native ntdll mapping. This closes the reproduced startup-order defect;
 retained adversarial review remains a separate source-level check.
+
+The same retained adversarial reviewer closed R14 at
+`67adac4d17fa2e26ff610ff9fc0947d9387f6d40` in review 29, after closing the
+fresh-host fixture finding R15 at `b3805d699255b2641f6cf89c52e189ae76777c55`
+in review 28. All confirmed findings R01-R15 are closed. The reviewer checked
+source, syntax and required call arguments, not the Darwin/runtime executions.
+Independent hosted run
+[37172888303](https://github.com/dragoshont/xodus-macos/actions/runs/37172888303)
+passed the native client and all eleven ownership regressions at the exact
+R14 correction. These scoped closures do not replace Store consent, authorized
+installation, runtime pairing, licensed gameplay or the final end-to-end review.

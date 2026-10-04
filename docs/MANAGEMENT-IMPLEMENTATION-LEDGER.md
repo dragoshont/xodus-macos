@@ -128,9 +128,12 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
-Current retained source-review status: coordinator reports **R01-R18 closed**.
-**R19 MEDIUM remains open** from retained report 38 in this backend's developer
-fixture Python smoke; the correction below awaits the same reviewer's closure.
+Current retained source-review status: coordinator reports **R01-R19 closed**.
+Same retained report 39 closes R19 at exact
+`924824ff63938307425e7f7cb87252e3512f48f2`, finding no significant issues in
+the reviewed correction. Report 38 found no additional issue in the parent's
+0d5 consumer/runner. These are scoped source-review closures, not live account,
+production runtime-pair or complete-product approval.
 The backend's SOAP nonce delta remains accepted by review 34. Historical
 parent-owned R17 discussion below describes its then-open state, not a current
 finding. Coordinator
@@ -217,9 +220,24 @@ Corrected LF tool SHA256:
 new regression LF SHA256:
 `0c41fa0b13e828ebf2fab5facbe4629dde295f5a5e546388295955ed5184b1f3`.
 This is only a tool/test/docs correction, not a schema, backend, account,
-credential/profile, broker binary, app-engine or runtime change. R19 closure
-is not self-declared; the coordinator routes the immutable delta to the same
-retained reviewer.
+credential/profile, broker binary, app-engine or runtime change. The coordinator
+reports **R19 CLOSED** by the same retained report 39 at exact
+`924824ff63938307425e7f7cb87252e3512f48f2`, with no significant issues in the
+reviewed correction. The five actual native fixture-only smokes and 136-file
+public-LF byte comparison remain this worker's execution evidence, not the
+parent's or reviewer's reruns.
+
+Historical immutable 014d source archives remain unchanged and contain the
+**superseded unsafe smoke script**. Never execute that historical script,
+including under optimized Python. Use only the corrected tool pinned to exact
+924824f and its LF digest above; the original 014d/9e85 Rust fixture binary
+remains unchanged. Source-review closure neither authorizes a production
+profile/service nor replaces any app engine.
+
+Separately, the parent reports additional pure-mock suites passing on native
+macOS (18 checks per `-O`/environment-optimization run) and Windows (11 passing,
+7 Unix skips per mode), without broker, Wine or account execution. These are
+parent-executed checks, not this worker's or the reviewer's execution.
 
 Separately, the coordinator attributes three signed-out public Windows
 gaming-COM interactions to parent source
@@ -338,9 +356,10 @@ This user-directed mandatory-gate correction supersedes the earlier e386688
 fixture invocation/artifact; retained prior artifacts are not the current
 handoff pin. The native mirror remains aligned to the exact public LF sources,
 and Git source archives disable Windows checkout newline conversion explicitly.
-The immutable source commit is supplied in the publication handoff. This new
-fixture delta awaits the same retained reviewer's separate review; it does not
-inherit review 34's approval. The parent owns real public Windows gaming-COM
+The immutable source commit is supplied in the publication handoff. This
+fixture delta received separate retained reports 38/39, including the R19
+correction closure above; it does not inherit review 34's approval.
+The parent owns real public Windows gaming-COM
 consumer adaptation and its actual fixture-pair run. No successful fake/real
 RPS, Store sign-in, actual credential/license proof, runtime/game execution,
 production deployment, GUI da548/C95 swap or full-journey gate closure is

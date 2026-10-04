@@ -16,6 +16,7 @@ SOURCE_BLOBS = {
     "dlls/ntdll/unix/loader.c": "2498c2aae4479e1542ca5fb0697f114175ba0a83",
     "dlls/ntdll/unix/signal_x86_64.c": "110404c274cf3480ae3b0ae470bf7e4947c8d7a3",
     "dlls/ntdll/unix/system.c": "1821c6eb3cae85131b0b54cfe0447a294c14397c",
+    "dlls/win32u/opengl.c": "03346f5b5f6a211be2944707edd29768ddebe817",
 }
 
 

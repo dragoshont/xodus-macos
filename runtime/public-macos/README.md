@@ -5,7 +5,7 @@ Wine `eab69739f15180b96797645ccade44c1c4414980`. It does not use private runtime
 code, enable Linux kernel interfaces on macOS, or certify a playable runtime.
 Original upstream LGPL notices remain in every changed source file.
 
-`apply_platform_fix.py` requires the exact revision and seven original source
+`apply_platform_fix.py` requires the exact revision and eight original source
 blobs. Selected checkout/ancestor aliases, source aliases and modified files
 are refused before application. Default operation verifies without writing.
 The patch input is newline-normalized so Windows transfers work correctly.
@@ -18,7 +18,7 @@ python3 tests.py /absolute/owned/public-wine
 
 The checks clone only the supplied public Git objects into new private temporary
 fixtures; they do not read credentials or run Wine. They exercise actual patch
-application, dry-run preservation, all-seven-file updates, repeated/changed
+application, dry-run preservation, all-eight-file updates, repeated/changed
 source rejection, wrong revision and directory/source alias rejection.
 
 The overlay guards Linux futex and ntsync interfaces, retaining the existing
@@ -118,3 +118,13 @@ Its Linux DRM-dependent `amd_ags_x64` extension is explicitly disabled on this
 Mac candidate, not made to compile using invented Linux headers. Vulkan,
 GStreamer and actual graphics/TLS/gameplay remain unverified. A complete make
 result, if obtained, does not establish licensed operation or an approved pair.
+
+The full build exposed another genuine feature-guard failure: `win32u/opengl.c`
+referenced EGL-only framebuffer functions even when EGL was not compiled.
+The overlay now keeps framebuffer detection/target unwrapping behind the
+existing EGL feature guard and uses ordinary native drawables without EGL.
+The EGL framebuffer/scaling path remains unchanged when enabled; absent EGL
+does not provide that emulation. The actual non-EGL OpenGL object compiles, the
+EGL-enabled branch passes a separate real-header compiler syntax check, and all
+six application/refusal checks pass with the eighth exact source blob.
+These are compile/application checks, not rendered graphics or gameplay proof.

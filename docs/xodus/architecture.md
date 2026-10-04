@@ -286,7 +286,7 @@ The backend owner's pinned comparison with inherited source
 That original CLI stored serialized EncryptedData without the later token XML
 bound, reparsing, cipher-encoding, expiry and device-layout admission checks;
 its cached-device branch skipped validation and re-authentication when both
-entries existed. At current source `2acb452a7ee66b2c9d3ad75ecf85e2be2f94fbc3`,
+entries existed. At deployed source `2acb452a7ee66b2c9d3ad75ecf85e2be2f94fbc3`,
 the legacy CLI and management worker share the stronger device checks and the
 same login handler, client ID, native webview and SOAP exchange. The management
 worker starts with its isolated owned namespace, not the original Xodus Service
@@ -294,9 +294,14 @@ profile. Thus the shared changes also affect current legacy CLI behavior;
 they are not merely a different launcher login UI. A cached original CLI path
 and a fresh managed attempt are not equivalent. The user's reported successful
 original login has not been freshly reproduced, and this comparison does not
-establish the live rejected condition. An isolated original-conversion fixture
-comparison remains pending; no original-profile credential reads or imports
-are authorized.
+establish the live rejected condition. The final isolated comparison covers
+32 SOAP metadata combinations in one parameterized synthetic test: checked
+conversion and saved memory match the original converter field-for-field.
+A separate artificial invalid-cipher fixture passes original serialization
+but fails current admission without writing memory. This demonstrates the
+stricter guard, not rejection of proven-valid provider data or a verified
+acceptance defect. No original-profile credential reads or imports are
+authorized.
 
 The parent and sole app owner agreed three more static reasons before producer
 implementation: `tokenXmlBoundInvalid`, `tokenXmlParseInvalid` and
@@ -307,10 +312,30 @@ AUTH_INVALID-only contract. Consumer source
 run [37196334163](https://github.com/dragoshont/xodus-macos-app/actions/runs/37196334163)
 passed 440 checks and editable SVG verification. The parent independently
 verified the exact SHA, successful job and four zero-failure suite summaries.
-The continuity reviewer provisionally closed the consumer-only delta without
-significant issues. Final producer source, post-fixture native evidence and
-combined compatibility review remain pending. This is diagnostic refinement,
-not an authentication fix, and the currently failed signed pair is unchanged.
+Final producer source `baf92bc204755a12d956dca657b7e45989ec6991` is published and
+frozen. Its native evidence is explicitly a scoped composite: an initial 56
+selected checks, followed by the final device group of ten after test-only
+comparison additions, plus 47 unchanged checks. It is not a single 57-test
+run or an unfiltered full-suite certificate. Production Rust remained
+unchanged between those runs; core lint was rerun, with the other qualified
+checks retained.
+
+The parent independently verified the sealed source archive with SHA256
+`165e869e9b16b4fa405f21b54bd73eb33522e3fcc2a24c326a95e8e574988f75` and native
+evidence with SHA256
+`fdcac5e40f780b451fa5f4cf696353a05d5a9a0a23bf2fd9c17cbd02b08a339c`,
+including owner-only modes, stable regular-file identities and no archive
+links or unsafe paths. A separate bounded archive manifest comparison matched
+all 190 public source files exactly to the final committed Git blobs.
+
+The continuity reviewer then closed the combined exact producer and consumer
+deltas without significant issues. Independent source assertions confirmed
+twenty-one matching pairs, identical canonical schema and unchanged
+dependencies, admission conditions, cryptographic paths and authentication
+lifecycle gates. This is source closure and diagnostic refinement, not an
+authentication fix. The parent authorized an additive immutable CLI build;
+the currently failed signed pair remains unchanged pending the new artifact,
+separate signing and a fresh native retry.
 
 The user's current priority is explicit: fix authentication first, then verify
 and correct the modern macOS UI. The requested toolkit audit remains deferred;

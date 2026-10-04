@@ -34,6 +34,73 @@ fallback was used. Public comparison:
 
 ## Source-based boundaries, not blanket runtime excuses
 
+### Swift-owned managed authentication host
+
+User-directed source implementation replaces managed Wry/Tao UI ownership with
+one explicitly bound Swift AppKit/WKWebView helper, leaving the standalone CLI
+UI, client/platform/headers/UA, existing cryptography and public C95/21 protocol
+unchanged. Canonical private version-1 schema/types and sanitized fixtures were
+published early at `bb6397033fc38497a73684a9ecdb2929caba1f63`; schema LF SHA256
+`c7ca7de8ee8a610b71e9e458f13469554467dd2632f88d35317a1ce2646af430`.
+See [the private host contract](NATIVE-AUTH-HOST.md) for exact commands,
+correlation, frame budget, seven issuer strings and native failure requirements.
+
+Rust factors the existing user exchange into a shared asynchronous function,
+retains checked in-memory device/Store issuance and parent-only atomic commit,
+and requires helper closed acknowledgement, terminal EOF and clean exit.
+The new continuous parent EOF guardian was **not present at e7**. It now fences
+device/SOAP completion, helper cleanup and handoff publication; engine result
+reading retains its write half through worker terminal EOF. The duplicated
+parent FD is close-on-exec. Helper discovery and managed Wry fallback are absent.
+Parent commit requires the worker's actual clean exit as well. The existing
+actor poll observes worker termination without blocking diagnostics/cancel/EOF
+behind a synchronous reap; a stalled terminal worker is bounded and reaped.
+Source-bounded cleanup grants one second to the helper and two to the worker.
+Matching completed close/ack, helper exit and EOF share a five-second limit
+within the original budget. A reaped peer's macOS ENOTCONN shutdown is not
+misreported as a new failure; other cleanup errors remain failures.
+
+This is native UI ownership and failure-propagation work, not a demonstrated
+biometric fix. Current signed-file evidence establishes no embedded passkey
+entitlements, but does not classify the reported provider screen. The public
+XAL OAuth/XboxLive path returns a different token family and cannot substitute
+for the required checked Passport Store/device bundle. No provider request,
+GUI action, profile import, entitlement/UA guess or production pairing is part
+of source validation. Native fixture runs are neutral/headless only; visible
+fixtures and any deployment require separate authorization.
+
+Early frozen codec/fixture/origin validation: three native tests passed in an
+exclusively owned fresh source/target stage, offline/locked/jobs 1/incremental 0.
+Final scoped Rust native validation: **80 passed, zero failed**, in one bounded
+selected run, with one internal child-entry test ignored by the ordinary runner
+and invoked by the actual neutral process-chain test. Breakdown: 34 existing
+device/SOAP/proof tests, 5 helper-driver tests, 9 worker/lifecycle tests, 1 CLI
+argument test, 2 original/native request/bridge parity tests, 2 standalone login
+validation tests, 4 private wire tests and 23 parent actor/atomicity tests.
+All prior 59 selected checks are retained; three positive parent stand-ins now
+use clean-exiting neutral workers rather than killed sleeps, matching the new
+required clean-exit gate. Additional negatives reject nonzero/hung workers even
+with valid memory proof and preserve cancellation while terminal exit is pending.
+
+Actual neutral owned subprocesses cover engine death, worker SIGKILL, expiry,
+cancel/crash/nonzero/extra result, wrong version/flow/session/sequence/correlation,
+unknown/duplicate fields and oversized/partial frames. The exact whole-envelope
+262144-byte edge is encoded and decoded; one extra byte is rejected. Scoped
+rustfmt, cargo check and strict core/management clippy pass; CLI retains only
+the two established pre-existing collapsible-if/too-many-arguments allowances.
+Public contract corpus passes 79 positive/20 negative/6 failed-page/6
+failed-query/4 evidence-edge checks; private schema fixtures pass 9 positive
+and 3 malformed cases. C95, private schema/fixtures, Cargo.lock and manifests
+are unchanged. Final native inputs (195 files) match every staged Git blob and
+remain byte-stable before/after. An earlier CRLF archive was detected during
+equivalence checking and replaced with exact Git bytes before final validation;
+its intermediate passes are not an exact-source certification.
+Features remain CLI/core empty, management live, native Apple keychain/
+security-framework, with no plaintext store. This is selected synthetic/process
+evidence, not full-suite, Swift-helper integration, provider, entitlement,
+passkey or completed-account evidence. Paired review, artifact and deployment
+gates remain pending; the held production pair is untouched.
+
 - `api/displaycatalog.rs` provides public product-ID lookup. The new bounded
   variant limits response size/time and refuses redirects. It does not discover
   a global full-text catalog or a complete owned library.

@@ -210,6 +210,8 @@ pub struct ConsentBootstrap {
     pub flow_id: String,
     pub device: Option<xodus::models::secrets::Device>,
     pub device_token: Option<xodus::models::secrets::LegacyToken>,
+    pub native_host: Option<crate::native_auth::HostBinding>,
+    pub remaining_millis: u64,
 }
 
 struct ConsentReader {
@@ -290,7 +292,18 @@ fn spawn_consent(
                             true,
                         )
                     })?;
-                    read_consent(parent).await
+                    // Keep the write half alive until the worker publishes and closes.
+                    let outcome = read_consent(&mut parent).await?;
+                    let mut trailing = [0];
+                    if tokio::time::timeout(Duration::from_secs(5), parent.read(&mut trailing))
+                        .await
+                        .map_err(|_| ConsentFailure::StageUnavailable.wire_error())?
+                        .map_err(|_| ConsentFailure::StageUnavailable.wire_error())?
+                        != 0
+                    {
+                        return Err(ConsentFailure::StageUnavailable.wire_error());
+                    }
+                    Ok(outcome)
                 }),
             },
         ))
@@ -629,10 +642,12 @@ pub struct Backend {
     auth_handoff: Option<ConsentReader>,
     auth_flow: Option<AuthFlow>,
     auth_started: Option<std::time::Instant>,
+    auth_closing: Option<std::time::Instant>,
     pending_requests: BTreeSet<String>,
     async_keychain_io: bool,
     account_mutation_pending: bool,
     inspection_permits: Arc<tokio::sync::Semaphore>,
+    native_host: Option<crate::native_auth::HostBinding>,
 }
 
 impl Backend {
@@ -648,9 +663,11 @@ impl Backend {
             auth_handoff: None,
             auth_flow: None,
             auth_started: None,
+            auth_closing: None,
             pending_requests: BTreeSet::new(),
             async_keychain_io: true,
             account_mutation_pending: false,
+            native_host: None,
             inspection_permits: Arc::new(tokio::sync::Semaphore::new(4)),
         }
     }
@@ -763,6 +780,15 @@ impl Backend {
                         false,
                     ));
                 }
+                if self
+                    .native_host
+                    .as_ref()
+                    .is_none_or(|binding| crate::native_auth::verify_binding(binding).is_err())
+                {
+                    let mut error = ConsentFailure::NativeSignIn.wire_error();
+                    error.message = "The reviewed native Swift sign-in helper is unavailable. Configure the paired helper before connecting.".to_owned();
+                    return Err(error);
+                }
                 if self.async_keychain_io {
                     self.reserve_worker()?;
                     let tokens = tokens
@@ -775,6 +801,7 @@ impl Backend {
                         state: AuthFlowState::Pending,
                         error: None,
                     });
+                    self.auth_started = Some(std::time::Instant::now());
                     self.pending_requests.insert(request_id.clone());
                     self.tasks.spawn(async move {
                         let prepare_id = flow_id.clone();
@@ -804,11 +831,11 @@ impl Backend {
                     )
                 })?;
                 let flow_id = Uuid::new_v4().to_string();
-                let bootstrap = prepare_consent(tokens, flow_id.clone())?;
+                self.auth_started = Some(std::time::Instant::now());
+                let bootstrap = self.bind_consent(prepare_consent(tokens, flow_id.clone())?)?;
                 let (child, handoff) = spawn_consent(&executable, &flow_id, &bootstrap)?;
                 self.auth_child = Some(child);
                 self.auth_handoff = Some(handoff);
-                self.auth_started = Some(std::time::Instant::now());
                 self.auth_flow = Some(AuthFlow {
                     flow_id,
                     state: AuthFlowState::Pending,
@@ -1162,6 +1189,24 @@ impl Backend {
         Ok(status)
     }
 
+    fn bind_consent(&self, mut bootstrap: ConsentBootstrap) -> Result<ConsentBootstrap, WireError> {
+        let remaining = self
+            .auth_started
+            .ok_or_else(transport::invalid)?
+            .elapsed()
+            .as_millis();
+        if remaining >= crate::native_auth::MAX_BUDGET_MILLIS as u128 {
+            return Err(WireError::new(
+                ErrorCode::AuthExpired,
+                "Native consent exceeded its ten-minute deadline.",
+                true,
+            ));
+        }
+        bootstrap.native_host = self.native_host.clone();
+        bootstrap.remaining_millis = crate::native_auth::MAX_BUDGET_MILLIS - remaining as u64;
+        Ok(bootstrap)
+    }
+
     async fn stop_auth(&mut self) -> Result<(), WireError> {
         if let Some(handoff) = self.auth_handoff.take() {
             handoff.task.abort();
@@ -1177,31 +1222,47 @@ impl Backend {
                 }
             }
         }
-        if let Some(mut child) = self.auth_child.take()
-            && child
-                .try_wait()
-                .map_err(|_| {
-                    WireError::new(
-                        ErrorCode::AuthInvalid,
-                        "Consent worker status is unavailable.",
-                        true,
-                    )
-                })?
-                .is_none()
-        {
-            child.kill().await.map_err(|_| {
-                WireError::new(
-                    ErrorCode::AuthInvalid,
-                    "Consent cancellation failed. Account state must be reconciled.",
-                    true,
-                )
-            })?;
-        }
+        let _ = self.reap_auth_child().await?;
         self.auth_started = None;
+        self.auth_closing = None;
         Ok(())
     }
 
+    async fn reap_auth_child(&mut self) -> Result<Option<std::process::ExitStatus>, WireError> {
+        let Some(mut child) = self.auth_child.take() else {
+            return Ok(None);
+        };
+        let unavailable = || {
+            WireError::new(
+                ErrorCode::AuthInvalid,
+                "Consent worker could not be closed and reaped. Account state must be reconciled.",
+                true,
+            )
+        };
+        let exit = match tokio::time::timeout(Duration::from_secs(2), child.wait()).await {
+            Ok(result) => result.map_err(|_| unavailable())?,
+            Err(_) => {
+                child.kill().await.map_err(|_| unavailable())?;
+                child.wait().await.map_err(|_| unavailable())?
+            }
+        };
+        Ok(Some(exit))
+    }
+
     fn poll_auth(&mut self) -> Result<(), WireError> {
+        let closing = self
+            .auth_handoff
+            .as_ref()
+            .is_some_and(|handoff| handoff.task.is_finished());
+        let close_expired = if closing {
+            self.auth_closing
+                .get_or_insert_with(std::time::Instant::now)
+                .elapsed()
+                > Duration::from_secs(2)
+        } else {
+            self.auth_closing = None;
+            false
+        };
         let expired = self
             .auth_started
             .is_some_and(|started| started.elapsed() > Duration::from_secs(600));
@@ -1221,9 +1282,17 @@ impl Backend {
             }
         }
         let Some(child) = &mut self.auth_child else {
+            if expired {
+                self.auth_started = None;
+            }
             return Ok(());
         };
-        if expired {
+        if close_expired
+            || (expired
+                && self
+                    .auth_started
+                    .is_some_and(|started| started.elapsed() > Duration::from_secs(602)))
+        {
             child.start_kill().map_err(|_| {
                 WireError::new(
                     ErrorCode::AuthInvalid,
@@ -1243,6 +1312,7 @@ impl Backend {
             return Ok(());
         };
         self.auth_child = None;
+        self.auth_closing = None;
         if let Some(handoff) = &mut self.auth_handoff
             && !expired
         {
@@ -1289,6 +1359,7 @@ impl Backend {
         }) {
             return Ok(());
         }
+        let exit = self.reap_auth_child().await?;
         let result = if self
             .auth_started
             .is_some_and(|started| started.elapsed() > Duration::from_secs(600))
@@ -1299,7 +1370,7 @@ impl Backend {
                 true,
             ))
         } else {
-            result
+            reconcile_handoff(result, exit.is_some_and(|exit| !exit.success()))
         };
         self.stop_auth().await?;
         let outcome = match result {
@@ -1457,6 +1528,8 @@ fn prepare_consent(tokens: TokenManager, flow_id: String) -> Result<ConsentBoots
         flow_id,
         device,
         device_token,
+        native_host: None,
+        remaining_millis: crate::native_auth::MAX_BUDGET_MILLIS,
     })
 }
 
@@ -1895,10 +1968,10 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
                             result.and_then(|bootstrap| {
                                 let executable = std::env::current_exe().map_err(|_| WireError::new(
                                     ErrorCode::AuthInvalid, "Native consent executable is unavailable.", false))?;
+                                let bootstrap = backend.bind_consent(bootstrap)?;
                                 let (child, handoff) = spawn_consent(&executable, &flow_id, &bootstrap)?;
                                 backend.auth_child = Some(child);
                                 backend.auth_handoff = Some(handoff);
-                                backend.auth_started = Some(std::time::Instant::now());
                                 Ok(Data::Auth(AuthData { state: AuthState::SignedOut,
                                     credential_store: "macOSKeychain".to_owned(), audience: None, expires_at: None,
                                     entitlement_authorized: false, flow: backend.auth_flow.clone() }))
@@ -1996,14 +2069,14 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
                 }
             },
             completion = async { (&mut backend.auth_handoff.as_mut().unwrap().task).await },
-                if backend.auth_handoff.is_some() => {
+                if backend.auth_handoff.is_some() && backend.auth_child.is_none() => {
                 let handoff = backend.auth_handoff.take().unwrap();
                 let result = completion.map_err(|_| ConsentFailure::StageUnavailable.wire_error())
                     .and_then(|result| result);
                 let result = reconcile_handoff(result, handoff.worker_failed);
                 backend.complete_auth(handoff.flow_id, result).await?;
             },
-            _ = auth_poll.tick(), if backend.auth_child.is_some() || backend.auth_handoff.is_some() => {
+            _ = auth_poll.tick(), if backend.auth_started.is_some() => {
                 backend.poll_auth()?;
             }
         }
@@ -2020,6 +2093,14 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
 }
 
 pub async fn run(directory: &Path, protocol: u32) -> std::process::ExitCode {
+    run_with_native_host(directory, protocol, None).await
+}
+
+pub async fn run_with_native_host(
+    directory: &Path,
+    protocol: u32,
+    binding: Option<crate::native_auth::HostBinding>,
+) -> std::process::ExitCode {
     std::panic::set_hook(Box::new(|_| {
         eprintln!("Management backend stopped unexpectedly; no raw diagnostic data was emitted.")
     }));
@@ -2033,7 +2114,11 @@ pub async fn run(directory: &Path, protocol: u32) -> std::process::ExitCode {
         match (Store::open(directory), PublicCatalog::new()) {
             (Ok(store), Ok(provider)) => {
                 serve(
-                    Backend::new(store, Arc::new(provider)),
+                    {
+                        let mut backend = Backend::new(store, Arc::new(provider));
+                        backend.native_host = binding;
+                        backend
+                    },
                     BufReader::new(tokio::io::stdin()),
                     tokio::io::stdout(),
                 )
@@ -2077,8 +2162,16 @@ mod auth_lifecycle_tests {
     }
 
     fn own_worker(backend: &mut Backend) -> u32 {
-        let child = Command::new("/bin/sleep")
-            .arg("60")
+        own_worker_command(backend, "/bin/sleep", &["60"])
+    }
+
+    fn completed_worker(backend: &mut Backend) -> u32 {
+        own_worker_command(backend, "/usr/bin/true", &[])
+    }
+
+    fn own_worker_command(backend: &mut Backend, executable: &str, args: &[&str]) -> u32 {
+        let child = Command::new(executable)
+            .args(args)
             .kill_on_drop(true)
             .spawn()
             .unwrap();
@@ -2098,6 +2191,140 @@ mod auth_lifecycle_tests {
             .output()
             .unwrap();
         assert!(result.stdout.is_empty());
+    }
+
+    #[test]
+    fn preparation_consumes_the_original_budget_and_expiry_without_a_worker_is_terminal() {
+        let (_temporary, mut backend) = backend();
+        backend.auth_started = Some(std::time::Instant::now() - Duration::from_secs(300));
+        let bootstrap =
+            prepare_consent(backend.tokens.clone().unwrap(), "fixture-flow".to_owned()).unwrap();
+        let bound = backend.bind_consent(bootstrap).unwrap();
+        assert!((1..=300_000).contains(&bound.remaining_millis));
+        backend.auth_flow = Some(AuthFlow {
+            flow_id: "fixture-flow".to_owned(),
+            state: AuthFlowState::Pending,
+            error: None,
+        });
+        backend.auth_started = Some(std::time::Instant::now() - Duration::from_secs(601));
+        let bootstrap =
+            prepare_consent(backend.tokens.clone().unwrap(), "fixture-flow".to_owned()).unwrap();
+        assert_eq!(
+            backend.bind_consent(bootstrap).err().unwrap().code,
+            ErrorCode::AuthExpired
+        );
+        backend.poll_auth().unwrap();
+        assert!(backend.auth_started.is_none());
+        assert!(matches!(
+            backend.auth_flow.as_ref().unwrap().state,
+            AuthFlowState::Failed
+        ));
+        assert_eq!(
+            backend
+                .auth_flow
+                .as_ref()
+                .unwrap()
+                .error
+                .as_ref()
+                .unwrap()
+                .code,
+            ErrorCode::AuthExpired
+        );
+    }
+
+    #[tokio::test]
+    async fn failed_or_unfinished_worker_exit_cannot_commit_even_valid_memory_proof() {
+        for executable in ["/usr/bin/false", "/bin/sleep"] {
+            let (_temporary, mut backend) = backend();
+            let args: &[&str] = if executable == "/bin/sleep" {
+                &["60"]
+            } else {
+                &[]
+            };
+            let pid = own_worker_command(&mut backend, executable, args);
+            backend
+                .complete_auth(
+                    "fixture-flow".to_owned(),
+                    Ok(ConsentHandoff::StoreCompleted {
+                        session: Box::new(fixture_store_session()),
+                    }),
+                )
+                .await
+                .unwrap();
+            assert!(matches!(
+                backend.auth_flow.as_ref().unwrap().state,
+                AuthFlowState::Failed
+            ));
+            assert!(
+                backend
+                    .tokens
+                    .as_ref()
+                    .unwrap()
+                    .get_management_store_session()
+                    .unwrap()
+                    .is_none()
+            );
+            no_owned_process(pid);
+        }
+    }
+
+    #[tokio::test]
+    async fn terminal_frame_without_worker_exit_keeps_actor_responsive_and_cancel_wins() {
+        use tokio::io::AsyncBufReadExt;
+        let (_temporary, mut backend) = backend();
+        let pid = own_worker(&mut backend);
+        backend.auth_started = Some(std::time::Instant::now());
+        backend.auth_handoff = Some(ConsentReader {
+            flow_id: "fixture-flow".to_owned(),
+            worker_failed: false,
+            task: tokio::spawn(async {
+                Ok(ConsentHandoff::StoreCompleted {
+                    session: Box::new(fixture_store_session()),
+                })
+            }),
+        });
+        let (client, server) = tokio::io::duplex(65536);
+        let (server_read, server_write) = tokio::io::split(server);
+        let task = tokio::spawn(serve(backend, BufReader::new(server_read), server_write));
+        let (client_read, mut client_write) = tokio::io::split(client);
+        let mut reader = BufReader::new(client_read);
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        for (id, command, params) in [
+            (
+                "hello",
+                "hello",
+                serde_json::json!({"client":"fixture","clientVersion":"1"}),
+            ),
+            ("diagnostics", "diagnostics.export", serde_json::json!({})),
+            (
+                "cancel",
+                "auth.cancel",
+                serde_json::json!({"flowID":"fixture-flow"}),
+            ),
+        ] {
+            let request = serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},
+                "requestID":id,"command":command,"params":params});
+            client_write
+                .write_all(format!("{request}\n").as_bytes())
+                .await
+                .unwrap();
+            let mut line = String::new();
+            let limit = if id == "cancel" { 5 } else { 1 };
+            tokio::time::timeout(Duration::from_secs(limit), reader.read_line(&mut line))
+                .await
+                .unwrap()
+                .unwrap();
+            let result: serde_json::Value = serde_json::from_str(&line).unwrap();
+            assert_eq!(result["requestID"], id);
+            assert_eq!(result["kind"], "result");
+            if id == "cancel" {
+                assert_eq!(result["data"]["state"], "signedOut");
+                assert_eq!(result["data"]["flow"]["state"], "cancelled");
+            }
+        }
+        client_write.shutdown().await.unwrap();
+        task.await.unwrap().unwrap();
+        no_owned_process(pid);
     }
 
     #[tokio::test]
@@ -2500,7 +2727,7 @@ mod auth_lifecycle_tests {
     #[tokio::test]
     async fn store_consent_commits_only_active_complete_proof_and_reports_cached_not_authorized() {
         let (_temporary, mut backend) = backend();
-        let pid = own_worker(&mut backend);
+        let pid = completed_worker(&mut backend);
         let session = fixture_store_session();
         assert!(session.valid());
         backend
@@ -2597,7 +2824,7 @@ mod auth_lifecycle_tests {
     #[tokio::test]
     async fn only_active_parent_flow_can_commit_complete_session_to_memory_facade() {
         let (_temporary, mut backend) = backend();
-        let pid = own_worker(&mut backend);
+        let pid = completed_worker(&mut backend);
         let session = fixture_session();
         assert!(xal_session_valid(&session));
         let bytes = serde_json::to_vec(&ConsentHandoff::Completed {
@@ -2976,7 +3203,7 @@ mod auth_lifecycle_tests {
                 release: std::sync::Mutex::new(receiver),
             },
         )));
-        let pid = own_worker(&mut backend);
+        let pid = completed_worker(&mut backend);
         backend
             .complete_auth(
                 "fixture-flow".to_owned(),

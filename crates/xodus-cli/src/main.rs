@@ -10,6 +10,8 @@ mod commands;
 mod license;
 #[cfg(target_os = "macos")]
 mod management_auth;
+#[cfg(target_os = "macos")]
+mod native_auth_host;
 mod package;
 mod provider_credentials;
 mod webview;
@@ -22,6 +24,12 @@ enum SubCommand {
         protocol: u32,
         #[arg(long)]
         state_dir: std::path::PathBuf,
+        #[arg(long, requires_all = ["native_auth_host_sha256", "native_auth_host_version"])]
+        native_auth_host: Option<std::path::PathBuf>,
+        #[arg(long, requires_all = ["native_auth_host", "native_auth_host_version"])]
+        native_auth_host_sha256: Option<String>,
+        #[arg(long, requires_all = ["native_auth_host", "native_auth_host_sha256"])]
+        native_auth_host_version: Option<u32>,
     },
     #[cfg(target_os = "macos")]
     #[command(hide = true)]
@@ -138,15 +146,91 @@ struct CliArgs {
     command: SubCommand,
 }
 
+#[cfg(test)]
+mod argument_tests {
+    use super::*;
+
+    #[test]
+    fn native_helper_binding_is_all_or_none_and_standalone_login_is_unchanged() {
+        for flags in [
+            vec!["--native-auth-host", "fixture-helper"],
+            vec!["--native-auth-host-sha256", "fixture-hash"],
+            vec!["--native-auth-host-version", "1"],
+        ] {
+            let mut args = vec![
+                "xodus",
+                "manage",
+                "--protocol",
+                "1",
+                "--state-dir",
+                "fixture-state",
+            ];
+            args.extend(flags);
+            assert!(CliArgs::try_parse_from(args).is_err());
+        }
+        assert!(
+            CliArgs::try_parse_from([
+                "xodus",
+                "manage",
+                "--protocol",
+                "1",
+                "--state-dir",
+                "fixture-state",
+                "--native-auth-host",
+                "fixture-helper",
+                "--native-auth-host-sha256",
+                "fixture-hash",
+                "--native-auth-host-version",
+                "1",
+            ])
+            .is_ok()
+        );
+        assert!(
+            CliArgs::try_parse_from([
+                "xodus",
+                "manage",
+                "--protocol",
+                "1",
+                "--state-dir",
+                "fixture-state",
+            ])
+            .is_ok()
+        );
+        assert!(matches!(
+            CliArgs::try_parse_from(["xodus", "login"]).unwrap().command,
+            SubCommand::Login
+        ));
+    }
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
     let args = CliArgs::parse();
     if let SubCommand::Manage {
         protocol,
         state_dir,
+        native_auth_host,
+        native_auth_host_sha256,
+        native_auth_host_version,
     } = &args.command
     {
-        return xodus_management::adapter::run(state_dir, *protocol).await;
+        let binding = match (
+            native_auth_host,
+            native_auth_host_sha256,
+            native_auth_host_version,
+        ) {
+            (Some(executable), Some(sha256), Some(version)) => {
+                Some(xodus_management::native_auth::HostBinding {
+                    executable: executable.clone(),
+                    sha256: sha256.clone(),
+                    version: *version,
+                })
+            }
+            (None, None, None) => None,
+            _ => return ExitCode::FAILURE,
+        };
+        return xodus_management::adapter::run_with_native_host(state_dir, *protocol, binding)
+            .await;
     }
     #[cfg(target_os = "macos")]
     if let SubCommand::ManagementAuthWorker { flow_id } = &args.command {

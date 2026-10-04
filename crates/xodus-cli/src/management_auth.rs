@@ -1,4 +1,10 @@
 use std::process::ExitCode;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU8, Ordering},
+};
+use std::time::{Duration, Instant};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use xodus::models::secrets::{ManagementStoreSession, Token};
 use xodus::tokens::{PASSPORT_STS, TokenManager};
 use xodus_management::adapter::{
@@ -8,6 +14,69 @@ use xodus_management::adapter::{
 enum SessionFailure {
     Cancelled,
     Failed(ConsentFailure),
+}
+
+const ACTIVE: u8 = 0;
+const CANCELLED: u8 = 1;
+const TERMINAL: u8 = 2;
+
+struct ParentGuardian {
+    state: Arc<AtomicU8>,
+    cancelled: tokio::sync::watch::Receiver<bool>,
+    task: tokio::task::JoinHandle<()>,
+}
+
+impl ParentGuardian {
+    fn start(mut parent: tokio::net::unix::OwnedReadHalf) -> Self {
+        let state = Arc::new(AtomicU8::new(ACTIVE));
+        let shared = state.clone();
+        let (sender, cancelled) = tokio::sync::watch::channel(false);
+        let task = tokio::spawn(async move {
+            let mut unexpected = [0];
+            let _ = parent.read(&mut unexpected).await;
+            if shared
+                .compare_exchange(ACTIVE, CANCELLED, Ordering::SeqCst, Ordering::SeqCst)
+                .is_ok()
+            {
+                let _ = sender.send(true);
+            }
+        });
+        Self {
+            state,
+            cancelled,
+            task,
+        }
+    }
+
+    async fn publish(
+        &mut self,
+        writer: &mut tokio::net::unix::OwnedWriteHalf,
+        outcome: &ConsentHandoff,
+        deadline: Instant,
+    ) -> std::io::Result<()> {
+        if self.state.load(Ordering::SeqCst) != ACTIVE || Instant::now() >= deadline {
+            return Err(std::io::Error::other("Consent parent is unavailable"));
+        }
+        tokio::select! {
+            biased;
+            _ = self.cancelled.changed() => return Err(std::io::Error::other("Consent parent is unavailable")),
+            result = tokio::time::timeout_at(tokio::time::Instant::from_std(deadline),
+                xodus_management::native_auth::write(writer, outcome)) => {
+                result.map_err(|_| std::io::Error::other("Consent handoff expired"))??;
+            }
+        }
+        self.state
+            .compare_exchange(ACTIVE, TERMINAL, Ordering::SeqCst, Ordering::SeqCst)
+            .map_err(|_| std::io::Error::other("Consent parent is unavailable"))?;
+        self.task.abort();
+        writer.shutdown().await
+    }
+}
+
+impl Drop for ParentGuardian {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
 }
 
 fn device_failure(error: xodus::tokens::device::DeviceCredentialError) -> SessionFailure {
@@ -59,6 +128,7 @@ fn failure_handoff(error: SessionFailure) -> (ConsentHandoff, ExitCode) {
 }
 
 fn private_channel(fd: std::os::fd::OwnedFd) -> std::io::Result<std::os::unix::net::UnixStream> {
+    rustix::io::fcntl_setfd(&fd, rustix::io::FdFlags::CLOEXEC)?;
     let channel = std::os::unix::net::UnixStream::from(fd);
     if !channel.peer_addr()?.is_unnamed() || !channel.local_addr()?.is_unnamed() {
         return Err(std::io::Error::other(
@@ -87,6 +157,8 @@ fn read_bootstrap(
     let bootstrap: ConsentBootstrap = serde_json::from_slice(&bytes).map_err(|_| invalid())?;
     if bootstrap.flow_id != flow_id
         || (bootstrap.device.is_none() && bootstrap.device_token.is_some())
+        || bootstrap.remaining_millis == 0
+        || bootstrap.remaining_millis > xodus_management::native_auth::MAX_BUDGET_MILLIS
     {
         return Err(invalid());
     }
@@ -98,13 +170,7 @@ fn write_handoff(
     outcome: &ConsentHandoff,
 ) -> std::io::Result<()> {
     use std::io::Write;
-    let bytes = serde_json::to_vec(outcome)
-        .map_err(|_| std::io::Error::other("Session serialization failed"))?;
-    if bytes.len() > MAX_AUTH_HANDOFF_BYTES {
-        return Err(std::io::Error::other(
-            "Session exceeds private handoff bound",
-        ));
-    }
+    let bytes = xodus_management::native_auth::encode(outcome)?;
     channel.write_all(&(bytes.len() as u32).to_be_bytes())?;
     channel.write_all(&bytes)?;
     channel.flush()
@@ -112,7 +178,14 @@ fn write_handoff(
 
 async fn issue_session(
     bootstrap: ConsentBootstrap,
+    native: &mut Option<crate::native_auth_host::NativeHost>,
+    deadline: Instant,
 ) -> Result<ManagementStoreSession, SessionFailure> {
+    let binding = bootstrap
+        .native_host
+        .ok_or(SessionFailure::Failed(ConsentFailure::NativeSignIn))?;
+    xodus_management::native_auth::verify_binding(&binding)
+        .map_err(|_| SessionFailure::Failed(ConsentFailure::NativeSignIn))?;
     let tokens = TokenManager::with_memory();
     if let Some(device) = bootstrap.device {
         tokens
@@ -141,8 +214,31 @@ async fn issue_session(
     let device = tokens
         .get_device_license()
         .map_err(|_| SessionFailure::Failed(ConsentFailure::DeviceProof))?;
-    let (issued, user) = crate::commands::login::issue_credentials(client, device_token.clone())
-        .map_err(login_failure)?;
+    crate::commands::login::validate_device(&device_token).map_err(login_failure)?;
+    *native = Some(
+        crate::native_auth_host::NativeHost::spawn(&binding, &bootstrap.flow_id)
+            .map_err(|_| SessionFailure::Failed(ConsentFailure::NativeSignIn))?,
+    );
+    let host = native
+        .as_mut()
+        .ok_or(SessionFailure::Failed(ConsentFailure::NativeSignIn))?;
+    let remaining = deadline
+        .saturating_duration_since(Instant::now())
+        .as_millis() as u64;
+    if remaining == 0 {
+        return Err(SessionFailure::Failed(ConsentFailure::NativeSignIn));
+    }
+    host.send(
+        crate::webview::login_request(
+            crate::commands::login::CLIENT_ID.to_owned(),
+            crate::commands::login::LOGIN_MARKET.to_owned(),
+            true,
+        )
+        .native_open(remaining),
+    )
+    .await
+    .map_err(|_| SessionFailure::Failed(ConsentFailure::NativeSignIn))?;
+    let (issued, user) = issue_with_host(host, client, device_token.clone()).await?;
     let session = ManagementStoreSession {
         flow_id: bootstrap.flow_id,
         user,
@@ -156,9 +252,87 @@ async fn issue_session(
     Ok(session)
 }
 
+fn host_terminal(message: xodus_management::native_auth::HostResult) -> SessionFailure {
+    match message {
+        xodus_management::native_auth::HostResult::Cancelled => SessionFailure::Cancelled,
+        _ => SessionFailure::Failed(ConsentFailure::NativeSignIn),
+    }
+}
+
+async fn issue_with_host(
+    host: &mut crate::native_auth_host::NativeHost,
+    client: reqwest::Client,
+    device: xodus::models::secrets::LegacyToken,
+) -> Result<
+    (
+        std::collections::HashMap<String, Token>,
+        xodus::models::secrets::User,
+    ),
+    SessionFailure,
+> {
+    use xodus_management::native_auth::{Command, HostResult};
+    let unavailable = || SessionFailure::Failed(ConsentFailure::NativeSignIn);
+    let mut continuations = 0;
+    loop {
+        match host.receive().await.map_err(|_| unavailable())? {
+            HostResult::Ready => {}
+            other => return Err(host_terminal(other)),
+        }
+        let property = match host.receive().await.map_err(|_| unavailable())? {
+            HostResult::Da { property } => xodus::models::live::DAProperty {
+                da_token: property.da_token,
+                da_session_key: property.da_session_key,
+                da_start_time: property.da_start_time,
+                da_expires: property.da_expires,
+                sts_inline_flow_token: property.sts_inline_flow_token,
+                username: property.username,
+                puid: property.puid,
+            },
+            other => return Err(host_terminal(other)),
+        };
+        let exchange = tokio::select! {
+            biased;
+            reply = host.receive() => return Err(host_terminal(reply.map_err(|_| unavailable())?)),
+            result = crate::commands::login::exchange_user_property(client.clone(), device.clone(),
+                crate::commands::login::CLIENT_ID.to_owned(), property.clone()) =>
+                result.map_err(|_| unavailable())?,
+        };
+        match exchange {
+            xodus::models::live::ExchangeUserTokenOutcome::Issued(body) => {
+                let output = crate::commands::login::LoginOutput {
+                    body,
+                    user: xodus::models::secrets::User {
+                        puid: property.puid,
+                        username: property.username,
+                    },
+                };
+                let credentials =
+                    crate::commands::login::finish_issued(Some(output)).map_err(login_failure)?;
+                if !host.completed().await.map_err(|_| unavailable())? {
+                    return Err(SessionFailure::Cancelled);
+                }
+                return Ok(credentials);
+            }
+            xodus::models::live::ExchangeUserTokenOutcome::Fault(fault) => {
+                let Some(url) = fault.and_then(|fault| fault.inline_auth_url) else {
+                    return Err(unavailable());
+                };
+                if continuations >= 4 || !crate::webview::trusted_login_url(&url) {
+                    return Err(unavailable());
+                }
+                continuations += 1;
+                host.send(Command::Navigate { url })
+                    .await
+                    .map_err(|_| unavailable())?;
+            }
+        }
+    }
+}
+
 pub async fn run(flow_id: String) -> ExitCode {
+    let started = Instant::now();
     std::panic::set_hook(Box::new(|_| {}));
-    if uuid::Uuid::parse_str(&flow_id).is_err()
+    if !xodus_management::native_auth::valid_identity(1, &flow_id, 1, 1)
         || !xodus::secrets::management_native_keychain_enabled()
     {
         return ExitCode::FAILURE;
@@ -179,7 +353,37 @@ pub async fn run(flow_id: String) -> ExitCode {
         );
         return ExitCode::FAILURE;
     };
-    let (outcome, code) = match issue_session(bootstrap).await {
+    if xodus_management::native_auth::disable_core_dumps().is_err()
+        || channel.set_nonblocking(true).is_err()
+    {
+        return ExitCode::FAILURE;
+    }
+    let deadline = started + Duration::from_millis(bootstrap.remaining_millis);
+    let Ok(channel) = tokio::net::UnixStream::from_std(channel) else {
+        return ExitCode::FAILURE;
+    };
+    let (reader, mut writer) = channel.into_split();
+    let mut guardian = ParentGuardian::start(reader);
+    let mut native = None;
+    let result = tokio::select! {
+        biased;
+        _ = guardian.cancelled.changed() => Err(SessionFailure::Failed(ConsentFailure::NativeSignIn)),
+        _ = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) =>
+            Err(SessionFailure::Failed(ConsentFailure::NativeSignIn)),
+        result = issue_session(bootstrap, &mut native, deadline) => result,
+    };
+    let result = if result.is_err() {
+        if let Some(host) = native.as_mut()
+            && host.abort().await.is_err()
+        {
+            return ExitCode::FAILURE;
+        }
+        result
+    } else {
+        result
+    };
+    drop(native);
+    let (outcome, code) = match result {
         Ok(session) => (
             ConsentHandoff::StoreCompleted {
                 session: Box::new(session),
@@ -188,7 +392,11 @@ pub async fn run(flow_id: String) -> ExitCode {
         ),
         Err(error) => failure_handoff(error),
     };
-    if write_handoff(&mut channel, &outcome).is_ok() {
+    if guardian
+        .publish(&mut writer, &outcome, deadline)
+        .await
+        .is_ok()
+    {
         code
     } else {
         ExitCode::FAILURE
@@ -200,10 +408,232 @@ mod tests {
     use super::*;
     use std::io::{Read, Write};
 
+    fn guardian_pair() -> (
+        tokio::net::UnixStream,
+        ParentGuardian,
+        tokio::net::unix::OwnedWriteHalf,
+    ) {
+        let (parent, worker) = std::os::unix::net::UnixStream::pair().unwrap();
+        parent.set_nonblocking(true).unwrap();
+        worker.set_nonblocking(true).unwrap();
+        let parent = tokio::net::UnixStream::from_std(parent).unwrap();
+        let (reader, writer) = tokio::net::UnixStream::from_std(worker)
+            .unwrap()
+            .into_split();
+        (parent, ParentGuardian::start(reader), writer)
+    }
+
+    #[tokio::test]
+    async fn parent_guardian_retained_write_half_and_normal_terminal_drop() {
+        let (mut parent, mut guardian, mut writer) = guardian_pair();
+        assert!(
+            tokio::time::timeout(Duration::from_millis(20), guardian.cancelled.changed())
+                .await
+                .is_err()
+        );
+        guardian
+            .publish(
+                &mut writer,
+                &ConsentHandoff::Cancelled,
+                Instant::now() + Duration::from_secs(1),
+            )
+            .await
+            .unwrap();
+        let outcome: ConsentHandoff = xodus_management::native_auth::read(&mut parent)
+            .await
+            .unwrap();
+        assert!(matches!(outcome, ConsentHandoff::Cancelled));
+        drop(parent);
+        assert_eq!(guardian.state.load(Ordering::SeqCst), TERMINAL);
+    }
+
+    #[tokio::test]
+    async fn parent_guardian_eof_halfclose_and_unexpected_bytes_fence_late_completion() {
+        for mode in ["eof", "halfclose", "bytes"] {
+            let (mut parent, mut guardian, mut writer) = guardian_pair();
+            match mode {
+                "halfclose" => parent.shutdown().await.unwrap(),
+                "bytes" => parent.write_all(b"x").await.unwrap(),
+                _ => drop(parent),
+            }
+            tokio::time::timeout(Duration::from_secs(1), guardian.cancelled.changed())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(guardian.state.load(Ordering::SeqCst), CANCELLED);
+            assert!(
+                guardian
+                    .publish(
+                        &mut writer,
+                        &ConsentHandoff::Cancelled,
+                        Instant::now() + Duration::from_secs(1)
+                    )
+                    .await
+                    .is_err()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn parent_guardian_expired_budget_prevents_publication() {
+        let (_parent, mut guardian, mut writer) = guardian_pair();
+        assert!(
+            guardian
+                .publish(
+                    &mut writer,
+                    &ConsentHandoff::Cancelled,
+                    Instant::now() - Duration::from_millis(1)
+                )
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "internal owned neutral child, invoked only by lifecycle tests"]
+    async fn neutral_worker_entry() {
+        assert_eq!(std::env::var("XODUS_NEUTRAL_HOST_TEST").unwrap(), "1");
+        use std::os::fd::AsFd;
+        let channel = private_channel(rustix::io::dup(std::io::stdin().as_fd()).unwrap()).unwrap();
+        channel.set_nonblocking(true).unwrap();
+        let (reader, mut writer) = tokio::net::UnixStream::from_std(channel)
+            .unwrap()
+            .into_split();
+        let mut guardian = ParentGuardian::start(reader);
+        let binding = xodus_management::native_auth::HostBinding {
+            version: 1,
+            executable: std::env::var_os("XODUS_NEUTRAL_HELPER").unwrap().into(),
+            sha256: std::env::var("XODUS_NEUTRAL_HELPER_SHA").unwrap(),
+        };
+        let mut host =
+            crate::native_auth_host::NativeHost::spawn(&binding, &uuid::Uuid::nil().to_string())
+                .unwrap();
+        let budget = std::env::var("XODUS_NEUTRAL_BUDGET")
+            .unwrap()
+            .parse::<u64>()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_millis(budget);
+        crate::native_auth_host::fixtures::open(&mut host, budget)
+            .await
+            .unwrap();
+        assert!(matches!(
+            host.receive().await.unwrap(),
+            xodus_management::native_auth::HostResult::Ready
+        ));
+        writer.write_u32(std::process::id()).await.unwrap();
+        writer.write_u32(host.pid()).await.unwrap();
+        writer.flush().await.unwrap();
+        tokio::select! {
+            biased;
+            _ = guardian.cancelled.changed() => {}
+            _ = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => {}
+        }
+        host.abort().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn actual_neutral_engine_death_worker_sigkill_and_budget_close_owned_helper() {
+        use std::os::fd::OwnedFd;
+        use std::process::Stdio;
+        use tokio::process::Command;
+        for mode in ["engineDeath", "workerDeath", "deadline"] {
+            let (_helper_dir, binding) = crate::native_auth_host::fixtures::helper("normal");
+            let engine_dir = tempfile::tempdir().unwrap();
+            let engine_path = engine_dir.path().join("neutral-engine.py");
+            std::fs::write(
+                &engine_path,
+                r#"import socket,subprocess,sys,os
+control=socket.socket(fileno=0)
+parent,child=socket.socketpair()
+env=dict(os.environ,XODUS_NEUTRAL_HOST_TEST='1',XODUS_NEUTRAL_HELPER=sys.argv[2],
+ XODUS_NEUTRAL_HELPER_SHA=sys.argv[3],XODUS_NEUTRAL_BUDGET=sys.argv[4])
+p=subprocess.Popen([sys.argv[1],'--exact','management_auth::tests::neutral_worker_entry',
+ '--ignored','--test-threads=1'],stdin=child,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
+ env=env,close_fds=True)
+child.close()
+b=b''
+while len(b)<8:
+ x=parent.recv(8-len(b))
+ if not x:raise RuntimeError('neutral worker did not become ready')
+ b+=x
+control.sendall(b)
+p.wait(timeout=10)
+"#,
+            )
+            .unwrap();
+            let (control, input) = std::os::unix::net::UnixStream::pair().unwrap();
+            control.set_nonblocking(true).unwrap();
+            let mut control = tokio::net::UnixStream::from_std(control).unwrap();
+            let mut engine = Command::new("/usr/bin/python3")
+                .arg(&engine_path)
+                .arg(std::env::current_exe().unwrap())
+                .arg(&binding.executable)
+                .arg(&binding.sha256)
+                .arg(if mode == "deadline" { "200" } else { "5000" })
+                .stdin(Stdio::from(OwnedFd::from(input)))
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .kill_on_drop(true)
+                .spawn()
+                .unwrap();
+            let worker = tokio::time::timeout(Duration::from_secs(5), control.read_u32())
+                .await
+                .unwrap()
+                .unwrap();
+            let helper = control.read_u32().await.unwrap();
+            if mode == "engineDeath" {
+                engine.kill().await.unwrap();
+            } else if mode == "workerDeath" {
+                let exit = Command::new("/bin/kill")
+                    .args(["-KILL", &worker.to_string()])
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status()
+                    .await
+                    .unwrap();
+                assert!(exit.success());
+                tokio::time::timeout(Duration::from_secs(5), engine.wait())
+                    .await
+                    .unwrap()
+                    .unwrap();
+            } else {
+                let exit = tokio::time::timeout(Duration::from_secs(5), engine.wait())
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert!(exit.success());
+            }
+            for pid in [worker, helper] {
+                let mut alive = true;
+                for _ in 0..40 {
+                    alive = Command::new("/bin/kill")
+                        .args(["-0", &pid.to_string()])
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .status()
+                        .await
+                        .unwrap()
+                        .success();
+                    if !alive {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                }
+                assert!(!alive, "Owned neutral descendant was not reaped");
+            }
+        }
+    }
+
     #[test]
     fn handoff_is_anonymous_bounded_private_socket_not_public_output() {
         let (mut parent, child) = std::os::unix::net::UnixStream::pair().unwrap();
         let mut channel = private_channel(child.into()).unwrap();
+        use std::os::fd::AsFd;
+        assert!(
+            rustix::io::fcntl_getfd(channel.as_fd())
+                .unwrap()
+                .contains(rustix::io::FdFlags::CLOEXEC)
+        );
         write_handoff(&mut channel, &ConsentHandoff::Cancelled).unwrap();
         drop(channel);
         let mut bytes = Vec::new();
@@ -228,6 +658,20 @@ mod tests {
             let (mut parent, mut child) = std::os::unix::net::UnixStream::pair().unwrap();
             parent.write_all(&bytes).unwrap();
             assert!(read_bootstrap(&mut child, "fixture").is_err());
+        }
+        for budget in [0, 1, 600_000, 600_001] {
+            let payload = serde_json::json!({"flow_id":"fixture","device":null,"device_token":null,
+                "native_host":null,"remaining_millis":budget});
+            let bytes = serde_json::to_vec(&payload).unwrap();
+            let (mut parent, mut child) = std::os::unix::net::UnixStream::pair().unwrap();
+            parent
+                .write_all(&(bytes.len() as u32).to_be_bytes())
+                .unwrap();
+            parent.write_all(&bytes).unwrap();
+            assert_eq!(
+                read_bootstrap(&mut child, "fixture").is_ok(),
+                (1..=600_000).contains(&budget)
+            );
         }
         for payload in [
             serde_json::json!({"flow_id":"foreign","device":null,"device_token":null}),

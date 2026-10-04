@@ -6,8 +6,8 @@ use xodus::tokens::TokenManager;
 
 use crate::webview;
 
-const CLIENT_ID: &str = "000000004424da1f";
-const LOGIN_MARKET: &str = "en-US";
+pub(crate) const CLIENT_ID: &str = "000000004424da1f";
+pub(crate) const LOGIN_MARKET: &str = "en-US";
 const USER_AUTH_SCOPE: &str = "scope=service::user.auth.xboxlive.com::MBI_SSL&api-version=2.0";
 
 pub async fn run(client: &reqwest::Client, tokens: &TokenManager) -> ExitCode {
@@ -34,19 +34,6 @@ pub async fn run(client: &reqwest::Client, tokens: &TokenManager) -> ExitCode {
     }
 }
 
-pub(crate) fn issue_credentials(
-    client: reqwest::Client,
-    device: secrets::LegacyToken,
-) -> Result<
-    (
-        std::collections::HashMap<String, secrets::Token>,
-        secrets::User,
-    ),
-    &'static str,
-> {
-    issue_credentials_inner(client, device, true)
-}
-
 fn issue_credentials_inner(
     client: reqwest::Client,
     device: secrets::LegacyToken,
@@ -58,12 +45,29 @@ fn issue_credentials_inner(
     ),
     &'static str,
 > {
-    if !secrets::device_token_structurally_valid(&device) || !secrets::legacy_token_valid(&device) {
-        return Err("Device credential proof is invalid or expired");
-    }
+    validate_device(&device)?;
     let output = webview::run_sessions(LoginHandler::new(client, device, isolated))
         .map_err(|_| "Native Microsoft sign-in failed")?
         .flatten();
+    finish_issued(output)
+}
+
+pub(crate) fn validate_device(device: &secrets::LegacyToken) -> Result<(), &'static str> {
+    if !secrets::device_token_structurally_valid(device) || !secrets::legacy_token_valid(device) {
+        return Err("Device credential proof is invalid or expired");
+    }
+    Ok(())
+}
+
+pub(crate) fn finish_issued(
+    output: Option<LoginOutput>,
+) -> Result<
+    (
+        std::collections::HashMap<String, secrets::Token>,
+        secrets::User,
+    ),
+    &'static str,
+> {
     let (tokens, user) = validate_issued(output)?;
     if !matches!(tokens.get(xodus::tokens::PASSPORT_STS), Some(secrets::Token::Legacy(token))
         if secrets::legacy_token_valid(token))
@@ -74,9 +78,9 @@ fn issue_credentials_inner(
 }
 
 #[derive(Debug)]
-struct LoginOutput {
-    body: soap::BodyContent,
-    user: secrets::User,
+pub(crate) struct LoginOutput {
+    pub body: soap::BodyContent,
+    pub user: secrets::User,
 }
 
 fn validate_issued(
@@ -144,48 +148,57 @@ impl LoginHandler {
         &self,
         prop: DAProperty,
     ) -> Result<ExchangeUserTokenOutcome, Box<dyn std::error::Error>> {
-        let client = self.client.clone();
-        let device_token = self.device.clone();
-        let client_id = self.client_id.clone();
-        let username = prop.username;
-        let inline_ft = prop.sts_inline_flow_token;
-        let user_token = xodus::models::secrets::LegacyToken {
-            key_name: None,
-            token: prop.da_token,
-            binary_secret: None,
-            tpm_key: None,
-            lifetime: soap::Timestamp {
-                id: None,
-                created: prop.da_start_time,
-                expires: prop.da_expires,
-            },
-        };
-
         tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async move {
-                let scopes = vec![
-                    (
-                        USER_AUTH_SCOPE.to_string(),
-                        Some(soap::PolicyReference::token_broker()),
-                    ),
-                    ("http://Passport.NET/tb".to_string(), None),
-                ];
-
-                xodus::api::live::exchange_user_token(
-                    &client,
-                    user_token,
-                    username,
-                    device_token,
-                    Some(inline_ft),
-                    None,
-                    client_id,
-                    &scopes,
-                )
-                .await
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
-            })
+            tokio::runtime::Handle::current().block_on(exchange_user_property(
+                self.client.clone(),
+                self.device.clone(),
+                self.client_id.clone(),
+                prop,
+            ))
         })
     }
+}
+
+pub(crate) async fn exchange_user_property(
+    client: reqwest::Client,
+    device_token: secrets::LegacyToken,
+    client_id: String,
+    prop: DAProperty,
+) -> Result<ExchangeUserTokenOutcome, Box<dyn std::error::Error>> {
+    let username = prop.username;
+    let inline_ft = prop.sts_inline_flow_token;
+    let user_token = xodus::models::secrets::LegacyToken {
+        key_name: None,
+        token: prop.da_token,
+        binary_secret: None,
+        tpm_key: None,
+        lifetime: soap::Timestamp {
+            id: None,
+            created: prop.da_start_time,
+            expires: prop.da_expires,
+        },
+    };
+
+    let scopes = vec![
+        (
+            USER_AUTH_SCOPE.to_string(),
+            Some(soap::PolicyReference::token_broker()),
+        ),
+        ("http://Passport.NET/tb".to_string(), None),
+    ];
+
+    xodus::api::live::exchange_user_token(
+        &client,
+        user_token,
+        username,
+        device_token,
+        Some(inline_ft),
+        None,
+        client_id,
+        &scopes,
+    )
+    .await
+    .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
 }
 
 impl webview::SessionHandler for LoginHandler {

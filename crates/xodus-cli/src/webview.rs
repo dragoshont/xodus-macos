@@ -115,6 +115,28 @@ impl WebviewRequest {
             isolated: false,
         }
     }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn native_open(
+        self,
+        remaining_millis: u64,
+    ) -> xodus_management::native_auth::Command {
+        xodus_management::native_auth::Command::Open {
+            remaining_millis,
+            url: self.url,
+            headers: self
+                .headers
+                .iter()
+                .map(|(key, value)| {
+                    (
+                        key.as_str().to_owned(),
+                        value.to_str().expect("fixed login header").to_owned(),
+                    )
+                })
+                .collect(),
+            user_agent: xodus_management::native_auth::USER_AGENT.to_owned(),
+        }
+    }
 }
 
 pub fn login_request(client_id: String, market: String, isolated: bool) -> WebviewRequest {
@@ -124,7 +146,10 @@ pub fn login_request(client_id: String, market: String, isolated: bool) -> Webvi
     );
 
     let mut headers = HeaderMap::new();
-    headers.insert("cxh-capabilities", HeaderValue::from_static(r#"{"PrivatePropertyBag":1,"PasswordlessConnect":1,"PreferAssociate":1,"ChromelessUI":0}"#));
+    headers.insert(
+        "cxh-capabilities",
+        HeaderValue::from_static(xodus_management::native_auth::CAPABILITIES),
+    );
     headers.insert(
         "cxh-correlationId",
         HeaderValue::from_str(&format!("{uid}")).unwrap(),
@@ -157,16 +182,7 @@ pub fn login_request(client_id: String, market: String, isolated: bool) -> Webvi
 }
 
 pub(crate) fn trusted_login_url(value: &str) -> bool {
-    reqwest::Url::parse(value).is_ok_and(|url| {
-        url.scheme() == "https"
-            && matches!(
-                url.host_str(),
-                Some("login.live.com" | "account.live.com" | "login.microsoftonline.com")
-            )
-            && url.port().is_none()
-            && url.username().is_empty()
-            && url.password().is_none()
-    })
+    xodus_management::native_auth::trusted_navigation(value)
 }
 
 fn trusted_bridge_origin(value: &str) -> bool {
@@ -231,7 +247,7 @@ where
                     let callback = serde_json::json!({"type":"callback", "value":{
                         "name":"CloudExperienceHost.getContext",
                         "args":["CloudExperienceHost", "TokenBroker", "TokenBroker",
-                            r#"{"PrivatePropertyBag":1,"PasswordlessConnect":1,"PreferAssociate":1,"ChromelessUI":0}"#],
+                            xodus_management::native_auth::CAPABILITIES],
                         "context":ctx}});
                     if webview.evaluate_script(&format!(
                         r#"window["CloudExperienceHost.Bridge.dispatchMessage"](JSON.stringify({callback}))"#)).is_err() {
@@ -392,52 +408,52 @@ fn create_session<T: SessionHandler>(
 
     let proxy_ipc = proxy.clone();
     let builder = WebViewBuilder::new()
-            .with_url(&request.url)
-            .with_incognito(request.isolated)
-            .with_navigation_handler(|url| trusted_login_url(&url))
-            .with_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; MSAppHost/3.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.26100")
-            .with_headers(request.headers)
-            .with_initialization_script("window.external = {notify: window.ipc.postMessage }")
-            .with_ipc_handler(move |request| {
-                if request.body().len() > 256 * 1024
-                    || !trusted_bridge_origin(&request.uri().to_string()) {
-                    return;
-                }
-                let body = request.body();
-                let payload = serde_json::from_str::<DAProperty>(body);
-                if let Ok(data) = payload {
-                    if proxy_ipc
-                        .send_event(CustomEvent::IpcCallback(session_id, data))
-                        .is_err()
-                    {
-                        eprintln!("Failed to dispatch IPC token callback event");
-                    }
-                } else {
-                    match serde_json::from_str::<HostBridgeMessage>(body) {
-                        Ok(message) => {
-                            if let Some(ctx) = message.get_context_invoke()
-                                && proxy_ipc
-                                    .send_event(CustomEvent::HostGetContext(
-                                        session_id,
-                                        ctx.to_string(),
-                                    ))
-                                    .is_err()
-                            {
-                                eprintln!("Failed to dispatch host context event");
-                            }
-                        }
-                        Err(_) => {
-                            eprintln!("Ignoring unsupported IPC payload");
-                        }
-                    }
-                }
-            })
-            .with_on_page_load_handler(move |event, url| {
-                if matches!(event, PageLoadEvent::Finished) && finish_url(&url)
+        .with_url(&request.url)
+        .with_incognito(request.isolated)
+        .with_navigation_handler(|url| trusted_login_url(&url))
+        .with_user_agent(xodus_management::native_auth::USER_AGENT)
+        .with_headers(request.headers)
+        .with_initialization_script("window.external = {notify: window.ipc.postMessage }")
+        .with_ipc_handler(move |request| {
+            if request.body().len() > 256 * 1024
+                || !trusted_bridge_origin(&request.uri().to_string())
+            {
+                return;
+            }
+            let body = request.body();
+            let payload = serde_json::from_str::<DAProperty>(body);
+            if let Ok(data) = payload {
+                if proxy_ipc
+                    .send_event(CustomEvent::IpcCallback(session_id, data))
+                    .is_err()
                 {
-                    proxy.send_event(CustomEvent::Finish(session_id)).ok();
+                    eprintln!("Failed to dispatch IPC token callback event");
                 }
-            });
+            } else {
+                match serde_json::from_str::<HostBridgeMessage>(body) {
+                    Ok(message) => {
+                        if let Some(ctx) = message.get_context_invoke()
+                            && proxy_ipc
+                                .send_event(CustomEvent::HostGetContext(
+                                    session_id,
+                                    ctx.to_string(),
+                                ))
+                                .is_err()
+                        {
+                            eprintln!("Failed to dispatch host context event");
+                        }
+                    }
+                    Err(_) => {
+                        eprintln!("Ignoring unsupported IPC payload");
+                    }
+                }
+            }
+        })
+        .with_on_page_load_handler(move |event, url| {
+            if matches!(event, PageLoadEvent::Finished) && finish_url(&url) {
+                proxy.send_event(CustomEvent::Finish(session_id)).ok();
+            }
+        });
 
     #[cfg(target_os = "linux")]
     let webview = {
@@ -460,6 +476,32 @@ fn create_session<T: SessionHandler>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn original_login_request_exports_exact_frozen_native_open_without_rewriting_headers() {
+        let fixtures: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../docs/fixtures/native-auth-host-v1.json"
+        )))
+        .unwrap();
+        let expected = &fixtures["commands"][0]["message"];
+        let mut actual = serde_json::to_value(
+            login_request(
+                crate::commands::login::CLIENT_ID.to_owned(),
+                crate::commands::login::LOGIN_MARKET.to_owned(),
+                true,
+            )
+            .native_open(599_000),
+        )
+        .unwrap();
+        assert!(
+            uuid::Uuid::parse_str(actual["headers"]["cxh-correlationid"].as_str().unwrap()).is_ok()
+        );
+        actual["headers"]["cxh-correlationid"] = expected["headers"]["cxh-correlationid"].clone();
+        assert_eq!(actual, *expected);
+    }
+
     #[test]
     fn management_broker_bridge_requires_exact_trusted_origin_and_finish_path() {
         assert!(trusted_bridge_origin("https://login.live.com/"));

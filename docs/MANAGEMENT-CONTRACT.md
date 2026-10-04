@@ -82,12 +82,17 @@ single **isolated launcher profile**, not the ordinary CLI/service account.
 The existing native Keychain TokenBackend is reused with service
 `Xodus Management Service`; normal CLI/service `Xodus Service` entries are never
 read, imported, copied, overwritten or logged out by management.
-It accepts only signed-out state and spawns one owned native WKWebView worker,
+It accepts only signed-out state and spawns one owned Rust credential worker
+and one explicitly version/path/SHA-bound Swift AppKit/WKWebView helper,
 reusing the actual CLI NativeTokenBroker/SOAP provider (`InlineLogin.srf`,
 client ID `000000004424da1f`, XboxLive broker scope and Passport.NET/tb request).
 Required legacy ticket identity is the response's `http://Passport.NET/STS`
 KeyName, not the request's `/tb` address. No arbitrary scope, pasted token or
 callback URL is accepted over management transport.
+The private [native host contract](NATIVE-AUTH-HOST.md) is separate from this
+public protocol. The management launch must supply the reviewed helper binding;
+missing or invalid binding is an explicit failure, never a Wry fallback.
+The standalone CLI retains its original Wry UI and credential namespace.
 
 The result is authData with optional `flow`:
 `{"flowID":"opaque-uuid","state":"pending","error":null}`. The client explicitly
@@ -118,7 +123,8 @@ are not inferred. A PC Microsoft Store buyer may differ from the Xbox player.
 The child has null stdout/stderr and no initialized tracing/log subscriber.
 Its stdin is an inherited anonymous private Unix socket, not the management
 stdin pipe. A bounded length-prefixed bootstrap carries only this profile's
-existing device material, then a bounded result returns complete proof.
+existing device material, the nonsecret helper binding and remaining original
+deadline budget, then a bounded result returns complete proof.
 The child uses an in-memory TokenBackend only; it never initializes or writes
 native credential storage. Device provisioning/reauthentication occurs only
 inside explicitly initiated sign-in, never hello/status. Missing device material
@@ -128,12 +134,21 @@ are bounded/checked, with typed propagated errors rather than panics.
 The parent alone
 checks the still-pending matching flow and commits the complete Keychain entry.
 It never writes plaintext token files, tokens to argv, a public credential pipe,
-or callback fragments to logs. Only a nonsecret flow UUID is passed in argv.
+or callback fragments to logs. Only nonsecret flow/helper launch metadata is
+passed in argv. The Swift helper receives only its private native host controls
+and the seven existing issuer strings in memory, not device/Store proof.
 The management webview is nonpersistent/incognito, rejects untrusted navigation
 and IPC origins, and preserves one private WK cookie context across bounded
 inline-consent continuations. Ordinary CLI cookie behavior is retained.
-Closing the window records cancellation. A 10-minute timeout kills the owned
-worker. Cancellation waits for that child to terminate before acknowledging;
+The original 600-second monotonic deadline is not reset after device preparation.
+Engine/worker/helper EOF guardians, one-shot callback correlation and matching
+closed acknowledgement/clean helper exit fence cancellation and late proof.
+Application output and dumps never contain provider data; complete suppression
+of operating-system or crash logging is not promised. Native Swift ownership
+does not establish Microsoft passkey eligibility or a live biometric fix.
+Closing the window records cancellation. The ten-minute timeout fails the flow
+and closes its private endpoint; bounded cleanup grace precedes an owned-worker
+kill if necessary. Cancellation waits for that child to terminate before acknowledging;
 if the parent's matching Keychain commit already completed, the result
 reports completed rather than pretending to undo it. Once an atomic parent OS
 commit/disconnect has started, cancel/logout return `INVALID_TRANSITION` until

@@ -66,16 +66,10 @@ pub struct ResultFrame {
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
 pub enum HostResult {
     Ready,
-    Da {
-        property: IssuerProperty,
-    },
-    Closed {
-        disposition: Disposition,
-    },
+    Da { property: IssuerProperty },
+    Closed { disposition: Disposition },
     Cancelled,
-    Failed {
-        reason: HostFailure,
-    },
+    Failed { reason: HostFailure },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -123,6 +117,21 @@ fn invalid() -> std::io::Error {
     std::io::Error::other("Invalid private native authentication channel")
 }
 
+#[cfg(unix)]
+pub fn disable_core_dumps() -> std::io::Result<()> {
+    let mut limit = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    if unsafe { libc::getrlimit(libc::RLIMIT_CORE, &mut limit) } != 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    limit.rlim_cur = 0;
+    if unsafe { libc::setrlimit(libc::RLIMIT_CORE, &limit) } != 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(())
+}
 pub fn trusted_navigation(value: &str) -> bool {
     reqwest::Url::parse(value).is_ok_and(|url| {
         url.scheme() == "https"
@@ -151,8 +160,7 @@ pub fn valid_identity(version: u32, flow_id: &str, session_id: u64, sequence: u6
         && session_id == SESSION_ID
         && sequence > 0
         && sequence <= 9_007_199_254_740_991
-        && uuid::Uuid::parse_str(flow_id)
-            .is_ok_and(|id| id.hyphenated().to_string() == flow_id)
+        && uuid::Uuid::parse_str(flow_id).is_ok_and(|id| id.hyphenated().to_string() == flow_id)
 }
 
 pub fn encode<T: Serialize>(frame: &T) -> std::io::Result<Vec<u8>> {
@@ -161,6 +169,79 @@ pub fn encode<T: Serialize>(frame: &T) -> std::io::Result<Vec<u8>> {
         return Err(invalid());
     }
     Ok(bytes)
+}
+
+pub fn verify_binding(binding: &HostBinding) -> std::io::Result<()> {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+
+    if binding.version != VERSION
+        || !binding.executable.is_absolute()
+        || binding.sha256.len() != 64
+        || !binding
+            .sha256
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        || binding.executable.canonicalize()? != binding.executable
+    {
+        return Err(invalid());
+    }
+    let attributes = std::fs::symlink_metadata(&binding.executable)?;
+    if !attributes.is_file() || attributes.len() > 128 * 1024 * 1024 {
+        return Err(invalid());
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if attributes.uid() != unsafe { libc::geteuid() }
+            || attributes.mode() & 0o022 != 0
+            || attributes.mode() & 0o100 == 0
+        {
+            return Err(invalid());
+        }
+    }
+    let mut file = std::fs::File::open(&binding.executable)?;
+    let mut hash = Sha256::new();
+    let mut buffer = [0; 16 * 1024];
+    let mut total = 0u64;
+    loop {
+        let count = file.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        total += count as u64;
+        if total > 128 * 1024 * 1024 {
+            return Err(invalid());
+        }
+        hash.update(&buffer[..count]);
+    }
+    let after = file.metadata()?;
+    if total != attributes.len()
+        || attributes.len() != after.len()
+        || attributes.modified()? != after.modified()?
+        || crate::staging::digest_hex(&hash.finalize()) != binding.sha256
+    {
+        return Err(invalid());
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let current = std::fs::symlink_metadata(&binding.executable)?;
+        if attributes.ino() != after.ino()
+            || attributes.dev() != after.dev()
+            || current.ino() != after.ino()
+            || current.dev() != after.dev()
+            || current.len() != after.len()
+            || current.modified()? != after.modified()?
+            || after.uid() != attributes.uid()
+            || after.mode() != attributes.mode()
+            || current.uid() != attributes.uid()
+            || current.mode() != attributes.mode()
+        {
+            return Err(invalid());
+        }
+    }
+    Ok(())
 }
 
 pub async fn write<T: Serialize, W: AsyncWrite + Unpin>(
@@ -176,13 +257,29 @@ pub async fn write<T: Serialize, W: AsyncWrite + Unpin>(
 pub async fn read<T: serde::de::DeserializeOwned, R: AsyncRead + Unpin>(
     reader: &mut R,
 ) -> std::io::Result<T> {
-    let length = reader.read_u32().await.map_err(|_| invalid())? as usize;
+    read_optional(reader).await?.ok_or_else(invalid)
+}
+
+pub async fn read_optional<T: serde::de::DeserializeOwned, R: AsyncRead + Unpin>(
+    reader: &mut R,
+) -> std::io::Result<Option<T>> {
+    let mut prefix = [0; 4];
+    if reader.read(&mut prefix[..1]).await.map_err(|_| invalid())? == 0 {
+        return Ok(None);
+    }
+    reader
+        .read_exact(&mut prefix[1..])
+        .await
+        .map_err(|_| invalid())?;
+    let length = u32::from_be_bytes(prefix) as usize;
     if length == 0 || length > MAX_FRAME_BYTES {
         return Err(invalid());
     }
     let mut bytes = vec![0; length];
     reader.read_exact(&mut bytes).await.map_err(|_| invalid())?;
-    serde_json::from_slice(&bytes).map_err(|_| invalid())
+    serde_json::from_slice(&bytes)
+        .map(Some)
+        .map_err(|_| invalid())
 }
 
 #[cfg(test)]
@@ -239,16 +336,60 @@ mod tests {
         write(&mut bytes, &frame).await.unwrap();
         let decoded: ResultFrame = read(&mut bytes.as_slice()).await.unwrap();
         assert_eq!(decoded.flow_id, frame.flow_id);
-        assert!(read::<ResultFrame, _>(&mut bytes[..bytes.len() - 1].as_ref()).await.is_err());
+        assert!(
+            read::<ResultFrame, _>(&mut bytes[..bytes.len() - 1].as_ref())
+                .await
+                .is_err()
+        );
         assert!(serde_json::from_str::<ResultFrame>(
             r#"{"version":1,"version":1,"flowID":"00000000-0000-0000-0000-000000000000","sessionID":1,"sequence":1,"replyTo":1,"message":{"kind":"ready"}}"#
         ).is_err());
     }
 
+    #[tokio::test]
+    async fn exact_whole_frame_threshold_accepts_boundary_and_rejects_one_extra_byte() {
+        let mut frame = ResultFrame {
+            version: VERSION,
+            flow_id: uuid::Uuid::nil().to_string(),
+            session_id: SESSION_ID,
+            sequence: 1,
+            reply_to: 1,
+            message: HostResult::Da {
+                property: IssuerProperty {
+                    da_token: String::new(),
+                    da_session_key: String::new(),
+                    da_start_time: String::new(),
+                    da_expires: String::new(),
+                    sts_inline_flow_token: String::new(),
+                    username: String::new(),
+                    puid: String::new(),
+                },
+            },
+        };
+        let overhead = encode(&frame).unwrap().len();
+        if let HostResult::Da { property } = &mut frame.message {
+            property.da_token = "x".repeat(MAX_FRAME_BYTES - overhead);
+        }
+        assert_eq!(encode(&frame).unwrap().len(), MAX_FRAME_BYTES);
+        let mut bytes = Vec::new();
+        write(&mut bytes, &frame).await.unwrap();
+        let decoded: ResultFrame = read(&mut bytes.as_slice()).await.unwrap();
+        let HostResult::Da { property } = decoded.message else {
+            panic!("bounded property required");
+        };
+        assert_eq!(property.da_token.len(), MAX_FRAME_BYTES - overhead);
+        if let HostResult::Da { property } = &mut frame.message {
+            property.da_token.push('x');
+        }
+        assert!(encode(&frame).is_err());
+    }
+
     #[test]
     fn navigation_matches_existing_https_default_port_and_origin_rules() {
         assert!(trusted_navigation("https://login.live.com:443/"));
-        assert!(finish_navigation("https://login.live.com/ppsecure/post.srf?fixture=1"));
+        assert!(finish_navigation(
+            "https://login.live.com/ppsecure/post.srf?fixture=1"
+        ));
         for url in [
             "http://login.live.com/",
             "https://login.live.com:8443/",
@@ -258,7 +399,9 @@ mod tests {
             assert!(!trusted_navigation(url));
         }
         assert!(!trusted_bridge("https://account.live.com/"));
-        assert!(!finish_navigation("https://login.live.com/ppsecure/post.srf.attacker"));
+        assert!(!finish_navigation(
+            "https://login.live.com/ppsecure/post.srf.attacker"
+        ));
         assert!(!valid_identity(2, &uuid::Uuid::nil().to_string(), 1, 1));
         assert!(!valid_identity(1, "foreign", 1, 1));
         assert!(!valid_identity(1, &uuid::Uuid::nil().to_string(), 2, 1));

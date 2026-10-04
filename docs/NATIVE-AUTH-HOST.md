@@ -96,9 +96,25 @@ close/reap only owned children/windows. `kill_on_drop` alone is insufficient.
 The engine keeps its bootstrap write-half open while awaiting the framed
 result: existing `adapter::spawn_consent` writes bounded length+bytes and
 moves the whole stream into `read_consent`. EOF is not a bootstrap delimiter.
+The revised reader retains that endpoint after the complete result until
+bounded worker terminal EOF, rejecting trailing bytes. This prevents normal
+engine closure from racing the worker's handoff publication guardian.
 Shared guardian cancellation state fences SOAP completion, helper close/ack/
 reap and handoff publication. Normal engine closure after reading a complete
 terminal result must not be mistaken for a pre-terminal parent failure.
+The worker's duplicate inherited parent descriptor is explicitly close-on-exec,
+so it cannot leak into the Swift descendant.
+After closing its endpoint the engine grants the worker at most two seconds
+to reap the helper before killing/reaping that owned worker. Worker helper
+cleanup waits at most one second before owned kill/reap; the completed close,
+matching acknowledgment, clean helper exit and EOF share a five-second bound
+within the unchanged original budget. Parent credential commit additionally
+requires a clean worker exit, not just a complete frame and socket EOF.
+The existing actor poll observes terminal worker exit without blocking public
+diagnostics/cancellation/transport EOF; a worker stalled after its terminal
+frame/EOF has a bounded exit grace before owned kill/reap.
+An already disconnected helper socket is harmless only after its process has
+been reaped; other shutdown or cleanup errors remain failures.
 
 The helper executable path/version/SHA and paired engine identity are explicit
 nonsecret launch bindings, verified before spawning. No PATH discovery,

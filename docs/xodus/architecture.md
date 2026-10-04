@@ -127,3 +127,41 @@ archive's standalone smoke is superseded and must not be run.
 All R01-R19 findings are closed only for their reviewed component scopes. See
 `runtime/public-async/README.md` for the exact source, hosted evidence, archive
 pins and unchanged account/gameplay gates.
+
+### Native launcher sign-in integration
+
+The Store sign-in route currently uses inherited public Microsoft client ID
+`000000004424da1f`, not a Microsoft application registration created for this
+launcher. The active route is the existing native Windows TokenBroker-style
+inline-login and SOAP exchange; the separate XAL OAuth configuration is not
+its entrypoint. The macOS bundle identifier
+`io.github.dragoshont.xodus.development` is independent. Neither the Microsoft
+registration owner nor current provider acceptance is established by source,
+and the absence of our own registration is not a demonstrated failure cause.
+Registering a new client would not by itself grant Store-wide game entitlements:
+the documented [Store collection query](https://learn.microsoft.com/en-us/windows/uwp/monetize/query-for-products)
+requires a Store ID user key and service token, and scopes owned products to
+apps associated with that service's Azure AD client ID.
+
+Reviewed backend source `e60481fc918b4cc2cc599a5db2aba17a04738872` and app source
+`360e8bf3a2eb7efc087ccce2ed4d2bf93fc16369` preserve bounded, static authentication
+failure details without raw provider responses or credentials. The backend's
+immutable unsigned native CLI has SHA256
+`47fab28009f9c6c52294095e5684bfce3f86f45e50ddc98655d2b22150f02c8d`;
+the app owner verified a separately signed embedded copy with SHA256
+`c50a98b3e0afe4ba6a9b883e6f09ef194b481817eea94f5db190fb2123aceaa8`.
+The C95 management schema is unchanged.
+
+Following the user's explicit close-and-retry request, the app owner verified
+the idle owned app and engine, quit them gracefully, verified the new pair,
+and performed one native accessibility Sign In action. This new attempt
+terminated at `AUTH_INVALID / devicePreparation / providerProofInvalid` before
+the user-login stage. This reason covers incomplete device registration data,
+unsupported response shape or an invalid converted token/proof; it does not
+establish a cryptographic failure. The underlying cause and the cause of the
+older unobserved failure remain unknown. The user's subsequent instruction
+authorizes the owned-app click, fix, restart and retest loop, while preserving
+active human/OS-commit flows. Cryptographic verification remains mandatory.
+No successful Microsoft sign-in, Keychain commit, entitlement, package
+authorization or gameplay is established;
+credentials and consent remain user-controlled.

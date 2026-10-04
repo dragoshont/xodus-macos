@@ -31,9 +31,20 @@ absent/malformed/unknown/extra-key details are stage unavailable.
 A failed worker exit does not discard a validated failure handoff, but cannot
 promote a successful session. Missing/invalid/unobserved outcomes remain stage
 unavailable. Cancellation, expiry, proof, active-flow and already-started
-Keychain commit semantics are preserved. This is diagnostic-only source,
-pending separate retained review, not a fix or precise explanation for an
-earlier unobserved failure and not permission to retry or deploy a new engine.
+Keychain commit semantics are preserved. The coordinator reports separate
+continuity source-review closure for the diagnostic delta; it is not a fix or
+precise explanation for an earlier unobserved failure and does not itself
+authorize an account retry or a new deployment.
+
+`devicePreparation/providerProofInvalid` represents the existing
+`InvalidBrokerProof` content/proof rejection sites, not necessarily a signature
+failure. Provider signing, nonce, verification, decryption and decoding errors
+instead remain `providerRequestFailed`. Device authentication reuses the shared
+checked selector for a bare response or exactly-one response collection, then
+retains the same expiry, legacy/STS/cipher and 4096-byte version-four proof
+checks before persistence. Empty/multiple/fault/undecrypted bodies are refused.
+The collection compatibility correction requires its own continuity review;
+it does not establish which rejection site caused the observed live failure.
 
 ## Runtime transport boundary
 

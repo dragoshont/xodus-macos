@@ -134,8 +134,13 @@ Same retained report 39 closes R19 at exact
 the reviewed correction. Report 38 found no additional issue in the parent's
 0d5 consumer/runner. These are scoped source-review closures, not live account,
 production runtime-pair or complete-product approval.
-The newer diagnostic-only consent correction below awaits separate review 41
-by the same retained reviewer; previous closures do not approve this new delta.
+The original retained reviewer was cancelled; no report 40/41 disposition
+exists. The coordinator reports that one continuity reviewer
+`3babca63-7752-4b60-8301-2cdbb6b847e6` found no significant issues in the
+combined diagnostic producer `e60481fc918b4cc2cc599a5db2aba17a04738872` versus
+232a and final app consumer 360e versus f680. This separate source-only closure
+does not approve the newer device-response wrapper correction below, which
+requires another immutable handoff to that same continuity reviewer.
 The backend's SOAP nonce delta remains accepted by review 34. Historical
 parent-owned R17 discussion below describes its then-open state, not a current
 finding. Coordinator
@@ -160,11 +165,90 @@ certification.
 
 Original complete-owned inventory, authorization, immutable planning, managed
 installation/update/recovery/removal and licensed gameplay gates remain open.
-User-mediated Store issuance remains unavailable. No engine/profile/consent
-change, new provider or default-service initiation is implied or performed.
+Successful user-mediated Store issuance remains unproven. The latest
+app-owner-reported retry is described below; it is not this worker's execution.
+No new provider or default-service initiation is implied or performed.
 Historical milestone evidence and then-pending reviews below do not override
 this status; genuinely new source deltas still require an immutable handoff to
-the same retained reviewer.
+the parent-owned continuity reviewer.
+
+### Device-authentication single-response compatibility
+
+After source closure and explicit artifact authorization, this worker built
+the exact public LF e604 CLI with the existing native, offline, locked,
+default-feature profile. All 190 source-archive files matched their Git blobs
+and the native mirror before and after compilation. The additive artifact is
+`artifacts/xodus-cli-native-consent-v1-47fab28009f9c6c5`, SHA256
+`47fab28009f9c6c52294095e5684bfce3f86f45e50ddc98655d2b22150f02c8d`,
+79,687,480 bytes, arm64 Mach-O, mode 0500, linker ad-hoc only with no app signing.
+Its adjacent mode-0400 provenance JSON has SHA256
+`02c9710e56713dedfc80b144dad4f86d5e34903d6a5201e9778836c6b2a4f762`.
+Only inert help and an owned private temporary-state anonymous `hello` were
+executed: C95, 25 operations, 17 supported, 8 gated, one valid result, exit 0,
+no stderr, no runtime fingerprint. Old 57d/9e85 artifacts remain unchanged.
+The existing 104 diagnostic checks were not rerun for this artifact.
+
+The sole app owner reports a separate signed copy
+`c50a98b3e0afe4ba6a9b883e6f09ef194b481817eea94f5db190fb2123aceaa8`
+with final consumer 360e/C95, nine native read-only checks, and one newly
+user-authorized native sign-in entry. It failed with the closed tuple
+`AUTH_INVALID / devicePreparation / providerProofInvalid` before a successful
+account flow was established. This is app-owner evidence, not backend or
+reviewer execution. The earlier generic attempt's cause remains unknown.
+
+The exact tuple maps to `DeviceCredentialError::InvalidBrokerProof`, not a
+specific cryptographic exception. Its existing rejection sites are:
+
+- decoded device-registration failure or missing identity/license fields;
+- an unexpected device-authentication response body;
+- failed checked token conversion, including absent proof, type or expiry;
+- a non-legacy token or invalid STS/key/cipher/4096-byte-version-four structure.
+
+Network, HTTP, XML decoding, request signing/canonicalization, response
+signature, nonce and envelope decryption errors propagated by the provider
+instead map to `BrokerFailure / providerRequestFailed`. The observed tuple
+cannot distinguish the four proof-rejection sites, establish an AppID,
+certificate or consent cause, or prove an underlying signature failure.
+
+Source inspection found one concrete false rejection: device authentication
+accepted only a bare `RequestSecurityTokenResponse`, while the existing
+checked shared selector already accepts either a bare response or an
+**exactly-one** response collection. The production device path now reuses
+that selector after the unchanged provider verification/decryption route.
+Checked conversion, future expiry, legacy type, STS key, cipher decoding,
+4096-byte proof and version-four checks still run before memory persistence.
+Zero/multiple responses, faults and undecrypted bodies remain invalid. No
+signature, nonce, encryption, endpoint, client ID or credential profile policy
+changes; the agreed ten diagnostic pairs and C95 bytes are unchanged.
+
+The unchanged selection/proof checks were first extracted into the production
+save helper without changing behavior. A native regression decoded complete
+synthetic SOAP for both forms: the bare proof passed, then the identical proof
+in a single-response collection failed with `InvalidBrokerProof`; the other
+three device tests passed. With shared selection, all four device tests pass.
+Fourteen malformed proof cases in both forms and empty/multiple/fault/
+undecrypted bodies preserve the prior destination in an explicitly managed
+memory backend. Synthetic proof data never enters an account endpoint,
+successful runtime reply, native Keychain or real profile.
+
+**19 scoped native checks passed:** four device-memory, four full-envelope
+AES/unique-and-duplicate-nonce, six AES/reference, four existing checked shared
+response/compact-proof tests, and the unchanged CLI typed failure mapper.
+Core-library strict clippy, CLI/management native compile checks and touched
+Rust formatting also pass. Unfiltered core tests were not run because the
+existing `test_get_xbox_live_dev_token` performs real device provisioning.
+Tested LF SHA256: device source
+`57b0ece01c1faa42d315862cc490fc0d783d950eb6fb8eabf8ae233aadc642e3`;
+shared API source
+`9fb045053d40e2c2ae74c10df2267fd90b602f806431bbec7bcac5e92aacbd67`.
+
+This is a verified parser compatibility fix, **not proof that the live
+incident used a collection wrapper**. The new correction is source-only
+pending the same parent-owned continuity reviewer. No newer production CLI
+artifact is authorized or sealed, no account/provider/credential/Keychain
+action or retry was executed by this worker, and the failed app is left under
+its sole owner's control. Additional static site distinctions require explicit
+producer/consumer agreement before changing the ten-pair diagnostic contract.
 
 ### Static private consent failure diagnostics
 
@@ -270,8 +354,11 @@ Tested LF source SHA256 values:
 adapter `e3ca748f68e965f3eff6d328702cd906f35db070a39f5c0f6e621f37b026b550`;
 worker `1744621b103125ee0f316980cb9fd3ea6df24ed813b532aa07d2e2033b2cef90`.
 
-Publication is **source only** pending same retained review 41. No new
-production CLI binary was sealed, published, deployed or executed; the held
+At its original publication this delta was **source only**, pending retained
+review. That reviewer was subsequently cancelled without a report 40/41
+disposition; the separate continuity closure and authorized e604 artifact are
+recorded above. At original publication no new production CLI binary was
+sealed, published, deployed or executed; the held
 app/engine pair and historical artifacts remain unchanged. No live auth,
 credential read, account/device RPC, runtime service, consent prompt or
 package/game action was initiated. A diagnostic engine artifact and any further

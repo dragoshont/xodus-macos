@@ -82,7 +82,7 @@ pub async fn exchange_device_token(
     single_device_response(envelope.body.body)
 }
 
-fn single_device_response(
+pub(crate) fn single_device_response(
     body: soap::BodyContent,
 ) -> Result<soap::RequestSecurityTokenResponse, rst::RSTError> {
     match body {

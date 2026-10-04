@@ -430,7 +430,13 @@ Microsoft passkey screen, macOS authenticator dialog or frozen embedded view
 has not been established. Human-controlled password/code/consent interaction
 remains required. No automatic retry, authenticator approval, account-setting
 change, provider-page capture or client-ID substitution is authorized by that
-unclassified symptom. The active flow is preserved.
+unclassified symptom. At that point, the active flow was preserved.
+
+The user has since explicitly paused sign-in to test games and requested
+source-only native Swift app updates. Shared Mac desktop ownership was released
+for those tests. Authentication recovery, window inspection, focus, capture,
+launch, retry and deployment are paused; this handover does not establish
+successful sign-in or credential commit.
 
 ### macOS toolkit audit: source and deployed-file evidence
 
@@ -472,3 +478,38 @@ not a native visual-conformance certificate. Live appearance, scroll-edge
 behavior, contrast, transparency/motion preferences, resizing and
 keyboard/VoiceOver focus remain unverified until the human flow is safe.
 No mobile-specific conformance score or touch-target rules are applied to Mac.
+
+Further review of the official
+[macOS 27 release notes](https://developer.apple.com/documentation/macos-release-notes/macos-27-release-notes)
+and [TabsPickerStyle](https://developer.apple.com/documentation/swiftui/tabspickerstyle)
+establishes a specific adoption requirement: navigation pickers can use
+`.pickerStyle(.tabs)` on macOS 27, with `.segmented` retained on earlier
+supported systems. The new style distinguishes navigation from value selection
+visually and announces options as tabs to VoiceOver. The source correction
+must preserve route bindings, shortcuts, search placement and the macOS 14
+deployment baseline. Native UI corrections and isolated headless builds are
+in progress; no changed app has been deployed or visually certified.
+
+### Swift-owned authentication host: source migration
+
+The approved source migration replaces the managed Rust/Wry UI host with a
+dedicated Swift AppKit/WKWebView helper. Rust retains device preparation,
+cryptographic verification, Passport SOAP issuance and Store-session commit.
+Issuer material stays on a bounded private worker/helper channel, outside
+public management JSONL and app models. The new topology requires concurrent
+parent-channel EOF monitoring and a cancellation fence through issuance,
+helper closure and final handoff; the preceding worker did not monitor that
+channel continuously during issuance. Parent/worker death, cancellation,
+deadline and late-result behavior require neutral process regressions.
+
+This is native UI ownership and failure-propagation work, not a proven repair
+of the reported biometric stage. Read-only inspection of the exact signed
+app and engine above found ad-hoc signatures, no TeamIdentifier and no embedded
+associated-domain or browser public-key-credential entitlements.
+[Apple's embedded passkey requirements](https://developer.apple.com/documentation/authenticationservices/supporting-passkeys)
+cannot be supplied merely by translating Wry to Swift or adding a Microsoft
+domain locally. The fork's separate Xbox Live OAuth/XSTS route has not been
+shown equivalent to the required Passport Store proof; a system-browser URL
+callback is not a substitute for the existing ServerData exchange.
+Source implementation is authorized, while new operational artifacts,
+deployment and authentication attempts remain separately gated and paused.

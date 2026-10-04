@@ -198,8 +198,11 @@ CLI/service builds, the unchanged contract corpus and anonymous management
 process detail/refresh/replay/reconnect/framing checks pass. Immutable unsigned
 developer CLI: `artifacts/xodus-cli-device-key-r11-v1-173b2f4327bb643c`,
 SHA256 `173b2f4327bb643c3f4547ab29ce5099a940c48ebc513a91cca6db82fb89d3cb`.
-R11 still needs closure by that same reviewer; this is not live license,
-authorized installation, an app-engine replacement or runtime certification.
+Coordinator reports the same retained reviewer's turn 14 **closed R11** at c976
+versus f7, finding the payload-free typed derivation/CLI propagation and four
+decode/derive regressions meet the finding with no significant issue. The JSON
+working delta was excluded. This is not live license, authorized installation,
+an app-engine replacement or runtime certification.
 
 ### Unconnected package/license provider error propagation
 
@@ -241,8 +244,10 @@ approved da548 engine stay unchanged. New immutable unsigned developer CLI:
 This delta still needs the same retained reviewer; neither synthetic provider
 tests nor the anonymous process smoke prove authorized installation.
 
-Actual Store/Keychain consent remains coordinator-held while the app's R10
-client lifecycle ownership race is fixed and reviewed. That gate does not waive
+The coordinator reports the app's R10 lifecycle race closed at f967 in retained
+turn 13 and is preparing human Account-entry handoff without consent automation
+or an engine swap. Actual Store/Keychain/license proof remains unexecuted. That
+gate does not waive
 complete consumer inventory, package authorization/hash/expanded-manifest
 evidence, verified adoption or a certified public native runtime pairing.
 

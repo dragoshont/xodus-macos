@@ -394,10 +394,81 @@ the exact correction without significant issues, confirming unchanged
 cryptographic paths, authentication mutation gates and compatibility with
 the unchanged twenty-one-reason consumer. The historical encoding reason
 remains compatible but is no longer emitted by opaque-ticket admission.
-An additive CLI build is authorized; successful live authentication still
-requires the changed-engine native retry.
+The subsequent additive immutable CLI has SHA256
+`304c249ae24fc187533865ebb3d61cd40cec812629c537692e009f54bec22349`;
+its provenance has SHA256
+`647094684c9f90d50d30a6cf911baa5d3c4d9bdeb50b056f67f8a4a79e272bb5`.
+The parent independently verified both owned, stable regular files, their
+sizes and modes, the arm64 header and exact reviewed source/native/build
+provenance. The CLI-only build retained the native Keychain-backed feature
+profile, with no plaintext fallback. Only inert help and anonymous HELLO were
+exercised by the builder; old artifacts were preserved.
 
-The user's current priority is explicit: fix authentication first, then verify
-and correct the modern macOS UI. The requested toolkit audit remains deferred;
-SwiftUI imports, accessibility roles and successful compilation alone are not
-proof of native system-control styling or macOS 27 design conformance.
+The app owner packaged the frozen consumer's native release stage and a
+separately signed engine copy with SHA256
+`4d04fd6c98478574f8b0413de3a2422cebf66dce9c72357629c38cf02e2dbf32`.
+The app executable has SHA256
+`97e423985d1e5193db2cd80b6f2aa9ce546cc167d91ec2337a4653f3dc0bfabe`.
+After fresh idle/noncommitting guards, the older pair was gracefully retired
+without signals and its bundle preserved. On the new pair, an authentication
+flow was already active before the next agent Sign In guard; the guard refused
+before pressing. The agent performed zero Sign In presses on this pair.
+The activation source is unknown.
+
+The app owner observed one native authentication window on the owned worker,
+with the exact worker-to-engine-to-app process relationship and a pending
+Cancel control. This establishes passage beyond the previous device-ticket
+preparation refusal, not successful authentication or credential commit.
+At 2026-10-04 11:55:45 UTC, the parent independently verified both executable
+hashes, stable owned regular-file identities, arm64 headers, deep bundle
+signature and the reported processes' ownership, executable paths and parent
+relationships. That read-only process check did not inspect a window, provider
+page or authentication status; process presence is not fresh window proof.
+
+The user subsequently reported a face/fingerprint prompt. Whether this is a
+Microsoft passkey screen, macOS authenticator dialog or frozen embedded view
+has not been established. Human-controlled password/code/consent interaction
+remains required. No automatic retry, authenticator approval, account-setting
+change, provider-page capture or client-ID substitution is authorized by that
+unclassified symptom. The active flow is preserved.
+
+### macOS toolkit audit: source and deployed-file evidence
+
+The user's priority remains authentication first, then modern macOS UI.
+While the human sign-in gate is pending, the sole app owner completed a
+source-only audit of frozen consumer
+`e5a573aaca94f4cee46f591f9f927fcd0df0f782` and read-only metadata from the exact
+deployed app/engine pair above. No UI source changes, build, deployment,
+foreground action, accessibility navigation, authentication query or capture
+were performed for this audit.
+
+The main app genuinely uses SwiftUI and AppKit, not UIKit or Electron.
+The app owner verified Mach-O SDK 27.0, minimum macOS 14.0, direct AppKit and
+SwiftUI framework linkage, and no declared external Swift package dependencies.
+The absent SDK fields in the hand-written plist do not establish an old SDK;
+the binary supplies that evidence. The separate Rust-hosted login webview is
+not the main launcher's UI toolkit.
+
+The toolbar already uses standard toolbar items, segmented navigation,
+Account controls and unified toolbar styling. Available-on-26 paths use actual
+system `glassEffect`, `glassProminent` and toolbar spacers, with earlier-system
+fallbacks. These are positive source findings, not proof of current compositor
+appearance. The audit identified four P2 review items:
+
+| Surface | Pinned source evidence | Bounded correction candidate |
+| --- | --- | --- |
+| Window bridge | `PreviewWindow.swift:7-12` overrides titlebar/content geometry, background and opacity after creation. This does not prove Liquid Glass is disabled. | Prefer scene, stock toolbar and safe-area ownership; retain only compatibility mutations demonstrated necessary by a safe visual comparison. Do not blindly make the window transparent or place content under traffic lights. |
+| Search | `NativeSearchField.swift:16-26,39-41` removes the native bezel, search/cancel cells and semantic text appearance. `LiveRootView.swift:85-100` and `RootView.swift:168-190` independently compose replacement visuals. | Share one scoped native search surface; restore standard search/cancel controls and semantic appearance while preserving bindings, focus, disabled behavior and search placement. Actual contrast remains unverified. |
+| Account sheet | `LiveAccountView.swift:17-25,70-110` combines a non-scrolling body, fixed decorative header/width and horizontal action footer. Longer states and smaller available heights present a layout risk, not observed clipping. | Use a bounded scrolling body and stable adaptive native footer; preserve authentication predicates, identifiers, keyboard cancellation and dismissal safeguards. |
+| Startup activation | `XodusPreviewApp.swift:9-12` unconditionally requests `activate(ignoringOtherApps: true)`. No actual focus theft was observed. | Let LaunchServices/AppKit handle normal activation; isolate any necessary direct-executable development activation and use the current API. |
+
+These recommendations follow Apple's
+[Liquid Glass adoption guidance](https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass),
+[titlebar property semantics](https://developer.apple.com/documentation/appkit/nswindow/titlebarappearstransparent)
+and [activation API guidance](https://developer.apple.com/documentation/appkit/nsapplication/activate(ignoringotherapps:)).
+The parent independently retrieved the latter two official DocC descriptions.
+Framework imports, accessibility roles and successful compilation alone are
+not a native visual-conformance certificate. Live appearance, scroll-edge
+behavior, contrast, transparency/motion preferences, resizing and
+keyboard/VoiceOver focus remain unverified until the human flow is safe.
+No mobile-specific conformance score or touch-target rules are applied to Mac.

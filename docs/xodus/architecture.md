@@ -128,6 +128,33 @@ All R01-R19 findings are closed only for their reviewed component scopes. See
 `runtime/public-async/README.md` for the exact source, hosted evidence, archive
 pins and unchanged account/gameplay gates.
 
+### Product runtime selection
+
+The user requires source-level support for four selectable runtime options:
+Apple Game Porting Toolkit 3, Toolkit 4, a legitimate existing CrossOver
+installation, and standalone/source-built Wine. Toolkit 4 is the current
+game-trial default, not a restriction on the product's provider API.
+
+Execution engine, source/provenance and version must be modeled independently
+from graphics renderer/backend and version. Standalone Wine 11 with Apple
+D3DMetal 4 is a composition; selecting a Toolkit generation must not silently
+assert that the engine is an older bundled Wine version. Provider settings and
+management responses must preserve older consumers through an explicit
+backward-compatible capability contract.
+
+Each engine/backend generation needs an isolated prefix. Existing bottles and
+saves must not be reused, migrated or deleted silently when a selection changes.
+Configuration, installation, device preflight and game-specific verification
+are distinct states. Neither discovery nor a successful trial of one game
+establishes universal compatibility or authorizes another title.
+
+CrossOver remains user-installed and licensed; its binaries must not be copied
+or its licensing bypassed. Supporting Apple Toolkit 3 and 4 does not establish
+a blanket commercial redistribution license. This provider follow-up is
+source-only and separate from the in-flight native authentication source
+freeze; no private runtime inspection, live game probe or app GUI action is
+authorized by this product requirement.
+
 ### Native launcher sign-in integration
 
 The Store sign-in route currently uses inherited public Microsoft client ID

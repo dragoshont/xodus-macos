@@ -99,6 +99,39 @@ fn single_device_response(
     }
 }
 
+pub fn compact_ticket_from_response(
+    response: soap::RequestSecurityTokenResponse,
+    audience: &str,
+) -> Result<String, rst::RSTError> {
+    if response.applies_to.endpoint_reference.address != audience
+        || !matches!(
+            response.token_type.as_str(),
+            "urn:passport:compact" | "urn:passport:delegationcompact"
+        )
+    {
+        return Err(rst::RSTError::InvalidTokenResponse);
+    }
+    let Token::Compact(ticket) =
+        Token::from_response_checked(response).map_err(|_| rst::RSTError::InvalidTokenResponse)?
+    else {
+        return Err(rst::RSTError::InvalidTokenResponse);
+    };
+    if ticket.len() > u16::MAX as usize || !ticket.bytes().all(|byte| byte.is_ascii_graphic()) {
+        return Err(rst::RSTError::InvalidTokenResponse);
+    }
+    Ok(ticket)
+}
+
+pub fn compact_ticket_from_outcome(
+    outcome: ExchangeUserTokenOutcome,
+    audience: &str,
+) -> Result<String, rst::RSTError> {
+    let ExchangeUserTokenOutcome::Issued(body) = outcome else {
+        return Err(rst::RSTError::InvalidTokenResponse);
+    };
+    compact_ticket_from_response(single_device_response(body)?, audience)
+}
+
 // Each parameter maps directly to a distinct SOAP request field; grouping them
 // into a params struct would just move the sprawl rather than reduce it.
 #[allow(clippy::too_many_arguments)]
@@ -164,6 +197,145 @@ mod test {
     use crate::models::soap;
     use crate::tokens::TokenManager;
     use crate::tokens::device::ensure_device_credentials;
+
+    fn compact_response(
+        audience: &str,
+        ticket: Option<&str>,
+        expiry: &str,
+    ) -> soap::RequestSecurityTokenResponse {
+        soap::RequestSecurityTokenResponse {
+            token_type: "urn:passport:compact".to_owned(),
+            applies_to: soap::AppliesTo {
+                endpoint_reference: soap::EndpointReference {
+                    address: audience.to_owned(),
+                },
+            },
+            lifetime: soap::Timestamp {
+                id: None,
+                created: "2000-01-01T00:00:00Z".to_owned(),
+                expires: expiry.to_owned(),
+            },
+            requested_security_token: soap::RequestedSecurityToken {
+                encrypted_data: None,
+                binary_security_token: ticket.map(|ticket| soap::BinarySecurityTokenRes {
+                    id: "fixture-only".to_owned(),
+                    value: ticket.to_owned(),
+                    value_type: None,
+                }),
+            },
+            requested_proof_token: None,
+        }
+    }
+
+    #[test]
+    fn management_single_compact_ticket_accepts_matching_complete_future_proof() {
+        let response = compact_response(
+            "fixture.invalid",
+            Some("fixture-only"),
+            "2099-01-01T00:00:00Z",
+        );
+        assert_eq!(
+            super::compact_ticket_from_response(response.clone(), "fixture.invalid").unwrap(),
+            "fixture-only"
+        );
+        for body in [
+            soap::BodyContent::RequestSecurityTokenResponse(Box::new(response.clone())),
+            soap::BodyContent::RequestSecurityTokenResponseCollection(
+                soap::RequestSecurityTokenResponseCollection {
+                    security_tokens: vec![response.clone()],
+                },
+            ),
+        ] {
+            assert_eq!(
+                super::compact_ticket_from_outcome(
+                    crate::models::live::ExchangeUserTokenOutcome::Issued(body),
+                    "fixture.invalid",
+                )
+                .unwrap(),
+                "fixture-only"
+            );
+        }
+        let mut delegated = response;
+        delegated.token_type = "urn:passport:delegationcompact".to_owned();
+        assert_eq!(
+            super::compact_ticket_from_response(delegated, "fixture.invalid").unwrap(),
+            "d=fixture-only"
+        );
+    }
+
+    #[test]
+    fn management_single_compact_ticket_rejects_fault_and_empty_or_multiple_results() {
+        use crate::models::live::ExchangeUserTokenOutcome;
+        assert!(
+            super::compact_ticket_from_outcome(
+                ExchangeUserTokenOutcome::Fault(None),
+                "fixture.invalid"
+            )
+            .is_err()
+        );
+        for count in [0, 2] {
+            let body = soap::BodyContent::RequestSecurityTokenResponseCollection(
+                soap::RequestSecurityTokenResponseCollection {
+                    security_tokens: vec![
+                        compact_response(
+                            "fixture.invalid",
+                            Some("fixture-only"),
+                            "2099-01-01T00:00:00Z"
+                        );
+                        count
+                    ],
+                },
+            );
+            assert!(
+                super::compact_ticket_from_outcome(
+                    ExchangeUserTokenOutcome::Issued(body),
+                    "fixture.invalid"
+                )
+                .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn management_single_compact_ticket_rejects_mismatch_missing_expired_and_injected_proof() {
+        for (audience, ticket, expiry) in [
+            (
+                "different.invalid",
+                Some("fixture-only"),
+                "2099-01-01T00:00:00Z",
+            ),
+            ("fixture.invalid", None, "2099-01-01T00:00:00Z"),
+            ("fixture.invalid", Some(""), "2099-01-01T00:00:00Z"),
+            (
+                "fixture.invalid",
+                Some("fixture-only"),
+                "2000-01-01T00:00:00Z",
+            ),
+            ("fixture.invalid", Some("fixture-only"), "invalid-time"),
+            (
+                "fixture.invalid",
+                Some("hidden\r\nheader"),
+                "2099-01-01T00:00:00Z",
+            ),
+        ] {
+            let error = super::compact_ticket_from_response(
+                compact_response(audience, ticket, expiry),
+                "fixture.invalid",
+            )
+            .unwrap_err();
+            assert_eq!(
+                error.to_string(),
+                "Response contains an unexpected token result"
+            );
+        }
+        let mut response = compact_response(
+            "fixture.invalid",
+            Some("fixture-only"),
+            "2099-01-01T00:00:00Z",
+        );
+        response.token_type = "urn:passport:unknown".to_owned();
+        assert!(super::compact_ticket_from_response(response, "fixture.invalid").is_err());
+    }
 
     #[test]
     fn management_device_response_rejects_empty_and_unexpected_body_without_panicking() {

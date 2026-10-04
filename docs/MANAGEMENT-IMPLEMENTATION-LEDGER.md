@@ -6,7 +6,7 @@ Xbox launcher release. Requirement IDs follow public app foundation
 review remain independently owned. No automatic merge or game launch.
 
 Publication: branch `dragoshont-xodus-launcher-management`, checked broker source
-`e7294f77a4bffeff44e6c8e8be3c8bd01870d1fd`. App-native draft PR creation failed
+`97fcbbbe8c024c453555014c8d12a1fbec6202a6`. App-native draft PR creation failed
 exactly `GitHub repository dragoshont/xodus-macos was not found`, despite a
 successful push and matching remote SHA. No PR URL exists, and no CLI/MCP
 fallback was used. Public comparison:
@@ -43,6 +43,11 @@ fallback was used. Public comparison:
   (`www.microsoft.com`). Those endpoint authorizations and checked package
   provider integration still need live proof; possession of a Passport ticket
   is not a successful package/license call or complete purchasing-account library.
+  The existing CLI helpers now propagate missing-credential, exchange, HTTP and
+  malformed-response failures instead of panicking. They still are not a
+  management provider: per-operation profile reconciliation, bounded authenticated
+  metadata, authoritative authorization/manifest checks and transactional queue
+  integration remain necessary.
 - `PackageFile` contains FileSize/FileHash/KeyBlob/CDN paths, but this fork has no
   FileHash algorithm/encoding validation or authoritative expanded-file space
   calculation. No signed URL/key blob enters management results/state.
@@ -120,6 +125,51 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
+### Unconnected package/license provider error propagation
+
+The legacy CLI package and license paths now fail explicitly when credentials
+are unavailable, a SOAP result is empty/ambiguous/faulted, a ticket has the wrong
+audience/type/expiry, or a license has missing/ambiguous keys, invalid base64,
+UTF-8 or XML. Package HTTP status and requested content identity are checked;
+`PackageFound: false` cannot become a successful result. Caller-visible errors
+do not echo credential values or arbitrary upstream entitlement descriptions.
+The Xbox exchange uses the actual stored username rather than `"USERNAME"`.
+Missing/ambiguous XSTS user claims, invalid header fields and expired/empty
+tickets fail instead of panicking or constructing a usable header.
+
+CLI flags, interactive selection and successful header/license formats are
+unchanged. Rust embedders must pass the username to `api::xbox::run` and handle
+its `Result<XstsResponse, XboxAuthError>`; `get_xsts_auth_header` also returns a
+`Result`. Shared checked compact-ticket helpers require exactly the one response
+requested by these single-audience callers. The broker's distinct two-response
+RPS flow is unchanged.
+
+Native verification passes **131 scoped Rust checks**: 22 core management
+checks, 12 CLI checks, 70 management checks and 27 service checks. These include
+14 new synthetic regressions, with valid compact/delegation/header/XML shape
+preservation separate from rejection cases. Core and service-library clippy
+pass with warnings denied; CLI/service builds pass. Both plaintext-fallback
+refusals pass, including an actual alternate-feature service process that exits
+before any socket, state or credential-store initialization. The native
+management process passes anonymous detail/refresh/replay/reconnect and schema
+framing checks; the private broker process passes malformed-before-credentials,
+ping and owned cleanup checks. Neither signs in, issues account tickets or
+launches a runtime/game.
+
+The unchanged wire corpus passes **79 positive / 20 negative / 4 evidence-edge**
+fixtures and six each failed-discovery/failed-query detail rejects, preserving
+all nine foundation definitions. Schema C95, all capabilities and the app's
+approved da548 engine stay unchanged. New immutable unsigned developer CLI:
+`artifacts/xodus-cli-package-errors-v1-2eb9a16d1155706c`, SHA256
+`2eb9a16d1155706ca16d04c9f51aecb7c8ff0924711b323e8564da3cb88f7cce`.
+This delta still needs the same retained reviewer; neither synthetic provider
+tests nor the anonymous process smoke prove authorized installation.
+
+Actual Store/Keychain consent remains coordinator-held while the app's R10
+client lifecycle ownership race is fixed and reviewed. That gate does not waive
+complete consumer inventory, package authorization/hash/expanded-manifest
+evidence, verified adoption or a certified public native runtime pairing.
+
 ### Complete-profile, flat XML and live endpoint identity fences
 
 The follow-up broker snapshots and rechecks the entire same-profile credential
@@ -144,8 +194,10 @@ process evidence is unchanged. New immutable unsigned service:
 `artifacts/xodus-service-rps-context-v1-8d94aa3221da5789`, SHA256
 `8d94aa3221da57892d834d9ebe22d918c000d7797ec68ed68fa683db403e2735`.
 CLI 0a/da548 and schema C95 are unchanged. Coordinator reports the retained
-reviewer found no significant issue in e729 source/tests; this newer delta still
-needs the **same** reviewer and does not inherit live issuance/pair approval.
+reviewer's turn 10 found no significant issue in 97fc versus e729
+**source/isolated tests only**, without independently rerunning the 117 checks
+or approving live issuance/pairing. The newer package/license delta above needs
+its own turn with that same reviewer.
 
 The approved da548 native consent/device-preparation chain does not call the
 newly guarded `exchange_device_token`: it uses `ensure_device_credentials` /

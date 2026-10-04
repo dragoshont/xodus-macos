@@ -50,10 +50,10 @@ struct XtiClaim {
 
 impl XstsResponse {
     pub fn user_hash(&self) -> Option<&str> {
-        self.display_claims
-            .xui
-            .first()
-            .map(|claim| claim.uhs.as_str())
+        match self.display_claims.xui.as_slice() {
+            [claim] => Some(claim.uhs.as_str()),
+            _ => None,
+        }
     }
 }
 

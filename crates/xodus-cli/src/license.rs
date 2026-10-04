@@ -1,5 +1,4 @@
 use xodus::licensing::splicense::{DeviceKey, SPLicense};
-use xodus::models::live::ExchangeUserTokenOutcome;
 use xodus::models::secrets::Token;
 use xodus::models::soap;
 use xodus::tokens::TokenManager;
@@ -10,14 +9,21 @@ pub async fn get_license(
     content_id: String,
     market: String,
 ) -> std::result::Result<(DeviceKey, SPLicense), String> {
-    let dev_token = tokens.get_device_sts_token().unwrap();
+    uuid::Uuid::parse_str(&content_id).map_err(|_| "Invalid license content ID".to_owned())?;
+    let dev_token = tokens
+        .get_device_sts_token()
+        .map_err(|_| "Device credentials are unavailable".to_owned())?;
     let Token::Legacy(dev_token) = dev_token else {
         return Err("Invalid STS token".to_string());
     };
-    let user = tokens.get_user().unwrap();
-    let user_token = tokens.get_user_sts_token().unwrap();
+    let user = tokens
+        .get_user()
+        .map_err(|_| "Signed-in account is unavailable".to_owned())?;
+    let user_token = tokens
+        .get_user_sts_token()
+        .map_err(|_| "User credentials are unavailable".to_owned())?;
     let Token::Legacy(legacy) = user_token else {
-        return Err("Unspported user token".to_string());
+        return Err("Unsupported user token".to_string());
     };
 
     let ms_device_token = xodus::api::live::exchange_device_token(
@@ -28,7 +34,7 @@ pub async fn get_license(
         Some(soap::PolicyReference::mbi_ssl()),
     )
     .await
-    .unwrap();
+    .map_err(|_| "Device license authentication failed".to_owned())?;
 
     let user_token = xodus::api::live::exchange_user_token(
         client,
@@ -44,31 +50,13 @@ pub async fn get_license(
         )],
     )
     .await
-    .expect("Failed to get ms user token");
+    .map_err(|_| "User license authentication failed".to_owned())?;
 
-    let ms_device_token: Token = ms_device_token.into();
-    let Token::Compact(ms_device_token) = ms_device_token else {
-        return Err("Unsupported token".to_string());
-    };
-
-    let user_token: Token = match user_token {
-        ExchangeUserTokenOutcome::Fault(_) => {
-            return Err("Failed to get exchange MS token".to_string());
-        }
-        ExchangeUserTokenOutcome::Issued(
-            soap::BodyContent::RequestSecurityTokenResponseCollection(mut collection),
-        ) => {
-            let token = collection.security_tokens.remove(0);
-            token.into()
-        }
-        ExchangeUserTokenOutcome::Issued(soap::BodyContent::RequestSecurityTokenResponse(
-            token,
-        )) => (*token).into(),
-        _ => unreachable!("Only responses are handled"),
-    };
-    let Token::Compact(user_token) = user_token else {
-        return Err("Unsupported token".to_string());
-    };
+    let ms_device_token =
+        xodus::api::live::compact_ticket_from_response(ms_device_token, "www.microsoft.com")
+            .map_err(|_| "Device license ticket is invalid".to_owned())?;
+    let user_token = xodus::api::live::compact_ticket_from_outcome(user_token, "www.microsoft.com")
+        .map_err(|_| "User license ticket is invalid".to_owned())?;
 
     let (_content, game_license) = xodus::licensing::content::get_license_content(
         client,
@@ -79,17 +67,53 @@ pub async fn get_license(
         market,
     )
     .await
-    .map_err(|err| err.to_string())?;
+    .map_err(|err| match err {
+        xodus::licensing::content::LicenseContentError::NotEntitled { .. } => {
+            "The account is not entitled to this content".to_owned()
+        }
+        _ => "License service request failed or returned an invalid response".to_owned(),
+    })?;
 
     let game_splicense = SPLicense::parse_base64(&game_license.splicense_block)
-        .expect("could not parse base64 game SPLicense");
+        .map_err(|_| "Game license data is invalid".to_owned())?;
 
-    let dev_license = tokens.get_device_license().unwrap();
+    let dev_license = tokens
+        .get_device_license()
+        .map_err(|_| "Device license is unavailable".to_owned())?;
     let device_license = SPLicense::parse_base64(&dev_license.splicense)
-        .expect("could not parse base64 device SPLicense");
+        .map_err(|_| "Device license data is invalid".to_owned())?;
     let key = device_license
         .encrypted_device_key
-        .unwrap()
+        .ok_or_else(|| "Device license has no device key".to_owned())?
         .derive_device_key();
     Ok((key, game_splicense))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn license_missing_credentials_returns_error_without_network_or_panic() {
+        let result = get_license(
+            &reqwest::Client::new(),
+            &TokenManager::with_memory(),
+            "00000000-0000-0000-0000-000000000001".to_owned(),
+            "US".to_owned(),
+        )
+        .await;
+        assert!(matches!(result, Err(error) if error == "Device credentials are unavailable"));
+    }
+
+    #[tokio::test]
+    async fn invalid_license_identity_is_rejected_before_credentials() {
+        let result = get_license(
+            &reqwest::Client::new(),
+            &TokenManager::with_memory(),
+            "private-value".to_owned(),
+            "US".to_owned(),
+        )
+        .await;
+        assert!(matches!(result, Err(error) if error == "Invalid license content ID"));
+    }
 }

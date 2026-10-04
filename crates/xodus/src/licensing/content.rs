@@ -20,6 +20,9 @@ pub enum LicenseContentError {
     /// not covered by the account's current subscription tier).
     #[error("not entitled to this content: {description}")]
     NotEntitled { description: String },
+
+    #[error("license service returned an invalid or incomplete response")]
+    InvalidResponse,
 }
 
 // we might need a bump in xal-rs concerning reqwest,
@@ -60,9 +63,15 @@ pub async fn get_license_content(
         .send()
         .await?;
 
+    let status_error = response.error_for_status_ref().err();
     let content_res = response.json::<LicenseContentResponse>().await?;
     let content = match content_res {
-        LicenseContentResponse::Success { license } => license,
+        LicenseContentResponse::Success { license } => {
+            if let Some(error) = status_error {
+                return Err(error.into());
+            }
+            license
+        }
         LicenseContentResponse::SatisfactionFailure {
             satisfaction_failure,
         } => {
@@ -71,10 +80,78 @@ pub async fn get_license_content(
             });
         }
     };
-    let license = &content.keys[0].value;
-    let license = BASE64_STANDARD.decode(license).unwrap();
-    let license = quick_xml::de::from_str::<License>(&String::from_utf8(license).unwrap()).unwrap();
+    let license = decode_content_license(&content)?;
     Ok((content, license))
+}
+
+fn decode_content_license(content: &LicenseContent) -> Result<License, LicenseContentError> {
+    let [key] = content.keys.as_slice() else {
+        return Err(LicenseContentError::InvalidResponse);
+    };
+    let license = BASE64_STANDARD
+        .decode(&key.value)
+        .map_err(|_| LicenseContentError::InvalidResponse)?;
+    let text = std::str::from_utf8(&license).map_err(|_| LicenseContentError::InvalidResponse)?;
+    let license = quick_xml::de::from_str::<License>(text)
+        .map_err(|_| LicenseContentError::InvalidResponse)?;
+    if license.splicense_block.is_empty() {
+        return Err(LicenseContentError::InvalidResponse);
+    }
+    Ok(license)
+}
+
+#[cfg(test)]
+mod management_tests {
+    use super::*;
+    use crate::models::licensing::LicenseKeys;
+
+    fn content(values: &[String]) -> LicenseContent {
+        LicenseContent {
+            keys: values
+                .iter()
+                .map(|value| LicenseKeys {
+                    value: value.clone(),
+                })
+                .collect(),
+            leases: vec![],
+        }
+    }
+
+    #[test]
+    fn management_content_license_rejects_absent_or_ambiguous_keys() {
+        for values in [vec![], vec!["fixture-only".to_owned(); 2]] {
+            assert!(matches!(
+                decode_content_license(&content(&values)),
+                Err(LicenseContentError::InvalidResponse)
+            ));
+        }
+    }
+
+    #[test]
+    fn management_content_license_preserves_one_well_formed_response() {
+        let xml = r#"<License><SPLicenseBlock>fixture-only</SPLicenseBlock><LicenseInfo Type="Full"/><Binding Binding_Type="fixture-only"/></License>"#;
+        let license = decode_content_license(&content(&[BASE64_STANDARD.encode(xml)])).unwrap();
+        assert_eq!(license.splicense_block, "fixture-only");
+        let empty = xml.replace(">fixture-only</SPLicenseBlock>", "></SPLicenseBlock>");
+        assert!(decode_content_license(&content(&[BASE64_STANDARD.encode(empty)])).is_err());
+    }
+
+    #[test]
+    fn management_content_license_rejects_bad_base64_utf8_and_xml_without_panicking() {
+        for value in [
+            "hidden!not-base64".to_owned(),
+            BASE64_STANDARD.encode([0xff]),
+            BASE64_STANDARD.encode("<broken>"),
+            BASE64_STANDARD.encode("<License/>"),
+        ] {
+            let error = decode_content_license(&content(&[value])).unwrap_err();
+            assert_eq!(
+                error.to_string(),
+                "license service returned an invalid or incomplete response"
+            );
+            assert!(!format!("{error:?}").contains("hidden"));
+        }
+    }
 }
 
 pub async fn get_license_token(

@@ -93,3 +93,24 @@ The public shim's `get_rps_tickets` remains a separate consumer integration.
 No management launch capability is enabled: live Store issuance, actual
 user/device audience evidence, an exact public native shim/Wine/service pairing,
 compatibility and signed/distributable runtime certification remain necessary.
+
+## Package/license provider boundary
+
+The existing CLI package/license helpers are not management installation APIs.
+They now propagate credential, exchange, HTTP and malformed-payload failures
+without panics or printing upstream credential/entitlement payloads. Package
+responses must affirm `PackageFound` and match the requested content UUID.
+Single-audience SOAP callers require one matching, future, nonempty compact
+ticket; a fault or empty/ambiguous collection fails. License responses require
+one decodable key and nonempty license data. These checks do not establish
+ownership, file-hash semantics, an expanded manifest or runtime compatibility.
+
+`api::xbox::run` takes the actual account username and returns
+`Result<XstsResponse, XboxAuthError>`; `get_xsts_auth_header` likewise returns a
+`Result`. Missing/ambiguous user claims, invalid header fields and expired/empty
+tickets fail explicitly. CLI arguments, selection and valid wire formats are
+unchanged. Management does not call these legacy helpers or their direct-write
+download/extraction paths. A future authorized provider must add isolated
+profile reconciliation, bounded authenticated metadata, complete identity and
+manifest validation, and the durable verified staging/commit lifecycle before
+any install capability can be advertised.

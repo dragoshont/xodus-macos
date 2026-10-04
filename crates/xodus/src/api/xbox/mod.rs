@@ -1,22 +1,25 @@
-use crate::models::live::ExchangeUserTokenOutcome;
-use crate::models::secrets::{LegacyToken, Token};
+use crate::models::secrets::LegacyToken;
 use crate::models::soap;
 use crate::models::xbox::XstsResponse;
 
 pub mod auth;
 pub mod title;
-pub use auth::{authenticate_xbox_user, get_xsts_auth_header, request_xsts_token};
+pub use auth::{XboxAuthError, authenticate_xbox_user, get_xsts_auth_header, request_xsts_token};
 
 pub async fn run(
     client: &reqwest::Client,
     dev_token: LegacyToken,
     legacy: LegacyToken,
+    username: String,
     relying_party: &str,
-) -> XstsResponse {
+) -> Result<XstsResponse, XboxAuthError> {
+    if username.trim().is_empty() {
+        return Err(XboxAuthError::InvalidCredentials);
+    }
     let user_token = crate::api::live::exchange_user_token(
         client,
         legacy,
-        "USERNAME".to_string(),
+        username,
         dev_token,
         None,
         Some("Silent".to_string()),
@@ -27,33 +30,19 @@ pub async fn run(
         )],
     )
     .await
-    .expect("Failed to get ms user token");
+    .map_err(|_| XboxAuthError::ExchangeFailed)?;
 
-    let user_token: Token = match user_token {
-        ExchangeUserTokenOutcome::Fault(_) => {
-            eprintln!("Failed to get exchange MS token");
-            panic!("TODO");
-        }
-        ExchangeUserTokenOutcome::Issued(
-            soap::BodyContent::RequestSecurityTokenResponseCollection(mut collection),
-        ) => {
-            let token = collection.security_tokens.remove(0);
-            token.into()
-        }
-        ExchangeUserTokenOutcome::Issued(soap::BodyContent::RequestSecurityTokenResponse(
-            token,
-        )) => (*token).into(),
-        _ => unreachable!("Only responses are handled"),
-    };
-    let Token::Compact(user_token) = user_token else {
-        eprintln!("Unsupported token");
-        panic!("TODO");
-    };
+    let user_token =
+        crate::api::live::compact_ticket_from_outcome(user_token, "user.auth.xboxlive.com")
+            .map_err(|_| XboxAuthError::InvalidResponse)?;
     let resp = authenticate_xbox_user(client, user_token)
         .await
-        .expect("Failed to authenticate Xbox user");
+        .map_err(|_| XboxAuthError::ExchangeFailed)?;
+    get_xsts_auth_header(resp.clone())?;
 
-    request_xsts_token(client, resp.token, relying_party)
+    let response = request_xsts_token(client, resp.token, relying_party)
         .await
-        .expect("Failed to authenticate Xbox user")
+        .map_err(|_| XboxAuthError::ExchangeFailed)?;
+    get_xsts_auth_header(response.clone())?;
+    Ok(response)
 }

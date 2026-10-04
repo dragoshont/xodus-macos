@@ -305,3 +305,14 @@ diff --git a/dlls/win32u/opengl.c b/dlls/win32u/opengl.c
  
      driver_funcs->p_make_current( draw, read, context->driver_private );
  }
+diff --git a/dlls/winegstreamer/media-converter/media-converter.h b/dlls/winegstreamer/media-converter/media-converter.h
+--- a/dlls/winegstreamer/media-converter/media-converter.h
++++ b/dlls/winegstreamer/media-converter/media-converter.h
+@@ -23,6 +23,7 @@
+ 
+ #include <string.h>
+ #include <utime.h>
++#include <pthread.h>
+ #include <stdarg.h>
+ #include <stdbool.h>
+ #include <inttypes.h>

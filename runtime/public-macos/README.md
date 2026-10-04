@@ -5,7 +5,7 @@ Wine `eab69739f15180b96797645ccade44c1c4414980`. It does not use private runtime
 code, enable Linux kernel interfaces on macOS, or certify a playable runtime.
 Original upstream LGPL notices remain in every changed source file.
 
-`apply_platform_fix.py` requires the exact revision and eight original source
+`apply_platform_fix.py` requires the exact revision and nine original source
 blobs. Selected checkout/ancestor aliases, source aliases and modified files
 are refused before application. Default operation verifies without writing.
 The patch input is newline-normalized so Windows transfers work correctly.
@@ -18,7 +18,7 @@ python3 tests.py /absolute/owned/public-wine
 
 The checks clone only the supplied public Git objects into new private temporary
 fixtures; they do not read credentials or run Wine. They exercise actual patch
-application, dry-run preservation, all-eight-file updates, repeated/changed
+application, dry-run preservation, all-nine-file updates, repeated/changed
 source rejection, wrong revision and directory/source alias rejection.
 
 The overlay guards Linux futex and ntsync interfaces, retaining the existing
@@ -128,3 +128,37 @@ does not provide that emulation. The actual non-EGL OpenGL object compiles, the
 EGL-enabled branch passes a separate real-header compiler syntax check, and all
 six application/refusal checks pass with the eighth exact source blob.
 These are compile/application checks, not rendered graphics or gameplay proof.
+
+The shared media-converter header also now explicitly includes `pthread.h`
+for its `pthread_mutex_t` member instead of relying on transitive headers.
+This fixes actual winedmo compilation on macOS even with GStreamer disabled;
+it does not enable GStreamer or validate media playback.
+
+## Complete configured build result
+
+`make -j2 all` subsequently succeeded for the configured public x64 candidate.
+The canonical loader, server, native ntdll, native Mac driver and native
+secur32 are actual x64 Mach-O binaries; the build contains 613 PE DLL files,
+including the patched xgameruntime. The final configure reports only the
+expected cross-tool naming warning, not missing Schannel.
+
+This candidate additionally uses `--disable-loader64`: the fork's optional
+duplicate legacy loader has a broken macOS plist dependency. The canonical
+`loader/wine` remains enabled; no `wine64` alias is advertised. The disabled
+Linux DRM AMD extension, Vulkan, GStreamer and optional TLS integrations
+remain explicit limitations, not working features.
+
+| Final observed component | SHA-256 |
+|---|---|
+| Canonical loader | `ea89187cb5aebca27d23c3258be80f6ba227ae72ef80706b51a287e4d2c19b17` |
+| Server | `f0177c5ebec2af86cf07fee16b0af18442db85db40f41c4e6c2f9b40e85a3cbb` |
+| Native ntdll | `c6108ebe9b105aebc2373a7923bc04c00c094d94258ba8bee875341d71a94288` |
+| Native Mac driver | `524583953de59da68d7e0c8af3f8df5e52747e31ad9ea8793457d3a8ed9a2041` |
+| Native secur32 | `b0efbacaa927056db3e029a82b68cf7fa02bfad1a8f6ecbeed5f3870bf9b44c0` |
+| Patched PE xgameruntime | `de32abfaac587ea36eb843a825a7825b1f4db3271c8bef0caaeebd9955710390` |
+
+These final outputs differ from the earlier isolated component builds. No
+Wine loader, Windows-branch RPS exchange, prefix, graphics, TLS peer, game or
+real credentials were executed to obtain this result. A successful complete
+**configured build** is not a supported runtime pair or licensed-gameplay
+certificate, and this candidate is not wired to the app's Play capability.

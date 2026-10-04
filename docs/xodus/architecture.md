@@ -771,6 +771,54 @@ failures, plus reproducible SVG output. Detached synthetic WebKit remained
 nonvisible and inactive; no provider request was involved. This is fresh
 correction evidence, not inherited qualification from the baseline's 548 checks.
 
-New operational artifacts, deployment and authentication attempts remain
-separately gated and paused. Passing source fixtures and hosted compilation
-do not establish a live sign-in, passkey capability or successful Store commit.
+At that source-review checkpoint, new operational artifacts, deployment and
+authentication attempts remained separately gated and paused. Passing source
+fixtures and hosted compilation do not establish a live sign-in, passkey
+capability or successful Store commit.
+
+### Native login readiness follow-up
+
+Windows-only source tracing confirms that producer `9ef0f2`, which contains
+the unchanged authentication source `94353b5`, accepts the consumer's three
+explicit native-helper flags. An absent binding fails authentication rather
+than falling back to the managed Wry host. HELLO's platform/feature capability
+advertisement is not helper validation or engine-source attestation. The
+previous installed engine predates these helper flags and cannot activate
+the reviewed Swift-host migration.
+
+The consumer's packaged both-missing helper/receipt case formerly returned
+an absent binding, allowing a connection to look sign-in-capable before the
+backend rejected authentication. Additive correction
+`6a2103cfd0e2d263918039122990ac9492ec17f3`, tree
+`797e111744d180b345542380229d6fb9367e7e6b`, now rejects that packaged case
+before engine launch and preserves unpackaged anonymous/development checks.
+Helper validation failures receive an actionable helper-specific error;
+failed preflight leaves no owned engine to retire. The six-file delta leaves
+the authentication helper, DA/writer fences, Quit coordinator, C95, runtime
+provider policies, packager and workflows unchanged.
+
+Retained review turn 17 grants scoped source closure with no significant
+issue. The parent independently verified the exact normal push
+[hosted run 37226882643](https://github.com/dragoshont/xodus-macos-app/actions/runs/37226882643):
+Xcode 27.0 build `27A266a`, SDK 27.0 and macOS 27.0 passed 15 core,
+358 management, 60 preview, 154 native-session and 87 private-host checks,
+674 total with zero failures, plus SVG reproducibility. The six new
+helper-admission checks are fresh evidence, not inherited 668 qualification.
+This is source/fixture evidence, not a new Mac Release artifact or live login.
+
+The user has authorized an isolated matching native engine build and a
+controlled human login test, and the game-testing owner has released the
+bounded CPU/foreground slot. The new engine build, paired packaging and
+actual login remain unfinished at this checkpoint. A controlled test may use
+the independently qualified `43d0d1` app/helper artifacts with a freshly
+verified helper receipt and matching new engine; it must not mix `6a2103c`
+source claims into that older package. The old installed bundle is preserved.
+
+No public versioned engine-provenance loader exists yet. General admission of
+arbitrary engine paths or developer overrides remains a product gate.
+For the one controlled test, externally pinned unsigned-engine provenance,
+exact source/build identities and separately verified signed engine/helper
+copies are required; untrusted receipt claims, HELLO and a helper hash alone
+are insufficient. The selected engine must be the verified bundled copy,
+without an environment or remembered-path override. Agent Sign In presses
+remain zero; the user handles any Microsoft or Keychain interaction.

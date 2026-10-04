@@ -133,7 +133,7 @@ reports that the same retained reviewer's reports 28/29 close the parent's R15
 fresh-host fixture at the reported abbreviated pin `b380` and R14 public Windows
 runner lifecycle residual at exact
 `67adac4d17fa2e26ff610ff9fc0947d9387f6d40`. These are independently owned public
-component changes, not edits to this backend's latest core source
+component changes, not edits to this backend's then-current core source
 `5805d89fc281367c0bd9161dd8ac86f627576122` or the GUI da548/C95 pins.
 Backend R12 remains closed by review 25 at exact 5805 versus
 `2d27032471a441934c15d85da78a38414e2adce7`.
@@ -155,6 +155,78 @@ change, new provider or default-service initiation is implied or performed.
 Historical milestone evidence and then-pending reviews below do not override
 this status; genuinely new source deltas still require an immutable handoff to
 the same retained reviewer.
+
+### Checked SOAP derived-key identities
+
+Continued tracing of the existing public RPS/device/user SOAP response path
+found that collecting derived-key tokens into a HashMap silently overwrote
+duplicate untrusted IDs, choosing the nonce by XML order. Empty unused IDs were
+also accepted. The production envelope verification/decryption path now
+rejects empty or duplicate derived-key IDs before using any nonce, returning
+the existing static `InvalidEncryptedPayload` error without IDs, nonces,
+decrypted content or tickets in diagnostics. Unique ID lookup/order and the
+existing signature policy remain unchanged; this does not require a new
+response signature or claim broader signature-policy certification.
+
+Four native regressions build synthetic AES256-CBC encrypted PP headers and
+token-response bodies, decode the complete response XML into the production
+Envelope model, then call the actual verification/decryption path. They prove
+unique IDs preserve both decrypted header/body in either order, identical
+duplicate IDs fail, conflicting duplicates fail in both orders, and an empty
+unused ID fails rather than being ignored. The synthetic body is marked
+`fixture-not-a-ticket`; it is never sent as a successful runtime RPS result or
+used for account HTTP. Restoring the old production HashMap collection with
+the new tests reproduces one valid pass and three negative failures because
+malformed envelopes still decrypt successfully. The corrected mapping passes
+all four.
+
+**177 scoped native Rust checks** pass: 54 core management, 26 CLI,
+70 management and 27 service. Core/management/service-library strict clippy,
+native CLI/service builds, unchanged contract corpus and anonymous management/
+private malformed-before-credential broker process smokes pass. These are this
+worker's native synthetic/read-only checks, not reviewer reruns, live ticket
+issuance, actual audience/authorization proof or paired gameplay.
+
+Additive immutable unsigned developer artifacts:
+
+- `artifacts/xodus-cli-soap-nonces-v1-57d4500d6de922d6`, SHA256
+  `57d4500d6de922d644071ff6749b662c56d75f5f4646da2a884a363169373c0b`.
+- `artifacts/xodus-service-soap-nonces-v1-8e15fe61881e2006`, SHA256
+  `8e15fe61881e200661330243bdb55a810b62d98707711c5d293b5a281523185b`.
+
+This genuinely new source delta requires its own immutable handoff to the same
+retained reviewer; R01-R15 closures do not approve it. No parent async/runtime
+code, GUI da548/C95, deployed broker, protocol capability, credential profile,
+consent or provider configuration is changed.
+
+### Parent public gaming API consumer milestone
+
+Coordinator reports the parent published and remote-verified public
+`runtime/public-async` source
+`f7d8d4eec2eb4aaab96230df29c76c6de2b060ad`, replacing the 23 async stubs in
+the exact 44d shim using pinned Microsoft MIT core 7ead73f. Reported evidence
+includes four gaming COM checks, three XUserAddAsync/Result malformed/expired/
+missing RPS checks, three cached-loader refusals, 20 native source guards and
+20 shared ownership checks. The synthetic peer checks ClientId
+`0011223344556677`, AllowUi false and MsaFullTrust true; no successful fake RPS
+issuance, account HTTP, private profile or Store sign-in is claimed. Parent
+reports public core initialization now requests RPS before default HTTP, with
+coupled user/provider cleanup ownership corrected.
+
+Parent-owned public artifact pins in `artifacts/public-shim-async-v1` are core
+SHA256 `36b74899540eca304a2e51b107aa49cef3379b1c0f934e57b908657a304f1fca`
+and gaming DLL SHA256
+`7a062d7a837dc5354ba351304ee19246f8f1803f220c30eb4c4373cea5d92f79`.
+Coordinator reports exact-head hosted cross-build
+[37181433411](https://github.com/dragoshont/xodus-macos/actions/runs/37181433411)
+and overlay
+[37181433395](https://github.com/dragoshont/xodus-macos/actions/runs/37181433395)
+passed. These are attributed parent/CI evidence, not execution by this worker.
+Same retained review 33 remains pending at the handoff. Later pairing must use
+public source/pins, explicit-only XODUS_RUNTIME_SOCKET and the 40-second client
+RPS bound, never the private/default runtime or a duplicate global service.
+No approved app engine/broker replacement, live Store/RPS proof or runtime pair
+certification follows from this milestone.
 
 ### R12 private download staging at creation
 

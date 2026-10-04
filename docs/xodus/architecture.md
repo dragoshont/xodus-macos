@@ -92,7 +92,15 @@ requests **before** credential reads, a subsequent usable connection and exact
 owned-socket cleanup. Other tests use unnamed sockets and memory-only profiles.
 `tools/smoke_runtime.py` is not live RPS issuance or runtime evidence.
 
-The public shim's `get_rps_tickets` remains a separate consumer integration.
+The public shim/core gaming API consumer is independently owned. Coordinator
+reports the public `runtime/public-async` milestone
+`f7d8d4eec2eb4aaab96230df29c76c6de2b060ad` wires the gaming COM and
+XUserAddAsync/Result APIs to the explicit private RPS client before default HTTP.
+Its malformed/expired/missing-RPS and loader/ownership checks are parent evidence,
+not a successful fake RPS response or execution by this Rust worker. Same
+retained review 33 is pending at that handoff. The explicit-only
+XODUS_RUNTIME_SOCKET/40-second client bound is unchanged, and no deployed broker
+or approved GUI engine is swapped.
 No management launch capability is enabled: live Store issuance, actual
 user/device audience evidence, an exact public native shim/Wine/service pairing,
 compatibility and signed/distributable runtime certification remain necessary.
@@ -165,6 +173,12 @@ slicing a possibly empty or Unicode URI. Malformed metadata returns the existing
 static `InvalidEncryptedPayload`/`MissingNonce` errors. Actual synthetic XML
 decode/decrypt regressions preserve valid AES256-CBC output and reject missing,
 nonfragment/external and unknown nonce references without account access.
+The envelope nonce map likewise rejects empty or duplicate derived-key IDs
+before verification/decryption, instead of silently selecting the last XML
+occurrence. It returns the existing static `InvalidEncryptedPayload` error;
+valid unique ID order and signature policy are unchanged. Full synthetic
+Envelope XML/AES tests exercise both PP header and body decryption and actual
+ambiguity rejection, without generating a usable runtime RPS result.
 
 Legacy package transfer files are checked before interactive presentation:
 single safe names, nonnegative sizes and present HTTP(S) CDN sources without

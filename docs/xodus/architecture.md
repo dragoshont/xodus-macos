@@ -281,6 +281,37 @@ establishing the particular cause. The failed Account state is retained while
 the backend owner traces those guards with isolated source/model fixtures.
 There is still no working Microsoft login window or authenticated Store proof.
 
+The backend owner's pinned comparison with inherited source
+`08b06d38c993072043e51c854213e81e662165af` identifies a material distinction.
+That original CLI stored serialized EncryptedData without the later token XML
+bound, reparsing, cipher-encoding, expiry and device-layout admission checks;
+its cached-device branch skipped validation and re-authentication when both
+entries existed. At current source `2acb452a7ee66b2c9d3ad75ecf85e2be2f94fbc3`,
+the legacy CLI and management worker share the stronger device checks and the
+same login handler, client ID, native webview and SOAP exchange. The management
+worker starts with its isolated owned namespace, not the original Xodus Service
+profile. Thus the shared changes also affect current legacy CLI behavior;
+they are not merely a different launcher login UI. A cached original CLI path
+and a fresh managed attempt are not equivalent. The user's reported successful
+original login has not been freshly reproduced, and this comparison does not
+establish the live rejected condition. An isolated original-conversion fixture
+comparison remains pending; no original-profile credential reads or imports
+are authorized.
+
+The parent and sole app owner agreed three more static reasons before producer
+implementation: `tokenXmlBoundInvalid`, `tokenXmlParseInvalid` and
+`tokenCipherEncodingInvalid`. They retain all eighteen existing pairs and the
+coarse cipher reason, without changing admission policy or the exact three-key,
+AUTH_INVALID-only contract. Consumer source
+`e5a573aaca94f4cee46f591f9f927fcd0df0f782` is published and frozen; its exact hosted
+run [37196334163](https://github.com/dragoshont/xodus-macos-app/actions/runs/37196334163)
+passed 440 checks and editable SVG verification. The parent independently
+verified the exact SHA, successful job and four zero-failure suite summaries.
+The continuity reviewer provisionally closed the consumer-only delta without
+significant issues. Final producer source, post-fixture native evidence and
+combined compatibility review remain pending. This is diagnostic refinement,
+not an authentication fix, and the currently failed signed pair is unchanged.
+
 The user's current priority is explicit: fix authentication first, then verify
 and correct the modern macOS UI. The requested toolkit audit remains deferred;
 SwiftUI imports, accessibility roles and successful compilation alone are not

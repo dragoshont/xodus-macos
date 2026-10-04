@@ -165,3 +165,30 @@ active human/OS-commit flows. Cryptographic verification remains mandatory.
 No successful Microsoft sign-in, Keychain commit, entitlement, package
 authorization or gameplay is established;
 credentials and consent remain user-controlled.
+
+The subsequent scoped correction at backend
+`bace09c1be95ff35864b8c8593b974b2aeee934f` reuses the existing checked single
+response selector for both a bare device response and an exactly-one response
+collection. Empty, multiple, fault and invalid-proof responses remain rejected;
+cryptographic and nonce checks are unchanged. Four additive static reasons
+distinguish registration, response shape, converted proof and token structure,
+while retaining the older reason and exact three-key details format.
+
+App source `da0adc00d337ba27c914f5e47ce3c2b11b8000de` consumes those fourteen
+closed reason pairs, corrects the misleading cryptographic-failure copy, and
+replaces the hand-composed floating navigation with native window toolbar,
+segmented navigation and account controls. Routes, artwork and keyboard
+shortcuts are preserved. The same continuity reviewer closed both exact source
+deltas without significant findings. The backend owner passed 45 isolated
+native checks in a fresh owned build target; exact app hosted run
+[37191128180](https://github.com/dragoshont/xodus-macos-app/actions/runs/37191128180)
+passed 353 checks and editable SVG verification. Earlier local build/test
+failures are not relabeled as passing or assigned an unproved host cause.
+
+The additive, immutable unsigned CLI built from the reviewed backend source has
+SHA256 `34214ee29b3582a6d146ccd029991a70949514c58bcaa99f834db930d41e96ca`.
+Source review, isolated checks and inert artifact readiness do not prove that
+the response-wrapper bug caused the observed failure. Separate app signing,
+fresh process pairing and a new user-authorized native sign-in attempt are
+required before claiming a working login popup; account credentials and consent
+must still be supplied by the user.

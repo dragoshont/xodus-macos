@@ -5,6 +5,13 @@ Xbox launcher release. Requirement IDs follow public app foundation
 `4e9c963085d20943fd0ef1c452c67ab40a52ac99`. App/native UI and final adversarial
 review remain independently owned. No automatic merge or game launch.
 
+Publication: branch `dragoshont-xodus-launcher-management`, checked broker source
+`e7294f77a4bffeff44e6c8e8be3c8bd01870d1fd`. App-native draft PR creation failed
+exactly `GitHub repository dragoshont/xodus-macos was not found`, despite a
+successful push and matching remote SHA. No PR URL exists, and no CLI/MCP
+fallback was used. Public comparison:
+<https://github.com/dragoshont/xodus-macos/compare/dragoshont-xodus-launcher-management?expand=1>.
+
 | Requirement | Implemented surface / evidence | Remaining release gate |
 | --- | --- | --- |
 | AUTH-01 | Existing NativeTokenBroker/SOAP provider, required Passport.NET/STS ticket, isolated launcher Keychain profile, memory-only checked device preparation, bounded private bootstrap/result, parent-only atomic user/device proof commit and cancellation/deadline tests | Real user-mediated sign-in and Keychain approval, issued store proof and live package authorization not yet executed |

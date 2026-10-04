@@ -45,6 +45,10 @@ all 23 entry points. Failures are explicit HRESULTs and payload-free diagnostics
 there is no default DLL-search fallback. The successful core reference is retained
 for process lifetime, keeping its async state valid across individual COM calls.
 This does not promise safe gaming-DLL unload while its own providers are active.
+Both checker variants also retain their successfully loaded modules until process
+exit. A termination callback and reference-only queue closure do not prove that
+a native worker has returned from DLL code. Checks verify the selected module
+remains loaded after queue closure; no early-success or error path unloads it.
 
 COM vtable order, padding, reference counting and the three existing
 time-sensitive-thread methods are preserved. Windows callbacks and return values
@@ -79,8 +83,10 @@ On the owned macOS public Wine candidate, the strict actual Win64 build and:
 - Three actual `XUserAddAsync`/`XUserAddResult` malformed, expired and missing
   RPS cases pass with their exact error, one completion and a null user handle.
   The owned peer validates the exact synthetic request, not real credentials.
-- Thirteen exact-source/license/overlay guards and seven component-selection
-  guards pass without executing a game or accessing an account.
+- Thirteen exact-source/license/overlay guards and nine component/lifetime
+  guards pass without executing a game or accessing an account. Two of these
+  regressions check the checker has no explicit unload and that its actual
+  post-close module-retention assertion is present.
 
 The shared reviewed runner keeps its PID-bound readiness, owned private prefix,
 specific-PID graceful shutdown and uncertain-prefix retention. The exact selected
@@ -94,9 +100,9 @@ builds):
 | Component | SHA-256 |
 |---|---|
 | Async core DLL | `36b74899540eca304a2e51b107aa49cef3379b1c0f934e57b908657a304f1fca` |
-| Direct-core PE check | `7df5b4f4c24b0982a3dc58056ea6c0096359ed8d2982b1fcaebca952fb0d6c43` |
+| Direct-core PE check | `66856a7def3425f3483cbf9fba3c57c132c1b82b43cd71912b1ad7ee9ecb9eaf` |
 | Public gaming DLL | `7a062d7a837dc5354ba351304ee19246f8f1803f220c30eb4c4373cea5d92f79` |
-| Gaming COM PE check | `757080d34d7fa34f4d1c24b2aad99cb7c7055b16ba59fac2b70228612ec48184` |
+| Gaming COM PE check | `22fb5ffd3527ba2be2a458f5815c83abddf1c710e5e7b8de36fd0a0e160e3277` |
 
 ## Developer reproduction
 
@@ -127,7 +133,15 @@ fixture; obtain a bounded full public snapshot instead of weakening the guard.
 Hosted checks cover the actual cross-build and native source/component refusals,
 not gaming COM execution under Wine.
 
-The retained adversarial review of this delta is pending. Real Store issuance,
+Retained report 33 identified **R17**, a medium-severity standalone checker
+unload race: termination counters and handle closure do not synchronize native
+worker return. This was a source-verified interleaving, not an observed crash.
+The checker now retains modules through process exit, with actual direct-core
+and gaming checks rerun; the core and gaming DLL bytes are unchanged. The
+corrective delta is awaiting the same retained reviewer's closure. Older checker
+artifacts remain historical observations, not safe-unload proof.
+
+Real Store issuance,
 current entitlement, authorized manifests/installations, service/profile/prefix
 pairing, supported runtime lifecycle, window presentation, licensed gameplay
 and signed distribution remain separate gates. This must not enable **Play** or

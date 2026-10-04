@@ -55,5 +55,18 @@ class ComponentChecks(unittest.TestCase):
             checks.verify_component(self.parent / "different", self.executable, self.library.name)
 
 
+class ModuleLifetimeChecks(unittest.TestCase):
+    def test_checker_never_explicitly_unloads_worker_code(self):
+        source = (Path(__file__).parent / "windows_async_smoke.cpp").read_text()
+        self.assertNotRegex(source, r"\bFreeLibrary\s*\(")
+        self.assertIn("Retain loaded modules until process exit.", source)
+
+    def test_actual_retention_check_follows_queue_closure(self):
+        source = (Path(__file__).parent / "windows_async_smoke.cpp").read_text()
+        tail = source[source.index("    close_queue(queue);"):]
+        self.assertIn("GetModuleHandleW(filename) != module", tail)
+        self.assertIn("module was not retained through queue cleanup", tail)
+
+
 if __name__ == "__main__":
     unittest.main()

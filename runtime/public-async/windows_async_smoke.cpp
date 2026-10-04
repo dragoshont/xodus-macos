@@ -137,6 +137,7 @@ int main(int argc, char **argv)
                      static_cast<unsigned long>(GetLastError()));
         return 1;
     }
+    /* Queue termination callbacks do not synchronize worker return. Retain loaded modules until process exit. */
 #ifdef XODUS_SHIM_CHECK
     using QueryApi = HRESULT (WINAPI *)(REFCLSID, REFIID, void **);
     QueryApi query;
@@ -145,7 +146,6 @@ int main(int argc, char **argv)
                      reinterpret_cast<void **>(&threading))) || !threading)
     {
         std::fputs("Cannot obtain the real public gaming threading interface.\n", stderr);
-        FreeLibrary(module);
         return 1;
     }
     begin_async = XAsyncBegin;
@@ -166,7 +166,6 @@ int main(int argc, char **argv)
     {
         std::fputs("Public gaming time-sensitive thread state was not preserved.\n", stderr);
         IXThreadingImpl_Release(threading);
-        FreeLibrary(module);
         return 1;
     }
     IXThreadingImpl_XThreadAssertNotTimeSensitive(threading);
@@ -191,7 +190,7 @@ int main(int argc, char **argv)
             }
         }
         IXThreadingImpl_Release(threading);
-        if (!FreeLibrary(module)) rejected = false;
+        if (GetModuleHandleW(filename) != module) rejected = false;
         if (rejected) std::printf("Isolated Windows async %s outcome passed.\n", argv[1]);
         return rejected ? 0 : 1;
     }
@@ -233,7 +232,6 @@ int main(int argc, char **argv)
         !load(module, "XTaskQueueTerminate", terminate_queue) ||
         !load(module, "XTaskQueueCloseHandle", close_queue))
     {
-        FreeLibrary(module);
         return 1;
     }
     using Validate = HRESULT (WINAPI *)(UINT32, SIZE_T, SIZE_T, SIZE_T, SIZE_T, SIZE_T);
@@ -245,7 +243,6 @@ int main(int argc, char **argv)
                  offsetof(XAsyncProviderData, context)) != S_OK)
     {
         std::fputs("Async ABI validation accepted mismatched layouts or rejected its exact ABI.\n", stderr);
-        FreeLibrary(module);
         return 1;
     }
     for (unsigned field = 0; field < 6; ++field)
@@ -259,7 +256,6 @@ int main(int argc, char **argv)
                      values[4], values[5]) != HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH))
         {
             std::fputs("Async ABI validation did not reject an exact mismatched field.\n", stderr);
-            FreeLibrary(module);
             return 1;
         }
     }
@@ -272,7 +268,6 @@ int main(int argc, char **argv)
     {
         std::fprintf(stderr, "Cannot create the owned task queue: HRESULT %#lx.\n",
                      static_cast<unsigned long>(result));
-        FreeLibrary(module);
         return 1;
     }
     XAsyncBlock block{};
@@ -355,9 +350,9 @@ int main(int argc, char **argv)
     if (user) IXUserImpl6_Release(user);
     IXThreadingImpl_Release(threading);
 #endif
-    if (!FreeLibrary(module))
+    if (GetModuleHandleW(filename) != module)
     {
-        std::fputs("Cannot unload the owned async DLL after queue cleanup.\n", stderr);
+        std::fputs("The owned async module was not retained through queue cleanup.\n", stderr);
         return 1;
     }
     if (!exit_code) std::printf("Isolated Windows async %s outcome passed.\n", argv[1]);

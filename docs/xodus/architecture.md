@@ -624,6 +624,15 @@ format and public/private corpus checks. Earlier CRLF-input intermediate runs
 are not this final exact-source qualification. It did not execute the actual
 Swift helper or authenticate with a provider.
 
+The parent independently checked the sealed source-only archive
+`native-swift-host-source-94353b5.tar` (5,222,400 bytes, SHA-256
+`40c39324cf9cd56e6299dc6becf074ae5d32c911175d07b82b19ef1ede982419`)
+and adjacent certificate (27,259 bytes, SHA-256
+`56c140a930730005f1374d3b978ecb9db8b0d8aa51726f99fb1c3d446f062171`).
+Both were stable, single-link regular files owned by UID 501 with mode `0400`,
+opened without following symlinks. This verifies the immutable artifacts'
+integrity, not paired review approval; their contents were not changed.
+
 The implementation retains the original remaining deadline, continuously
 monitors the parent channel, and requires matching clean helper closure,
 worker exit and EOF before parent completion. Nonblocking worker-exit polling

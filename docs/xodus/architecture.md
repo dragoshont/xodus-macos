@@ -98,7 +98,11 @@ reports the public `runtime/public-async` milestone
 XUserAddAsync/Result APIs to the explicit private RPS client before default HTTP.
 Its malformed/expired/missing-RPS and loader/ownership checks are parent evidence,
 not a successful fake RPS response or execution by this Rust worker. Same
-retained review 33 is pending at that handoff. The explicit-only
+retained review 33 opened parent-owned R17 in the standalone direct-core check:
+queue termination notification and CloseHandle do not prove worker return
+before FreeLibrary. The production bridge retains its core module and is
+unaffected; the parent owns helper retention through process exit and validation.
+No Rust backend or engine/broker replacement follows. The explicit-only
 XODUS_RUNTIME_SOCKET/40-second client bound is unchanged, and no deployed broker
 or approved GUI engine is swapped.
 No management launch capability is enabled: live Store issuance, actual

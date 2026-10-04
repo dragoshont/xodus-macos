@@ -128,7 +128,9 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
-Current global retained source-review status: **R01-R15 closed**. Coordinator
+Current retained source-review status: **R01-R15 remain closed**; the backend's
+new SOAP nonce delta is accepted by review 34, while parent-owned **R17 remains
+open** in the standalone direct-core helper as described below. Coordinator
 reports that the same retained reviewer's reports 28/29 close the parent's R15
 fresh-host fixture at the reported abbreviated pin `b380` and R14 public Windows
 runner lifecycle residual at exact
@@ -194,10 +196,13 @@ Additive immutable unsigned developer artifacts:
 - `artifacts/xodus-service-soap-nonces-v1-8e15fe61881e2006`, SHA256
   `8e15fe61881e200661330243bdb55a810b62d98707711c5d293b5a281523185b`.
 
-This genuinely new source delta requires its own immutable handoff to the same
-retained reviewer; R01-R15 closures do not approve it. No parent async/runtime
-code, GUI da548/C95, deployed broker, protocol capability, credential profile,
-consent or provider configuration is changed.
+Coordinator reports the same retained reviewer's review 34 at exact
+`2a47eafc930603773583ce4c1d6be89a2f0ccd60` versus
+`99fe345ad8725cfb8d05455b5171b900ddf1681f` returned **"No significant issues
+found in the reviewed changes."** This separate source review, not inherited
+R01-R15 approval, did not execute the owner's 177 native checks or any account
+flow. No parent async/runtime code, GUI da548/C95, deployed broker, protocol
+capability, credential profile, consent or provider configuration is changed.
 
 ### Parent public gaming API consumer milestone
 
@@ -222,7 +227,14 @@ Coordinator reports exact-head hosted cross-build
 and overlay
 [37181433395](https://github.com/dragoshont/xodus-macos/actions/runs/37181433395)
 passed. These are attributed parent/CI evidence, not execution by this worker.
-Same retained review 33 remains pending at the handoff. Later pairing must use
+Same retained review 33 subsequently opened **R17 MEDIUM** in the parent's
+standalone direct-core check: a queue termination callback and CloseHandle do
+not synchronize worker return, so FreeLibrary can race code still executing.
+The production bridge retains its core module and is unaffected. Parent owns
+the correction, retaining helper modules until process exit and rerunning its
+scoped checks; no backend action, engine/broker swap or closure is inferred.
+This worker does not duplicate the parent runtime/helper changes.
+Later pairing must use
 public source/pins, explicit-only XODUS_RUNTIME_SOCKET and the 40-second client
 RPS bound, never the private/default runtime or a duplicate global service.
 No approved app engine/broker replacement, live Store/RPS proof or runtime pair

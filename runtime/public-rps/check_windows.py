@@ -259,6 +259,8 @@ def main(checks=check_rps):
         if any(path.is_symlink() for path in (supplied, *supplied.parents)) or not supplied.is_dir():
             parser.error("Select an existing non-aliased dependency library directory.")
         libraries = supplied.resolve(strict=True)
+        if ":" in str(libraries):
+            parser.error("Select one dependency directory without ':' path-list separators.")
         if root not in libraries.parents:
             parser.error("The dependency library directory must be inside the owned root.")
         for directory in (libraries, *libraries.parents):

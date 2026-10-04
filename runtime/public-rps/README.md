@@ -209,6 +209,8 @@ dependency prefix. It must be inside the selected root, with non-aliased,
 current-user-owned, non-group/world-writable directory ancestors. Its path sets
 only the child environment's `DYLD_FALLBACK_LIBRARY_PATH`; omitting it retains
 the original behavior and does not discover or import another runtime.
+Colons anywhere in the resolved path are refused before process launch:
+dyld treats them as search-path separators, not literal directory characters.
 
 The actual x64 macOS candidate at platform overlay
 `a29baafbea2da6c310a847a3c7708ac8f3706ac1` executed all four checks:
@@ -249,11 +251,12 @@ the original runner at `b7e9e9f8c730483386d24d1bdfa1fa86fbfc3ac6` before
 any Wine client is executed and passes with the readiness correction.
 Hosted macOS CI runs the same ownership suite.
 
-The current suite extends these eleven to eighteen: three cases verify that
+The current suite extends these eleven to twenty: three cases verify that
 a trusted component callback runs only within the ready, owned lifecycle,
 that callback exceptions fail, and that missing outcomes cannot report success;
-four cases verify explicit owned dependency configuration and refusal of
-outside, aliased or writable directories before any process launches.
+six cases verify explicit owned dependency configuration and refusal of
+outside, aliased, writable or colon-containing directories before any process
+launches.
 The default callback preserves the four original RPS cases. The public HTTPS
 check reuses this same lifecycle, and two additional real native socket checks
 verify that its peer stops even during a stalled handshake or partial headers.

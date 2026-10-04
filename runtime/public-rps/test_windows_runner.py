@@ -336,6 +336,16 @@ class OwnershipChecks(unittest.TestCase):
         libraries.chmod(0o770)
         self.reject_libraries(libraries)
 
+    def test_dependency_name_with_path_separator_is_refused_before_launch(self):
+        libraries = self.root / "lib:other"
+        libraries.mkdir(mode=0o700)
+        self.reject_libraries(libraries)
+
+    def test_dependency_ancestor_with_path_separator_is_refused_before_launch(self):
+        libraries = self.root / "libs:" / "other" / "lib"
+        libraries.mkdir(mode=0o700, parents=True)
+        self.reject_libraries(libraries)
+
 
 if __name__ == "__main__":
     unittest.main()

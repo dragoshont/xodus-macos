@@ -196,6 +196,8 @@ ancestors up to that root must be non-aliased, current-user-owned and not
 group/world writable. Only the owned Wine children's
 `DYLD_FALLBACK_LIBRARY_PATH` is set; no global library configuration or private
 runtime is used. No implicit dependency-prefix discovery is performed.
+Resolved paths containing `:` are refused before prefix creation or process
+launch, so a directory name cannot inject unvalidated dyld search paths.
 
 The next run independently reproduced a public WinHTTP error-propagation bug:
 the handshake succeeded and certificate verification reported invalid CA
@@ -252,7 +254,7 @@ the same executable still passes all three Wine cases.
 | Original TLS check with host refusal | `2b5ad08d4abdde7895e99b029a49a4ed9b7f649700f869e3b8b4cddf1cf82d49` |
 | Corrected WinHTTP DLL | `ce7e92f95ef993778c2656fcfe69ff8e862f6b7796ba1ab9885d428cddee37ff` |
 
-All four actual RPS cases still passed after callback extraction. The eighteen
+All four actual RPS cases still passed after callback extraction. The twenty
 Darwin runner checks cover the existing ownership regressions plus callback
 completion/failure and explicit dependency-directory guards. Exact selected
 native ntdll mapping checks confirm no Wine clients remain after the runs.

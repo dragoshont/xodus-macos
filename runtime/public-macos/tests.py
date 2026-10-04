@@ -21,7 +21,13 @@ class PlatformApplicationChecks(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name).resolve(strict=True)
         self.checkout = self.root / "checkout"
-        self.git("clone", "--quiet", "--shared", "--no-checkout",
+        shallow = self.git("-C", str(PUBLIC_SOURCE),
+                           "rev-parse", "--is-shallow-repository").stdout.strip()
+        clone_options = (
+            ["--no-local", "--depth=1", "--filter=blob:none"]
+            if shallow == "true" else ["--shared"]
+        )
+        self.git("clone", "--quiet", "--no-checkout", *clone_options,
                  str(PUBLIC_SOURCE), str(self.checkout))
         self.git("-C", str(self.checkout), "sparse-checkout", "init", "--no-cone")
         self.git("-C", str(self.checkout), "sparse-checkout", "set", "--no-cone",
@@ -29,10 +35,13 @@ class PlatformApplicationChecks(unittest.TestCase):
         self.git("-C", str(self.checkout), "checkout", "--quiet", "--detach", WINE_REVISION)
 
     def git(self, *arguments, input=None):
-        return subprocess.run(
+        result = subprocess.run(
             ["git", *arguments], input=input, text=True,
-            capture_output=True, check=True,
+            capture_output=True,
         )
+        if result.returncode:
+            self.fail(f"Public fixture Git command failed: {result.stderr.strip()}")
+        return result
 
     def apply(self, checkout=None, write=False):
         arguments = [sys.executable, str(APPLICATOR), str(checkout or self.checkout)]

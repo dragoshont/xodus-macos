@@ -1,0 +1,42 @@
+name: Isolated public macOS platform overlay
+
+on:
+  pull_request:
+    paths:
+      - runtime/public-macos/**
+      - .github/workflows/public-macos-platform.yml
+  push:
+    paths:
+      - runtime/public-macos/**
+      - .github/workflows/public-macos-platform.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  platform-application:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check exact public-source application and rejection
+        shell: bash
+        run: |
+          set -euo pipefail
+          source="$RUNNER_TEMP/xodus-public-wine"
+          git init --quiet "$source"
+          git -C "$source" remote add origin https://github.com/xodus-gaming/wine.git
+          git -C "$source" fetch --quiet --depth=1 --filter=blob:none origin \
+            eab69739f15180b96797645ccade44c1c4414980
+          git -C "$source" sparse-checkout init --no-cone
+          python3 - <<'PY' | git -C "$source" sparse-checkout set --no-cone --stdin
+          import sys
+          sys.path.insert(0, "runtime/public-macos")
+          from apply_platform_fix import SOURCE_BLOBS
+          for name in SOURCE_BLOBS:
+              print("/" + name)
+          PY
+          git -C "$source" checkout --quiet --detach FETCH_HEAD
+          git -C "$source" config uploadpack.allowFilter true
+          python3 runtime/public-macos/tests.py "$source"

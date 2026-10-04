@@ -158,10 +158,14 @@ server PID; process creation or mere socket-file existence is not readiness.
 The same identity is checked after each result.
 
 Cleanup sends Wine's client-killing `SIGINT` to the recorded PID and waits for
-its exit; `SIGTERM` only exits the server and is not sufficient. It reconciles any unexpected listening
+its successful graceful exit; `SIGTERM` only exits the server and is not sufficient.
+Once any Windows client has been attempted, an already-dead controller or a
+nonzero shutdown result retains the private directory with an explicit error.
+An absent listener is not evidence that its clients have ended.
+Cleanup also reconciles any unexpected listening
 replacement on this prefix's exact socket. A replacement is stopped only after
 its actual executable path matches the explicitly selected public server.
-Darwin process-exit notification must confirm the replacement has ended.
+Darwin process-exit notification must confirm the replacement ended successfully.
 Unknown ownership, inaccessible identity or unsuccessful reconciliation raises
 an error and retains the private prefix instead of deleting live state. Wine's
 server socket is derived from this new prefix's device/inode under
@@ -230,7 +234,7 @@ authorization, pairing and licensed-gameplay requirements remain open.
 python3 -B test_windows_runner.py -v
 ```
 
-Eight Darwin-only checks use owned Python socket helpers, never Wine:
+Eleven Darwin-only checks use owned Python socket helpers, never Wine:
 delayed PID-bound readiness, actual main-loop client ordering, bounded
 startup timeout, exited server, wrong listening PID, recognized replacement
 cleanup, unknown-replacement refusal and main-loop retention after cleanup
@@ -238,6 +242,15 @@ failure. The client-order regression fails on
 the original runner at `b7e9e9f8c730483386d24d1bdfa1fa86fbfc3ac6` before
 any Wine client is executed and passes with the readiness correction.
 Hosted macOS CI runs the same ownership suite.
+
+The unexpected-death regression starts a real owned helper holding a file in the
+new prefix, kills its controller, and confirms there is no listening server.
+The live helper and its prefix file remain intact when the runner refuses
+cleanup. The original runner at
+`b3805d699255b2641f6cf89c52e189ae76777c55` fails this exact regression by
+removing that prefix. Separate checks reject abnormal shutdown statuses for both
+the recorded server and a verified replacement instead of treating mere exit as
+confirmation of client cleanup.
 
 The corrected runner also completed the four actual Windows checks normally
 and with the real public server's same-PID `exec` deliberately delayed by

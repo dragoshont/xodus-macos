@@ -2,6 +2,7 @@
 """Darwin-only ownership regressions; helpers never execute Wine."""
 
 from pathlib import Path
+import select
 import subprocess
 import sys
 import tempfile
@@ -13,7 +14,8 @@ import check_windows as runner
 
 
 SERVER = """
-import os, socket, sys, time
+import os, signal, socket, sys, time
+signal.signal(signal.SIGINT, lambda *arguments: sys.exit(0))
 time.sleep(float(sys.argv[2]))
 with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
     listener.bind(sys.argv[1])
@@ -126,7 +128,8 @@ class OwnershipChecks(unittest.TestCase):
         recorded = self.child("raise SystemExit(2)")
         recorded.wait(timeout=2)
         runner.reconcile_server(recorded, self.endpoint,
-                                runner.process_executable(replacement.pid), timeout=2)
+                                runner.process_executable(replacement.pid),
+                                clients_started=False, timeout=2)
         replacement.wait(timeout=2)
         self.assertIsNotNone(replacement.returncode)
         connection, pid = runner.connected_server(self.endpoint, 0.2)
@@ -139,7 +142,8 @@ class OwnershipChecks(unittest.TestCase):
         recorded = self.child("raise SystemExit(2)")
         recorded.wait(timeout=2)
         with self.assertRaisesRegex(RuntimeError, "Unrecognized socket owner"):
-            runner.reconcile_server(recorded, self.endpoint, self.root / "not-server", timeout=2)
+            runner.reconcile_server(recorded, self.endpoint, self.root / "not-server",
+                                    clients_started=False, timeout=2)
         self.assertIsNone(replacement.poll())
         self.assertTrue(self.root.is_dir())
 
@@ -161,6 +165,80 @@ class OwnershipChecks(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, "private directory retained"):
                         runner.main()
         self.assertEqual(len(list(self.root.glob("w-*"))), 1)
+
+    def test_unexpected_server_death_without_listener_retains_live_prefix(self):
+        binaries = [self.root / name for name in ("loader", "server", "helper.exe")]
+        for binary in binaries:
+            binary.touch()
+        original_popen = subprocess.Popen
+        started = []
+        clients = []
+
+        def start_server(*arguments, **options):
+            process = original_popen([sys.executable, "-c", SERVER, str(self.endpoint), "0"],
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.children.append(process)
+            started.append(process)
+            return process
+
+        def lose_server(*arguments):
+            marker = Path(arguments[1]["WINEPREFIX"]) / "synthetic-client.txt"
+            source = (
+                "import sys,time; handle=open(sys.argv[1],'w'); "
+                "handle.write('synthetic'); handle.flush(); "
+                "print('ready',flush=True); time.sleep(5)"
+            )
+            client = original_popen([sys.executable, "-c", source, str(marker)],
+                                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            self.children.append(client)
+            clients.append(client)
+            try:
+                self.assertTrue(select.select([client.stdout], [], [], 2)[0])
+                self.assertEqual(client.stdout.readline(), b"ready\n")
+            finally:
+                client.stdout.close()
+            started[0].terminate()
+            started[0].wait(timeout=2)
+            return "Isolated Windows check started; no credentials requested."
+
+        with mock.patch.object(sys, "argv", ["check", str(self.root), *map(str, binaries)]):
+            with mock.patch.object(subprocess, "Popen", side_effect=start_server):
+                with mock.patch.object(runner, "run_owned", side_effect=lose_server):
+                    with mock.patch.object(runner, "server_endpoint", return_value=self.endpoint):
+                        with self.assertRaises(RuntimeError):
+                            runner.main()
+        self.assertEqual(len(list(self.root.glob("w-*"))), 1)
+        self.assertIsNone(clients[0].poll())
+        self.assertEqual(next(self.root.glob("w-*/prefix/synthetic-client.txt")).read_text(),
+                         "synthetic")
+        connection, pid = runner.connected_server(self.endpoint, 0.2)
+        self.assertIsNone(connection)
+        self.assertIsNone(pid)
+
+    def test_abnormal_shutdown_status_does_not_confirm_client_cleanup(self):
+        source = SERVER.replace("sys.exit(0)", "sys.exit(77)")
+        process = self.child(source, self.endpoint, 0)
+        runner.wait_server_ready(process, self.endpoint, timeout=2)
+        with self.assertRaisesRegex(RuntimeError, "did not confirm graceful"):
+            runner.reconcile_server(process, self.endpoint,
+                                    runner.process_executable(process.pid),
+                                    clients_started=True, timeout=2)
+        self.assertEqual(process.returncode, 77)
+        self.assertTrue(self.root.is_dir())
+
+    def test_abnormal_replacement_exit_is_not_successful_reconciliation(self):
+        source = SERVER.replace("sys.exit(0)", "sys.exit(77)")
+        replacement = self.child(source, self.endpoint, 0)
+        runner.wait_server_ready(replacement, self.endpoint, timeout=2)
+        recorded = self.child("raise SystemExit(2)")
+        recorded.wait(timeout=2)
+        with self.assertRaisesRegex(RuntimeError, "Replacement shutdown was not graceful"):
+            runner.reconcile_server(recorded, self.endpoint,
+                                    runner.process_executable(replacement.pid),
+                                    clients_started=False, timeout=2)
+        replacement.wait(timeout=2)
+        self.assertEqual(replacement.returncode, 77)
+        self.assertTrue(self.root.is_dir())
 
 
 if __name__ == "__main__":

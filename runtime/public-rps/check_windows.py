@@ -22,6 +22,7 @@ import xml.etree.ElementTree as ET
 
 
 MAGIC = 0x58445358
+DARWIN_NOTE_EXITSTATUS = 0x04000000  # sys/event.h; older Python exposes only NOTE_EXIT.
 
 
 def server_endpoint(prefix):
@@ -86,13 +87,18 @@ def process_executable(pid):
     return Path(os.fsdecode(buffer.value)).resolve(strict=True)
 
 
-def reconcile_server(server, endpoint, executable, timeout=5):
-    if server.poll() is None:
-        server.send_signal(signal.SIGINT)
+def reconcile_server(server, endpoint, executable, *, clients_started, timeout=5):
+    if server.poll() is not None:
+        if clients_started:
+            raise RuntimeError("Server exited unexpectedly after client launch; private prefix retained.")
+    else:
+        os.kill(server.pid, signal.SIGINT)
         try:
-            server.wait(timeout=timeout)
+            status = server.wait(timeout=timeout)
         except subprocess.TimeoutExpired as error:
             raise RuntimeError("Recorded server shutdown timed out; private prefix retained.") from error
+        if clients_started and status != 0:
+            raise RuntimeError("Wine did not confirm graceful client shutdown; private prefix retained.")
     deadline = time.monotonic() + timeout
     while True:
         remaining = deadline - time.monotonic()
@@ -105,14 +111,17 @@ def reconcile_server(server, endpoint, executable, timeout=5):
             with closing(select.kqueue()) as queue:
                 event = select.kevent(pid, filter=select.KQ_FILTER_PROC,
                                       flags=select.KQ_EV_ADD | select.KQ_EV_ONESHOT,
-                                      fflags=select.KQ_NOTE_EXIT)
+                                      fflags=select.KQ_NOTE_EXIT | DARWIN_NOTE_EXITSTATUS)
                 queue.control([event], 0, 0)
                 if process_executable(pid) != executable:
                     raise RuntimeError("Unrecognized socket owner; private prefix retained.")
                 # Wine SIGINT shuts down its clients; SIGTERM only exits the server.
                 os.kill(pid, signal.SIGINT)
-                if not queue.control(None, 1, max(0, deadline - time.monotonic())):
+                events = queue.control(None, 1, max(0, deadline - time.monotonic()))
+                if not events:
                     raise RuntimeError("Replacement server did not exit; private prefix retained.")
+                if events[0].data != 0:
+                    raise RuntimeError("Replacement shutdown was not graceful; private prefix retained.")
         finally:
             connection.close()
 
@@ -214,6 +223,7 @@ def main():
         parser.error("The selected root must be owned and not group/world writable.")
     temporary = tempfile.mkdtemp(prefix="w-", dir=root)
     server = None
+    clients_started = False
     endpoint_to_reconcile = None
     try:
         directory = Path(temporary)
@@ -241,6 +251,7 @@ def main():
             server = subprocess.Popen([str(executables[1]), "-f", "-p"], env=environment,
                                       start_new_session=True, stdout=log, stderr=log)
             wait_server_ready(server, endpoint_to_reconcile)
+            clients_started = True
             output = run_owned([str(executables[0]), str(executables[2]), "--bootstrap"],
                                environment, 90)
             if "Isolated Windows check started; no credentials requested." not in output:
@@ -276,7 +287,8 @@ def main():
     finally:
         if server is not None:
             try:
-                reconcile_server(server, endpoint_to_reconcile, executables[1])
+                reconcile_server(server, endpoint_to_reconcile, executables[1],
+                                 clients_started=clients_started)
             except (OSError, RuntimeError) as error:
                 raise RuntimeError(
                     f"Server cleanup could not establish ownership; private directory retained: "

@@ -219,8 +219,9 @@ python3 tools/smoke_empty_runtime.py \
 ```
 
 The owned native process smoke executes only this example with
-`--fixture-socket`, including with trace logging variables. Seven runs (initial,
-five repetitions, sealed-artifact run) prove no-argument/production-selector
+`--fixture-socket`, including with trace logging variables. Nine runs (seven
+initial/repetition checks and two final exact-LF-source/sealed-artifact checks)
+prove no-argument/production-selector
 refusal, real ping before and after a valid MSA refusal, zero reply bytes, empty
 stdout, exact payload-free stderr, cancellation of a pending partial header by
 SIGINT within the five-second test bound, and no remaining socket/state files.
@@ -236,12 +237,17 @@ success type 4 is returned for this fixture. Existing per-request budgets,
 cancellation, admission and descriptor cleanup are reused, not duplicated.
 
 Additive unsigned native developer artifact (mode 0500):
-`artifacts/empty-management-broker-v1-a92e4e4503d11255`, SHA256
-`a92e4e4503d112554fe06bd88a2ac167496a2e06f836ee197695df75c2e0affd`.
+`artifacts/empty-management-broker-v1-f0d0523b7a2c2620`, SHA256
+`f0d0523b7a2c2620d738e079b2a1e94d8ac495a1a5b7d8319f1aa003138c0fcc`.
 Tested native source matches the published LF bytes: example SHA256
 `fd733fb3a22df2b0a3e3b99fa65f523e44dbd82736daadccacbbcf74c6c3b05c`;
 smoke SHA256
 `f01ebf4a550f6e5b95d2038eb5d849ce0a5bfd6aa73a164d8cc95508d423fa5b`.
+The final native tests/clippy/build ran again after aligning the entire native
+mirror to the exact published LF tree. Previous differences were newline-only,
+not source/dependency changes, but the rebuilt binary hash changed; the earlier
+developer artifact is not the handoff pin. Git source archives disable Windows
+checkout newline conversion explicitly.
 The immutable source commit is supplied in the publication handoff. This new
 fixture delta awaits the same retained reviewer's separate review; it does not
 inherit review 34's approval. The parent owns real public Windows gaming-COM

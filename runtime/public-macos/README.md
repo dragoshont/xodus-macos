@@ -365,3 +365,13 @@ Window presentation, production graphics coverage, current Store authorization,
 entitled installation, runtime/service pairing, licensed gameplay and signed
 distribution remain separate gates. No credentials, real game, private runtime,
 host graphics configuration or launcher Account flow was used or changed.
+
+## Subsequent public gaming async boundary
+
+The separate [`../public-async`](../public-async/README.md) candidate adds the
+pinned public Microsoft XAsync/XTaskQueue core to the development shim.
+Actual tests now reach the gaming COM interface and its controlled RPS user-add
+failure path; they are no longer solely standalone-client evidence. This is
+still not successful Store/account authorization, licensed gameplay, a supported
+service/runtime pair or signed distribution. The shared owned Wine lifecycle
+and the existing graphics limitations remain unchanged.

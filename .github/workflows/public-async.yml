@@ -1,0 +1,57 @@
+name: Public async source and build
+
+on:
+  pull_request:
+    paths:
+      - runtime/public-async/**
+      - runtime/public-rps/apply_to_public_shim.py
+      - .github/workflows/public-async.yml
+  push:
+    paths:
+      - runtime/public-async/**
+      - runtime/public-rps/apply_to_public_shim.py
+      - .github/workflows/public-async.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-core:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Fetch exact public source fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init -q "$RUNNER_TEMP/public-async"
+          git -C "$RUNNER_TEMP/public-async" remote add origin https://github.com/microsoft/libHttpClient.git
+          git -C "$RUNNER_TEMP/public-async" fetch -q --depth=1 origin 7ead73f6389271c2dc2cb10cdafcc587b899bd8a
+          git -C "$RUNNER_TEMP/public-async" checkout -q --detach FETCH_HEAD
+          git init -q "$RUNNER_TEMP/public-shim"
+          git -C "$RUNNER_TEMP/public-shim" remote add origin https://github.com/xodus-gaming/xgameruntime.git
+          git -C "$RUNNER_TEMP/public-shim" fetch -q --depth=1 origin 44d97de1e084be61243323062ed49e307d28728c
+          git -C "$RUNNER_TEMP/public-shim" checkout -q --detach FETCH_HEAD
+      - name: Check source, license, overlay and component refusals
+        working-directory: runtime/public-async
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B test_source_guards.py --shim-source "$RUNNER_TEMP/public-shim" \
+            --async-source "$RUNNER_TEMP/public-async" -v
+          python3 -B test_components.py -v
+      - name: Restore the declared cross compiler if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v x86_64-w64-mingw32-g++ >/dev/null; then
+            brew install mingw-w64
+          fi
+      - name: Build the exact Win64 async core and original check
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B runtime/public-async/build_core.py "$RUNNER_TEMP/public-async" \
+            "$RUNNER_TEMP/public-async-build"

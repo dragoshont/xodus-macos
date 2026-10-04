@@ -92,3 +92,14 @@ rendering, not presentation or gameplay. Existing actual RPS/TLS checks still
 pass, and the owned-prefix lifecycle remains shared. This does not enable
 Play or establish account entitlement, package authorization, runtime pairing
 or a certified distribution.
+
+The separate `runtime/public-async` candidate replaces the public shim's 23
+XAsync/XTaskQueue stubs with the pinned MIT Microsoft async core, preserving the
+COM layout and existing time-sensitive methods. Four actual gaming-COM cases
+and three real user-add malformed/expired/missing RPS failures now execute,
+rather than exercising only the standalone client. The tightly coupled user
+initializer obtains RPS before default endpoint HTTP and reconciles failed and
+unconsumed user allocations. This is controlled failure/component evidence, not
+successful account authorization or a production service/runtime pair. Its
+source, licensing, checks and limitations are in that directory's README; the
+approved native app engine and Play gate are unchanged.

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "repository": "https://github.com/microsoft/libHttpClient.git",
+  "commit": "7ead73f6389271c2dc2cb10cdafcc587b899bd8a",
+  "license": "MIT",
+  "licenseFile": "LICENSE.md",
+  "licenseGitBlob": "de9d570d38a39d767afb071db3e9fd8fd48358cf",
+  "purpose": "Reuse the public XAsync and XTaskQueue implementation for the pinned development shim.",
+  "status": "integration-candidate",
+  "excluded": [
+    "Store authentication",
+    "HTTP and WebSocket providers",
+    "account entitlement",
+    "licensed gameplay certification"
+  ]
+}

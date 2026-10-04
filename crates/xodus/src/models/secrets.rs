@@ -59,7 +59,6 @@ pub(crate) enum DeviceTokenStructureFailure {
     Cipher,
     XmlBound,
     XmlParse,
-    CipherEncoding,
     Secret,
 }
 
@@ -75,10 +74,10 @@ fn legacy_token_structure_failure(token: &LegacyToken) -> Option<DeviceTokenStru
     {
         return Some(DeviceTokenStructureFailure::Audience);
     }
-    let Ok(cipher) = soap::decode_xml_base64(&encrypted.cipher_data.cipher_value) else {
-        return Some(DeviceTokenStructureFailure::CipherEncoding);
-    };
-    if cipher.is_empty() || chrono::DateTime::parse_from_rfc3339(&token.lifetime.expires).is_err() {
+    // Passport consumers forward the issuer's ticket, not locally decrypted bytes.
+    if encrypted.cipher_data.cipher_value.trim().is_empty()
+        || chrono::DateTime::parse_from_rfc3339(&token.lifetime.expires).is_err()
+    {
         return Some(DeviceTokenStructureFailure::Cipher);
     }
     None

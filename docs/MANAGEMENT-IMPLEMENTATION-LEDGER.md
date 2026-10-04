@@ -179,7 +179,81 @@ Historical milestone evidence and then-pending reviews below do not override
 this status; genuinely new source deltas still require an immutable handoff to
 the parent-owned continuity reviewer.
 
-### Agreed cipher subsites: diagnostic-only refinement
+### Opaque issuer-ticket compatibility repair
+
+The coordinator reports SAME continuity turn 6 closed the final `baf92bc`
+producer/`e5a` consumer source. The exact baf CLI 542e was built once with
+inert help/anonymous hello only. Separately, the sole app owner reports one
+fresh authorized entry with app 66451/engine 66453 failed at
+`AUTH_INVALID/devicePreparation/tokenCipherEncodingInvalid`, before any owned
+native auth window. The signed app engine is separate from the preserved
+app-unmodified 542e artifact. No live provider value was read, captured or used
+to infer alphabet, padding, whitespace or bytes.
+
+The user-directed original-consumer comparison established a narrower issue
+than generic XML encoding compatibility:
+
+| data | actual local consumer |
+|---|---|
+| Issuer legacy ticket `CipherValue` | `rst/builder.rs` forwards serialized device ticket XML as `DeviceDAToken` for user exchange, or reparses/emits its `EncryptedData` for device exchange; neither locally decodes this value |
+| Device `BinarySecret` | `api/live/mod.rs::device_hmac_secret` decodes the separate proof key and checks its 4096-byte/version-four layout before HMAC |
+| SOAP header/body ciphertext and derived nonces | `api/live/utils.rs::decrypt_soap_encrypted_data` and `rst/request.rs` decode real local crypto inputs; original signature verification and AES/HMAC handling remain |
+
+The inherited converter at `08b06d38c993072043e51c854213e81e662165af`
+preserved the opaque ticket without this extra local base64 requirement.
+Our shared `legacy_token_structure_failure` applied the crypto decoder to
+the issuer-ticket field even though no consumer required decoded bytes.
+The coordinator explicitly authorized correcting **that admission contract**,
+not globally relaxing the decoder or guessing a proprietary ticket alphabet.
+
+Before the production change, test-only additions ran on exact reviewed baf
+source. **Both regressions failed**, Cargo exit 101: checked original conversion
+followed by the actual managed save rejected at `TokenCipherEncoding`, and a
+ticket extracted after actual signed-envelope verification/AES decryption
+failed structural admission before reaching the real RST request builder.
+Their opaque strings are synthetic stand-ins, not captured provider data,
+successful tickets or a claim about Microsoft's actual ticket grammar.
+
+The production change removes **only** that opaque-field base64 decoding
+predicate. Bounded serialized XML, reparse, nonblank ticket, expected legacy
+kind/STS key context, expiry and separate complete proof-key checks remain.
+The original opaque value and serialized representation are preserved, without
+trimming, normalization, decoding/reencoding or format substitution. Existing
+`trim().is_empty()` tests for absence do not change the forwarded string.
+Both current legacy CLI and management share this intentional correction.
+All twenty-one public/private diagnostic mappings and the frozen C95 schema
+remain compatible; the historical encoding reason is no longer emitted by
+opaque-ticket admission. No consumer change or new reason set is introduced.
+
+The regression path also exercises both real request-builder consumers and
+retains a signed-ciphertext tamper rejection. Negative managed-save cases cover
+empty/malformed XML, kind/STS context, expired proof, missing/invalid secret,
+secret layout/version and token/response bounds, preserving an already admitted
+opaque memory destination. XML decoder negatives still apply to proof keys,
+SOAP ciphertext and nonces, rather than treating arbitrary issuer-ticket
+representation as cryptographic corruption.
+
+Owner native final validation passed **59 selected tests in one bounded run**:
+device 11, signed SOAP/nonce 8, AES/reference 6, HMAC/checked ticket 6, XML
+decoder 3, actual worker writer 5 and parent lifecycle/private channel 20.
+Both baseline-failing regressions now pass, including the actual request
+builders and signed-ciphertext tamper negative. The first fixed attempt exposed
+a test-only parsing mismatch: an outgoing request signature was parsed with
+the incoming-response signature model. The test now inspects only the outgoing
+ticket-carrying security fields; production parsing and signing are unchanged.
+That partial failed run is not counted as final success.
+Core/management strict lint, CLI lint with only its two pre-existing allowances,
+CLI/live management check, touched format and C95 corpus passed. The native run
+used existing owned target/offline/locked/jobs-one/incremental-zero settings.
+All 190 public LF inputs were verified before checks, with committed-source
+equivalence checked again at freeze. New SAME continuity review is required
+before another production CLI artifact. No provider/account/credential lookup,
+original cached-profile import, native window, service or unchanged auth retry
+was performed. The live ticket grammar and subsequent user sign-in outcome
+remain unknown; this is a reproduced consumer-contract fix, not a successful
+Store issuance, package authorization or gameplay claim.
+
+### Earlier agreed cipher subsites: diagnostic-only refinement
 
 The coordinator reports that the same continuity reviewer closed the combined
 2acb/bace and app 5ae/da0 source review without significant issues. The

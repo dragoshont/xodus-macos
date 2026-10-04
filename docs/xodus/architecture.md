@@ -30,17 +30,29 @@ No raw exception, provider response, page content or credential is serialized.
 The consumer uses only validated closed pairs and locally authored copy;
 absent/malformed/unknown/extra-key details are stage unavailable.
 
-XML base64-valued proof, nonce and ciphertext fields share a bounded decoder
+XML base64-valued proof, nonce and locally decrypted SOAP ciphertext share a bounded decoder
 that accepts only XML SP/TAB/CR/LF alongside strict standard base64. Original
 XML/signature inputs are never normalized; the existing token/response bounds,
 STS keys, 4096-byte/version-four secret and crypto checks remain enforced.
 This fixes a reproduced synthetic lexical rejection, not an established cause
 of a live user sign-in failure.
 
-The later cipher-site refinement changes only static failure classification
+The earlier cipher-site refinement changed only static failure classification
 at existing serialized-size, XML-reparse and encoded-cipher rejection guards.
 It preserves every earlier pair, including coarse `tokenCipherInvalid`, and
 does not claim an acceptance fix or identify the live provider response.
+
+Legacy Passport issuer tickets are opaque to the local RPS consumers:
+the request builder forwards their serialized XML or embeds the ticket's
+`EncryptedData`, without locally decoding its `CipherValue`. Admission therefore
+checks bounded/reparsed XML, a nonblank unmodified ticket, expected kind/STS
+context, expiry and the separately validated device proof secret. It does not
+impose the SOAP AES/proof-key base64 grammar on that opaque issuer field.
+This intentionally corrects the extra admission restriction in both management
+and current legacy CLI; it does not establish the provider's encoding grammar.
+The shared strict decoder and signature/HMAC/AES/nonces are unchanged.
+All twenty-one diagnostic variants remain compatible, including the historical
+`tokenCipherEncodingInvalid`; opaque-ticket admission no longer produces it.
 
 A failed worker exit does not discard a validated failure handoff, but cannot
 promote a successful session. Missing/invalid/unobserved outcomes remain stage

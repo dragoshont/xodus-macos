@@ -308,6 +308,97 @@ mod management_tests {
     }
 
     #[test]
+    fn management_opaque_ticket_after_signed_decryption_preserves_real_consumers() {
+        use crate::models::secrets::{Token, device_token_structurally_valid};
+
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct BuiltEnvelope {
+            header: BuiltHeader,
+        }
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct BuiltHeader {
+            security: BuiltSecurity,
+        }
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct BuiltSecurity {
+            #[serde(default)]
+            binary_security_token: Vec<soap::BinarySecurityTokenReq>,
+            encrypted_data: Option<soap::EncryptedData>,
+        }
+        let opaque = "synthetic issuer ticket ! <&> +/=_-";
+        let mut secret = [0; 4096];
+        secret[..4].copy_from_slice(&4u32.to_le_bytes());
+        let encoded_secret = BASE64_STANDARD.encode(secret);
+        let encrypted_ticket =
+            quick_xml::se::to_string(&soap::EncryptedData::devicesoftware(opaque.to_owned()))
+                .unwrap();
+        let payload = format!(
+            "<RequestSecurityTokenResponse><TokenType>urn:passport:legacy</TokenType><AppliesTo><EndpointReference><Address>http://Passport.NET/tb</Address></EndpointReference></AppliesTo><Lifetime><Created>2000-01-01T00:00:00Z</Created><Expires>2099-01-01T00:00:00Z</Expires></Lifetime><RequestedSecurityToken>{encrypted_ticket}</RequestedSecurityToken><RequestedProofToken><BinarySecret>{encoded_secret}</BinarySecret></RequestedProofToken></RequestSecurityTokenResponse>"
+        );
+        let xml = signed_fixture_envelope(response_xml_with_payload(
+            &[("UniqueFixture", &[7; 32])],
+            payload.as_bytes(),
+        ));
+        let envelope = parse_and_decrypt(&xml).unwrap();
+        let response = crate::api::live::single_device_response(envelope.body.body).unwrap();
+        let Token::Legacy(device) = Token::from_response_checked(response).unwrap() else {
+            panic!("Expected only a synthetic signed legacy issuer ticket");
+        };
+        assert!(device_token_structurally_valid(&device));
+        let hmac = crate::api::live::device_hmac_secret(&device).unwrap();
+        let user = crate::models::secrets::LegacyToken {
+            token: encrypted_ticket,
+            ..device.clone()
+        };
+        for with_user in [false, true] {
+            let mut builder = super::super::RSTRequestBuilder::new()
+                .device_token(device.clone())
+                .signature(super::super::RSTSignature::Hmac {
+                    clep_secret: &*hmac,
+                    tpm_secret: &[],
+                })
+                .scope_policy("http://Passport.NET/tb", None);
+            if with_user {
+                builder = builder.user_token(Token::Legacy(user.clone()));
+            }
+            let request = builder.build().unwrap();
+            let envelope: BuiltEnvelope = quick_xml::de::from_str(&request.signed_xml).unwrap();
+            if with_user {
+                assert_eq!(envelope.header.security.binary_security_token.len(), 1);
+                assert_eq!(
+                    envelope.header.security.binary_security_token[0].value,
+                    device.token
+                );
+            } else {
+                assert_eq!(
+                    envelope
+                        .header
+                        .security
+                        .encrypted_data
+                        .unwrap()
+                        .cipher_data
+                        .cipher_value,
+                    opaque
+                );
+            }
+        }
+        let parsed: soap::Envelope = quick_xml::de::from_str(&xml).unwrap();
+        let soap::BodyContent::EncryptedData(cipher) = parsed.body.body else {
+            panic!("Expected only a synthetic signed encrypted body");
+        };
+        let mut altered = cipher.cipher_data.cipher_value.clone();
+        altered.replace_range(..1, if altered.starts_with('A') { "B" } else { "A" });
+        let tampered = xml.replace(&cipher.cipher_data.cipher_value, &altered);
+        assert!(matches!(
+            parse_and_decrypt(&tampered),
+            Err(super::super::RSTError::InvalidResponseSignature(_))
+        ));
+    }
+
+    #[test]
     fn management_xml_base64_signed_envelope_preserves_original_verification_and_decryption() {
         let original = response_xml(&[("UniqueFixture", &[7; 32])]);
         for xml in [original.clone(), wrapped_envelope(&original)] {

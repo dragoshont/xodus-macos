@@ -138,7 +138,11 @@ unload race: termination counters and handle closure do not synchronize native
 worker return. This was a source-verified interleaving, not an observed crash.
 The checker now retains modules through process exit, with actual direct-core
 and gaming checks rerun; the core and gaming DLL bytes are unchanged. The
-corrective delta is awaiting the same retained reviewer's closure. Older checker
+same retained reviewer closed R17 in report 35 at
+`ed1b3c1e6b5f97e20dd21a297f131bc41371bc8f`, with no significant issues in
+the correction. That exact source's hosted async guards and cross-build
+(run `37182666846`) also pass. Reviewer closure is source review, not a new
+account, runtime or GPU execution claim. Older checker
 artifacts remain historical observations, not safe-unload proof.
 
 Real Store issuance,

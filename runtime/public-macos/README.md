@@ -261,6 +261,15 @@ native ntdll mapping checks confirm no Wine clients remain after the runs.
 Hosted checks cover the native client, runner, TLS-peer shutdown and guarded
 public patch application; they do not substitute for these owner-run Wine cases.
 
+The retained adversarial reviewer closed the dependency-path finding after
+`861740ae8f873f08864f8d7e8dc98b0ad9cc7d0b`; both real colon-directory regressions
+fail against the preceding source and refuse before launch with the correction.
+Exact-head hosted [client/runner/peer checks](https://github.com/dragoshont/xodus-macos/actions/runs/37175609564)
+and [ten-source overlay checks](https://github.com/dragoshont/xodus-macos/actions/runs/37175609551)
+passed. All findings R01-R16 are closed in the retained review ledger.
+That closure covers the reviewed components, not the remaining end-to-end
+account, package, installation and gameplay journey.
+
 This proves synthetic loopback HTTPS validation in the selected public
 candidate, not Microsoft endpoint coverage, account authorization, a complete
 runtime/shim/service pair, rendered graphics or licensed gameplay. No account,

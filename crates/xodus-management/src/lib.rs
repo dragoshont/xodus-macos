@@ -1,4 +1,5 @@
 pub mod inspection;
+pub mod native_auth;
 pub mod staging;
 pub mod state;
 pub mod transport;

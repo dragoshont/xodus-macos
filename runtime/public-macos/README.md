@@ -455,4 +455,9 @@ checks canonical ancestry. Its real-filesystem regression requires both direct
 and traversing sibling paths to fail before runner/helper execution.
 The new traversal regression fails against the exact published old function
 and passes with the correction; no helper is executed in either fixture.
-R18 closure is pending the same reviewer; earlier closures do not approve it.
+The same retained report 37 closes R18 at
+`1acf8939375fc4d4774e8be1deeb3da0508f148f`, with no significant issue in the
+correction. Exact-head hosted [native checks](https://github.com/dragoshont/xodus-macos/actions/runs/37184632412)
+and [public-source overlay checks](https://github.com/dragoshont/xodus-macos/actions/runs/37184632429)
+pass. All R01-R18 scoped findings are closed; this does not approve unpublished
+runtime-pair fixtures or the remaining authorized installation/licensed journey.

@@ -21,7 +21,9 @@ UTC-second expiries. Both tickets must be printable, JSON-safe ASCII because
 the public shim inserts them into its existing Xbox JSON requests. DTDs,
 external entities, duplicate/unknown/nested fields, malformed XML and partial
 frames fail without ticket outputs. Response parser diagnostics and credential
-bytes are never logged. Caller-owned streams are closed on every outcome.
+bytes are never logged. Caller-owned streams are closed on every outcome and
+are marked non-inheritable so an executed child does not retain the credential
+channel.
 
 The 40-second **overall**, monotonic connect/write/read deadline covers the
 producer's 30-second exchange budget without restarting for partial reads.

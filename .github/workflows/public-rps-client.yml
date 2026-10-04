@@ -1,0 +1,34 @@
+name: Isolated public RPS client
+
+on:
+  pull_request:
+    paths:
+      - runtime/public-rps/**
+      - .github/workflows/public-rps-client.yml
+  push:
+    paths:
+      - runtime/public-rps/**
+      - .github/workflows/public-rps-client.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-client:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check private framing against synthetic peers
+        working-directory: runtime/public-rps
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk=$(xcrun --show-sdk-path)
+          xcrun clang -std=c11 -Wall -Wextra -Werror -pedantic \
+            -fsanitize=address,undefined -fno-sanitize-recover=all \
+            -fno-omit-frame-pointer \
+            -isystem "$sdk/usr/include/libxml2" \
+            xodus_rps.c tests.c -lxml2 -o "$RUNNER_TEMP/rps-client-checks"
+          "$RUNNER_TEMP/rps-client-checks"

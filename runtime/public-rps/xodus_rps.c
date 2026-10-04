@@ -338,12 +338,18 @@ enum xodus_rps_result xodus_rps_get(const char *endpoint, const char *client_id,
     wsa_started = 1;
 #endif
     result = XODUS_RPS_TRANSPORT;
+#ifdef _WIN32
+    socket_handle = WSASocketW(AF_UNIX, SOCK_STREAM, 0, NULL, 0,
+        WSA_FLAG_OVERLAPPED | WSA_FLAG_NO_HANDLE_INHERIT);
+#else
     socket_handle = socket(AF_UNIX, SOCK_STREAM, 0);
+#endif
     if (socket_handle == RPS_INVALID_SOCKET) goto done;
 #ifdef _WIN32
     if (ioctlsocket(socket_handle, FIONBIO, &nonblocking)) goto done;
 #else
-    if (socket_handle >= FD_SETSIZE || fcntl(socket_handle, F_SETFL, O_NONBLOCK)) goto done;
+    if (socket_handle >= FD_SETSIZE || fcntl(socket_handle, F_SETFD, FD_CLOEXEC) ||
+        fcntl(socket_handle, F_SETFL, O_NONBLOCK)) goto done;
 #ifdef SO_NOSIGPIPE
     {
         int enabled = 1;

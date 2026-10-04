@@ -194,8 +194,9 @@ The corrected suite passes on both hosts when the suite itself runs in normal,
 `-O` and `PYTHONOPTIMIZE=1` modes. Reproduction uses the original published script,
 not a copied parser or simulated assertion expression.
 
-The corrected real tool also passed three native fixture-only process smokes,
-one per interpreter mode, against the **unchanged immutable** 014d Rust binary
+The corrected real tool also passed five native fixture-only process smokes:
+one per interpreter mode, then two optimized replays from the exact published
+LF tool/regression sources, against the **unchanged immutable** 014d Rust binary
 `empty-management-broker-gated-v1-9e854df1e44042c0`, SHA256
 `9e854df1e44042c09067fc2d63ff6e4beeddeb73350c0329059cda28f2d13fb1`.
 Hash checked before and after, no rebuild/replacement. Gated refusal, valid
@@ -214,7 +215,7 @@ PYTHONOPTIMIZE=1 python3 tools/smoke_empty_runtime.py --fixture-binary "$PINNED_
 Corrected LF tool SHA256:
 `9d79b40d7515a478221a41331a6fe7efe5532bc248f5be560f6b4340a4e45f52`;
 new regression LF SHA256:
-`b964edea0a7f06dab64bde4644500c550c48dcbf1e11c273299fb4dd288e60ad`.
+`0c41fa0b13e828ebf2fab5facbe4629dde295f5a5e546388295955ed5184b1f3`.
 This is only a tool/test/docs correction, not a schema, backend, account,
 credential/profile, broker binary, app-engine or runtime change. R19 closure
 is not self-declared; the coordinator routes the immutable delta to the same

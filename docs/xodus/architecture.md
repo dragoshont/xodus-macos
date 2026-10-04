@@ -219,7 +219,14 @@ including the coarse structure reason, and preserves the AUTH_INVALID-only,
 exact three-key format and C95 schema. Its exact hosted run
 [37193138334](https://github.com/dragoshont/xodus-macos-app/actions/runs/37193138334)
 succeeded; the app owner reports 398 checks and editable SVG verification.
-The parent independently verified the exact run SHA and successful job metadata.
-This source-only consumer update is not deployed. The combined producer/consumer
-delta still requires the same continuity review, new immutable engine and fresh
-paired native retest; the existing signed pair remains unchanged.
+The parent independently verified the exact run SHA, successful job metadata
+and four zero-failure log summaries totaling 398 checks.
+
+The same continuity reviewer provisionally closed the final consumer-only delta
+without significant issues. Source assertions confirmed the retained reasons,
+exact privacy restrictions and unchanged schema, navigation and session
+mutation gates. This is not combined producer/consumer approval: the immutable
+producer final pin, its native evidence and the same-context compatibility
+review remain pending. This source-only consumer update is not deployed; a new
+immutable engine and fresh paired native retest are still required. The existing
+signed pair remains unchanged.

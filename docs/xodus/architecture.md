@@ -333,9 +333,45 @@ deltas without significant issues. Independent source assertions confirmed
 twenty-one matching pairs, identical canonical schema and unchanged
 dependencies, admission conditions, cryptographic paths and authentication
 lifecycle gates. This is source closure and diagnostic refinement, not an
-authentication fix. The parent authorized an additive immutable CLI build;
-the currently failed signed pair remains unchanged pending the new artifact,
-separate signing and a fresh native retry.
+authentication fix.
+
+The subsequent additive immutable CLI has SHA256
+`542e855cd2e2131b391f772590a16dfc8f22704243c9c0b4bcea419510599846`;
+its provenance has SHA256
+`88a9379699b945f8eef11b520a6d83417c22c852a2dfa324b39da3cf72c9a808`.
+The parent independently verified both owned, stable regular files, exact
+sizes and modes, the arm64 header, linker ad-hoc signature and reviewed
+source/native/build provenance. Only inert help and anonymous HELLO were
+exercised by the builder. The immutable native certificate's historical
+pending-review wording is retained, with actual combined source closure
+recorded separately in provenance.
+
+After separate-copy signing and fresh owned/noncommitting transition guards,
+the app owner gracefully retired the older pair without signals and performed
+exactly one native Sign In action on the new pair. The signed engine has SHA256
+`1d2d0847ed14f156f47a8671287b0833119972afbce9471104e657240a6abdaa`;
+the app has SHA256
+`95c22c56eede8164f48b976b0ebbf960c7182f04c62b0597b5308e109cef541e`.
+The parent independently verified their hashes, arm64 headers, bundle signature
+and specific owned app/engine process relationship. The actual attempt failed
+at `AUTH_INVALID / devicePreparation / tokenCipherEncodingInvalid` before a
+Microsoft window was observed. This identifies the added ticket-decoding
+predicate, not the provider's actual alphabet, padding or token format.
+The failed Account remains stable; the same engine must not be retried.
+
+The backend owner's subsequent consumer trace identifies a source-contract
+defect: the Passport request builder forwards the legacy device ticket as
+opaque XML, either verbatim as a BinarySecurityToken or reparsed and re-emitted
+as EncryptedData. It does not locally decrypt its CipherValue. HMAC derives
+from the separately issued BinarySecret; SOAP-envelope ciphertext and nonces
+have their own strict decoding and cryptographic verification paths.
+The added independent Base64 requirement on the opaque ticket is therefore an
+unsupported admission assumption at this boundary. A scoped compatibility
+repair is being implemented, retaining bounded, reparsed, nonempty ticket
+validation and the separate proof, signature, HMAC, AES, nonce, scope, expiry,
+namespace-isolation and atomic-commit safeguards. Its regression evidence,
+final source review, new artifact and actual native outcome are still pending;
+this source finding does not yet establish successful authentication.
 
 The user's current priority is explicit: fix authentication first, then verify
 and correct the modern macOS UI. The requested toolkit audit remains deferred;

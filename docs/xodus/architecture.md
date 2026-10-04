@@ -148,3 +148,11 @@ rejects inconsistent size, unsupported version and corrupt ciphertext using
 static non-secret errors. The license caller propagates the result; no assertion
 or panic diagnostic can print the compared keys. Valid synthetic version-four
 decode/derive tests preserve the previous output without implying entitlement.
+
+Encrypted SOAP PP/body decryption checks its untrusted key metadata directly
+instead of using a panicking model conversion. It requires a present reference,
+a nonempty local `#fragment` and an exact derived-key nonce lookup, never byte
+slicing a possibly empty or Unicode URI. Malformed metadata returns the existing
+static `InvalidEncryptedPayload`/`MissingNonce` errors. Actual synthetic XML
+decode/decrypt regressions preserve valid AES256-CBC output and reject missing,
+nonfragment/external and unknown nonce references without account access.

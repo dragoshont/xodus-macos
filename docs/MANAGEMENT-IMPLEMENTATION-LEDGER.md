@@ -128,6 +128,41 @@ Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
 
+### Checked encrypted SOAP references
+
+A continued trace of the real device/user SOAP response path found that
+encrypted PP headers and bodies still passed untrusted `KeyInfo` through a
+panicking signature conversion, then sliced its reference URI at byte one.
+Missing references, empty values and non-ASCII byte boundaries could panic;
+an arbitrary first character could alias a valid derived-key ID. The decrypt
+helper now requires a present security-token reference and a nonempty local
+`#fragment`, with an exact known nonce lookup. Missing/invalid metadata returns
+the existing static `InvalidEncryptedPayload`/`MissingNonce` errors; it does
+not use a panic-catching wrapper or change successful cryptography.
+
+Four native regressions construct public synthetic AES256-CBC ciphertext,
+decode the actual `EncryptedData` XML model and call the production decrypt
+helper. They cover preserved valid fragment/plaintext output, absent key
+reference, empty/bare-fragment/Unicode/nonfragment/external references, and an
+unknown local nonce. They do not rely solely on a URI parser or mocked result.
+**158 scoped native Rust checks** pass: 45 core management, 16 CLI,
+70 management and 27 service. Core/service-library clippy with warnings denied,
+native CLI/service builds, the unchanged contract corpus and actual anonymous
+management/private malformed-before-credential broker process smokes pass.
+No real account/license/ticket issuance or gameplay occurs.
+
+Additive immutable unsigned developer artifacts:
+
+- `artifacts/xodus-cli-soap-reference-v1-2456c27ffa6d116a`, SHA256
+  `2456c27ffa6d116ac823707d219f3dd5d7d3892426d8dad3dabf78b1b03e67d4`.
+- `artifacts/xodus-service-soap-reference-v1-7c53004909df2d24`, SHA256
+  `7c53004909df2d24cd091564977d186ce530ae6fd5929955f2ce3f1751caa679`.
+
+This is a separate correction after published profile-fencing source
+`b16ea66ba975d47139d559fbbc1b8112ca48f52a`; both new deltas require the retained
+reviewer's independent closure. No protocol/capability, approved GUI pin,
+provider authorization or runtime gate changes.
+
 ### Atomic management provider profile snapshots
 
 Core `TokenManager::management_store_snapshot` reads one complete, valid

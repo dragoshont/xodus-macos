@@ -47,6 +47,99 @@ mod tests {
             plaintext
         );
     }
+
+    #[derive(Debug, serde::Deserialize, PartialEq, Eq)]
+    #[serde(rename_all = "PascalCase")]
+    struct FixturePayload {
+        value: String,
+    }
+
+    fn decrypt_fixture(reference: Option<&str>) -> Result<FixturePayload, super::rst::RSTError> {
+        use base64::Engine;
+        use std::collections::HashMap;
+
+        let signature = super::rst::RSTSignature::Hmac {
+            clep_secret: b"public-synthetic-fixture",
+            tpm_secret: &[],
+        };
+        let nonce = [7; 32];
+        let key = signature.hmac_key(&nonce).unwrap();
+        let plaintext = b"<FixturePayload><Value>fixture-only</Value></FixturePayload>";
+        let mut buffer = vec![0; plaintext.len() + 16];
+        let ciphertext = Aes256CbcEnc::new((&key).into(), (&[0; 16]).into())
+            .encrypt_padded_b2b::<Pkcs7>(plaintext, &mut buffer)
+            .unwrap();
+        let mut cipher_value = vec![0; 16];
+        cipher_value.extend_from_slice(ciphertext);
+        let reference = reference
+            .map(|uri| {
+                format!(
+                    r#"<SecurityTokenReference><Reference URI="{uri}"/></SecurityTokenReference>"#
+                )
+            })
+            .unwrap_or_default();
+        let xml = format!(
+            r#"<EncryptedData Id="fixture" xmlns="http://www.w3.org/2001/04/xmlenc#" Type="http://www.w3.org/2001/04/xmlenc#Element"><EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#aes256-cbc"/><KeyInfo>{reference}</KeyInfo><CipherData><CipherValue>{}</CipherValue></CipherData></EncryptedData>"#,
+            base64::prelude::BASE64_STANDARD.encode(cipher_value),
+        );
+        let encrypted = quick_xml::de::from_str(&xml).unwrap();
+        let nonces = HashMap::from([(
+            "DerivedFixture".to_owned(),
+            base64::prelude::BASE64_STANDARD.encode(nonce),
+        )]);
+        super::decrypt_soap_encrypted_data(Box::new(encrypted), &signature, &nonces)
+    }
+
+    #[test]
+    fn management_encrypted_soap_local_reference_preserves_decryption() {
+        assert_eq!(
+            decrypt_fixture(Some("#DerivedFixture")).unwrap(),
+            FixturePayload {
+                value: "fixture-only".to_owned()
+            },
+        );
+    }
+
+    #[test]
+    fn management_encrypted_soap_missing_key_reference_is_a_static_error() {
+        let error = decrypt_fixture(None).unwrap_err();
+        assert!(matches!(
+            error,
+            super::rst::RSTError::InvalidEncryptedPayload
+        ));
+        assert_eq!(
+            error.to_string(),
+            "Response contains an invalid encrypted payload"
+        );
+        assert!(!format!("{error:?}").contains("fixture-only"));
+    }
+
+    #[test]
+    fn management_encrypted_soap_rejects_empty_unicode_and_nonfragment_references() {
+        for reference in [
+            "",
+            "#",
+            "\u{03bb}",
+            "XDerivedFixture",
+            "https://fixture.invalid/#DerivedFixture",
+        ] {
+            let error = decrypt_fixture(Some(reference)).unwrap_err();
+            assert!(matches!(error, super::rst::RSTError::MissingNonce));
+            assert_eq!(
+                error.to_string(),
+                "Response is malformed, unable to find nonce for decryption"
+            );
+            if !reference.is_empty() {
+                assert!(!format!("{error:?}").contains(reference));
+            }
+        }
+    }
+
+    #[test]
+    fn management_encrypted_soap_missing_local_nonce_remains_an_error() {
+        let error = decrypt_fixture(Some("#UnknownFixture")).unwrap_err();
+        assert!(matches!(error, super::rst::RSTError::MissingNonce));
+    }
 }
 
 fn decrypt_cipher_value(cipher_value: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, rst::RSTError> {
@@ -152,14 +245,19 @@ pub fn decrypt_soap_encrypted_data<T: serde::de::DeserializeOwned>(
     signature: &rst::RSTSignature,
     nonces: &HashMap<String, String>,
 ) -> Result<T, rst::RSTError> {
-    let id = &encrypted_data
+    let reference = &encrypted_data
         .key_info
-        .as_signature()
         .security_token_reference
+        .as_ref()
+        .ok_or(rst::RSTError::InvalidEncryptedPayload)?
         .reference
         .uri;
 
-    let nonce = nonces.get(&id[1..]).ok_or(rst::RSTError::MissingNonce)?;
+    let id = reference
+        .strip_prefix('#')
+        .filter(|id| !id.is_empty())
+        .ok_or(rst::RSTError::MissingNonce)?;
+    let nonce = nonces.get(id).ok_or(rst::RSTError::MissingNonce)?;
     let nonce = BASE64_STANDARD.decode(nonce)?;
     let key = signature.hmac_key(&nonce).ok_or(rst::RSTError::HmacKey)?;
     let cipher_value = BASE64_STANDARD.decode(encrypted_data.cipher_data.cipher_value)?;

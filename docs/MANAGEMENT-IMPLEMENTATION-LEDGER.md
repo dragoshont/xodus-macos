@@ -6,7 +6,9 @@ Xbox launcher release. Requirement IDs follow public app foundation
 review remain independently owned. No automatic merge or game launch.
 
 Publication: branch `dragoshont-xodus-launcher-management`, checked broker source
-`97fcbbbe8c024c453555014c8d12a1fbec6202a6`. App-native draft PR creation failed
+`97fcbbbe8c024c453555014c8d12a1fbec6202a6`, bounded authenticated JSON source
+`4a22b4b14bc24b99b69f7154384da9f6b8211f00` and the additive profile-fencing
+delta described below. App-native draft PR creation failed
 exactly `GitHub repository dragoshont/xodus-macos was not found`, despite a
 successful push and matching remote SHA. No PR URL exists, and no CLI/MCP
 fallback was used. Public comparison:
@@ -45,7 +47,8 @@ fallback was used. Public comparison:
   is not a successful package/license call or complete purchasing-account library.
   The existing CLI helpers now propagate missing-credential, exchange, HTTP and
   malformed-response failures instead of panicking. They still are not a
-  management provider: per-operation profile reconciliation, authoritative
+  management provider: the management-profile branches now reconcile one
+  complete credential snapshot around provider calls, but authoritative
   authorization/manifest checks and transactional queue
   integration remain necessary.
 - `PackageFile` contains FileSize/FileHash/KeyBlob/CDN paths, but this fork has no
@@ -124,6 +127,67 @@ JSON Schema fixture checks are explicitly separate from live public API checks.
 Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
+
+### Atomic management provider profile snapshots
+
+Core `TokenManager::management_store_snapshot` reads one complete, valid
+isolated Store bundle and returns an opaque full-bundle stamp. It checks the
+shared clone mutation epoch before/after the read; verification checks both
+the epoch and the full order-independent bundle, including account, device,
+license, expiry and flow fields. Identical recommits and logout through the
+same manager's clones invalidate outstanding stamps. Out-of-process changes
+are detected by bundle comparison; the in-memory epoch is not a cross-process
+transaction or cancellation mechanism. Stamps deliberately implement neither
+`Debug` nor serialization.
+
+The RPS broker now reuses this core fence rather than a separate fingerprint
+implementation. Package/license helpers using a management profile capture
+the account, user/device proof and device license together, never mixing
+separate getters or falling back to ordinary CLI keys. Started management
+credential IO runs off-actor with one two-second acquisition/result deadline
+and four permits retained until the underlying blocking work actually ends,
+including timeout or caller abort. Missing native Keychain configuration fails.
+Ordinary CLI profiles retain their previous getters and late device-license
+lookup.
+
+Package credentials are rechecked after the complete Xbox exchange and before
+returning the checked package. Licensing rechecks after device exchange, after
+user exchange, after the license request and before returning the derived
+key/license. These are explicit boundary checks, not a claim that every inner
+Xbox authentication hop is independently fenced or that a remote request can
+be undone after logout. No management endpoint starts an install or license
+request, and no new protocol capability is enabled.
+
+**154 scoped native Rust checks** pass: 41 core management, 16 CLI,
+70 management and 27 service checks. Nine added synthetic regressions cover
+read-only snapshots, identical recommit/logout, raw full-field mutation,
+mutation during the actual backend read, ordinary-profile/legacy-key refusal,
+captured username/device license, and real blocking IO permit retention after
+deadline/caller abort. Blocking test peers themselves have bounded waits.
+Core, management and service-library clippy pass with warnings denied; native
+CLI/service builds pass. The unchanged 79-positive/20-negative/four-edge and
+six-each failed-page/query corpus passes. Actual anonymous management
+detail/refresh/replay/reconnect and private malformed-before-credential/ping/
+cleanup process checks pass. An alternate-feature process refuses plaintext
+before credential/socket/state initialization; the corresponding management
+configuration test passes. No real credentials, consent, entitlement, ticket
+issuance or gameplay are exercised.
+
+Additive immutable unsigned developer artifacts, not app-engine replacements:
+
+- `artifacts/xodus-cli-profile-fence-v1-1a13f28c6a8f82a9`, SHA256
+  `1a13f28c6a8f82a92b1791a9caac3413f928d94d07d19fd7a8a1db297554bbab`.
+- `artifacts/xodus-service-profile-fence-v1-93db2a3bee059bb6`, SHA256
+  `93db2a3bee059bb6a8bde118da75858b4cb188f712435414d4b106c388f49494`.
+
+The coordinator reports the same retained reviewer's turn 15 approved the
+preceding 4a bounded-response delta, source/assertions only without rerunning
+its owner's 145 checks. R01-R11 remain closed. This new profile-fencing delta
+still requires separate review. The human Account-entry ask returned user
+unavailable/work autonomously: no sign-in began and no real Store/Keychain/
+license proof exists. Approved GUI da548/C95 remains unchanged. Actual inventory,
+authorized immutable manifests, adoption, install/update/recovery and certified
+runtime pairing remain active gates, not satisfied by these synthetic checks.
 
 ### Bounded authenticated JSON responses
 

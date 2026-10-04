@@ -1,9 +1,9 @@
+use crate::provider_credentials::ProviderCredentials;
 use inquire::Select;
 use xodus::XBOX_LIVE_PACKAGES_PC;
 use xodus::api::displaycatalog::find_products_by_id;
 use xodus::api::response::{PACKAGE_RESPONSE_LIMIT, request_json};
 use xodus::models::packagespc::{PackageDetails, PackageResponse};
-use xodus::models::secrets::Token;
 use xodus::tokens::TokenManager;
 
 pub async fn get_content_id(
@@ -82,30 +82,17 @@ pub async fn get_packages(
 ) -> Result<PackageDetails, Box<dyn std::error::Error>> {
     let content_id = uuid::Uuid::parse_str(&content_id)
         .map_err(|_| std::io::Error::other("Invalid package content ID"))?;
-    let dev_token = tokens
-        .get_device_sts_token()
-        .map_err(|_| std::io::Error::other("Device credentials are unavailable"))?;
-    let Token::Legacy(dev_token) = dev_token else {
-        return Err(Box::new(std::io::Error::other("Invalid STS token")));
-    };
-    let user = tokens
-        .get_user()
-        .map_err(|_| std::io::Error::other("Signed-in account is unavailable"))?;
-    let user_token = tokens
-        .get_user_sts_token()
-        .map_err(|_| std::io::Error::other("User credentials are unavailable"))?;
-    let Token::Legacy(legacy) = user_token else {
-        return Err(Box::new(std::io::Error::other("Unsupported user token")));
-    };
+    let credentials = ProviderCredentials::read(tokens).await?;
 
     let xsts_token = xodus::api::xbox::run(
         client,
-        dev_token,
-        legacy,
-        user.username,
+        credentials.device.clone(),
+        credentials.user.clone(),
+        credentials.account.username.clone(),
         "http://update.xboxlive.com",
     )
     .await?;
+    credentials.verify_current(tokens).await?;
 
     let res: PackageResponse = request_json(
         client
@@ -122,7 +109,9 @@ pub async fn get_packages(
     .await?
     .require_success()?;
 
-    checked_package(res, content_id)
+    let package = checked_package(res, content_id)?;
+    credentials.verify_current(tokens).await?;
+    Ok(package)
 }
 
 fn checked_package(

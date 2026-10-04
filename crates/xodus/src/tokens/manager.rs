@@ -31,6 +31,12 @@ pub struct TokenManager {
     management_profile: bool,
 }
 
+#[derive(Clone)]
+pub struct ManagementProfileStamp {
+    epoch: u64,
+    fingerprint: Arc<serde_json::Value>,
+}
+
 impl TokenManager {
     pub fn is_management_profile(&self) -> bool {
         self.management_profile
@@ -102,6 +108,49 @@ impl TokenManager {
         self.cache_epoch.fetch_add(1, Ordering::SeqCst);
         self.persistent
             .set(keys::STORE_USER_SESSION, &serde_json::to_vec(&session)?)
+    }
+
+    pub fn management_store_snapshot(
+        &self,
+    ) -> Result<
+        (
+            crate::models::secrets::ManagementStoreSession,
+            ManagementProfileStamp,
+        ),
+        TokenStoreError,
+    > {
+        if !self.management_profile {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        let epoch = self.cache_epoch.load(Ordering::SeqCst);
+        let session = self
+            .get_management_store_session()?
+            .ok_or(TokenStoreError::NotFound)?;
+        if !session.valid() {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        let fingerprint = Arc::new(serde_json::to_value(&session)?);
+        if self.cache_epoch.load(Ordering::SeqCst) != epoch {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        Ok((session, ManagementProfileStamp { epoch, fingerprint }))
+    }
+
+    pub fn verify_management_profile(
+        &self,
+        stamp: &ManagementProfileStamp,
+    ) -> Result<(), TokenStoreError> {
+        if !self.management_profile || self.cache_epoch.load(Ordering::SeqCst) != stamp.epoch {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        let (_, current) = self.management_store_snapshot()?;
+        if current.epoch != stamp.epoch
+            || current.fingerprint != stamp.fingerprint
+            || self.cache_epoch.load(Ordering::SeqCst) != stamp.epoch
+        {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        Ok(())
     }
 
     /// Keychain for persistent storage, in-memory for ephemeral - the default
@@ -420,6 +469,138 @@ mod management_tests {
             },
             device_token: token,
         }
+    }
+
+    #[test]
+    fn management_snapshot_is_readonly_and_order_independent() {
+        let memory = Arc::new(MemoryBackend::default());
+        let tokens = TokenManager::with_management_backend(memory.clone());
+        tokens
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let original = memory.get(keys::STORE_USER_SESSION).unwrap().unwrap();
+        let (session, stamp) = tokens.management_store_snapshot().unwrap();
+        assert_eq!(session.user.username, "fixture");
+        for _ in 0..5 {
+            tokens.verify_management_profile(&stamp).unwrap();
+        }
+        assert_eq!(
+            memory.get(keys::STORE_USER_SESSION).unwrap().unwrap(),
+            original
+        );
+        assert!(memory.get(keys::USER_TOKENS).unwrap().is_none());
+    }
+
+    #[test]
+    fn management_snapshot_fences_identical_recommit_and_logout_across_clones() {
+        let tokens = TokenManager::with_management_backend(Arc::new(MemoryBackend::default()));
+        tokens
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let clone = tokens.clone();
+        let (_, stamp) = tokens.management_store_snapshot().unwrap();
+        clone
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        assert!(tokens.verify_management_profile(&stamp).is_err());
+        let (_, stamp) = tokens.management_store_snapshot().unwrap();
+        clone.remove_user_credentials().unwrap();
+        assert!(tokens.verify_management_profile(&stamp).is_err());
+        assert!(tokens.management_store_snapshot().is_err());
+        assert!(tokens.get_device_sts_token().is_ok());
+    }
+
+    #[test]
+    fn management_snapshot_rejects_recommit_during_backend_read() {
+        #[derive(Default)]
+        struct MutatingBackend {
+            memory: MemoryBackend,
+            on_read: std::sync::Mutex<Option<TokenManager>>,
+        }
+
+        impl TokenBackend for MutatingBackend {
+            fn get(&self, key: &str) -> Result<Option<Vec<u8>>, TokenStoreError> {
+                let result = self.memory.get(key)?;
+                let manager = self.on_read.lock().unwrap().take();
+                if let Some(manager) = manager {
+                    manager.save_management_store_session(fixture_store_session())?;
+                }
+                Ok(result)
+            }
+
+            fn set(&self, key: &str, value: &[u8]) -> Result<(), TokenStoreError> {
+                self.memory.set(key, value)
+            }
+
+            fn remove(&self, key: &str) -> Result<(), TokenStoreError> {
+                self.memory.remove(key)
+            }
+        }
+
+        let backend = Arc::new(MutatingBackend::default());
+        let manager = TokenManager::with_management_backend(backend.clone());
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        *backend.on_read.lock().unwrap() = Some(manager.clone());
+        assert!(matches!(
+            manager.management_store_snapshot(),
+            Err(TokenStoreError::InvalidCredential)
+        ));
+        manager.management_store_snapshot().unwrap();
+    }
+
+    #[test]
+    fn management_snapshot_fences_full_bundle_changes_without_local_epoch_mutation() {
+        let memory = Arc::new(MemoryBackend::default());
+        let tokens = TokenManager::with_management_backend(memory.clone());
+        tokens
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let (_, stamp) = tokens.management_store_snapshot().unwrap();
+        for field in ["username", "puid", "license", "expiry", "flow"] {
+            let mut session = fixture_store_session();
+            match field {
+                "username" => session.user.username = "different-fixture".to_owned(),
+                "puid" => session.user.puid = "different-fixture".to_owned(),
+                "license" => session.device.splicense = "different-fixture".to_owned(),
+                "expiry" => {
+                    session.device_token.lifetime.expires = "2098-01-01T00:00:00Z".to_owned()
+                }
+                "flow" => session.flow_id = "different-fixture".to_owned(),
+                _ => unreachable!(),
+            }
+            memory
+                .set(
+                    keys::STORE_USER_SESSION,
+                    &serde_json::to_vec(&session).unwrap(),
+                )
+                .unwrap();
+            assert!(tokens.verify_management_profile(&stamp).is_err());
+        }
+    }
+
+    #[test]
+    fn management_snapshot_refuses_default_profile_and_legacy_key_fallback() {
+        let memory = Arc::new(MemoryBackend::default());
+        let tokens = TokenManager::with_management_backend(memory.clone());
+        let session = fixture_store_session();
+        tokens.save_user(&session.user).unwrap();
+        tokens
+            .save_user_token(
+                PASSPORT_STS.to_owned(),
+                session.tokens[PASSPORT_STS].clone(),
+            )
+            .unwrap();
+        tokens
+            .save_device_token(PASSPORT_STS.to_owned(), Token::Legacy(session.device_token))
+            .unwrap();
+        assert!(tokens.management_store_snapshot().is_err());
+        tokens
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let default = TokenManager::new(memory, Arc::new(MemoryBackend::default()));
+        assert!(default.management_store_snapshot().is_err());
     }
 
     #[test]

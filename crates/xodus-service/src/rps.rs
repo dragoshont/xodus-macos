@@ -6,7 +6,7 @@ use xodus::models::secrets::{
 };
 use xodus::models::soap;
 use xodus::models::xgameruntime::xuser::{MSATokenRequest, MSATokenResponse};
-use xodus::tokens::{PASSPORT_STS, TokenManager};
+use xodus::tokens::{ManagementProfileStamp, PASSPORT_STS, TokenManager};
 
 use crate::simple_context::SimpleContext;
 
@@ -53,10 +53,8 @@ struct Credentials {
     user: LegacyToken,
     device: LegacyToken,
     username: String,
-    stamp: Option<ProfileStamp>,
+    stamp: Option<ManagementProfileStamp>,
 }
-
-struct ProfileStamp(serde_json::Value);
 
 fn credential_error(error: xodus::tokens::store::TokenStoreError) -> RpsError {
     match error {
@@ -77,14 +75,9 @@ fn credentials(
         if !tokens.is_management_profile() {
             return Err(RpsError::AuthenticationRequired);
         }
-        let mut session = tokens
-            .get_management_store_session()
-            .map_err(|_| RpsError::CredentialStoreUnavailable)?
-            .filter(|session| session.valid())
-            .ok_or(RpsError::AuthenticationRequired)?;
-        let stamp = ProfileStamp(
-            serde_json::to_value(&session).map_err(|_| RpsError::CredentialStoreUnavailable)?,
-        );
+        let (mut session, stamp) = tokens
+            .management_store_snapshot()
+            .map_err(credential_error)?;
         let Some(Token::Legacy(user)) = session.tokens.remove(PASSPORT_STS) else {
             return Err(RpsError::AuthenticationRequired);
         };
@@ -225,17 +218,14 @@ fn user_response(
     Ok((ticket, expiry, refreshed.ok_or(RpsError::InvalidResponse)?))
 }
 
-fn current_profile(tokens: &TokenManager, stamp: ProfileStamp) -> Result<(), RpsError> {
-    let session = tokens
-        .get_management_store_session()
-        .map_err(|_| RpsError::CredentialStoreUnavailable)?
-        .filter(|session| session.valid())
-        .ok_or(RpsError::ProfileChanged)?;
-    if serde_json::to_value(&session).map_err(|_| RpsError::CredentialStoreUnavailable)? != stamp.0
-    {
-        return Err(RpsError::ProfileChanged);
-    }
-    Ok(())
+fn current_profile(tokens: &TokenManager, stamp: ManagementProfileStamp) -> Result<(), RpsError> {
+    tokens
+        .verify_management_profile(&stamp)
+        .map_err(|error| match error {
+            xodus::tokens::store::TokenStoreError::NotFound
+            | xodus::tokens::store::TokenStoreError::InvalidCredential => RpsError::ProfileChanged,
+            _ => RpsError::CredentialStoreUnavailable,
+        })
 }
 
 pub async fn exchange(

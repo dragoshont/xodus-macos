@@ -11,6 +11,7 @@ mod license;
 #[cfg(target_os = "macos")]
 mod management_auth;
 mod package;
+mod provider_credentials;
 mod webview;
 
 #[derive(Subcommand)]

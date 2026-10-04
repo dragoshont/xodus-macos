@@ -79,6 +79,9 @@ device, license and expiry fields, without depending on HashMap serialization
 order. The broker never writes or
 rotates the launcher bundle; native consent owns its atomic writes. Ordinary
 legacy refreshed-STS persistence errors are now propagated.
+The shared core `ManagementProfileStamp` also fences the manager's clone
+mutation epoch, so identical recommits/logout invalidate prior snapshots.
+Neither stamp contents nor raw credential-store errors are exposed.
 
 Limits: eight concurrent connections; ten-second magic/payload reads;
 two-second response writes; two-second credential IO result deadlines with four
@@ -110,10 +113,24 @@ ownership, file-hash semantics, an expanded manifest or runtime compatibility.
 `Result`. Missing/ambiguous user claims, invalid header fields and expired/empty
 tickets fail explicitly. CLI arguments, selection and valid wire formats are
 unchanged. Management does not call these legacy helpers or their direct-write
-download/extraction paths. A future authorized provider must add isolated
-profile reconciliation, bounded authenticated metadata, complete identity and
+download/extraction paths. A future authorized provider must combine the
+implemented isolated profile reconciliation and bounded authenticated metadata
+with complete identity and
 manifest validation, and the durable verified staging/commit lifecycle before
 any install capability can be advertised.
+
+Management-profile package/license helper branches capture the complete valid
+Store account, user/device proof and device license in one snapshot. The snapshot
+is rechecked after authentication/provider calls and before returning a result.
+Package rechecks surround the complete Xbox exchange, not each internal hop.
+An epoch shared by manager clones rejects same-process mutations, including an
+identical recommit; full bundle comparison detects external changed contents.
+This is not a cross-process transaction or a guarantee that an already-sent
+remote request can be cancelled by logout. Default CLI profiles preserve their
+existing separate getters/late device-license lookup. Management credential IO
+is off-actor, with a two-second total acquisition/result budget and four permits
+held through completion of any started OS work after timeout/caller abort.
+There is no ordinary-profile or plaintext fallback.
 
 Existing authenticated JSON calls now share streaming byte bounds and a
 30-second total headers/body deadline: 1 MiB for Xbox authentication and 4 MiB

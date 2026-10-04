@@ -7,6 +7,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int require_wine_prefix(void)
+{
+    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    char prefix[MAX_PATH];
+    DWORD size;
+
+    if (!ntdll || !GetProcAddress(ntdll, "wine_get_version"))
+    {
+        fputs("This check requires Wine; native Windows trust must not be changed.\n", stderr);
+        return 0;
+    }
+    size = GetEnvironmentVariableA("WINEPREFIX", prefix, sizeof(prefix));
+    if (!size || size >= sizeof(prefix) || prefix[0] != '/')
+    {
+        fputs("Run this check through an explicit owned Wine prefix.\n", stderr);
+        return 0;
+    }
+    return 1;
+}
+
 static int trust_fixture(const char *path)
 {
     unsigned char certificate[16385];
@@ -67,6 +87,7 @@ int main(int argc, char **argv)
     int result = 1;
     BOOL received;
 
+    if (!require_wine_prefix()) return 1;
     if (argc == 2 && !strcmp(argv[1], "--bootstrap"))
     {
         puts("Isolated Windows check started; no credentials requested.");

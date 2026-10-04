@@ -242,10 +242,14 @@ public DER into the private Wine prefix's current-user registry ROOT store,
 never the native macOS trust configuration. Proxy use, authentication, cookies
 and redirects are disabled; certificate-ignore flags are never enabled.
 A separate native TLS request controls fixture readiness, not Windows validation.
+The PE helper also requires Wine's actual ntdll export and an explicit absolute
+`WINEPREFIX` before certificate access or HTTP. Its trust-write invocation was
+executed on native Windows and refused with exit 1 before opening the fixture;
+the same executable still passes all three Wine cases.
 
 | Observed PE component | SHA-256 |
 |---|---|
-| Original TLS check | `4cd7da9b607d17bb52d17ad46a919d214329a73fe28d93abefff66c3732b015d` |
+| Original TLS check with host refusal | `2b5ad08d4abdde7895e99b029a49a4ed9b7f649700f869e3b8b4cddf1cf82d49` |
 | Corrected WinHTTP DLL | `ce7e92f95ef993778c2656fcfe69ff8e862f6b7796ba1ab9885d428cddee37ff` |
 
 All four actual RPS cases still passed after callback extraction. The eighteen

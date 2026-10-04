@@ -130,3 +130,8 @@ runtime certificate. No Wine loader, credential exchange or game was executed.
 The host loader's architecture, its dependencies and prefix, service/profile
 pairing, Winsock execution and licensed gameplay still need separate proof
 before this candidate can be offered as a playable runtime.
+
+A separate [public macOS host probe](../public-macos/README.md) now builds
+genuine x64 Mach-O loader/server/ntdll components with original platform guards.
+It is still a partial build without runtime execution or licensed-operation
+proof, and must not be treated as a supported pair.

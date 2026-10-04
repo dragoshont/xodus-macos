@@ -251,4 +251,37 @@ evidence's exact source pin and native check totals.
 Source closure is not a working-login certificate. The parent authorized an
 additive immutable CLI build followed by separate app signing, fresh owned-pair
 checks and an actual native retry under the user's existing authorization.
-Those operational steps remain pending; the existing signed pair is unchanged.
+The backend owner sealed the new unsigned CLI with SHA256
+`8a4b8d56aad18841326834e5ad57860072560f4739963323875ffa52d41a545b` and
+provenance SHA256
+`2d7b372e3df8030ade83952d35f73f6cae74cf61075082ddd9aabd08c62438a6`.
+The parent independently verified its arm64 executable header, immutable
+ownership/mode/size/hash and exact reviewed source/native-proof provenance.
+Only inert help and anonymous HELLO were exercised by the builder; existing
+capabilities and original artifacts were preserved.
+
+The app owner then built and separately signed the new pair, preserving the
+unsigned original. Its signed engine has SHA256
+`125a05dd0a2a577cc8fc71e4d3eaf324b9c70b3d409a54fd5b0eeef17ad45cf4`;
+the app executable has SHA256
+`b168a78e42bffc40bbb8e65379a3b117734939b4c2b4926f6aac06746e199607`.
+After fresh idle/noncommitting guards, the older pair was gracefully retired
+without signals. The parent independently verified the new bundle signature,
+both executable hashes and the specific app/engine process relationship.
+The embedded engine's actual path is
+`Contents/Resources/XodusEngine/xodus-cli`; the previously recorded MacOS
+subdirectory must not be assumed.
+
+One actual native Sign In action on this new pair still failed at
+`AUTH_INVALID / devicePreparation / tokenCipherInvalid`. No pending progress,
+cancel control, owned auth child or owned auth window remained. The failure is
+from the new engine, not a stale old deployment. It narrows the refusal to
+serialized token XML bounds, reparsing or encoded cipher structure, without
+establishing the particular cause. The failed Account state is retained while
+the backend owner traces those guards with isolated source/model fixtures.
+There is still no working Microsoft login window or authenticated Store proof.
+
+The user's current priority is explicit: fix authentication first, then verify
+and correct the modern macOS UI. The requested toolkit audit remains deferred;
+SwiftUI imports, accessibility roles and successful compilation alone are not
+proof of native system-control styling or macOS 27 design conformance.

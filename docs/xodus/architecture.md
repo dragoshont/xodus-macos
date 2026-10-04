@@ -147,8 +147,28 @@ entry, not a public C95 management operation. It accepts bounded, strict
 configuration JSON on stdin and returns a generation plan as JSON on stdout,
 before credential-manager or logging initialization. Invalid input must fail
 with static nonzero errors. Planning must not invoke a provider, runtime,
-filesystem discovery or GUI. The backend is implementing this boundary; native
-app selection and plan consumption remain unfinished.
+filesystem discovery or GUI. The backend boundary is published separately at
+`9ef0f298481fb48840734b538e0f6d22e1c98ff3`, tree
+`8b2f7abb54f91e347afe013eee18c93873b111a5`, atop the unchanged authentication
+source pin. Native app selection and plan consumption remain unfinished.
+
+The parent reviewed the seven-file planning delta, including startup before
+account/log initialization, explicit stdin EOF, the 16,384-byte input limit,
+strict configuration parsing and output-failure handling. No additional
+high-confidence source blocker was found. The owner reports 12 selected native
+checks (six provider, four stream and two argument checks), 46 schema checks
+and scoped lint/check/C95 validation. The parent independently verified all
+200 sealed archive files against all 200 immutable Git blobs, with no disk
+extraction. Archive SHA-256 is
+`8f1e55a6872e6ca92767b40841a295943a6d09f4042f140004efbdceddafa2f8`;
+the unchanged certificate is
+`46eff7f37b9c45a861010fe63263de8a7c1adb39b2a719e9c8a184c9889b1da4`.
+The canonical schema SHA-256 is
+`90c094e4585af059b5ebcfc3201260362e88aa642b50ec0388a03427260d55e9`,
+and fixtures SHA-256 is
+`76a0d791c99a6c77e12581a4361dbe6e37a0dbd29f2e556ef292bbbc360bc40c`.
+These source checks do not qualify the still-unfinished consumer integration,
+an installed runtime or a game.
 
 Each engine/backend generation needs an isolated prefix. Existing bottles and
 saves must not be reused, migrated or deleted silently when a selection changes.
@@ -589,9 +609,9 @@ checks, plus reproducible SVG output. The latter use detached synthetic WebKit,
 with no visible window or activation, not a Microsoft provider session.
 Compact search policy, actual detached 32/220-point editor geometry and native
 control behavior are covered; compositor tint and whole-toolbar live geometry
-remain unverified. The new paired adversarial source review withholds combined
-approval because of the two authentication-host defects described below;
-passing hosted checks do not close those defects.
+remain unverified. The initial paired review found two authentication-host
+defects; the separate consumer correction and scoped re-review below close
+those source blockers without granting live visual or operational approval.
 
 ### Swift-owned authentication host: source migration
 
@@ -614,7 +634,7 @@ cannot be supplied merely by translating Wry to Swift or adding a Microsoft
 domain locally. The fork's separate Xbox Live OAuth/XSTS route has not been
 shown equivalent to the required Passport Store proof; a system-browser URL
 callback is not a substitute for the existing ServerData exchange.
-The source migration is frozen at producer
+The initial source migration was frozen at producer
 `94353b5cc3196a2b73b89655855ec50c31d35b81` and consumer
 `ced5ff9778ae00538d3d286d49997d7ba2d67ab1`. The parent independently verified the
 producer commit and tree `96bf643d6ef58364546513dba340ecbc27d1466f`.
@@ -631,7 +651,9 @@ and adjacent certificate (27,259 bytes, SHA-256
 `56c140a930730005f1374d3b978ecb9db8b0d8aa51726f99fb1c3d446f062171`).
 Both were stable, single-link regular files owned by UID 501 with mode `0400`,
 opened without following symlinks. This verifies the immutable artifacts'
-integrity, not paired review approval; their contents were not changed.
+integrity; all 195 archive files also match all 195 published Git blobs, without
+disk extraction. Their contents were not changed, and artifact integrity alone
+does not grant paired review approval.
 
 The implementation retains the original remaining deadline, continuously
 monitors the parent channel, and requires matching clean helper closure,
@@ -649,11 +671,29 @@ direct flat seven-string DA notification because it recognizes only a nested
 `DAProperty` wrapper. Separately, continuation handling in
 `Sources/XodusAuthHost/AuthHostMain.swift` can send readiness before the
 outstanding DA writer finishes, causing a false private-channel protocol
-failure. Strict direct-notification parity and a shared writer-drain/failure
-fence are being corrected with deterministic regressions. Producer `94353b5`
-remains unchanged. Combined source closure requires a new immutable consumer
-pin and review of those corrections; the baseline's 548 checks are not evidence
-that these paths are fixed.
+failure. Both are corrected separately at consumer
+`6196399e7390eca854a5c50a1a4356287041c565`, tree
+`fc7b0d7e2225f5572fa10d96384d4ef1a8369deb`; producer `94353b5` remains unchanged.
+Direct exact-seven-field notifications now use the existing strict decoder,
+with malformed/type/extra-field rejection and wrapped/context behavior
+preserved. Navigation readiness and close acknowledgement share an output
+fence that awaits the writer and rejects its recorded failure. A deterministic
+anonymous-channel test holds writer completion after full frame delivery,
+reproduces the unfenced failure and confirms ordered readiness and failed-write
+rejection; the scheduling hook is nil in production.
+
+The retained review inspected the immutable six-file correction and closed
+both original blockers with high confidence, finding no significant new
+regression in that delta. Its disposition is limited to those corrections;
+the separate runtime-planning source and future consumer wiring were excluded.
+The owner reports a new native release with 562 passing checks. The parent also
+independently verified the exact correction's normal push
+[hosted run 37208819522](https://github.com/dragoshont/xodus-macos-app/actions/runs/37208819522):
+Xcode 27.0 build `27A266a`, SDK 27.0, macOS 27.0, and 14 core, 267 management,
+50 preview, 144 mock native-session and 87 private-host checks, all with zero
+failures, plus reproducible SVG output. Detached synthetic WebKit remained
+nonvisible and inactive; no provider request was involved. This is fresh
+correction evidence, not inherited qualification from the baseline's 548 checks.
 
 New operational artifacts, deployment and authentication attempts remain
 separately gated and paused. Passing source fixtures and hosted compilation

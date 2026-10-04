@@ -9,15 +9,46 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use xodus::tokens::TokenManager;
 
-mod connection;
-mod simple_context;
 mod utils;
-
-const XML_MAGIC: u32 = 0x58445358;
-const PROTO_MAGIC: u32 = 0x58445350;
+use xodus_service::connection;
 
 #[tokio::main]
 async fn main() {
+    let arguments: Vec<_> = std::env::args_os().skip(1).collect();
+    if !arguments.is_empty() {
+        if arguments.len() != 2 || arguments[0] != "--management-socket" {
+            eprintln!("Expected --management-socket with one absolute private Unix path");
+            std::process::exit(1);
+        }
+        let Some(path) = arguments[1].to_str() else {
+            eprintln!("Private runtime socket path must be valid UTF-8");
+            std::process::exit(1);
+        };
+        if !xodus::secrets::management_native_keychain_enabled() {
+            eprintln!(
+                "Isolated runtime broker requires native macOS Keychain without plaintext fallback"
+            );
+            std::process::exit(1);
+        }
+        if xodus::secrets::init_secrets().is_err() {
+            eprintln!("Isolated native credential storage initialization failed");
+            std::process::exit(1);
+        }
+        let cancellation = CancellationToken::new();
+        let trigger = cancellation.clone();
+        tokio::spawn(async move {
+            if tokio::signal::ctrl_c().await.is_err() {
+                eprintln!("Private runtime shutdown signal handler failed");
+            }
+            trigger.cancel();
+        });
+        let tokens = Arc::new(TokenManager::with_management_keychain_and_memory());
+        if let Err(error) = xodus_service::isolated::serve(path, tokens, cancellation).await {
+            eprintln!("Isolated runtime broker failed: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     let filter = tracing_subscriber::EnvFilter::from_env("XODUS_LOG");
     let registry =
         tracing_subscriber::registry().with(tracing_subscriber::fmt::layer().with_filter(filter));

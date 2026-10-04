@@ -1,8 +1,5 @@
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use xodus::models::live::ExchangeUserTokenOutcome;
-use xodus::models::secrets::Token;
-use xodus::models::soap;
-use xodus::models::xgameruntime::xuser::{MSATokenRequest, MSATokenResponse};
+use xodus::models::xgameruntime::xuser::MSATokenRequest;
 use xodus::proto::xodus::XodusMessageType;
 
 use crate::XML_MAGIC;
@@ -13,11 +10,25 @@ pub async fn handle(
     context: &mut SimpleContext,
 ) -> tokio::io::Result<()> {
     tracing::debug!("Parsing XML");
-    let message_type = super::request_type(socket.read_u16_le().await?)?;
-    let message_size = socket.read_u16_le().await?;
-    let mut buffer = vec![0; message_size as usize];
-    tracing::debug!("Reading buffer {message_size}");
-    socket.read_exact(&mut buffer).await?;
+    let read = async {
+        let message_type = super::request_type(socket.read_u16_le().await?)?;
+        let message_size = socket.read_u16_le().await?;
+        let mut buffer = vec![0; message_size as usize];
+        socket.read_exact(&mut buffer).await?;
+        Ok::<_, tokio::io::Error>((message_type, buffer))
+    };
+    let (message_type, buffer) = if context.management_profile {
+        tokio::time::timeout(std::time::Duration::from_secs(10), read)
+            .await
+            .map_err(|_| {
+                tokio::io::Error::new(
+                    tokio::io::ErrorKind::TimedOut,
+                    "Private runtime payload deadline expired",
+                )
+            })??
+    } else {
+        read.await?
+    };
     tracing::debug!("Read buffer");
     let out_buf = parse_message(context, message_type, buffer)
         .await
@@ -26,7 +37,18 @@ pub async fn handle(
         })?;
 
     let data = super::encode_message(XML_MAGIC, message_type as u16 + 1, out_buf)?;
-    socket.write_all(&data).await
+    if context.management_profile {
+        tokio::time::timeout(std::time::Duration::from_secs(2), socket.write_all(&data))
+            .await
+            .map_err(|_| {
+                tokio::io::Error::new(
+                    tokio::io::ErrorKind::TimedOut,
+                    "Private runtime response deadline expired",
+                )
+            })?
+    } else {
+        socket.write_all(&data).await
+    }
 }
 
 pub async fn parse_message(
@@ -39,87 +61,8 @@ pub async fn parse_message(
         XodusMessageType::MsaTokenRequest => {
             let string_buf = std::str::from_utf8(&buffer)?;
             let req = quick_xml::de::from_str::<MSATokenRequest>(string_buf)?;
-            let Token::Legacy(token) = context.tokens().get_user_sts_token()? else {
-                return Ok(vec![]);
-            };
-            let scope = if req.msa_full_trust {
-                "service::user.auth.xboxlive.com::MBI_SSL"
-            } else {
-                "xboxlive.signin"
-            };
-            let device_token = context.device_token.as_ref().unwrap();
-            let device_token_resp = xodus::api::live::exchange_device_token(
-                &context.client,
-                device_token.clone(),
-                "{28C08266-F973-4AE6-FFE4-409B249F138F}".to_string(),
-                "scope=service::user.auth.xboxlive.com::MBI_SSL".to_owned(),
-                Some(soap::PolicyReference::token_broker()),
-            )
-            .await;
-
-            let ms_device_rps_token = if let Some((Token::Compact(ms_device_token), Ok(lifetime))) =
-                device_token_resp.ok().map(|t| {
-                    let expiry = chrono::DateTime::parse_from_rfc3339(&t.lifetime.expires);
-                    (t.into(), expiry)
-                }) {
-                Some((ms_device_token, lifetime.timestamp()))
-            } else {
-                None
-            };
-
-            let user_token = xodus::api::live::exchange_user_token(
-                &context.client,
-                token,
-                "USERNAME".to_string(),
-                device_token.clone(),
-                None,
-                Some("Silent".to_string()),
-                req.client_id.clone(),
-                &[
-                    (
-                        format!("scope={scope}&api-version=2.0&clientid={}", req.client_id),
-                        Some(soap::PolicyReference::token_broker()),
-                    ),
-                    ("http://Passport.NET/tb".to_string(), None),
-                ],
-            )
-            .await?;
-
-            match user_token {
-                ExchangeUserTokenOutcome::Issued(
-                    soap::BodyContent::RequestSecurityTokenResponseCollection(mut collection),
-                ) => {
-                    if let Some(sts) = collection.security_tokens.pop() {
-                        let address = sts.applies_to.endpoint_reference.address.clone();
-                        let sts: Token = sts.into();
-                        let address = if let Token::Legacy(legacy) = &sts {
-                            legacy.key_name.clone().unwrap_or(address)
-                        } else {
-                            address
-                        };
-                        if let Err(err) = context.tokens().save_user_token(address, sts) {
-                            tracing::warn!("Failed to persist refreshed STS token: {err}");
-                        }
-                    }
-                    let token = collection.security_tokens.remove(0);
-                    let expiry = chrono::DateTime::parse_from_rfc3339(&token.lifetime.expires)?;
-                    let token: Token = token.into();
-                    let Token::Compact(user_token) = token else {
-                        return Ok(vec![]);
-                    };
-                    let payload = MSATokenResponse {
-                        token: user_token,
-                        expiry: expiry.timestamp(),
-                        device_expiry: ms_device_rps_token.as_ref().map(|(_, r)| *r).unwrap_or(0),
-                        device_rps: ms_device_rps_token
-                            .map(|(t, _)| t)
-                            .unwrap_or_else(String::new),
-                    };
-                    let payload = quick_xml::se::to_string(&payload)?;
-                    Ok(payload.as_bytes().to_vec())
-                }
-                _ => todo!("Error handling sill sucks"),
-            }
+            let payload = crate::rps::exchange(context, req).await?;
+            Ok(quick_xml::se::to_string(&payload)?.into_bytes())
         }
         _ => Err("Unimplemented".into()),
     }

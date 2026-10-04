@@ -19,6 +19,8 @@ pub enum RSTError {
     HmacKey,
     #[error("Response contains an invalid encrypted payload")]
     InvalidEncryptedPayload,
+    #[error("Response contains an unexpected token result")]
+    InvalidTokenResponse,
     #[error("Unable to decrypt response")]
     Decryption,
     #[error("Decrypted response is not valid UTF-8")]

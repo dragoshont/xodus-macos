@@ -7225,6 +7225,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "console-subscriber",
+ "libc",
  "quick-xml 0.42.0",
  "reqwest 0.13.4",
  "serde_json",

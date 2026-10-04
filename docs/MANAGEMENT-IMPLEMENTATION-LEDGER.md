@@ -16,7 +16,7 @@ review remain independently owned. No automatic merge or game launch.
 | COMPAT-01 | No verified/experimental compatibility fabricated, runtimeFingerprint null | Exact signed/distributable runtime/OS evidence and opt-in experimental policy |
 | PLAN-01 | Local manifest size overflow, free-space allocation recheck and SHA256 validation implemented/tested; wire plan remains error-only | Authenticated complete MSIXVC file/hash semantics, expanded/staging/rollback estimates, immutable authorized plan |
 | QUEUE-01/02 | Actual public-catalog refresh jobs: atomic ordered state/events, snapshots/replay, idempotency, revisions, cancellation, bounded retries, interrupted recovery | Install/download/extract jobs are not connected; local transaction tests are not live package queue proof |
-| PLAY-01 | game.launch returns RUNTIME_MISMATCH without spawning game/runtime | Certified exact paired runtime, license/entitlement policy, real supervised process outcomes |
+| PLAY-01 | game.launch returns RUNTIME_MISMATCH without spawning game/runtime; separate explicit private native RPS broker with checked real SOAP handler, owned socket/memory regressions and no default/global fallback | Real Store/RPS issuance, public native shim client and certified exact paired runtime, license/entitlement policy, real supervised process outcomes |
 | UPDATE-01 | Local file-set verify/atomic promote, retained version re-verification/rollback, interrupted journal recovery with save separation | Authorized package provider, complete extracted manifests and real install/update integration |
 | REMOVE-01 | UUID-owned uncommitted staging disposal refuses escapes/unexpected files and leaves saves | User-confirmed live installation removal and separate save policy; wire removal remains gated |
 | SETTINGS-01/PRIV-01 | Typed bounded diagnostics counts, no accounts/paths/tokens/URLs, no log subscriber in management/helper, plaintext fallback refused | Independent final public-source/privacy review and manual export/UI validation |
@@ -112,6 +112,50 @@ JSON Schema fixture checks are explicitly separate from live public API checks.
 Never hash CRLF worktree bytes as if they were the Git blob.
 
 ## Verified results
+
+### Checked RPS handler and explicit isolated native broker
+
+The Rust service now has a reusable checked handler and caller-owned
+`route_management` context, plus the explicit
+`--management-socket <absolute-private-Unix-path>` process entrypoint.
+It uses only the native launcher profile, an existing local owned 0700 parent,
+one 0600 socket, same-UID peers and descriptor/inode-bounded cleanup. No default
+socket/profile, symlink, existing-entry replacement, provisioning, plaintext
+fallback or implicit consent is permitted. No-argument legacy service is
+unchanged and was not started. Client config is agreed as nonsecret raw absolute
+`XODUS_RUNTIME_SOCKET`, without global fallback.
+
+Real SOAP device/user issuance is wired with the actual username, strict audience,
+type/expiry/size checks, complete user+device tickets and checked ordered or
+reordered refreshed-STS parsing. Empty/device-failed/fault/missing/duplicate
+responses fail rather than panic or return empty tickets. Native profile is
+rechecked before returning, without native credential mutations. Exact audience
+echo/cardinality assumptions still require live issuance proof; tests are not
+successful endpoint authorization. Existing generic device exchange now rejects
+an empty/unexpected response collection without indexing/panicking.
+
+Native scoped run: **113 Rust checks** (70 management, 7 CLI, 13 core,
+23 service), plus separate management and service plaintext-fallback refusal
+checks, management and service-library clippy with warnings denied, both native
+builds, unchanged 79/20/4 fixtures and six/six detail rejection checks. Service
+binary-wide clippy exposes the pre-existing unchanged `utils.rs` needless-return
+warning; the changed library passes. Actual owned private process checks verify
+framing/ping, invalid MSA syntax before any credential getter, continued usability,
+empty public stdout and socket cleanup. Actual public detail/jobs/replay/reconnect/
+discovery/query and synthetic read-only selected-folder checks also pass.
+No valid MSA/account ticket request, human consent, external/private game folder,
+entitled package, public/private runtime or gameplay was executed.
+
+Immutable unsigned artifacts under the same owned tooling root:
+`artifacts/xodus-service-rps-v1-718973decb45201c`, SHA256
+`718973decb45201c8a4a924650432c2d1f3b375e2b574c41f82ffe29edf7c3b6`;
+`artifacts/xodus-cli-rps-v1-0a09062e2e132183`, SHA256
+`0a09062e2e1321833d28b59ef5116620a336cc794eec85992a6d3614753e77f8`.
+Schema remains c95c3fab; no protocol command or launch capability changed.
+The coordinator reports retained reviewer closure of R01-R07 and approval of
+the inspection primitive/adapter **source/regression only**. This new RPS/broker
+delta still requires the same retained reviewer; runtime/client/account proof
+and all product release gates remain active.
 
 ### Connected native read-only selected-folder inspection
 

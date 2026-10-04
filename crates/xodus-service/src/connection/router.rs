@@ -8,31 +8,67 @@ use xodus::tokens::TokenManager;
 use crate::simple_context::SimpleContext;
 
 pub async fn route(
-    mut socket: tokio::net::UnixStream,
+    socket: tokio::net::UnixStream,
     token: CancellationToken,
     device_token: LegacyToken,
     tokens: Arc<TokenManager>,
 ) {
+    let context = match SimpleContext::new(device_token, tokens) {
+        Ok(context) => context,
+        Err(_) => {
+            tracing::error!("Runtime HTTP client initialization failed");
+            return;
+        }
+    };
+    if route_context(socket, token, context).await.is_err() {
+        tracing::error!("Runtime connection failed");
+    }
+}
+
+pub async fn route_management(
+    socket: tokio::net::UnixStream,
+    token: CancellationToken,
+    tokens: Arc<TokenManager>,
+) -> std::io::Result<()> {
+    let context = SimpleContext::management(tokens)?;
+    route_context(socket, token, context).await
+}
+
+async fn route_context(
+    mut socket: tokio::net::UnixStream,
+    token: CancellationToken,
+    mut context: SimpleContext,
+) -> std::io::Result<()> {
     let cred = socket.peer_cred().ok().and_then(|cred| cred.pid());
     tracing::debug!("Connection from pid {cred:?}");
-
-    let mut context = SimpleContext::new(device_token, tokens);
     loop {
         let mut read_magic = [0; 4];
         let read = tokio::select! {
             biased;
-            _ = token.cancelled() => return,
-            read = socket.read_exact(&mut read_magic) => read,
+            _ = token.cancelled() => return Ok(()),
+            read = async {
+                if context.management_profile {
+                    tokio::time::timeout(std::time::Duration::from_secs(10),
+                        socket.read_exact(&mut read_magic)).await
+                        .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut,
+                            "Private runtime header deadline expired"))?
+                } else { socket.read_exact(&mut read_magic).await }
+            } => read,
         };
         if let Err(err) = read {
-            tracing::error!("Failed to read magic: {err:?}");
-            return;
+            if err.kind() == std::io::ErrorKind::UnexpectedEof {
+                return Ok(());
+            }
+            return Err(std::io::Error::new(
+                err.kind(),
+                "Runtime header read failed",
+            ));
         }
 
         let magic = u32::from_le_bytes(read_magic);
         let res = tokio::select! {
             biased;
-            _ = token.cancelled() => return,
+            _ = token.cancelled() => return Ok(()),
             res = async {
                 match magic {
                     crate::XML_MAGIC => super::xml::handle(&mut socket, &mut context).await,
@@ -46,8 +82,7 @@ pub async fn route(
         };
 
         if let Err(err) = res {
-            tracing::error!("There was an error handling the message: {err}");
-            return;
+            return Err(std::io::Error::new(err.kind(), "Runtime request failed"));
         }
     }
 }
@@ -181,6 +216,39 @@ mod tests {
     async fn unknown_magic_closes_without_a_reply() {
         let (mut client, _, task) = start_route();
         client.write_all(&0u32.to_le_bytes()).await.unwrap();
+        closed_without_reply(&mut client, task).await;
+    }
+
+    #[tokio::test]
+    #[cfg(target_os = "macos")]
+    async fn isolated_route_pings_without_credentials_and_refuses_signed_out_rps() {
+        if !xodus::secrets::management_native_keychain_enabled() {
+            return;
+        }
+        let (mut client, server) = UnixStream::pair().unwrap();
+        let tokens = Arc::new(TokenManager::with_management_backend(Arc::new(
+            xodus::tokens::backend::MemoryBackend::default(),
+        )));
+        let task = tokio::spawn(async move {
+            assert!(
+                route_management(server, CancellationToken::new(), tokens)
+                    .await
+                    .is_err()
+            );
+        });
+        let ping = super::super::encode_message(crate::XML_MAGIC, 1, b"isolated".to_vec()).unwrap();
+        client.write_all(&ping).await.unwrap();
+        let expected =
+            super::super::encode_message(crate::XML_MAGIC, 2, b"isolated".to_vec()).unwrap();
+        let mut reply = vec![0; expected.len()];
+        tokio::time::timeout(Duration::from_secs(2), client.read_exact(&mut reply))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(reply, expected);
+        let request = super::super::encode_message(crate::XML_MAGIC, 3,
+            b"<MSATokenRequest><ClientId>000000004424da1f</ClientId><MSAFullTrust>true</MSAFullTrust></MSATokenRequest>".to_vec()).unwrap();
+        client.write_all(&request).await.unwrap();
         closed_without_reply(&mut client, task).await;
     }
 }

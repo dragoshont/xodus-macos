@@ -79,13 +79,23 @@ pub async fn exchange_device_token(
 
     let envelope = request.request(client).await?;
 
-    match envelope.body.body {
+    single_device_response(envelope.body.body)
+}
+
+fn single_device_response(
+    body: soap::BodyContent,
+) -> Result<soap::RequestSecurityTokenResponse, rst::RSTError> {
+    match body {
         soap::BodyContent::RequestSecurityTokenResponse(res) => Ok(*res),
-        soap::BodyContent::RequestSecurityTokenResponseCollection(mut collection) => {
-            let token = collection.security_tokens.remove(0);
-            Ok(token)
+        soap::BodyContent::RequestSecurityTokenResponseCollection(mut collection)
+            if collection.security_tokens.len() == 1 =>
+        {
+            collection
+                .security_tokens
+                .pop()
+                .ok_or(rst::RSTError::InvalidTokenResponse)
         }
-        b => unimplemented!("Exchange token supports only singular token right now {b:?}"),
+        _ => Err(rst::RSTError::InvalidTokenResponse),
     }
 }
 
@@ -154,6 +164,16 @@ mod test {
     use crate::models::soap;
     use crate::tokens::TokenManager;
     use crate::tokens::device::ensure_device_credentials;
+
+    #[test]
+    fn management_device_response_rejects_empty_and_unexpected_body_without_panicking() {
+        let empty = soap::BodyContent::RequestSecurityTokenResponseCollection(
+            soap::RequestSecurityTokenResponseCollection {
+                security_tokens: vec![],
+            },
+        );
+        assert!(super::single_device_response(empty).is_err());
+    }
 
     #[tokio::test]
     async fn test_get_xbox_live_dev_token() {

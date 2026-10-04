@@ -32,6 +32,10 @@ pub struct TokenManager {
 }
 
 impl TokenManager {
+    pub fn is_management_profile(&self) -> bool {
+        self.management_profile
+    }
+
     pub fn new(
         persistent: Arc<dyn TokenBackend>,
         ephemeral: Arc<dyn ExpiringTokenBackend>,

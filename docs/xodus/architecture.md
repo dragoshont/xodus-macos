@@ -31,7 +31,57 @@ Transport regression tests use unnamed local socket pairs and memory-backed
 token storage; they do not start the service or access accounts.
 Run them on a supported Unix host with `cargo test --locked -p xodus-service`.
 This boundary is not a version handshake or gameplay certification. The legacy
-service still uses its default credential profile and platform runtime socket;
-the native launcher must not attach to or start it as an isolated management
-service. A scoped credential/endpoint integration and a validated public
-Wine/shim/service pairing remain necessary.
+no-argument service still uses its default credential profile and platform
+runtime socket; the native launcher must not attach to or start that mode.
+
+### Isolated native broker
+
+The explicit `xodus-service --management-socket <absolute-private-Unix-path>`
+entrypoint uses only the isolated launcher credential profile. It never falls
+back to `/tmp/xodus.sock`, the ordinary CLI/service profile, plaintext keyring or
+device provisioning. The existing parent directory must be local, owned by the
+effective user, exactly mode 0700 and reachable without symlinks. Paths must be
+normalized UTF-8 and at most 103 bytes. An existing entry is refused, never
+removed/replaced. The created socket is mode 0600; only same-UID peers are
+accepted. Cleanup uses the retained directory descriptor and the exact original
+socket device/inode, leaving any replacement unchanged.
+
+The paired client configuration is `XODUS_RUNTIME_SOCKET`, containing **only**
+that raw absolute Unix path. The broker receives its path explicitly in argv;
+it does not read this environment variable or discover a global service.
+No credentials enter argv, environment, management stdout, diagnostics or logs.
+The isolated mode initializes no tracing subscriber even when logging variables
+request trace output. Merely starting it or pinging does not read credentials,
+provision a device, start consent or start a game.
+
+The same XML wire uses Ping 1/2 and MSA 3/4. MSA requests have `ClientId` (exactly
+16 ASCII hexadecimal characters), `AllowUi` and `MsaFullTrust`; `MSAFullTrust` is
+also accepted for existing clients. Unknown fields fail. `AllowUi` is permission,
+not a request to open a window: the broker always attempts silent issuance and
+returns an explicit Rust consent-required error for an upstream user fault.
+The wire has no invented error ABI: invalid/failed requests close without a
+success-shaped ticket response.
+
+The handler reuses real NativeTokenBroker/SOAP device/user exchange functions.
+It uses the actual stored username, checks the requested audience, token kind,
+nonempty bounded ticket, expiry and complete user/device result instead of
+positional collection assumptions, swallowed failures or panics. The response
+has all four required fields: `Token`, `Expiry`, `DeviceRps`, `DeviceExpiry`
+(UTC seconds). Management credentials are read noninteractively and rechecked
+for the same live profile before returning tickets. The broker never writes or
+rotates the launcher bundle; native consent owns its atomic writes. Ordinary
+legacy refreshed-STS persistence errors are now propagated.
+
+Limits: eight concurrent connections; ten-second magic/payload reads;
+two-second response writes; two-second credential IO result deadlines with four
+permits held until already-started OS reads finish; thirty-second ticket exchange
+including final profile reconciliation. Cancellation closes owned requests and
+connections. The native process smoke verifies ping, refusal of malformed MSA
+requests **before** credential reads, a subsequent usable connection and exact
+owned-socket cleanup. Other tests use unnamed sockets and memory-only profiles.
+`tools/smoke_runtime.py` is not live RPS issuance or runtime evidence.
+
+The public shim's `get_rps_tickets` remains a separate consumer integration.
+No management launch capability is enabled: live Store issuance, actual
+user/device audience evidence, an exact public native shim/Wine/service pairing,
+compatibility and signed/distributable runtime certification remain necessary.

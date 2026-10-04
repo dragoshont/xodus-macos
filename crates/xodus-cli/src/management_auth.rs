@@ -25,6 +25,9 @@ fn device_failure(error: xodus::tokens::device::DeviceCredentialError) -> Sessio
             DeviceProofFailure::TokenKind => ConsentFailure::DeviceTokenKind,
             DeviceProofFailure::TokenAudience => ConsentFailure::DeviceTokenAudience,
             DeviceProofFailure::TokenCipher => ConsentFailure::DeviceTokenCipher,
+            DeviceProofFailure::TokenXmlBound => ConsentFailure::DeviceTokenXmlBound,
+            DeviceProofFailure::TokenXmlParse => ConsentFailure::DeviceTokenXmlParse,
+            DeviceProofFailure::TokenCipherEncoding => ConsentFailure::DeviceTokenCipherEncoding,
             DeviceProofFailure::TokenSecret => ConsentFailure::DeviceTokenSecret,
         },
     })
@@ -287,6 +290,20 @@ mod tests {
             (
                 DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenCipher),
                 ConsentFailure::DeviceTokenCipher,
+            ),
+            (
+                DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenXmlBound),
+                ConsentFailure::DeviceTokenXmlBound,
+            ),
+            (
+                DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenXmlParse),
+                ConsentFailure::DeviceTokenXmlParse,
+            ),
+            (
+                DeviceCredentialError::InvalidBrokerProofAt(
+                    DeviceProofFailure::TokenCipherEncoding,
+                ),
+                ConsentFailure::DeviceTokenCipherEncoding,
             ),
             (
                 DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenSecret),

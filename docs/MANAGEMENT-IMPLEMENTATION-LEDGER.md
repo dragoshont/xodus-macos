@@ -179,7 +179,143 @@ Historical milestone evidence and then-pending reviews below do not override
 this status; genuinely new source deltas still require an immutable handoff to
 the parent-owned continuity reviewer.
 
-### XML base64 lexical compatibility and four structure subsites
+### Agreed cipher subsites: diagnostic-only refinement
+
+The coordinator reports that the same continuity reviewer closed the combined
+2acb/bace and app 5ae/da0 source review without significant issues. The
+backend then built reviewed, app-unmodified CLI 8a4b with inert help/anonymous
+hello only; all prior artifact pins remained unchanged. Separately, the sole
+app owner reports one fresh authorized entry with signed engine 125a and app
+b168 (processes 41093/41090) failed with
+`AUTH_INVALID/devicePreparation/tokenCipherInvalid`. No native auth window
+was observed, and the failed Account was held stable. These are app-owned
+observations, not backend provider execution or proof capture.
+
+Source tracing could not distinguish serialized-size, XML-reparse or encoded
+cipher rejection. One isolated native test passed **32** full-SOAP-to-checked-
+token-to-serialized-XML-to-memory combinations of empty/whitespace encryption
+method content, inherited/local namespaces, optional named-key references
+and both response forms. This is qualified positive model coverage, not a
+baseline failure, provider proof or verified acceptance bug.
+The generic XML Encryption standard and a public
+[ReLiveWP formatter/extractor at 4c991361](https://github.com/ReLiveWP/ReLiveWP/blob/4c991361af4c8c70f5769538603949570bc62d5e/src/services/ReLiveWP.Services.Login/Utilities/PassportSoap.cs)
+do not establish a valid proprietary base64url/unpadded/opaque alternative for
+the observed credential. No such alternative is accepted speculatively.
+
+The coordinator and sole app owner explicitly agreed **before implementation**
+to exactly three more `devicePreparation` reasons:
+
+| reason | unchanged rejection guard |
+|---|---|
+| `tokenXmlBoundInvalid` | Serialized credential exceeds the existing 64 KiB bound |
+| `tokenXmlParseInvalid` | Standalone `EncryptedData` cannot be reparsed |
+| `tokenCipherEncodingInvalid` | Checked XML base64 decoding rejects the cipher |
+
+All eighteen earlier pairs, including coarse `tokenCipherInvalid`, remain
+readable; the total is **twenty-one**. Details still have exactly the three
+strings `category`, `stage`, `reason`, only with `AUTH_INVALID` and fixed
+`nativeConsentFailure`. No length, byte, offset, parser message, XML, key,
+identity, endpoint or exception is exposed. The local copy says processing
+limit, required format, or encoding could not be processed, without inferring
+user fault, cryptographic failure or provider rejection.
+
+This changes classification only, not the acceptance predicate. Empty cipher
+and expiry-syntax guards retain the coarse reason; checked issuer conversion
+already requires nonempty cipher text and valid future expiry. Kind, audience,
+1 MiB response, 64 KiB token, strict XML alphabet/padding/whitespace, nonempty
+decoded cipher, 4096-byte/version-four secret, signature/nonce and lifecycle
+fences remain unchanged. The private typed worker/parent mapping and privacy
+matrix cover all twenty-one. Typed model tests verify exact three subsites,
+retained coarse guards and absence of secret-marked synthetic data in errors;
+existing malformed-response tests retain memory destinations.
+
+No new production CLI, deployed pairing, account/status lookup, provider,
+Keychain, service or window action is part of this source-only refinement.
+Native checks and a new paired source disposition by the same continuity
+reviewer are required before any new artifact. The live cause and successful
+Store issuance remain unknown/unproven.
+
+#### User-directed original CLI comparison
+
+The user reports that original Xodus could sign in. No live original CLI login
+was executed to verify that report, and no shared profile was read or imported.
+The exact inherited source compared here is
+`08b06d38c993072043e51c854213e81e662165af`, immediately before the first
+management implementation; its login/device conversion is unchanged from
+`64d171ce0bfae8903863bcfb18a098c7dd96a1a6`. The reviewed comparison target is
+`2acb452a7ee66b2c9d3ad75ecf85e2be2f94fbc3`, plus this diagnostic-only delta.
+
+| surface | inherited original CLI | current legacy CLI and management |
+|---|---|---|
+| Device initialization/cache | `main.rs` initializes the default store; `ensure_device_credentials` skips reauthentication whenever license and STS entries exist, without structural/expiry validation | Both call the same checked device initializer; malformed cached credentials are refused, expired structurally valid credentials are refreshed |
+| Profile/worker | `"Xodus Service"` stores device and user entries directly | Legacy retains that namespace; management prepares only `"Xodus Management Service"` entries, transfers an anonymous bounded bootstrap, and provisions/refreshes in memory |
+| Device conversion | `Token::from` serializes `EncryptedData` and copies the key name, secret, TPM value and lifetime; no cipher decoding or serialized bound | Checked conversion uses the same representation, adds nonempty audience/cipher and future expiry; the shared device guard additionally checks kind, STS name, 64 KiB/reparse/cipher encoding and device secret layout |
+| Native login | `LoginHandler` uses client `000000004424da1f` and native webview; no pre-window structure check | Legacy `run` and management `issue_credentials` call the same `issue_credentials_inner` and `LoginHandler`; the same device guard runs before opening a window |
+| Browser/session | Default browser data store | Management passes `isolated=true` to the same request/webview, selecting incognito; legacy passes `false` |
+| User exchange | User-auth scope first, then Passport broker scope only after inline-auth continuation; close/open continuation | Current shared handler requests both scopes and bounded trusted in-session continuation; these differences are after the observed device failure |
+| Ticket/commit | Converts issued responses without checked proof or duplicate-audience validation; saves user and tokens separately; even no output returns success | Shared checked extraction rejects missing/empty/duplicate/expired proof; management adds a complete valid Store session and active-parent-flow atomic commit/cancellation fences |
+
+Relevant current paths are `crates/xodus-cli/src/main.rs`,
+`commands/login.rs`, `management_auth.rs`, `webview.rs`,
+`crates/xodus/src/tokens/device.rs`, `tokens/manager.rs`,
+`tokens/backend/keychain.rs`, `models/secrets.rs`, and
+`crates/xodus-management/src/adapter.rs` (`prepare_consent`).
+The current management worker returns before legacy tracing/default-store
+initialization. Its client also has an explicit timeout/no-redirect policy and
+does not enable verbose connection tracing. Both current entrypoints use the
+same device SOAP request builder, `authenticate_device`, signature/nonce
+verification, and HMAC consumer; no second authentication implementation or
+different client ID exists. The inherited HMAC consumer already decoded the
+BinarySecret into 4096 bytes; it did not decode the opaque encrypted ticket's
+`CipherValue`, which was embedded through the same XML serializer.
+
+The **32** full-SOAP synthetic metadata cases now compare the exact inherited
+legacy conversion oracle with checked conversion and saved-memory
+representation field-for-field. A separate isolated test demonstrates that
+inherited conversion can serialize a deliberately invalid cipher identically,
+where the current shared guard rejects it and writes no destination. This
+proves a stricter admission point, **not** that this artificial value is valid
+provider proof or the user's live rejected value. No verified acceptance bug
+was found in this comparison. A warm original profile could take a different
+path than fresh isolated device issuance, but that possibility is not a
+diagnosis of the actual account.
+
+The shared guard changes current **legacy CLI** admission too, not only the
+management wrapper. No current CLI live success or universal absence of
+regression is claimed. Fresh issuer admission and reuse of a warm original
+profile are different paths; importing that profile would violate management
+isolation and is not a remedy. The synthetic invalid-cipher differential is
+not a normative baseline-valid proof rejected by the new guard.
+
+The reported `devicePreparation/tokenCipherInvalid` originates in the shared
+save-device guard, before `LoginHandler`/browser/user exchange/parent commit.
+It is not emitted for the malformed-cache branch (`storedCredentialInvalid`).
+Consequently window isolation, post-window scopes, user-ticket extraction and
+atomic commit cannot explain this observed rejection site. It still combines
+size, reparse, encoding, decoded-empty and expiry syntax, without revealing
+which condition occurred. The three agreed static reasons distinguish
+existing sites; they are not a login fix, and no live retry or relaxation is
+authorized by this source comparison.
+
+Owner native validation is **57 selected tests**, with zero failures: final
+device group 10 (including the 32-case conversion comparison and separate
+inherited-admission differential), SOAP nonce/signature 7, AES/reference 6,
+device/HMAC/checked-ticket 6, XML codec 3, actual worker writer 5 and parent
+lifecycle/private channel 20. Validation used the existing owned native target,
+offline/locked/jobs-one/incremental-zero configuration. The first run passed
+56; after test-only comparison additions, the final device 10 and core lint
+were rerun, retaining the other 47 unchanged groups. This is scoped composite
+owner evidence, not a new full unfiltered suite or live original CLI check.
+Core/management strict lint, CLI lint with only the two pre-existing allowances,
+CLI/live management check, touched Rust format and C95 corpus passed. The
+final tested production Rust bytes are unchanged between those runs.
+All 190 public LF source files were checked before validation; final source
+equivalence is checked again at publication. The initial setup attempt stopped
+at a shell-quoting syntax error before applying the new delta or running tests;
+it is not counted as validation. No provider/credential/default-service call
+was needed.
+
+### Earlier XML base64 lexical compatibility and four structure subsites
 
 The sole app owner reports a later, single user-directed attempt with reviewed
 bace/da0 and a separately signed CLI 342 failed with

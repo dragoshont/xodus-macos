@@ -57,25 +57,28 @@ pub fn legacy_token_structurally_valid(token: &LegacyToken) -> bool {
 pub(crate) enum DeviceTokenStructureFailure {
     Audience,
     Cipher,
+    XmlBound,
+    XmlParse,
+    CipherEncoding,
     Secret,
 }
 
 fn legacy_token_structure_failure(token: &LegacyToken) -> Option<DeviceTokenStructureFailure> {
     if token.token.len() > 64 * 1024 {
-        return Some(DeviceTokenStructureFailure::Cipher);
+        return Some(DeviceTokenStructureFailure::XmlBound);
     }
     let Ok(encrypted) = quick_xml::de::from_str::<soap::EncryptedData>(&token.token) else {
-        return Some(DeviceTokenStructureFailure::Cipher);
+        return Some(DeviceTokenStructureFailure::XmlParse);
     };
     if encrypted.key_info.key_name.as_deref() != Some(crate::tokens::PASSPORT_STS)
         || token.key_name.as_deref() != Some(crate::tokens::PASSPORT_STS)
     {
         return Some(DeviceTokenStructureFailure::Audience);
     }
-    if !soap::decode_xml_base64(&encrypted.cipher_data.cipher_value)
-        .is_ok_and(|cipher| !cipher.is_empty())
-        || chrono::DateTime::parse_from_rfc3339(&token.lifetime.expires).is_err()
-    {
+    let Ok(cipher) = soap::decode_xml_base64(&encrypted.cipher_data.cipher_value) else {
+        return Some(DeviceTokenStructureFailure::CipherEncoding);
+    };
+    if cipher.is_empty() || chrono::DateTime::parse_from_rfc3339(&token.lifetime.expires).is_err() {
         return Some(DeviceTokenStructureFailure::Cipher);
     }
     None

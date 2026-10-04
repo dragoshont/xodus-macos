@@ -33,6 +33,9 @@ pub enum DeviceProofFailure {
     TokenKind,
     TokenAudience,
     TokenCipher,
+    TokenXmlBound,
+    TokenXmlParse,
+    TokenCipherEncoding,
     TokenSecret,
 }
 
@@ -156,11 +159,23 @@ fn save_device_response(
     })?;
     let token = Token::from_response_checked(response)
         .map_err(|_| DeviceCredentialError::InvalidBrokerProofAt(DeviceProofFailure::TokenProof))?;
-    let failure = match &token {
+    validate_device_token(&token)?;
+    tokens
+        .save_device_token(PASSPORT_STS.to_owned(), token)
+        .map_err(storage_error)
+}
+
+fn validate_device_token(token: &Token) -> Result<(), DeviceCredentialError> {
+    let failure = match token {
         Token::Legacy(token) => {
             device_token_structure_failure(token).map(|failure| match failure {
                 DeviceTokenStructureFailure::Audience => DeviceProofFailure::TokenAudience,
                 DeviceTokenStructureFailure::Cipher => DeviceProofFailure::TokenCipher,
+                DeviceTokenStructureFailure::XmlBound => DeviceProofFailure::TokenXmlBound,
+                DeviceTokenStructureFailure::XmlParse => DeviceProofFailure::TokenXmlParse,
+                DeviceTokenStructureFailure::CipherEncoding => {
+                    DeviceProofFailure::TokenCipherEncoding
+                }
                 DeviceTokenStructureFailure::Secret => DeviceProofFailure::TokenSecret,
             })
         }
@@ -169,9 +184,7 @@ fn save_device_response(
     if let Some(failure) = failure {
         return Err(DeviceCredentialError::InvalidBrokerProofAt(failure));
     }
-    tokens
-        .save_device_token(PASSPORT_STS.to_owned(), token)
-        .map_err(storage_error)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -238,7 +251,7 @@ mod management_device_tests {
             response
         };
         let xml = format!(
-            "<Envelope><Header><Action>fixture-only</Action><To>synthetic.invalid</To><Security><Timestamp><Created>2000-01-01T00:00:00Z</Created><Expires>2099-01-01T00:00:00Z</Expires></Timestamp></Security></Header><Body>{body}</Body></Envelope>"
+            "<Envelope xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\" xmlns:wsse=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\"><Header><Action>fixture-only</Action><To>synthetic.invalid</To><Security><Timestamp><Created>2000-01-01T00:00:00Z</Created><Expires>2099-01-01T00:00:00Z</Expires></Timestamp></Security></Header><Body>{body}</Body></Envelope>"
         );
         quick_xml::de::from_str::<soap::Envelope>(&xml)
             .unwrap()
@@ -253,6 +266,168 @@ mod management_device_tests {
             .map(|chunk| std::str::from_utf8(chunk).unwrap())
             .collect::<Vec<_>>()
             .join(" \t\r\n")
+    }
+
+    #[test]
+    fn management_cipher_issued_legacy_xml_round_trip_preserves_supported_metadata() {
+        for collection in [false, true] {
+            for method_value in [None, Some(""), Some(" "), Some("\t\r\n")] {
+                for local_namespace in [false, true] {
+                    for reference in [false, true] {
+                        let mut response = response();
+                        let encrypted = response
+                            .requested_security_token
+                            .encrypted_data
+                            .as_mut()
+                            .unwrap();
+                        encrypted.encryption_method.val = method_value.map(str::to_owned);
+                        if !local_namespace {
+                            encrypted.key_info.ds = None;
+                        }
+                        if reference {
+                            encrypted.key_info.security_token_reference =
+                                Some(soap::SecurityTokenReference {
+                                    reference: soap::ReferenceUri {
+                                        uri: "#SyntheticTicket".to_owned(),
+                                    },
+                                });
+                        }
+                        let parsed = crate::api::live::single_device_response(
+                            decode_fixture_response(collection, response.clone()),
+                        )
+                        .unwrap();
+                        let inherited = inherited_legacy_conversion(&parsed);
+                        let checked = Token::from_response_checked(parsed).unwrap();
+                        assert_eq!(
+                            serde_json::to_value(&inherited).unwrap(),
+                            serde_json::to_value(&checked).unwrap()
+                        );
+                        let memory = Arc::new(MemoryBackend::default());
+                        let tokens = TokenManager::with_management_backend(memory.clone());
+                        save_device_response(
+                            &tokens,
+                            decode_fixture_response(collection, response),
+                        )
+                        .unwrap();
+                        let Token::Legacy(token) = tokens.get_device_sts_token().unwrap() else {
+                            panic!("Expected only a synthetic legacy proof");
+                        };
+                        assert!(device_token_structurally_valid(&token));
+                        assert_eq!(
+                            serde_json::to_value(Token::Legacy(token)).unwrap(),
+                            serde_json::to_value(inherited).unwrap()
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // Test-only oracle for the inherited 08b06d38 legacy conversion, not a provider proof.
+    fn inherited_legacy_conversion(response: &soap::RequestSecurityTokenResponse) -> Token {
+        let encrypted = response
+            .requested_security_token
+            .encrypted_data
+            .as_ref()
+            .unwrap();
+        Token::Legacy(crate::models::secrets::LegacyToken {
+            key_name: encrypted.key_info.key_name.clone(),
+            token: quick_xml::se::to_string(encrypted).unwrap(),
+            binary_secret: response
+                .requested_proof_token
+                .as_ref()
+                .map(|proof| proof.binary_secret.clone()),
+            tpm_key: response
+                .requested_proof_token
+                .as_ref()
+                .and_then(|proof| proof.encrypted_key.as_ref())
+                .map(|key| key.cipher_data.cipher_value.clone()),
+            lifetime: response.lifetime.clone(),
+        })
+    }
+
+    #[test]
+    fn inherited_conversion_serialization_is_not_checked_cipher_admission() {
+        for collection in [false, true] {
+            let mut response = response();
+            response
+                .requested_security_token
+                .encrypted_data
+                .as_mut()
+                .unwrap()
+                .cipher_data
+                .cipher_value = "SYNTHETIC_INVALID_CIPHER!".to_owned();
+            let parsed = crate::api::live::single_device_response(decode_fixture_response(
+                collection,
+                response.clone(),
+            ))
+            .unwrap();
+            let inherited = inherited_legacy_conversion(&parsed);
+            assert_eq!(
+                serde_json::to_value(&inherited).unwrap(),
+                serde_json::to_value(Token::from_response_checked(parsed).unwrap()).unwrap()
+            );
+            let Token::Legacy(inherited) = inherited else {
+                panic!("Expected only the inherited synthetic legacy conversion");
+            };
+            assert!(!device_token_structurally_valid(&inherited));
+            let memory = Arc::new(MemoryBackend::default());
+            let tokens = TokenManager::with_management_backend(memory.clone());
+            let error =
+                save_device_response(&tokens, decode_fixture_response(collection, response))
+                    .unwrap_err();
+            assert!(matches!(
+                error,
+                DeviceCredentialError::InvalidBrokerProofAt(
+                    DeviceProofFailure::TokenCipherEncoding
+                )
+            ));
+            assert!(memory.get("device-tokens").unwrap().is_none());
+        }
+    }
+
+    #[test]
+    fn management_cipher_subsites_keep_rejection_guards_static_without_acceptance_changes() {
+        let Token::Legacy(original) = Token::from_response_checked(response()).unwrap() else {
+            panic!("Expected only a synthetic legacy proof");
+        };
+        assert!(validate_device_token(&Token::Legacy(original.clone())).is_ok());
+        let mut boundary = original.clone();
+        boundary
+            .token
+            .push_str(&" ".repeat(64 * 1024 - boundary.token.len()));
+        assert_eq!(boundary.token.len(), 64 * 1024);
+        assert!(device_token_structurally_valid(&boundary));
+        assert!(validate_device_token(&Token::Legacy(boundary.clone())).is_ok());
+        let mut cases = Vec::new();
+        boundary.token.push(' ');
+        cases.push((boundary, DeviceProofFailure::TokenXmlBound));
+        let mut token = original.clone();
+        token.token = "SECRET_SENTINEL_MALFORMED_XML".to_owned();
+        cases.push((token, DeviceProofFailure::TokenXmlParse));
+        let mut token = original.clone();
+        let mut encrypted: soap::EncryptedData = quick_xml::de::from_str(&token.token).unwrap();
+        encrypted.cipher_data.cipher_value = "AA\u{00a0}==".to_owned();
+        token.token = quick_xml::se::to_string(&encrypted).unwrap();
+        cases.push((token, DeviceProofFailure::TokenCipherEncoding));
+        let mut token = original.clone();
+        let mut encrypted: soap::EncryptedData = quick_xml::de::from_str(&token.token).unwrap();
+        encrypted.cipher_data.cipher_value = " \t\r\n".to_owned();
+        token.token = quick_xml::se::to_string(&encrypted).unwrap();
+        cases.push((token, DeviceProofFailure::TokenCipher));
+        let mut token = original;
+        token.lifetime.expires = "SECRET_SENTINEL_INVALID_EXPIRY".to_owned();
+        cases.push((token, DeviceProofFailure::TokenCipher));
+        for (token, expected) in cases {
+            assert!(!device_token_structurally_valid(&token));
+            let error = validate_device_token(&Token::Legacy(token)).unwrap_err();
+            assert!(matches!(
+                error,
+                DeviceCredentialError::InvalidBrokerProofAt(site) if site == expected
+            ));
+            assert!(!error.to_string().contains("SECRET_SENTINEL"));
+            assert!(!format!("{error:?}").contains("SECRET_SENTINEL"));
+        }
     }
 
     #[test]
@@ -499,6 +674,9 @@ mod management_device_tests {
                             | DeviceProofFailure::TokenKind
                             | DeviceProofFailure::TokenAudience
                             | DeviceProofFailure::TokenCipher
+                            | DeviceProofFailure::TokenXmlBound
+                            | DeviceProofFailure::TokenXmlParse
+                            | DeviceProofFailure::TokenCipherEncoding
                             | DeviceProofFailure::TokenSecret
                     ))
                 ));
@@ -587,7 +765,21 @@ mod management_device_tests {
                         .cipher_value = "SECRET_SENTINEL_BAD_CIPHER!".to_owned();
                     response
                 },
-                DeviceProofFailure::TokenCipher,
+                DeviceProofFailure::TokenCipherEncoding,
+            ),
+            (
+                {
+                    let mut response = response();
+                    response
+                        .requested_security_token
+                        .encrypted_data
+                        .as_mut()
+                        .unwrap()
+                        .cipher_data
+                        .cipher_value = "AAAA".repeat(16 * 1024);
+                    response
+                },
+                DeviceProofFailure::TokenXmlBound,
             ),
         ] {
             let memory = Arc::new(MemoryBackend::default());

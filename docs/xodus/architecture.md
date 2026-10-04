@@ -23,7 +23,7 @@ The management Account worker uses its inherited anonymous channel, not the
 runtime socket. Failed consent stages are a closed static enum in the bounded
 private handoff; the parent maps them to existing `AUTH_INVALID` with optional
 three-string `details` (`category: nativeConsentFailure`, `stage`, `reason`).
-The eighteen agreed pairs, including the original ten and older generic
+The twenty-one agreed pairs, including the original ten and older generic
 structure reason, are documented in the
 management implementation ledger.
 No raw exception, provider response, page content or credential is serialized.
@@ -36,6 +36,11 @@ XML/signature inputs are never normalized; the existing token/response bounds,
 STS keys, 4096-byte/version-four secret and crypto checks remain enforced.
 This fixes a reproduced synthetic lexical rejection, not an established cause
 of a live user sign-in failure.
+
+The later cipher-site refinement changes only static failure classification
+at existing serialized-size, XML-reparse and encoded-cipher rejection guards.
+It preserves every earlier pair, including coarse `tokenCipherInvalid`, and
+does not claim an acceptance fix or identify the live provider response.
 
 A failed worker exit does not discard a validated failure handoff, but cannot
 promote a successful session. Missing/invalid/unobserved outcomes remain stage

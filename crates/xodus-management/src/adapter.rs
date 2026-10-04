@@ -58,6 +58,9 @@ pub enum ConsentFailure {
     DeviceTokenKind,
     DeviceTokenAudience,
     DeviceTokenCipher,
+    DeviceTokenXmlBound,
+    DeviceTokenXmlParse,
+    DeviceTokenCipherEncoding,
     DeviceTokenSecret,
     DeviceProof,
     NativeSignIn,
@@ -132,6 +135,21 @@ impl ConsentFailure {
                 "devicePreparation",
                 "tokenCipherInvalid",
                 "The device credential payload could not be processed. No account sign-in was started.",
+            ),
+            Self::DeviceTokenXmlBound => (
+                "devicePreparation",
+                "tokenXmlBoundInvalid",
+                "The device sign-in payload exceeded the supported processing limit.",
+            ),
+            Self::DeviceTokenXmlParse => (
+                "devicePreparation",
+                "tokenXmlParseInvalid",
+                "The device sign-in payload could not be read in the required format.",
+            ),
+            Self::DeviceTokenCipherEncoding => (
+                "devicePreparation",
+                "tokenCipherEncodingInvalid",
+                "The device sign-in payload encoding could not be processed.",
             ),
             Self::DeviceTokenSecret => (
                 "devicePreparation",
@@ -2137,7 +2155,7 @@ mod auth_lifecycle_tests {
     #[tokio::test]
     async fn all_failure_categories_cross_the_bounded_private_channel_as_static_details() {
         use tokio::io::AsyncWriteExt;
-        for (failure, stage, reason) in [
+        let cases = [
             (
                 ConsentFailure::Bootstrap,
                 "privateBootstrap",
@@ -2204,6 +2222,21 @@ mod auth_lifecycle_tests {
                 "tokenCipherInvalid",
             ),
             (
+                ConsentFailure::DeviceTokenXmlBound,
+                "devicePreparation",
+                "tokenXmlBoundInvalid",
+            ),
+            (
+                ConsentFailure::DeviceTokenXmlParse,
+                "devicePreparation",
+                "tokenXmlParseInvalid",
+            ),
+            (
+                ConsentFailure::DeviceTokenCipherEncoding,
+                "devicePreparation",
+                "tokenCipherEncodingInvalid",
+            ),
+            (
                 ConsentFailure::DeviceTokenSecret,
                 "devicePreparation",
                 "tokenSecretInvalid",
@@ -2224,7 +2257,11 @@ mod auth_lifecycle_tests {
                 "stageUnavailable",
                 "workerOutcomeUnavailable",
             ),
-        ] {
+        ];
+        assert_eq!(cases.len(), 21);
+        let mut observed = std::collections::BTreeSet::new();
+        for (failure, stage, reason) in cases {
+            assert!(observed.insert((stage, reason)));
             let (_temporary, mut backend) = backend();
             backend.auth_flow = Some(AuthFlow {
                 flow_id: "fixture-flow".to_owned(),
@@ -2338,6 +2375,12 @@ mod auth_lifecycle_tests {
             serde_json::json!({"outcome":"failedAt","failure":"deviceTokenKind","error":secret}),
             serde_json::json!({"outcome":"failedAt","failure":"deviceTokenAudience","error":secret}),
             serde_json::json!({"outcome":"failedAt","failure":"deviceTokenCipher","error":secret}),
+            serde_json::json!({"outcome":"failedAt","failure":"deviceTokenXmlBound","error":secret}),
+            serde_json::json!({"outcome":"failedAt","failure":"deviceTokenXmlParse","error":secret}),
+            serde_json::json!({"outcome":"failedAt","failure":"deviceTokenCipherEncoding","error":secret}),
+            serde_json::json!({"outcome":"failedAt","failure":"tokenXmlBoundInvalid"}),
+            serde_json::json!({"outcome":"failedAt","failure":"tokenXmlParseInvalid"}),
+            serde_json::json!({"outcome":"failedAt","failure":"tokenCipherEncodingInvalid"}),
             serde_json::json!({"outcome":"failedAt","failure":"deviceTokenSecret","error":secret}),
             serde_json::json!({"outcome":"failedAt","failure":"tokenResponseInvalid"}),
             serde_json::json!({"outcome":"failedAt","failure":{"stage":secret}}),

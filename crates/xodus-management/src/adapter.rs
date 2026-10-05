@@ -2614,7 +2614,7 @@ mod auth_lifecycle_tests {
                 .unwrap();
             let flow = backend.auth_flow.as_ref().unwrap();
             let error = flow.error.as_ref().unwrap();
-            assert_eq!(flow.state, AuthFlowState::Failed);
+            assert!(matches!(flow.state, AuthFlowState::Failed));
             assert_eq!(error.code, ErrorCode::AuthInvalid);
             assert_eq!(error.message, format!("Native sign-in failed: {text}."));
             assert_eq!(

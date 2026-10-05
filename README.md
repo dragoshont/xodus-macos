@@ -25,6 +25,7 @@ branches; this README is not a claim that it has all been merged or deployed.
 | Native launcher | Shared live/fixture header with artwork-toned native chrome, navigation, search and no visible app title; native Runtime Settings. | Fresh live visual/resize verification and deployment of the reviewed app. |
 | Store authentication | Swift AppKit/WKWebView helper, explicit executable/hash/version binding, bounded private communication and cancellation/cleanup; reviewed direct-notification and continuation-writer fixes. | A matching new native engine/app/helper build and one user-assisted end-to-end Store login. The reported face/fingerprint stall is not diagnosed or certified fixed. |
 | Helper preflight | Packaged apps missing both helper and receipt now fail before engine launch with an actionable helper-specific error; unpackaged anonymous checks remain supported. | General engine provenance/admission is still separate: HELLO capabilities and a valid helper receipt do not attest an arbitrary engine. |
+| Account presentation | Toolbar, Account, Settings and Library share freshness-aware account state. Failed status checks remove saved-account claims while retaining the safety snapshot; a pending flow does not claim that a Microsoft window opened. | Source-side UI changes do not establish live authentication, PC ownership or entitlement. |
 | Runtime selection | GPTK 3, GPTK 4, legitimately installed CrossOver and standalone/source-built Wine presets; independent declared engine/graphics versions, provenance and hashes; fresh isolated generation plans. | **Configuration/planning only.** No installation discovery, prefix creation/migration, device preflight or game execution is certified by these plans; `launchable` remains `false`. |
 | Application shutdown | Normal Quit fences new work, cancels and joins the planning child through cleanup/reap, and awaits management shutdown. Failed cleanup refuses Quit and preserves ownership for retry. | Live application/game qualification remains distinct from neutral process checks. |
 | Public runtime components | Scoped offline transport, Windows RPS, TLS, graphics and async/shim checks with explicit source provenance and isolated fixtures. | These checks do not establish a production account/runtime pair, Store entitlement or general playability. |
@@ -44,8 +45,13 @@ branches; this README is not a claim that it has all been merged or deployed.
 - Helper preflight correction: [6a2103c](https://github.com/dragoshont/xodus-macos-app/commit/6a2103cfd0e2d263918039122990ac9492ec17f3).
   Its separate SDK 27 [hosted run](https://github.com/dragoshont/xodus-macos-app/actions/runs/37226882643)
   passed 674 checks, including six new helper-admission checks.
+- Freshness-aware account presentation: [8412f2c](https://github.com/dragoshont/xodus-macos-app/commit/8412f2c813ee8e29da6d1f19a847a157f21d4115).
+  Its exact SDK 27 [hosted run](https://github.com/dragoshont/xodus-macos-app/actions/runs/37288191441)
+  passed 689 checks, including fourteen new actual neutral-session regressions
+  and a live/fixture separation check. Authentication mutation predicates and
+  lifecycle methods remain unchanged.
 
-All three hosted runs passed with zero failures and reproducible SVG output.
+All four hosted runs passed with zero failures and reproducible SVG output.
 The relevant source reviews are closed for their stated scopes. Their
 authentication checks use neutral children and detached synthetic WebKit,
 not real Microsoft credentials or a completed Store sign-in.

@@ -831,3 +831,43 @@ copies are required; untrusted receipt claims, HELLO and a helper hash alone
 are insufficient. The selected engine must be the verified bundled copy,
 without an environment or remembered-path override. Agent Sign In presses
 remain zero; the user handles any Microsoft or Keychain interaction.
+
+### Freshness-aware native account presentation
+
+Additive consumer `8412f2c813ee8e29da6d1f19a847a157f21d4115`, tree
+`b8eaee185248ad47119cc8146c0e14af6d65baf0`, fixes a concrete presentation gap
+over `6a2103c`. A failed account-status read already disabled mutations but
+retained an earlier credential snapshot for safety. Some views still used
+that snapshot to show a filled profile icon, saved-sign-in Library copy or
+expired-sign-in removal advice. The shared `currentCredentialState`,
+`accountSymbol`, label and explanation properties now require a current
+status result and are consumed by the actual toolbar, Account, Settings and
+Library views. Retained snapshots remain available for lifecycle safety,
+without being presented as current account evidence.
+
+HELLO alone now displays connected-but-unchecked account state. An
+unconfirmed pending flow keeps its cancellation fences and displays an
+unknown outcome. Confirmed pending copy conditionally refers to a Microsoft
+window instead of asserting that one opened. Current saved credentials still
+do not establish PC ownership, package access or permission to play.
+
+Fourteen actual neutral `LiveSession` regressions and one live/fixture
+presentation check cover saved-status failure and recovery, expired-status
+failure, HELLO-only state, pending uncertainty and disconnection. The new
+saved-profile child trace contains only the three requested `auth.status`
+reads, not sign-in or logout mutations. The parent's direct bounded source
+review found no significant tightly coupled issue. Independent raw Git checks
+confirmed all 31 protected source/resource blobs and the session's mutation
+predicate prefix and failure/authentication/lifecycle suffix were unchanged.
+No shared Mac action, real account operation, deployment or human-window
+interaction was performed for this UI slice.
+
+The parent independently verified this exact source pin and normal push
+[hosted run 37288191441](https://github.com/dragoshont/xodus-macos-app/actions/runs/37288191441):
+Xcode 27.0 build `27A266a`, SDK 27.0 and macOS 27.0 passed 15 core,
+358 management, 61 preview, 168 native-session and 87 private-host checks,
+689 total with zero failures, plus SVG reproducibility. The logs confirm the
+new saved-status failure/recovery, expired uncertainty, HELLO-only and pending
+presentation cases executed using neutral children. This closes the bounded
+source/UI slice, not live authentication, a new Mac package, owned-library
+enumeration, installation, playability or live visual qualification.

@@ -71,6 +71,8 @@ pub enum Operation {
     AuthStatus(Empty),
     #[serde(rename = "auth.logout")]
     AuthLogout(Empty),
+    #[serde(rename = "auth.verify")]
+    AuthVerify(AuthVerifyParams),
     #[serde(rename = "inventory.snapshot")]
     InventorySnapshot(InventoryParams),
     #[serde(rename = "catalog.search")]
@@ -137,6 +139,19 @@ pub struct AccountParams {
 pub struct AuthCancelParams {
     #[serde(rename = "flowID")]
     pub flow_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AuthVerifyParams {
+    #[serde(rename = "contentID")]
+    pub content_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AuthVerifiedData {
+    pub verified: True,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -427,6 +442,7 @@ impl ResultFrame {
 pub enum Data {
     Hello(HelloData),
     Auth(AuthData),
+    AuthVerified(AuthVerifiedData),
     Search(SearchData),
     Discovery(DiscoveryData),
     Query(QueryData),

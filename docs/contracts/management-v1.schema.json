@@ -65,6 +65,7 @@
             "auth.cancel",
             "auth.status",
             "auth.logout",
+            "auth.verify",
             "inventory.snapshot",
             "catalog.search",
             "catalog.discover",
@@ -216,6 +217,35 @@
                 "type": "object",
                 "required": [],
                 "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "command": {
+                "const": "auth.verify"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "object",
+                "required": [
+                  "contentID"
+                ],
+                "properties": {
+                  "contentID": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "not": {
+                      "const": "00000000-0000-0000-0000-000000000000"
+                    }
+                  }
+                },
                 "additionalProperties": false
               }
             }
@@ -1029,6 +1059,9 @@
               "$ref": "#/$defs/authData"
             },
             {
+              "$ref": "#/$defs/authVerifiedData"
+            },
+            {
               "$ref": "#/$defs/productData"
             },
             {
@@ -1146,7 +1179,220 @@
           "type": "object"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "details"
+            ],
+            "properties": {
+              "details": {
+                "type": "object",
+                "required": [
+                  "category"
+                ],
+                "properties": {
+                  "category": {
+                    "const": "authenticatedReadFailure"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "details": {
+                "$ref": "#/$defs/authVerificationFailure"
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "details": {
+                      "properties": {
+                        "stage": {
+                          "const": "credentialUnavailable"
+                        }
+                      }
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "code": {
+                      "const": "AUTH_INVALID"
+                    },
+                    "retryable": {
+                      "const": false
+                    },
+                    "message": {
+                      "const": "Authenticated read failed: credentialUnavailable."
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "details": {
+                      "properties": {
+                        "stage": {
+                          "const": "profileChanged"
+                        }
+                      }
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "code": {
+                      "const": "AUTH_INVALID"
+                    },
+                    "retryable": {
+                      "const": false
+                    },
+                    "message": {
+                      "const": "Authenticated read failed: profileChanged."
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "details": {
+                      "properties": {
+                        "stage": {
+                          "const": "authExchangeFailed"
+                        }
+                      }
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "code": {
+                      "const": "AUTH_INVALID"
+                    },
+                    "retryable": {
+                      "const": true
+                    },
+                    "message": {
+                      "const": "Authenticated read failed: authExchangeFailed."
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "details": {
+                      "properties": {
+                        "stage": {
+                          "const": "authRejected"
+                        }
+                      }
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "code": {
+                      "const": "ACCESS_REVOKED"
+                    },
+                    "retryable": {
+                      "const": false
+                    },
+                    "message": {
+                      "const": "Authenticated read failed: authRejected."
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "details": {
+                      "properties": {
+                        "stage": {
+                          "const": "transportFailed"
+                        }
+                      }
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "code": {
+                      "const": "NETWORK_UNAVAILABLE"
+                    },
+                    "retryable": {
+                      "const": true
+                    },
+                    "message": {
+                      "const": "Authenticated read failed: transportFailed."
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "details": {
+                      "properties": {
+                        "stage": {
+                          "const": "responseInvalid"
+                        }
+                      }
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "code": {
+                      "const": "INTEGRITY_FAILED"
+                    },
+                    "retryable": {
+                      "const": false
+                    },
+                    "message": {
+                      "const": "Authenticated read failed: responseInvalid."
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "details": {
+                      "properties": {
+                        "stage": {
+                          "const": "packageUnavailable"
+                        }
+                      }
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "code": {
+                      "const": "PACKAGE_UNAVAILABLE"
+                    },
+                    "retryable": {
+                      "const": false
+                    },
+                    "message": {
+                      "const": "Authenticated read failed: packageUnavailable."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
     },
     "event": {
       "type": "object",
@@ -1679,6 +1925,42 @@
             {
               "type": "null"
             }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "authVerifiedData": {
+      "type": "object",
+      "required": [
+        "verified"
+      ],
+      "properties": {
+        "verified": {
+          "const": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "authVerificationFailure": {
+      "type": "object",
+      "required": [
+        "category",
+        "stage"
+      ],
+      "properties": {
+        "category": {
+          "const": "authenticatedReadFailure"
+        },
+        "stage": {
+          "enum": [
+            "credentialUnavailable",
+            "profileChanged",
+            "authExchangeFailed",
+            "authRejected",
+            "transportFailed",
+            "responseInvalid",
+            "packageUnavailable"
           ]
         }
       },

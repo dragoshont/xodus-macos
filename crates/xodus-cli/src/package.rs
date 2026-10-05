@@ -1,8 +1,8 @@
-use crate::provider_credentials::ProviderCredentials;
+use crate::provider_credentials::{CredentialError, ProviderCredentials};
 use inquire::Select;
 use xodus::XBOX_LIVE_PACKAGES_PC;
 use xodus::api::displaycatalog::find_products_by_id;
-use xodus::api::response::{PACKAGE_RESPONSE_LIMIT, request_json};
+use xodus::api::response::{PACKAGE_RESPONSE_LIMIT, ProviderResponseError, request_json};
 use xodus::models::packagespc::{PackageDetails, PackageFile, PackageResponse};
 use xodus::tokens::TokenManager;
 
@@ -80,38 +80,130 @@ pub async fn get_packages(
     tokens: &TokenManager,
     content_id: String,
 ) -> Result<PackageDetails, Box<dyn std::error::Error>> {
-    let content_id = uuid::Uuid::parse_str(&content_id)
-        .map_err(|_| std::io::Error::other("Invalid package content ID"))?;
-    let credentials = ProviderCredentials::read(tokens).await?;
+    get_packages_checked(client, tokens, content_id)
+        .await
+        .map_err(|error| Box::new(error) as Box<dyn std::error::Error>)
+}
 
-    let xsts_token = xodus::api::xbox::run(
-        client,
+#[derive(Debug)]
+pub(crate) enum PackageReadError {
+    InvalidContent,
+    Credentials(CredentialError),
+    Authentication(xodus::api::xbox::XboxAuthError),
+    Provider(ProviderResponseError),
+    Unavailable,
+    InvalidResponse,
+}
+
+impl std::fmt::Display for PackageReadError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidContent => formatter.write_str("Invalid package content ID"),
+            Self::Credentials(error) => error.fmt(formatter),
+            Self::Authentication(error) => error.fmt(formatter),
+            Self::Provider(error) => error.fmt(formatter),
+            Self::Unavailable => formatter.write_str(
+                "Package is unavailable; authorization and availability must be checked",
+            ),
+            Self::InvalidResponse => formatter
+                .write_str("Package response is invalid or does not match the requested content"),
+        }
+    }
+}
+
+impl std::error::Error for PackageReadError {}
+
+pub(crate) async fn get_packages_checked(
+    client: &reqwest::Client,
+    tokens: &TokenManager,
+    content_id: String,
+) -> Result<PackageDetails, PackageReadError> {
+    let content_id =
+        uuid::Uuid::parse_str(&content_id).map_err(|_| PackageReadError::InvalidContent)?;
+    let credentials = ProviderCredentials::read(tokens)
+        .await
+        .map_err(PackageReadError::Credentials)?;
+    get_packages_using(
+        tokens,
+        credentials,
+        content_id,
+        |device, user, username| {
+            xodus::api::xbox::run(client, device, user, username, "http://update.xboxlive.com")
+        },
+        |token, id| async move {
+            let request = package_request(client, token, id)?;
+            request_json(request, PACKAGE_RESPONSE_LIMIT)
+                .await
+                .map_err(PackageReadError::Provider)?
+                .require_success()
+                .map_err(PackageReadError::Provider)
+        },
+    )
+    .await
+}
+
+async fn get_packages_using<A, AF, R, RF>(
+    tokens: &TokenManager,
+    credentials: ProviderCredentials,
+    content_id: uuid::Uuid,
+    authenticate: A,
+    read: R,
+) -> Result<PackageDetails, PackageReadError>
+where
+    A: FnOnce(
+        xodus::models::secrets::LegacyToken,
+        xodus::models::secrets::LegacyToken,
+        String,
+    ) -> AF,
+    AF: std::future::Future<
+            Output = Result<xodus::models::xbox::XstsResponse, xodus::api::xbox::XboxAuthError>,
+        >,
+    R: FnOnce(xodus::models::xbox::XstsResponse, uuid::Uuid) -> RF,
+    RF: std::future::Future<Output = Result<PackageResponse, PackageReadError>>,
+{
+    let token = authenticate(
         credentials.device.clone(),
         credentials.user.clone(),
         credentials.account.username.clone(),
-        "http://update.xboxlive.com",
     )
-    .await?;
-    credentials.verify_current(tokens).await?;
-
-    let res: PackageResponse = request_json(
-        client
-            .get(format!(
-                "{XBOX_LIVE_PACKAGES_PC}/GetBasePackage/{content_id}"
-            ))
-            .header("x-xbl-contract-version", "3")
-            .header(
-                "Authorization",
-                xodus::api::xbox::get_xsts_auth_header(xsts_token)?,
-            ),
-        PACKAGE_RESPONSE_LIMIT,
-    )
-    .await?
-    .require_success()?;
-
-    let package = checked_package(res, content_id)?;
-    credentials.verify_current(tokens).await?;
+    .await
+    .map_err(PackageReadError::Authentication)?;
+    credentials
+        .verify_current(tokens)
+        .await
+        .map_err(PackageReadError::Credentials)?;
+    let response = read(token, content_id).await?;
+    if let PackageResponse::NotFound { package_found } = response {
+        return Err(if package_found {
+            PackageReadError::InvalidResponse
+        } else {
+            PackageReadError::Unavailable
+        });
+    }
+    let package =
+        checked_package(response, content_id).map_err(|_| PackageReadError::InvalidResponse)?;
+    credentials
+        .verify_current(tokens)
+        .await
+        .map_err(PackageReadError::Credentials)?;
     Ok(package)
+}
+
+fn package_request(
+    client: &reqwest::Client,
+    token: xodus::models::xbox::XstsResponse,
+    content_id: uuid::Uuid,
+) -> Result<reqwest::RequestBuilder, PackageReadError> {
+    Ok(client
+        .get(format!(
+            "{XBOX_LIVE_PACKAGES_PC}/GetBasePackage/{content_id}"
+        ))
+        .header("x-xbl-contract-version", "3")
+        .header(
+            "Authorization",
+            xodus::api::xbox::get_xsts_auth_header(token)
+                .map_err(PackageReadError::Authentication)?,
+        ))
 }
 
 fn checked_package(
@@ -182,6 +274,167 @@ mod tests {
     use super::*;
 
     const CONTENT_ID: &str = "00000000-0000-0000-0000-000000000001";
+
+    fn auth_response() -> xodus::models::xbox::XstsResponse {
+        serde_json::from_value(serde_json::json!({
+            "NotAfter": "2099-01-01T00:00:00Z", "Token": "NEUTRAL_NOT_TOKEN",
+            "DisplayClaims": {"xui": [{"uhs": "12345"}]},
+        }))
+        .unwrap()
+    }
+
+    fn management_profile() -> (
+        TokenManager,
+        std::sync::Arc<xodus::tokens::backend::MemoryBackend>,
+    ) {
+        use xodus::models::secrets::{Device, LegacyToken, ManagementStoreSession, Token, User};
+        use xodus::tokens::backend::MemoryBackend;
+        let token = LegacyToken {
+            key_name: Some(xodus::tokens::PASSPORT_STS.to_owned()),
+            token: "<EncryptedData Id=\"fixture\" xmlns=\"http://www.w3.org/2001/04/xmlenc#\" Type=\"http://www.w3.org/2001/04/xmlenc#Element\"><EncryptionMethod Algorithm=\"fixture\"/><KeyInfo><KeyName>http://Passport.NET/STS</KeyName></KeyInfo><CipherData><CipherValue>PRIVATE_SENTINEL</CipherValue></CipherData></EncryptedData>".to_owned(),
+            binary_secret: Some(format!("BAAA{}AA==", "AAAA".repeat(1364))), tpm_key: None,
+            lifetime: xodus::models::soap::Timestamp { id: None,
+                created: "2026-01-01T00:00:00Z".to_owned(), expires: "2099-01-01T00:00:00Z".to_owned() },
+        };
+        let memory = std::sync::Arc::new(MemoryBackend::default());
+        let manager = TokenManager::with_management_backend(memory.clone());
+        manager
+            .save_management_store_session(ManagementStoreSession {
+                flow_id: "fixture-flow".to_owned(),
+                user: User {
+                    puid: "fixture".to_owned(),
+                    username: "fixture@example.invalid".to_owned(),
+                },
+                tokens: std::collections::HashMap::from([(
+                    xodus::tokens::PASSPORT_STS.to_owned(),
+                    Token::Legacy(token.clone()),
+                )]),
+                device: Device {
+                    puid: "fixture".to_owned(),
+                    hwid: "fixture".to_owned(),
+                    device_id: "fixture".to_owned(),
+                    splicense: "fixture".to_owned(),
+                    username: "fixture".to_owned(),
+                    password: "fixture".to_owned(),
+                },
+                device_token: token,
+            })
+            .unwrap();
+        (manager, memory)
+    }
+
+    #[test]
+    fn authenticated_package_request_is_exact_read_only_endpoint_and_checked_header() {
+        let request = package_request(
+            &reqwest::Client::new(),
+            auth_response(),
+            uuid::Uuid::parse_str(CONTENT_ID).unwrap(),
+        )
+        .unwrap()
+        .build()
+        .unwrap();
+        assert_eq!(request.method(), reqwest::Method::GET);
+        assert_eq!(
+            request.url().as_str(),
+            format!("{XBOX_LIVE_PACKAGES_PC}/GetBasePackage/{CONTENT_ID}")
+        );
+        assert!(request.url().query().is_none());
+        assert_eq!(request.headers()["x-xbl-contract-version"], "3");
+        assert_eq!(
+            request.headers()["Authorization"],
+            "XBL3.0 x=12345;NEUTRAL_NOT_TOKEN"
+        );
+        assert!(request.body().is_none());
+    }
+
+    #[tokio::test]
+    async fn authenticated_package_read_preserves_profile_and_checks_matching_response() {
+        use xodus::tokens::store::TokenBackend;
+        for outcome in [
+            "success",
+            "unavailable",
+            "mismatch",
+            "malformed",
+            "rejected",
+        ] {
+            let (manager, memory) = management_profile();
+            let original = memory.get("management-store-user").unwrap();
+            let tokens = manager.readonly_management_profile().unwrap();
+            let credentials = ProviderCredentials::read_neutral(&tokens).unwrap();
+            let result = get_packages_using(
+                &tokens,
+                credentials,
+                uuid::Uuid::parse_str(CONTENT_ID).unwrap(),
+                |_, _, username| async move {
+                    assert_eq!(username, "fixture@example.invalid");
+                    Ok(auth_response())
+                },
+                |_, id| async move {
+                    assert_eq!(id.to_string(), CONTENT_ID);
+                    match outcome {
+                        "success" => Ok(response(true, CONTENT_ID)),
+                        "unavailable" => Ok(PackageResponse::NotFound {
+                            package_found: false,
+                        }),
+                        "mismatch" => Ok(response(true, "PRIVATE_SENTINEL")),
+                        "malformed" => Err(PackageReadError::Provider(
+                            ProviderResponseError::InvalidJson,
+                        )),
+                        _ => Err(PackageReadError::Provider(
+                            ProviderResponseError::HttpRejected { status: 403 },
+                        )),
+                    }
+                },
+            )
+            .await;
+            assert_eq!(result.is_ok(), outcome == "success");
+            if let Err(error) = result {
+                assert!(!format!("{error:?}").contains("PRIVATE_SENTINEL"));
+            }
+            assert_eq!(memory.get("management-store-user").unwrap(), original);
+            for key in [
+                "user-tokens",
+                "device-tokens",
+                "management-pending-exchange",
+            ] {
+                assert!(memory.get(key).unwrap().is_none());
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn authenticated_package_read_fences_profile_changes_before_and_after_provider_read() {
+        for after_read in [false, true] {
+            let (manager, _) = management_profile();
+            let tokens = manager.readonly_management_profile().unwrap();
+            let credentials = ProviderCredentials::read_neutral(&tokens).unwrap();
+            let before = manager.clone();
+            let after = manager.clone();
+            let result = get_packages_using(
+                &tokens,
+                credentials,
+                uuid::Uuid::parse_str(CONTENT_ID).unwrap(),
+                |_, _, _| async move {
+                    if !after_read {
+                        before.remove_user_credentials().unwrap();
+                    }
+                    Ok(auth_response())
+                },
+                |_, _| async move {
+                    assert!(after_read, "Read must not start after profile changed");
+                    after.remove_user_credentials().unwrap();
+                    Ok(response(true, CONTENT_ID))
+                },
+            )
+            .await;
+            assert!(matches!(
+                result,
+                Err(PackageReadError::Credentials(
+                    CredentialError::ProfileChanged
+                ))
+            ));
+        }
+    }
 
     fn response(found: bool, content_id: &str) -> PackageResponse {
         serde_json::from_value(serde_json::json!({

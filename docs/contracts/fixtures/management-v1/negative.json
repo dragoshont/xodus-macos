@@ -1,5 +1,97 @@
 [
   {
+    "name": "verifyNotUUID",
+    "frame": {
+      "kind": "request",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-6",
+      "command": "auth.verify",
+      "params": {
+        "contentID": "FIXTURE00001"
+      }
+    }
+  },
+  {
+    "name": "verifyNoncanonical",
+    "frame": {
+      "kind": "request",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-6",
+      "command": "auth.verify",
+      "params": {
+        "contentID": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"
+      }
+    }
+  },
+  {
+    "name": "verifyNil",
+    "frame": {
+      "kind": "request",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-6",
+      "command": "auth.verify",
+      "params": {
+        "contentID": "00000000-0000-0000-0000-000000000000"
+      }
+    }
+  },
+  {
+    "name": "verifyExtra",
+    "frame": {
+      "kind": "request",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-6",
+      "command": "auth.verify",
+      "params": {
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "token": "PRIVATE_SENTINEL"
+      }
+    }
+  },
+  {
+    "name": "verifyFalse",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-invalid",
+      "ok": true,
+      "data": {
+        "verified": false
+      }
+    }
+  },
+  {
+    "name": "verifyExtraSuccess",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-invalid",
+      "ok": true,
+      "data": {
+        "verified": true,
+        "token": "PRIVATE_SENTINEL"
+      }
+    }
+  },
+  {
     "name": "wrongMajor",
     "frame": {
       "kind": "request",
@@ -161,23 +253,7 @@
       "requestID": "fixture-result-0",
       "ok": true,
       "data": {
-        "protocol": {
-          "major": 1,
-          "minor": 0
-        },
-        "backendVersion": "fixture",
-        "runtimeFingerprint": null,
-        "capabilities": [
-          {
-            "command": "game.launch",
-            "supported": false,
-            "audience": "Xbox package authorization and signed paired runtime",
-            "reason": "No certified runtime."
-          }
-        ],
-        "sessionID": "fixture-session",
-        "schema": "urn:xodus:management:1.0",
-        "catalogCorpus": "observedPublicProducts"
+        "verified": true
       },
       "error": {
         "code": "INTERNAL_ERROR",
@@ -223,7 +299,7 @@
         "major": 1,
         "minor": 0
       },
-      "requestID": "fixture-8",
+      "requestID": "fixture-9",
       "command": "catalog.discover",
       "params": {
         "market": "US",
@@ -241,7 +317,7 @@
         "major": 1,
         "minor": 0
       },
-      "requestID": "fixture-9",
+      "requestID": "fixture-10",
       "command": "catalog.query",
       "params": {
         "query": "Fixture Harbor",
@@ -260,7 +336,7 @@
         "major": 1,
         "minor": 0
       },
-      "requestID": "fixture-9",
+      "requestID": "fixture-10",
       "command": "catalog.query",
       "params": {
         "query": "",
@@ -279,7 +355,7 @@
         "major": 1,
         "minor": 0
       },
-      "requestID": "fixture-9",
+      "requestID": "fixture-10",
       "command": "catalog.query",
       "params": {
         "query": "Fixture Harbor",
@@ -298,7 +374,7 @@
         "major": 1,
         "minor": 0
       },
-      "requestID": "fixture-result-5",
+      "requestID": "fixture-result-6",
       "ok": true,
       "data": {
         "corpus": "publicMicrosoftStoreSearch",
@@ -372,7 +448,7 @@
         "major": 1,
         "minor": 0
       },
-      "requestID": "fixture-20",
+      "requestID": "fixture-21",
       "command": "installed.inspect",
       "params": {
         "directory": "relative"
@@ -548,6 +624,454 @@
           "compatibility": "unknown",
           "launchable": false,
           "reason": "Marker metadata is not verified files, retail identity, authorization or a certified runtime."
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-credentialUnavailable-message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "retryable": false,
+        "message": "PRIVATE_SENTINEL",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "credentialUnavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-credentialUnavailable-code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "retryable": false,
+        "message": "Authenticated read failed: credentialUnavailable.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "credentialUnavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-credentialUnavailable-details",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "retryable": false,
+        "message": "Authenticated read failed: credentialUnavailable.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "credentialUnavailable",
+          "token": "PRIVATE_SENTINEL"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-profileChanged-message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "retryable": false,
+        "message": "PRIVATE_SENTINEL",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "profileChanged"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-profileChanged-code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "retryable": false,
+        "message": "Authenticated read failed: profileChanged.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "profileChanged"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-profileChanged-details",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "retryable": false,
+        "message": "Authenticated read failed: profileChanged.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "profileChanged",
+          "token": "PRIVATE_SENTINEL"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-authExchangeFailed-message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "retryable": true,
+        "message": "PRIVATE_SENTINEL",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "authExchangeFailed"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-authExchangeFailed-code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "retryable": true,
+        "message": "Authenticated read failed: authExchangeFailed.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "authExchangeFailed"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-authExchangeFailed-details",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "retryable": true,
+        "message": "Authenticated read failed: authExchangeFailed.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "authExchangeFailed",
+          "token": "PRIVATE_SENTINEL"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-authRejected-message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "ACCESS_REVOKED",
+        "retryable": false,
+        "message": "PRIVATE_SENTINEL",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "authRejected"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-authRejected-code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "retryable": false,
+        "message": "Authenticated read failed: authRejected.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "authRejected"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-authRejected-details",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "ACCESS_REVOKED",
+        "retryable": false,
+        "message": "Authenticated read failed: authRejected.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "authRejected",
+          "token": "PRIVATE_SENTINEL"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-transportFailed-message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "NETWORK_UNAVAILABLE",
+        "retryable": true,
+        "message": "PRIVATE_SENTINEL",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "transportFailed"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-transportFailed-code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "retryable": true,
+        "message": "Authenticated read failed: transportFailed.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "transportFailed"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-transportFailed-details",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "NETWORK_UNAVAILABLE",
+        "retryable": true,
+        "message": "Authenticated read failed: transportFailed.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "transportFailed",
+          "token": "PRIVATE_SENTINEL"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-responseInvalid-message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "INTEGRITY_FAILED",
+        "retryable": false,
+        "message": "PRIVATE_SENTINEL",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "responseInvalid"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-responseInvalid-code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "retryable": false,
+        "message": "Authenticated read failed: responseInvalid.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "responseInvalid"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-responseInvalid-details",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "INTEGRITY_FAILED",
+        "retryable": false,
+        "message": "Authenticated read failed: responseInvalid.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "responseInvalid",
+          "token": "PRIVATE_SENTINEL"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-packageUnavailable-message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "PACKAGE_UNAVAILABLE",
+        "retryable": false,
+        "message": "PRIVATE_SENTINEL",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "packageUnavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-packageUnavailable-code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "retryable": false,
+        "message": "Authenticated read failed: packageUnavailable.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "packageUnavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "verify-packageUnavailable-details",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-verify-error",
+      "ok": false,
+      "error": {
+        "code": "PACKAGE_UNAVAILABLE",
+        "retryable": false,
+        "message": "Authenticated read failed: packageUnavailable.",
+        "details": {
+          "category": "authenticatedReadFailure",
+          "stage": "packageUnavailable",
+          "token": "PRIVATE_SENTINEL"
         }
       }
     }

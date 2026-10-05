@@ -59,6 +59,10 @@ commands = {
     "auth.cancel": obj({"flowID": identifier}),
     "auth.status": empty,
     "auth.logout": empty,
+    "auth.verify": obj({"contentID": {
+        "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        "not": {"const": str(uuid.UUID(int=0))},
+    }}),
     "inventory.snapshot": obj({"accountScope": {"const": "default"},
                                "market": product_params["properties"]["market"],
                                "refresh": enum("cache", "network")}),
@@ -146,6 +150,35 @@ defs["authFlow"] = obj({
     "error": nullable(ref("error")),
 })
 defs["authData"]["properties"]["flow"] = ref("authFlow")
+defs["authVerifiedData"] = obj({"verified": {"const": True}})
+defs["authVerificationFailure"] = obj({
+    "category": {"const": "authenticatedReadFailure"},
+    "stage": enum("credentialUnavailable", "profileChanged", "authExchangeFailed",
+                  "authRejected", "transportFailed", "responseInvalid", "packageUnavailable"),
+})
+verification_errors = {
+    "credentialUnavailable": ("AUTH_INVALID", False),
+    "profileChanged": ("AUTH_INVALID", False),
+    "authExchangeFailed": ("AUTH_INVALID", True),
+    "authRejected": ("ACCESS_REVOKED", False),
+    "transportFailed": ("NETWORK_UNAVAILABLE", True),
+    "responseInvalid": ("INTEGRITY_FAILED", False),
+    "packageUnavailable": ("PACKAGE_UNAVAILABLE", False),
+}
+defs["error"].setdefault("allOf", []).append({
+    "if": {"required": ["details"], "properties": {"details": {
+        "type": "object", "required": ["category"],
+        "properties": {"category": {"const": "authenticatedReadFailure"}},
+    }}},
+    "then": {"properties": {"details": ref("authVerificationFailure")}, "allOf": [
+        {"if": {"properties": {"details": {"properties": {"stage": {"const": stage}}}}},
+         "then": {"properties": {
+             "code": {"const": code}, "retryable": {"const": retryable},
+             "message": {"const": f"Authenticated read failed: {stage}."},
+         }}}
+        for stage, (code, retryable) in verification_errors.items()
+    ]},
+})
 defs["productRecord"] = obj({
     "productID": identifier, "title": text, "market": text, "language": text,
     "source": text, "checkedAt": date, "freshness": enum("live", "cached"),
@@ -245,7 +278,7 @@ defs["diagnosticsData"] = obj({
     "runtimeCertified": {"const": False}, "inventoryAuthorized": {"const": False},
 })
 defs["success"]["properties"]["data"] = {"oneOf": [
-    ref(name) for name in ("helloData", "authData", "productData", "searchData", "discoveryData", "queryData",
+    ref(name) for name in ("helloData", "authData", "authVerifiedData", "productData", "searchData", "discoveryData", "queryData",
                           "jobData", "jobsData", "replayData", "installedData", "inspectionData", "diagnosticsData")
 ]}
 
@@ -262,6 +295,7 @@ positive = []
 examples = {
     "hello": {"client": "fixture-client", "clientVersion": "1.0"},
     "auth.begin": {"accountScope": "default"}, "auth.cancel": {"flowID": "fixture-flow"},
+    "auth.verify": {"contentID": str(uuid.UUID(int=1))},
     "inventory.snapshot": {"accountScope": "default", "market": "US", "refresh": "cache"},
     "catalog.search": {"query": "", "market": "US", "language": "en-US",
                        "platform": "pc", "limit": 100, "cursor": None},
@@ -344,6 +378,7 @@ inspection = {"scope":"userSelectedDirectory","completeness":"partial","freshnes
         "fileVerification":"notPerformed","entitlement":"unknown","compatibility":"unknown",
         "launchable":False,"reason":"Marker metadata is not verified files, retail identity, authorization or a certified runtime."}}
 results = [
+    {"verified": True},
     {"protocol": protocol, "backendVersion": "fixture", "runtimeFingerprint": None,
      "capabilities": [{"command": "game.launch", "supported": False,
                        "audience": "Xbox package authorization and signed paired runtime",
@@ -389,6 +424,20 @@ for code in defs["error"]["properties"]["code"]["enum"]:
                      "ok": False, "error": {"code": code, "message": "Sanitized fixture error.",
                                            "retryable": False}})
 negative = []
+verify_request = next(frame for frame in positive if frame.get("command") == "auth.verify")
+for name, params in [
+    ("verifyNotUUID", {"contentID": "FIXTURE00001"}),
+    ("verifyNoncanonical", {"contentID": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"}),
+    ("verifyNil", {"contentID": str(uuid.UUID(int=0))}),
+    ("verifyExtra", {**verify_request["params"], "token": "PRIVATE_SENTINEL"}),
+]:
+    negative.append({"name": name, "frame": {**verify_request, "params": params}})
+for name, data in [
+    ("verifyFalse", {"verified": False}),
+    ("verifyExtraSuccess", {"verified": True, "token": "PRIVATE_SENTINEL"}),
+]:
+    negative.append({"name": name, "frame": {"kind": "result", "protocol": protocol,
+        "requestID": "fixture-verify-invalid", "ok": True, "data": data}})
 for name, key, value in [
     ("wrongMajor", "protocol", {"major": 2, "minor": 0}),
     ("wrongMinor", "protocol", {"major": 1, "minor": 1}),
@@ -445,6 +494,17 @@ for code, message in [("NETWORK_UNAVAILABLE", "Public query exceeded its bounded
                       ("CANCELLED", "Transport closed before public query completed.")]:
     positive.append({"kind":"result","protocol":protocol,"requestID":"fixture-query-"+code.lower(),
         "ok":False,"error":{"code":code,"message":message,"retryable":True}})
+for stage, (code, retryable) in verification_errors.items():
+    frame = {"kind": "result", "protocol": protocol, "requestID": "fixture-verify-error",
+        "ok": False, "error": {"code": code, "retryable": retryable,
+        "message": f"Authenticated read failed: {stage}.",
+        "details": {"category": "authenticatedReadFailure", "stage": stage}}}
+    positive.append(frame)
+    for field, value in [("message", "PRIVATE_SENTINEL"), ("code", "INTERNAL_ERROR"),
+                         ("details", {**frame["error"]["details"], "token": "PRIVATE_SENTINEL"})]:
+        invalid = copy.deepcopy(frame)
+        invalid["error"][field] = value
+        negative.append({"name": f"verify-{stage}-{field}", "frame": invalid})
 write(fixture_root / "positive.json", positive)
 write(fixture_root / "negative.json", negative)
 write(fixture_root / "evidence-edge.json", [

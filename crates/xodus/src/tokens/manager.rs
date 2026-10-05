@@ -92,6 +92,27 @@ impl TokenManager {
         manager
     }
 
+    pub fn readonly_management_profile(&self) -> Result<Self, TokenStoreError> {
+        if !self.management_profile {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        struct ReadonlyBackend(Arc<dyn TokenBackend>);
+        impl TokenBackend for ReadonlyBackend {
+            fn get(&self, key: &str) -> Result<Option<Vec<u8>>, TokenStoreError> {
+                self.0.get(key)
+            }
+            fn set(&self, _: &str, _: &[u8]) -> Result<(), TokenStoreError> {
+                Err(TokenStoreError::InvalidCredential)
+            }
+            fn remove(&self, _: &str) -> Result<(), TokenStoreError> {
+                Err(TokenStoreError::InvalidCredential)
+            }
+        }
+        let mut manager = self.clone();
+        manager.persistent = Arc::new(ReadonlyBackend(self.persistent.clone()));
+        Ok(manager)
+    }
+
     pub fn with_explicit_management_keychain_interaction(&self) -> Result<Self, TokenStoreError> {
         if !self.management_profile {
             return Err(TokenStoreError::InvalidCredential);
@@ -724,11 +745,41 @@ mod management_tests {
         for _ in 0..5 {
             tokens.verify_management_profile(&stamp).unwrap();
         }
+
         assert_eq!(
             memory.get(keys::STORE_USER_SESSION).unwrap().unwrap(),
             original
         );
         assert!(memory.get(keys::USER_TOKENS).unwrap().is_none());
+    }
+
+    #[test]
+    fn readonly_management_profile_rejects_every_persistent_write_and_keeps_shared_fences() {
+        let memory = Arc::new(MemoryBackend::default());
+        let manager = TokenManager::with_management_backend(memory.clone());
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let original = memory.get(keys::STORE_USER_SESSION).unwrap();
+        let readonly = manager.readonly_management_profile().unwrap();
+        let (_, stamp) = readonly.management_store_snapshot().unwrap();
+        assert!(
+            readonly
+                .save_management_store_session(fixture_store_session())
+                .is_err()
+        );
+        assert!(readonly.save_user(&fixture_store_session().user).is_err());
+        assert!(readonly.remove_user_credentials().is_err());
+        assert_eq!(memory.get(keys::STORE_USER_SESSION).unwrap(), original);
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        assert!(readonly.verify_management_profile(&stamp).is_err());
+        assert!(
+            TokenManager::with_memory()
+                .readonly_management_profile()
+                .is_err()
+        );
     }
 
     #[test]

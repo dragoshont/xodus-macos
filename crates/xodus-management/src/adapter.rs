@@ -692,6 +692,10 @@ pub fn map_product(
 }
 
 enum Completion {
+    AuthVerified {
+        request_id: String,
+        result: Result<(), WireError>,
+    },
     ConsentPrepared {
         request_id: String,
         flow_id: String,
@@ -757,6 +761,7 @@ pub struct Backend {
     account_mutation_pending: bool,
     inspection_permits: Arc<tokio::sync::Semaphore>,
     native_host: Option<crate::native_auth::HostBinding>,
+    auth_verifier: Option<Arc<dyn crate::auth_verify::AuthVerifier>>,
 }
 
 impl Backend {
@@ -777,6 +782,7 @@ impl Backend {
             async_keychain_io: true,
             account_mutation_pending: false,
             native_host: None,
+            auth_verifier: None,
             inspection_permits: Arc::new(tokio::sync::Semaphore::new(4)),
         }
     }
@@ -810,9 +816,11 @@ impl Backend {
                 (*command == "catalog.discover" && self.provider.discovery_supported()) ||
                 (*command == "catalog.query" && self.provider.query_supported()) ||
                 (*command == "installed.inspect" && cfg!(target_os = "macos")) ||
-                (self.native_auth && matches!(*command, "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout"));
+                (self.native_auth && matches!(*command, "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout")) ||
+                (*command == "auth.verify" && self.native_auth && self.auth_verifier.is_some());
             let audience = match *command {
                 "auth.begin" | "auth.status" | "auth.logout" => Some("Isolated launcher profile; Passport.NET/STS store credential, not entitlement authorization"),
+                "auth.verify" => Some("http://update.xboxlive.com; authenticated package metadata read only"),
                 "inventory.snapshot" => Some("Unproven consumer PC entitlement audience"),
                 "install.plan" | "game.update" => Some("http://update.xboxlive.com and www.microsoft.com"),
                 "game.launch" => Some("Package license and signed paired runtime"),
@@ -829,6 +837,7 @@ impl Backend {
                     "jobs.pause" | "jobs.resume" => "Catalog refresh does not support durable pause.",
                     "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout" =>
                         "Native macOS Keychain is required; plaintext fallback is refused.",
+                    "auth.verify" => "Native launcher Keychain and an authenticated read provider are required.",
                     _ => "Authorized package planning and verified failure-safe installation are not implemented.",
                 }.to_owned())
             } else if *command == "jobs.enqueue" {
@@ -841,6 +850,8 @@ impl Backend {
                 Some("Partial anonymous Microsoft Store game search with resolved PC metadata, not ownership or authorized download.".to_owned())
             } else if *command == "installed.inspect" {
                 Some("Read-only selected-folder marker metadata only; no scan, registration, ownership, file verification or launch.".to_owned())
+            } else if *command == "auth.verify" {
+                Some("Explicit authenticated package metadata check only; no ownership, licensing, download or installation claim.".to_owned())
             } else { None };
             Capability { command: (*command).to_owned(), supported,
                 audience: audience.map(str::to_owned), reason }
@@ -874,6 +885,47 @@ impl Backend {
     async fn dispatch(&mut self, request: &Request) -> Result<Option<Data>, WireError> {
         let data = match &request.operation {
             Operation::Hello(params) => self.hello(params)?,
+            Operation::AuthVerify(params) => {
+                if self.account_mutation_pending
+                    || self
+                        .auth_flow
+                        .as_ref()
+                        .is_some_and(|flow| matches!(flow.state, AuthFlowState::Pending))
+                {
+                    return Err(WireError::new(
+                        ErrorCode::InvalidTransition,
+                        "Finish the active launcher account operation before verifying access.",
+                        false,
+                    ));
+                }
+                self.reserve_worker()?;
+                let provider = self.auth_verifier.clone().ok_or_else(|| {
+                    WireError::new(
+                        ErrorCode::CapabilityMissing,
+                        "Authenticated read verification is unavailable.",
+                        false,
+                    )
+                })?;
+                let tokens = self
+                    .token_manager()?
+                    .readonly_management_profile()
+                    .map_err(|_| {
+                        crate::auth_verify::VerificationFailure::CredentialUnavailable.wire_error()
+                    })?;
+                let request_id = request.request_id.clone();
+                let content_id = params.content_id.clone();
+                self.pending_requests.insert(request_id.clone());
+                self.tasks.spawn(async move {
+                    let result = crate::auth_verify::bounded_verification(
+                        crate::auth_verify::DEADLINE,
+                        provider.verify(tokens, content_id),
+                    )
+                    .await
+                    .map_err(crate::auth_verify::VerificationFailure::wire_error);
+                    Completion::AuthVerified { request_id, result }
+                });
+                return Ok(None);
+            }
             Operation::AuthBegin(_) => {
                 self.poll_auth()?;
                 let tokens = self.token_manager()?;
@@ -2162,6 +2214,11 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
             },
             completion = backend.tasks.join_next(), if !backend.tasks.is_empty() => {
                 match completion {
+                    Some(Ok(Completion::AuthVerified { request_id, result })) => {
+                        backend.pending_requests.remove(&request_id);
+                        write_result(writer, request_id, result.map(|()|
+                            Data::AuthVerified(AuthVerifiedData { verified: True }))).await?;
+                    },
                     Some(Ok(Completion::ConsentPrepared { request_id, flow_id, result })) => {
                         backend.pending_requests.remove(&request_id);
                         let result = if backend.auth_flow.as_ref().is_none_or(|flow|
@@ -2317,6 +2374,15 @@ pub async fn run_with_native_host(
     protocol: u32,
     binding: Option<crate::native_auth::HostBinding>,
 ) -> std::process::ExitCode {
+    run_with_auth_verifier(directory, protocol, binding, None).await
+}
+
+pub async fn run_with_auth_verifier(
+    directory: &Path,
+    protocol: u32,
+    binding: Option<crate::native_auth::HostBinding>,
+    verifier: Option<Arc<dyn crate::auth_verify::AuthVerifier>>,
+) -> std::process::ExitCode {
     std::panic::set_hook(Box::new(|_| {
         eprintln!("Management backend stopped unexpectedly; no raw diagnostic data was emitted.")
     }));
@@ -2333,6 +2399,7 @@ pub async fn run_with_native_host(
                     {
                         let mut backend = Backend::new(store, Arc::new(provider));
                         backend.native_host = binding;
+                        backend.auth_verifier = verifier;
                         backend
                     },
                     BufReader::new(tokio::io::stdin()),
@@ -3650,6 +3717,206 @@ mod auth_lifecycle_tests {
             BTreeSet::from(["discover".to_owned(), "query".to_owned()])
         );
         assert_eq!(task.await.unwrap().unwrap_err().code, ErrorCode::Cancelled);
+    }
+
+    #[test]
+    fn auth_verify_wire_rejects_noncanonical_ids_and_false_or_extra_success() {
+        for id in [
+            "FIXTURE00001",
+            "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+            "00000000-0000-0000-0000-000000000000",
+            "{00000000-0000-0000-0000-000000000001}",
+        ] {
+            let frame = serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},
+                "requestID":"verify","command":"auth.verify","params":{"contentID":id}});
+            assert!(transport::parse(&serde_json::to_vec(&frame).unwrap()).is_err());
+        }
+        let frame = serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},
+            "requestID":"verify","command":"auth.verify","params":{
+                "contentID":"00000000-0000-0000-0000-000000000001","token":"PRIVATE_SENTINEL"}});
+        assert!(transport::parse(&serde_json::to_vec(&frame).unwrap()).is_err());
+        for data in [
+            serde_json::json!({"verified":false}),
+            serde_json::json!({"verified":true,"token":"PRIVATE_SENTINEL"}),
+        ] {
+            assert!(serde_json::from_value::<Data>(data).is_err());
+        }
+        assert!(serde_json::from_value::<Data>(serde_json::json!({"verified":true})).is_ok());
+    }
+
+    #[tokio::test]
+    async fn auth_verify_negotiates_and_emits_only_fixed_success_or_failure_without_writes() {
+        use crate::auth_verify::{AuthVerifier, VerificationFailure};
+        use tokio::io::AsyncBufReadExt;
+        use xodus::tokens::store::TokenBackend;
+        struct NeutralVerifier(Option<VerificationFailure>);
+        impl AuthVerifier for NeutralVerifier {
+            fn verify(
+                &self,
+                tokens: TokenManager,
+                content_id: String,
+            ) -> Pin<Box<dyn Future<Output = Result<(), VerificationFailure>> + Send + '_>>
+            {
+                Box::pin(async move {
+                    assert_eq!(content_id, "00000000-0000-0000-0000-000000000001");
+                    assert!(tokens.save_user(&fixture_store_session().user).is_err());
+                    self.0.map_or(Ok(()), Err)
+                })
+            }
+        }
+        for failure in [
+            None,
+            Some(VerificationFailure::PackageUnavailable),
+            Some(VerificationFailure::AuthRejected),
+        ] {
+            let (_temporary, mut backend) = backend();
+            let memory = Arc::new(xodus::tokens::backend::MemoryBackend::default());
+            let tokens = TokenManager::with_management_backend(memory.clone());
+            tokens
+                .save_management_store_session(fixture_store_session())
+                .unwrap();
+            let original = memory.get("management-store-user").unwrap();
+            backend.tokens = Some(tokens);
+            assert!(
+                !backend
+                    .capabilities()
+                    .iter()
+                    .find(|c| c.command == "auth.verify")
+                    .unwrap()
+                    .supported
+            );
+            backend.auth_verifier = Some(Arc::new(NeutralVerifier(failure)));
+            assert!(
+                backend
+                    .capabilities()
+                    .iter()
+                    .find(|c| c.command == "auth.verify")
+                    .unwrap()
+                    .supported
+            );
+            let (client, server) = tokio::io::duplex(65536);
+            let (read, write) = tokio::io::split(server);
+            let task = tokio::spawn(serve(backend, BufReader::new(read), write));
+            let (read, mut write) = tokio::io::split(client);
+            let mut reader = BufReader::new(read);
+            for (id, command, params) in [
+                (
+                    "hello",
+                    "hello",
+                    serde_json::json!({"client":"fixture","clientVersion":"1","requiredCapabilities":["auth.verify"]}),
+                ),
+                (
+                    "verify",
+                    "auth.verify",
+                    serde_json::json!({"contentID":"00000000-0000-0000-0000-000000000001"}),
+                ),
+            ] {
+                let request = serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},
+                    "requestID":id,"command":command,"params":params});
+                write
+                    .write_all(format!("{request}\n").as_bytes())
+                    .await
+                    .unwrap();
+            }
+            for id in ["hello", "verify"] {
+                let mut line = String::new();
+                tokio::time::timeout(Duration::from_secs(2), reader.read_line(&mut line))
+                    .await
+                    .unwrap()
+                    .unwrap();
+                let value: serde_json::Value = serde_json::from_str(&line).unwrap();
+                assert_eq!(value["requestID"], id);
+                if id == "verify" {
+                    assert_eq!(value["ok"], failure.is_none());
+                    if let Some(error) = failure {
+                        assert_eq!(
+                            value["error"],
+                            serde_json::to_value(error.wire_error()).unwrap()
+                        );
+                    } else {
+                        assert_eq!(value["data"], serde_json::json!({"verified":true}));
+                    }
+                    assert!(!line.contains("PRIVATE_SENTINEL"));
+                }
+            }
+            write.shutdown().await.unwrap();
+            task.await.unwrap().unwrap();
+            assert_eq!(memory.get("management-store-user").unwrap(), original);
+        }
+    }
+
+    #[tokio::test]
+    async fn auth_verify_disconnect_drops_network_work_without_late_success() {
+        use crate::auth_verify::{AuthVerifier, VerificationFailure};
+        use tokio::io::AsyncBufReadExt;
+        struct PendingVerifier {
+            started: Arc<tokio::sync::Notify>,
+            dropped: Arc<std::sync::atomic::AtomicBool>,
+        }
+        impl AuthVerifier for PendingVerifier {
+            fn verify(
+                &self,
+                _: TokenManager,
+                _: String,
+            ) -> Pin<Box<dyn Future<Output = Result<(), VerificationFailure>> + Send + '_>>
+            {
+                struct Dropped(Arc<std::sync::atomic::AtomicBool>);
+                impl Drop for Dropped {
+                    fn drop(&mut self) {
+                        self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+                    }
+                }
+                Box::pin(async move {
+                    let _guard = Dropped(self.dropped.clone());
+                    self.started.notify_one();
+                    std::future::pending().await
+                })
+            }
+        }
+        let (_temporary, mut backend) = backend();
+        let started = Arc::new(tokio::sync::Notify::new());
+        let dropped = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        backend.auth_verifier = Some(Arc::new(PendingVerifier {
+            started: started.clone(),
+            dropped: dropped.clone(),
+        }));
+        let (client, server) = tokio::io::duplex(65536);
+        let (read, write) = tokio::io::split(server);
+        let task = tokio::spawn(serve(backend, BufReader::new(read), write));
+        let (read, mut write) = tokio::io::split(client);
+        let mut reader = BufReader::new(read);
+        for (id, command, params) in [
+            (
+                "hello",
+                "hello",
+                serde_json::json!({"client":"fixture","clientVersion":"1"}),
+            ),
+            (
+                "verify",
+                "auth.verify",
+                serde_json::json!({"contentID":"00000000-0000-0000-0000-000000000001"}),
+            ),
+        ] {
+            let frame = serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},
+                "requestID":id,"command":command,"params":params});
+            write
+                .write_all(format!("{frame}\n").as_bytes())
+                .await
+                .unwrap();
+        }
+        let mut line = String::new();
+        reader.read_line(&mut line).await.unwrap();
+        tokio::time::timeout(Duration::from_secs(2), started.notified())
+            .await
+            .unwrap();
+        write.shutdown().await.unwrap();
+        line.clear();
+        reader.read_line(&mut line).await.unwrap();
+        let value: serde_json::Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(value["requestID"], "verify");
+        assert_eq!(value["error"]["code"], "CANCELLED");
+        assert_eq!(task.await.unwrap().unwrap_err().code, ErrorCode::Cancelled);
+        assert!(dropped.load(std::sync::atomic::Ordering::SeqCst));
     }
 
     #[tokio::test]

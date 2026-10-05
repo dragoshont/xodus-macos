@@ -6,6 +6,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use xodus::tokens::TokenManager;
 
+mod auth_verify;
 mod commands;
 mod license;
 #[cfg(target_os = "macos")]
@@ -245,8 +246,20 @@ async fn main() -> ExitCode {
             (None, None, None) => None,
             _ => return ExitCode::FAILURE,
         };
-        return xodus_management::adapter::run_with_native_host(state_dir, *protocol, binding)
-            .await;
+        let verifier = match auth_verify::PackageVerifier::new() {
+            Ok(provider) => std::sync::Arc::new(provider),
+            Err(_) => {
+                eprintln!("Authenticated read provider could not be initialized.");
+                return ExitCode::FAILURE;
+            }
+        };
+        return xodus_management::adapter::run_with_auth_verifier(
+            state_dir,
+            *protocol,
+            binding,
+            Some(verifier),
+        )
+        .await;
     }
     #[cfg(target_os = "macos")]
     if let SubCommand::ManagementAuthWorker { flow_id } = &args.command {

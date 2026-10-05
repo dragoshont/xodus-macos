@@ -149,6 +149,7 @@ pub const COMMANDS: &[&str] = &[
     "auth.cancel",
     "auth.status",
     "auth.logout",
+    "auth.verify",
     "inventory.snapshot",
     "catalog.search",
     "catalog.discover",
@@ -215,6 +216,8 @@ pub fn validate_operation(operation: &Operation) -> Result<(), WireError> {
         }
         Operation::AuthBegin(params) => params.account_scope == "default",
         Operation::AuthCancel(params) => identifier_valid(&params.flow_id),
+        Operation::AuthVerify(params) => uuid::Uuid::parse_str(&params.content_id)
+            .is_ok_and(|id| !id.is_nil() && id.to_string() == params.content_id),
         Operation::InventorySnapshot(params) => {
             params.account_scope == "default" && locale_valid(&params.market, "en")
         }

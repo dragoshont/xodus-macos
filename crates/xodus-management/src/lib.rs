@@ -9,6 +9,8 @@ pub mod wire;
 #[cfg(feature = "live")]
 pub mod adapter;
 #[cfg(feature = "live")]
+pub mod auth_verify;
+#[cfg(feature = "live")]
 pub mod discovery;
 #[cfg(feature = "live")]
 pub mod query;

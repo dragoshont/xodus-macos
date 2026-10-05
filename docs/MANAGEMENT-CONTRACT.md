@@ -41,6 +41,7 @@ runtime/version. Account scope is only `default`, without an account identifier.
 | hello | helloData |
 | auth.status / auth.logout | authData, native macOS Keychain only |
 | auth.begin / auth.cancel | authData with optional flow, owned native WKWebView consent worker |
+| auth.verify | authVerifiedData, explicit read-only authenticated package-metadata check |
 | inventory.snapshot | gated: ACCESS_UNKNOWN; no catalog/history ownership substitution |
 | product.detail | productData, anonymous public product-ID lookup or explicit cached lookup |
 | catalog.search | searchData, **observedPublicProducts** corpus only, partial catalog coverage |
@@ -63,6 +64,35 @@ commands **cannot** return successful plan/launch/update/remove objects in this
 version. No install plan or install-job success schema is promised before there
 is an implementation. `installationRecord` is the future registry entry type,
 not a claim that existing CLI installations have been imported.
+
+`auth.verify` is an additive, capability-negotiated operation with exactly
+`{"contentID":"canonical-lowercase-nonzero-UUID"}` params. The content ID must
+come from actual public Windows.Desktop package metadata, not a guessed
+product/edition ID. It reads only the isolated launcher Keychain profile, then
+reuses the existing silent Passport-to-Xbox authorization and authenticated
+`GetBasePackage` provider chain. Exactly `{"verified":true}` is returned only
+after successful bounded metadata parsing, matching package identity, and
+unchanged-profile checks. No metadata, account IDs, tokens, signed URLs or
+provider bodies are returned. This does not prove ownership, license issuance,
+installability, compatibility, or gameplay.
+
+The entire request has a 30-second deadline, no automatic retries, no browser
+or Keychain prompt, no refreshed-token persistence, license acquisition,
+download, or account/game mutation. A read-only storage wrapper rejects every
+persistent write. Transport disconnect aborts the provider future; an already
+started bounded OS read may finish but cannot write or publish late success.
+There is no separate cancellation command for this read. Active account
+mutations/consent reject verification until reconciled.
+
+Failures contain only the fixed `authenticatedReadFailure` category and stage:
+credentialUnavailable, profileChanged, authExchangeFailed, authRejected,
+transportFailed, responseInvalid, or packageUnavailable. Their exact
+code/message/retryable tuples are in the schema and sanitized fixtures.
+Deadline exhaustion is transportFailed. Package-unavailable is not successful
+verification or proof of invalid credentials. Existing operations and all
+foundational envelope/evidence definitions remain unchanged; old clients need
+not request the added capability, while strict pinned consumers require the
+matching updated schema before using the new pair.
 
 Catalog search is local matching by title/productID over public records fetched
 by this adapter, restricted to requested market/language and PC candidates.

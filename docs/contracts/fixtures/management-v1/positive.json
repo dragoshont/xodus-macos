@@ -63,6 +63,18 @@
       "minor": 0
     },
     "requestID": "fixture-6",
+    "command": "auth.verify",
+    "params": {
+      "contentID": "00000000-0000-0000-0000-000000000001"
+    }
+  },
+  {
+    "kind": "request",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-7",
     "command": "inventory.snapshot",
     "params": {
       "accountScope": "default",
@@ -76,7 +88,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-7",
+    "requestID": "fixture-8",
     "command": "catalog.search",
     "params": {
       "query": "",
@@ -93,7 +105,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-8",
+    "requestID": "fixture-9",
     "command": "catalog.discover",
     "params": {
       "market": "US",
@@ -108,7 +120,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-9",
+    "requestID": "fixture-10",
     "command": "catalog.query",
     "params": {
       "query": "Fixture Harbor",
@@ -124,7 +136,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-10",
+    "requestID": "fixture-11",
     "command": "product.detail",
     "params": {
       "productID": "FIXTURE00001",
@@ -139,7 +151,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-11",
+    "requestID": "fixture-12",
     "command": "install.plan",
     "params": {
       "productID": "FIXTURE00001",
@@ -157,7 +169,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-12",
+    "requestID": "fixture-13",
     "command": "jobs.enqueue",
     "params": {
       "kind": "catalogRefresh",
@@ -176,7 +188,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-13",
+    "requestID": "fixture-14",
     "command": "jobs.pause",
     "params": {
       "jobID": "fixture-job",
@@ -189,7 +201,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-14",
+    "requestID": "fixture-15",
     "command": "jobs.resume",
     "params": {
       "jobID": "fixture-job",
@@ -202,7 +214,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-15",
+    "requestID": "fixture-16",
     "command": "jobs.cancel",
     "params": {
       "jobID": "fixture-job",
@@ -215,7 +227,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-16",
+    "requestID": "fixture-17",
     "command": "jobs.retry",
     "params": {
       "jobID": "fixture-job",
@@ -228,7 +240,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-17",
+    "requestID": "fixture-18",
     "command": "jobs.snapshot",
     "params": {}
   },
@@ -238,7 +250,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-18",
+    "requestID": "fixture-19",
     "command": "events.replay",
     "params": {
       "sessionID": "fixture-session",
@@ -252,7 +264,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-19",
+    "requestID": "fixture-20",
     "command": "installed.snapshot",
     "params": {}
   },
@@ -262,7 +274,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-20",
+    "requestID": "fixture-21",
     "command": "installed.inspect",
     "params": {
       "directory": "/fixture/selected"
@@ -274,7 +286,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-21",
+    "requestID": "fixture-22",
     "command": "game.launch",
     "params": {
       "installationID": "fixture-install",
@@ -287,7 +299,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-22",
+    "requestID": "fixture-23",
     "command": "game.rollback",
     "params": {
       "installationID": "fixture-install",
@@ -300,7 +312,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-23",
+    "requestID": "fixture-24",
     "command": "game.update",
     "params": {
       "installationID": "fixture-install",
@@ -315,7 +327,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-24",
+    "requestID": "fixture-25",
     "command": "game.remove",
     "params": {
       "installationID": "fixture-install",
@@ -330,7 +342,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-25",
+    "requestID": "fixture-26",
     "command": "diagnostics.export",
     "params": {}
   },
@@ -341,6 +353,18 @@
       "minor": 0
     },
     "requestID": "fixture-result-0",
+    "ok": true,
+    "data": {
+      "verified": true
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-result-1",
     "ok": true,
     "data": {
       "protocol": {
@@ -368,7 +392,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-1",
+    "requestID": "fixture-result-2",
     "ok": true,
     "data": {
       "state": "signedOut",
@@ -384,7 +408,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-2",
+    "requestID": "fixture-result-3",
     "ok": true,
     "data": {
       "product": {
@@ -435,7 +459,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-3",
+    "requestID": "fixture-result-4",
     "ok": true,
     "data": {
       "products": [
@@ -492,7 +516,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-4",
+    "requestID": "fixture-result-5",
     "ok": true,
     "data": {
       "corpus": "pcGamePassDiscovery",
@@ -563,7 +587,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-5",
+    "requestID": "fixture-result-6",
     "ok": true,
     "data": {
       "corpus": "publicMicrosoftStoreSearch",
@@ -634,7 +658,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-6",
+    "requestID": "fixture-result-7",
     "ok": true,
     "data": {
       "corpus": "publicMicrosoftStoreSearch",
@@ -654,7 +678,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-7",
+    "requestID": "fixture-result-8",
     "ok": true,
     "data": {
       "scope": "userSelectedDirectory",
@@ -694,7 +718,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-8",
+    "requestID": "fixture-result-9",
     "ok": true,
     "data": {
       "job": {
@@ -727,7 +751,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-9",
+    "requestID": "fixture-result-10",
     "ok": true,
     "data": {
       "sessionID": "fixture-session",
@@ -763,7 +787,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-10",
+    "requestID": "fixture-result-11",
     "ok": true,
     "data": {
       "sessionID": "fixture-session",
@@ -813,7 +837,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-11",
+    "requestID": "fixture-result-12",
     "ok": true,
     "data": {
       "registryVersion": {
@@ -832,7 +856,7 @@
       "major": 1,
       "minor": 0
     },
-    "requestID": "fixture-result-12",
+    "requestID": "fixture-result-13",
     "ok": true,
     "data": {
       "reportVersion": 1,
@@ -1516,6 +1540,132 @@
       "code": "CANCELLED",
       "message": "Transport closed before public query completed.",
       "retryable": true
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-verify-error",
+    "ok": false,
+    "error": {
+      "code": "AUTH_INVALID",
+      "retryable": false,
+      "message": "Authenticated read failed: credentialUnavailable.",
+      "details": {
+        "category": "authenticatedReadFailure",
+        "stage": "credentialUnavailable"
+      }
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-verify-error",
+    "ok": false,
+    "error": {
+      "code": "AUTH_INVALID",
+      "retryable": false,
+      "message": "Authenticated read failed: profileChanged.",
+      "details": {
+        "category": "authenticatedReadFailure",
+        "stage": "profileChanged"
+      }
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-verify-error",
+    "ok": false,
+    "error": {
+      "code": "AUTH_INVALID",
+      "retryable": true,
+      "message": "Authenticated read failed: authExchangeFailed.",
+      "details": {
+        "category": "authenticatedReadFailure",
+        "stage": "authExchangeFailed"
+      }
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-verify-error",
+    "ok": false,
+    "error": {
+      "code": "ACCESS_REVOKED",
+      "retryable": false,
+      "message": "Authenticated read failed: authRejected.",
+      "details": {
+        "category": "authenticatedReadFailure",
+        "stage": "authRejected"
+      }
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-verify-error",
+    "ok": false,
+    "error": {
+      "code": "NETWORK_UNAVAILABLE",
+      "retryable": true,
+      "message": "Authenticated read failed: transportFailed.",
+      "details": {
+        "category": "authenticatedReadFailure",
+        "stage": "transportFailed"
+      }
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-verify-error",
+    "ok": false,
+    "error": {
+      "code": "INTEGRITY_FAILED",
+      "retryable": false,
+      "message": "Authenticated read failed: responseInvalid.",
+      "details": {
+        "category": "authenticatedReadFailure",
+        "stage": "responseInvalid"
+      }
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-verify-error",
+    "ok": false,
+    "error": {
+      "code": "PACKAGE_UNAVAILABLE",
+      "retryable": false,
+      "message": "Authenticated read failed: packageUnavailable.",
+      "details": {
+        "category": "authenticatedReadFailure",
+        "stage": "packageUnavailable"
+      }
     }
   }
 ]

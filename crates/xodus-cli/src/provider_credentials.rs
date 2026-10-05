@@ -51,6 +51,11 @@ pub struct ProviderCredentials {
 }
 
 impl ProviderCredentials {
+    #[cfg(test)]
+    pub(crate) fn read_neutral(tokens: &TokenManager) -> Result<Self, CredentialError> {
+        Self::management(tokens)
+    }
+
     pub async fn read(tokens: &TokenManager) -> Result<Self, CredentialError> {
         if !tokens.is_management_profile() {
             return Self::legacy(tokens);

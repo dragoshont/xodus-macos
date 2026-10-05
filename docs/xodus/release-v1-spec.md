@@ -117,8 +117,24 @@ not part of a UI-only completion claim.
   Only HELLO and the query ran; the isolated child exited and was reaped.
   This is not yet a packaged shipping-UI acceptance result.
 - NMS was confirmed working directly by the user on the preserved commercial
-  CrossOver control. The other two quick control opens remain pending; neither
-  this observation nor custom graphics control transfers gameplay certification.
+  CrossOver control. Hogwarts was also directly user-confirmed. Hollow reached
+  its main menu and quit normally, with child absence verified. The game lane
+  released foreground; NMS/Hogwarts human windows remain preserved. These
+  bounded results do not transfer certification across games or configurations.
+- CrossOver-first app `95af7c0e07d84ef85672d3d1ea184955f97536bf` passed fresh
+  hosted run `37318275541`, including RT-01 through RT-04, shipping assertions
+  and all existing neutral suites. Focused coordinator source review found no
+  high-confidence blocker. Its first package attempt stopped before launcher
+  compilation because the Mac Python did not support `Path.write_text(newline=)`.
+  The minimal byte-writing successor `bc429f1` adds real generator CLI coverage
+  but is not qualified: its full CI hit one existing neutral lifecycle assertion.
+  Resolve that exact failure without weakening ownership/Quit fences, then
+  qualify a fresh immutable source and new stage.
+- Deployment and live packaged authentication are blocked by an older running
+  Xodus app/engine with unknown operation state. The user was unavailable to
+  quit it normally. Do not force termination, replace its bundle, launch a
+  duplicate UI or inspect an unknown authentication window. Finish safe staged
+  package/anonymous checks and retain the explicit human shutdown/login gate.
 - Native successful human login, accessible live packaged UI and authenticated
   owned inventory/download/install/play are not yet certified.
 

@@ -1002,3 +1002,69 @@ The public evidence receipt is SHA-256
 8,530 bytes, mode `0400`, UID 501; the coordinator independently verified its
 no-follow single-link hash/size/stable identity. This closes a real anonymous
 engine network-to-wire check, not shipping UI, ownership, login or playability.
+
+### CrossOver-first implementation and fresh qualification
+
+The additive first-release slice is app
+`95af7c0e07d84ef85672d3d1ea184955f97536bf`, tree
+`a407e75dc6b9ad7cb411d6ece87f3095518b1e1c`. It adds off-main-thread,
+read-only detection at approved CrossOver app locations. A fixed Apple
+Developer ID requirement binds identifier `com.codeweavers.CrossOver` and
+publisher team `9C6B7X7Z8E`; canonical bounded metadata, ownership/mode and
+stable file checks precede the installed observation. Short version and build
+remain distinct. The coordinator independently matched the actual
+user-approved installation to that requirement: version `26.3`, build
+`26.3.0.39832`, without executing CrossOver or examining licensing/game state.
+
+Only a new/unset profile defaults to verified installed CrossOver. Explicit
+decoded, edited or cleared selections are preserved. Alternative providers
+and custom graphics are Experimental and acknowledgement-gated; selection,
+component or observed-identity changes invalidate acknowledgement. Library,
+Account and Settings use the shared prerequisite view. Missing/unverified
+CrossOver does not prevent public browsing or native account setup, and
+verified installation does not promote license, entitlement or playability.
+The real reviewed engine accepted the observed CrossOver version in a pure
+configuration plan while retaining `notInspected`, `notPerformed`,
+`notVerified` and `launchable=false`; no provider or prefix was created.
+
+The independent focused `00ba51f..95af7c0` review found no high-confidence
+release blocker. Authentication/management, packager and hosted workflow
+surfaces are unchanged. Exact normal push
+[37318275541](https://github.com/dragoshont/xodus-macos-app/actions/runs/37318275541)
+passed on Xcode 27.0/`27A266a`, SDK 27: 15 core, 358 management, 61
+presentation, 215 neutral native-session and 87 private-host checks, plus
+27 shipping and 22 portable packaging checks, forbidden arguments/resources
+and SVG reproducibility. The 39 new native and four shipping assertions are
+fresh evidence, not inherited `00ba51f` qualification.
+
+The bounded CrossOver regressions have also resumed: NMS Xbox 7.5 and Hogwarts
+Xbox 1.0.16 were directly user-confirmed working on their preserved controls;
+Hollow Xbox 1.5.12620 reached its main menu and quit normally with child absence
+verified. One launch each, no runtime/prefix configuration, download or auth
+mutation, and no general save/game certification. The game owner released
+foreground but preserved the user's NMS/Hogwarts windows.
+
+The new isolated packaging target uses immutable `95af7c0` only; adoption WIP
+and `00ba51f` are not release inputs. A fresh read-only check confirmed all
+26 known public prior-bundle/root-artifact hashes, sizes, modes and ownership
+remain unchanged. However, the old installed launcher and embedded engine
+are still running with unknown operation/authentication state. The user was
+unavailable to quit them normally. Do not force termination, replace active
+bundle files, duplicate the UI or interact with an unknown auth window.
+Safe staged build/signature/pair validation and anonymous engine checks may
+continue; deployment and genuine packaged sign-in remain external gates.
+
+The first native `95af7c0` package attempt stopped after helper compilation
+and separate copied helper/engine signing, before launcher compilation,
+generated pins or final receipt. The Mac Python rejects
+`Path.write_text(..., newline="\n")`. Failed owned stage and signed partial
+copies are retained; no installed bundle or original sealed input changed.
+Additive `bc429f1fd03bf564b789d550c74c36851b04a09b`, tree
+`2d3ba45c2ae2850c5812b4ee32d85414b13a2bec`, switches pin generation to exact
+UTF-8 bytes and exercises the actual neutral generator CLI, increasing portable
+checks to 23. The focused correction changes no Swift/auth/admission/resource
+or workflow code. However, exact run `37319757608` failed one of the existing
+215 native-session assertions: shared short-exit failure must retain child
+ownership and block fixture/Quit. It does not qualify this successor. Diagnose
+the precise test/child observation rather than weakening cleanup or suppressing
+failure; a new package needs complete fresh green qualification and a new stage.

@@ -58,6 +58,16 @@ branches; this README is not a claim that it has all been merged or deployed.
   23 shipping assertions, 22 portable packaging checks, forbidden-entry checks
   and SVG reproducibility. The coordinator independently verified the run
   identity and reviewed the final delta against `8412f2c`.
+- CrossOver-first UI: [95af7c0](https://github.com/dragoshont/xodus-macos-app/commit/95af7c0e07d84ef85672d3d1ea184955f97536bf),
+  tree `a407e75dc6b9ad7cb411d6ece87f3095518b1e1c`.
+  Its separate [SDK 27 run](https://github.com/dragoshont/xodus-macos-app/actions/runs/37318275541)
+  passed 736 core/management/presentation/native/private-host checks,
+  27 shipping checks and 22 portable packaging checks, plus forbidden-entry,
+  resource and SVG checks. Approved CrossOver app signature/metadata detection
+  runs off the UI thread; only unset profiles default to verified CrossOver.
+  Explicit alternatives remain selected and require Experimental acknowledgement.
+  Library, Account and Settings share dependency status without license or
+  gameplay claims. The coordinator reviewed this focused delta independently.
 
 All four earlier hosted runs passed with zero failures and reproducible SVG output.
 The relevant source reviews are closed for their stated scopes. Their
@@ -70,15 +80,20 @@ built: unsigned SHA-256
 21,315,008 bytes. Its adjacent provenance SHA-256 is
 `d72edb61fb45b0c5f9e91343d4e68ee25e2345ea0df9a0eeb7b4f13ae9d36f6d`,
 46,234 bytes. Both were independently rechecked, including exact source,
-Release profile and native-Keychain features. `00ba51f` qualifies the hardening
-source, not the new CrossOver-first release requirement. A bounded additive
-UI/default/prerequisite slice must pass fresh CI before its immutable source
-is packaged and deployed. An earlier `00ba51f` package, if built, is only a
-candidate and must not be deployed as that first release. Builds have no CPU
-lease prerequisite. The prior installed bundle must remain recoverable;
-foreground interaction and sign-in/MFA/consent/Keychain prompts remain
-human-gated. Successful Store login, authoritative owned inventory and
-download/install/update/play remain unverified.
+Release profile and native-Keychain features. The CrossOver-first source
+`95af7c0` has fresh green source CI, but its package attempt exposed an older
+Mac Python compatibility issue before launcher compilation. The additive
+byte-writing correction `bc429f1` passed portable generation checks but its
+full CI hit one existing neutral lifecycle assertion; that failure must be
+resolved before a new isolated package is qualified. Failed partial artifacts
+are preserved; no deployment is claimed. An older Xodus launcher/engine is still running
+with unknown operation state. It must exit safely before its installed bundle
+is replaced; the user was unavailable to resolve that gate, so it will not be
+terminated or duplicated. Safe staged packaging and anonymous checks continue.
+Builds have no CPU lease prerequisite. The prior installed bundle remains
+recoverable; sign-in/MFA/consent/Keychain prompts remain human-only. Successful
+Store login, authoritative owned inventory and download/install/update/play
+remain unverified.
 
 For exact source/artifact identities, review dispositions and remaining
 gates, see [the architecture and verification ledger](docs/xodus/architecture.md).

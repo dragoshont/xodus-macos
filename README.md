@@ -23,7 +23,7 @@ branches; this README is not a claim that it has all been merged or deployed.
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
 | Native launcher | Native navigation/search header and Runtime Settings; shipping builds exclude fixture UI, artwork, test entry points and developer engine selection. The working login pair and close/retry fix are installed. | The gamer-facing status-wall cleanup remains in review; live visual, accessibility and resize acceptance is not complete. |
-| Store authentication | Microsoft sign-in is saved in macOS Keychain and persists across a normal restart and installation of the close/retry fix. The exchange follows upstream request ordering. | Read-only `auth.verify` is implemented and source-reviewed in backend `c42e21a`, with 81 native checks and two wire checks reported passing. A matching consumer/package and one actual authenticated provider read remain pending; restart status alone is not provider authorization. |
+| Store authentication | Microsoft sign-in was saved in macOS Keychain and persisted across restart and the unchanged-engine close/retry update. The exchange follows upstream request ordering. The matching `2b4f962`/`c42e21a` authenticated-read pair is installed. | Its sole live `auth.verify` returned `credentialUnavailable`. Mac inspection established that per-build ad-hoc CLI signing identities prevent the new engine from reading the old Keychain item without approval. Stable signing and human access/sign-in approval are required; authenticated provider use is not established. |
 | Owned and local games | Public Xbox catalog/search and bounded selected-folder structural inspection exist. | Complete Xbox PC-owned inventory is unsupported by the current integration. `installed.snapshot` currently returns a constant empty list, not a Mac installation scan; inspected folders remain unverified and not launchable. Catalog, achievements, Game Pass availability and folder markers are not ownership or playability evidence. |
 | Shipping pair admission | Fixed bundled engine/helper paths and stage-generated compiled identities; missing approval or changed files fail before management, authentication mutations or runtime planning. | Controlled local operator approval only, not general Developer ID distribution attestation. HELLO alone grants no trust. |
 | Account presentation | Toolbar, Account, Settings and Library share freshness-aware account state. Failed status checks remove saved-account claims while retaining the safety snapshot; a pending flow does not claim that a Microsoft window opened. | Source-side UI changes do not establish live authentication, PC ownership or entitlement. |
@@ -100,14 +100,22 @@ and compatibility, with continuation not followed. No authentication method
 or helper execution was requested by that smoke.
 
 **Current installed pair:** app
-[5ac830c](https://github.com/dragoshont/xodus-macos-app/commit/5ac830c8620c1f293a0cc0389b9ae41cfd00b1c6)
+[2b4f962](https://github.com/dragoshont/xodus-macos-app/commit/2b4f962a0e51f91cb44d342fd45f57065a11e3fc)
 and backend
-[397dd02](https://github.com/dragoshont/xodus-macos/commit/397dd0249c81414dae3d75b3562f696378fd6b11).
+[c42e21a](https://github.com/dragoshont/xodus-macos/commit/c42e21aee18da893546cca94cbee09820bcbca95).
 On October 6 the app owner observed a saved Microsoft session after human
 sign-in, then verified that it remained saved after a normal app restart.
 The subsequent close/retry update also preserved the saved session without
 opening another browser or requesting credentials.
-This establishes login persistence, not authenticated provider use,
+Those observations used the unchanged `397dd02` engine. After installing
+the new engine, the single authenticated read returned `credentialUnavailable`.
+The credential was not deleted: Mac inspection identified changed ad-hoc CLI
+code identities and zero available code-signing identities as the Keychain
+access boundary. Fixed identifiers alone do not stabilize an ad-hoc code
+requirement across engine rebuilds; a stable OS-Keychain-held signing identity
+and human approval are needed. Private keys and tickets must not be exported,
+and Keychain ACLs must not be weakened to bypass the boundary.
+Earlier observations establish persistence across the same engine identity, not authenticated provider use,
 authoritative owned inventory or launcher-driven download/install/update/play.
 The backend retains validated failed-exchange inputs only in Keychain for a
 bounded retry window of at most five minutes and never extends their original

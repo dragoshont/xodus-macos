@@ -264,7 +264,7 @@ authorized by this product requirement.
 
 ### Native launcher sign-in integration
 
-**October 6, 2026 live persistence update:** the installed app
+**October 6, 2026 persistence baseline:** app
 [`5ac830c`](https://github.com/dragoshont/xodus-macos-app/commit/5ac830c8620c1f293a0cc0389b9ae41cfd00b1c6)
 is paired with backend
 [`397dd02`](https://github.com/dragoshont/xodus-macos/commit/397dd0249c81414dae3d75b3562f696378fd6b11).
@@ -272,9 +272,9 @@ The engine restores upstream Xbox-first exchange ordering, with Passport
 requested after continuation. The app owner observed a saved Microsoft
 session after user-assisted sign-in and confirmed it remained saved after
 a normal app restart. Authenticated provider use remains unverified because
-the reviewed backend `c42e21a` read-only `auth.verify` operation still awaits
-matching consumer/package admission and one live read. Saved-session status
-must not substitute for that check.
+the subsequent installed `2b4f962`/`c42e21a` pair returned
+`credentialUnavailable` on its sole live `auth.verify`. Saved-session status
+must not substitute for authenticated provider use.
 Validated failed-exchange inputs may be retained only in launcher Keychain
 for at most five minutes, bounded by their original device-auth/device
 expiry. Success clears them; retries do not renew their expiry. Expiry
@@ -284,6 +284,20 @@ pending-state bug; cancelling the attempt and restarting recovered it,
 and the subsequent `5ac830c` cancellation/retry fix is installed. Hidden AppKit
 direct-close/perform-close and explicit-retry regressions passed; installation
 preserved the saved session without another credential prompt.
+
+**Engine-update access boundary:** subsequent Mac inspection established that
+the old and new CLIs have different per-build ad-hoc signing identifiers and
+designated requirements, with no Team ID or available code-signing identities.
+The old Keychain item remains present, but the new engine cannot read it under
+the no-prompt policy. This is not evidence that the credential was deleted or
+that its provider rejected it. The status-observation loop was stopped;
+the additionally proposed direct status request was never started.
+One human access/sign-in approval is needed for the current engine. Durable
+rebuild reuse requires fixed app/CLI identifiers under one stable signing
+identity whose private key remains in OS Keychain, and comparison of designated
+requirements across two different builds. Provisioning and private-key/access
+approvals remain human-gated; no private-key export or ACL relaxation is
+authorized. The user was unavailable at the last availability check.
 
 **Owned/installed capability boundary:** the current backend has no complete
 consumer Xbox PC-owned inventory enumerator. Partner-configured Store queries

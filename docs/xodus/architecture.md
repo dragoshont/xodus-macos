@@ -964,3 +964,12 @@ endorsement, detected installation, licensing, game compatibility or launch
 readiness. Provider plans still report unknown installation/preflight/game
 verification and `launchable=false`. Human Store login, live accessible UI,
 authoritative inventory and install/update/play gates remain open.
+
+The user's subsequent specification-driven-development direction is captured
+in [the first-release specification](release-v1-spec.md). It maps runtime,
+authentication, actual backend data, shipping exclusion, CrossOver regressions
+and deployment requirements to acceptance evidence. The reviewed production
+adapter supports public catalog/query and catalog-check jobs, but does not
+advertise authoritative inventory; its empty installed snapshot is scoped to
+the management registry and its package/game lifecycle is unavailable.
+Developing UI against the schema must not promote these unsupported surfaces.

@@ -82,6 +82,9 @@ download/install/update/play remain unverified.
 
 For exact source/artifact identities, review dispositions and remaining
 gates, see [the architecture and verification ledger](docs/xodus/architecture.md).
+The [first-release specification](docs/xodus/release-v1-spec.md) defines the
+CrossOver prerequisite, native authentication, real-data boundaries and
+requirement-to-test acceptance contract used for ongoing development.
 Component evidence is recorded separately in
 [public RPS](runtime/public-rps/README.md),
 [public macOS](runtime/public-macos/README.md) and

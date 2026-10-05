@@ -7,3 +7,4 @@ samples
 .architrave/worktrees/
 .architrave/runtime.key
 .architrave/resources.lock
+__pycache__/

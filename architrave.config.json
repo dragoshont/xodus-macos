@@ -1,0 +1,42 @@
+{
+  "platform": "apple-macos",
+  "stack": "other",
+  "knowledgePack": "apple",
+  "designSource": { "type": "design-doc", "path": "docs/xodus", "spec": "docs/xodus/architecture.md" },
+  "applyTo": ["docs/xodus/**", "README.md"],
+  "build": "cargo build --locked -p xodus-cli",
+  "test": "cargo test --locked -p xodus",
+  "backend": {
+    "stack": "other",
+    "solution": "Cargo.toml",
+    "architectureDocs": ["docs/xodus/architecture.md"],
+    "applyTo": ["crates/**"],
+    "build": "cargo build --locked -p xodus-cli",
+    "test": "cargo test --locked -p xodus"
+  },
+  "autonomy": {
+    "scope": "approved-program",
+    "mutationPolicy": {
+      "default": "deny",
+      "allow": [{ "scope": "repository", "operations": ["edit"] }],
+      "confirmationRequired": ["package", "sign", "deploy", "launch", "authenticate"]
+    }
+  },
+  "workers": {
+    "defaultAdapter": "shell",
+    "maxParallel": 1,
+    "enabledAdapters": ["shell"],
+    "cleanupCompletedWorktrees": false
+  },
+  "learning": {
+    "runArtifactsPath": ".architrave/runs",
+    "repoProfilePath": ".architrave/learning/repo-profile.md",
+    "lessonsPath": ".architrave/learning/repo-lessons.md",
+    "capture": ["run-artifacts", "gate-results", "judge-verdicts", "runtime-evidence", "repo-profile", "lessons"],
+    "redactionPolicy": "no-secrets",
+    "staleFactPolicy": "validate-before-use",
+    "promotionPolicy": "approval-required",
+    "promoteAfterOccurrences": 2,
+    "promoteTargets": ["architrave.config.json", "AGENTS.md", ".github/instructions", "docs"]
+  }
+}

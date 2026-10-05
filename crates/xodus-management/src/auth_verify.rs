@@ -2,7 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::time::Duration;
 
-use xodus::tokens::TokenManager;
+use xodus::tokens::{ManagementProfileWitness, TokenManager};
 
 use crate::wire::{ErrorCode, WireError};
 
@@ -52,10 +52,10 @@ impl VerificationFailure {
     }
 }
 
-pub async fn bounded_verification(
+pub async fn bounded_verification<T>(
     deadline: Duration,
-    operation: impl Future<Output = Result<(), VerificationFailure>>,
-) -> Result<(), VerificationFailure> {
+    operation: impl Future<Output = Result<T, VerificationFailure>>,
+) -> Result<T, VerificationFailure> {
     tokio::time::timeout(deadline, operation)
         .await
         .unwrap_or(Err(VerificationFailure::TransportFailed))
@@ -77,7 +77,7 @@ mod tests {
         let owned = Dropped(dropped.clone());
         let result = bounded_verification(Duration::from_millis(20), async move {
             let _guard = owned;
-            std::future::pending().await
+            std::future::pending::<Result<(), VerificationFailure>>().await
         })
         .await;
         assert_eq!(result, Err(VerificationFailure::TransportFailed));
@@ -91,5 +91,7 @@ pub trait AuthVerifier: Send + Sync {
         &self,
         tokens: TokenManager,
         content_id: String,
-    ) -> Pin<Box<dyn Future<Output = Result<(), VerificationFailure>> + Send + '_>>;
+    ) -> Pin<
+        Box<dyn Future<Output = Result<ManagementProfileWitness, VerificationFailure>> + Send + '_>,
+    >;
 }

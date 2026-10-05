@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "PascalCase", untagged)]
 pub enum PackageResponse {
     Found(PackageDetails),
-    NotFound { package_found: bool },
+    NotFound {
+        #[serde(rename = "PackageFound")]
+        package_found: bool,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -132,6 +132,12 @@ impl ProviderCredentials {
         .await
     }
 
+    pub fn publication_witness(&self) -> Option<xodus::tokens::ManagementProfileWitness> {
+        self.stamp
+            .as_ref()
+            .map(ManagementProfileStamp::publication_witness)
+    }
+
     pub fn device_license_block(&self, tokens: &TokenManager) -> Result<String, CredentialError> {
         if let Some(device) = &self.license {
             return Ok(device.splicense.clone());

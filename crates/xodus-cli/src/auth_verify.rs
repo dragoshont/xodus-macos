@@ -3,7 +3,7 @@ use std::pin::Pin;
 
 use xodus::api::response::ProviderResponseError;
 use xodus::api::xbox::XboxAuthError;
-use xodus::tokens::TokenManager;
+use xodus::tokens::{ManagementProfileWitness, TokenManager};
 use xodus_management::auth_verify::{AuthVerifier, VerificationFailure};
 
 use crate::package::PackageReadError;
@@ -45,6 +45,9 @@ fn classify(error: PackageReadError) -> VerificationFailure {
         PackageReadError::Credentials(CredentialError::ProfileChanged) => {
             VerificationFailure::ProfileChanged
         }
+        PackageReadError::Credentials(CredentialError::Deadline) => {
+            VerificationFailure::TransportFailed
+        }
         PackageReadError::Credentials(_) => VerificationFailure::CredentialUnavailable,
         PackageReadError::Authentication(XboxAuthError::Provider(
             ProviderResponseError::HttpRejected { status: 404 },
@@ -66,15 +69,20 @@ impl AuthVerifier for PackageVerifier {
         &self,
         tokens: TokenManager,
         content_id: String,
-    ) -> Pin<Box<dyn Future<Output = Result<(), VerificationFailure>> + Send + '_>> {
+    ) -> Pin<
+        Box<dyn Future<Output = Result<ManagementProfileWitness, VerificationFailure>> + Send + '_>,
+    > {
         Box::pin(async move {
             let readonly = tokens
                 .readonly_management_profile()
                 .map_err(|_| VerificationFailure::CredentialUnavailable)?;
-            crate::package::get_packages_checked(&self.client, &readonly, content_id)
+            crate::package::get_packages_verified(&self.client, &readonly, content_id)
                 .await
-                .map(|_| ())
                 .map_err(classify)
+                .and_then(|read| {
+                    read.profile
+                        .ok_or(VerificationFailure::CredentialUnavailable)
+                })
         })
     }
 }
@@ -82,6 +90,20 @@ impl AuthVerifier for PackageVerifier {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn credential_read_deadline_is_exact_retryable_transport_failure() {
+        let error = classify(PackageReadError::Credentials(CredentialError::Deadline));
+        assert_eq!(
+            serde_json::to_value(error.wire_error()).unwrap(),
+            serde_json::json!({
+                "code":"NETWORK_UNAVAILABLE",
+                "message":"Authenticated read failed: transportFailed.",
+                "retryable":true,
+                "details":{"category":"authenticatedReadFailure","stage":"transportFailed"},
+            })
+        );
+    }
 
     #[test]
     fn authenticated_read_errors_are_closed_and_distinguish_unavailable_from_rejected() {

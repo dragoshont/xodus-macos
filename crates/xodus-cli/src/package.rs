@@ -118,6 +118,22 @@ pub(crate) async fn get_packages_checked(
     tokens: &TokenManager,
     content_id: String,
 ) -> Result<PackageDetails, PackageReadError> {
+    get_packages_verified(client, tokens, content_id)
+        .await
+        .map(|read| read.package)
+}
+
+#[derive(Debug)]
+pub(crate) struct VerifiedPackageRead {
+    package: PackageDetails,
+    pub profile: Option<xodus::tokens::ManagementProfileWitness>,
+}
+
+pub(crate) async fn get_packages_verified(
+    client: &reqwest::Client,
+    tokens: &TokenManager,
+    content_id: String,
+) -> Result<VerifiedPackageRead, PackageReadError> {
     let content_id =
         uuid::Uuid::parse_str(&content_id).map_err(|_| PackageReadError::InvalidContent)?;
     let credentials = ProviderCredentials::read(tokens)
@@ -148,7 +164,7 @@ async fn get_packages_using<A, AF, R, RF>(
     content_id: uuid::Uuid,
     authenticate: A,
     read: R,
-) -> Result<PackageDetails, PackageReadError>
+) -> Result<VerifiedPackageRead, PackageReadError>
 where
     A: FnOnce(
         xodus::models::secrets::LegacyToken,
@@ -173,12 +189,22 @@ where
         .await
         .map_err(PackageReadError::Credentials)?;
     let response = read(token, content_id).await?;
-    if let PackageResponse::NotFound { package_found } = response {
-        return Err(if package_found {
-            PackageReadError::InvalidResponse
-        } else {
-            PackageReadError::Unavailable
-        });
+    match &response {
+        PackageResponse::NotFound {
+            package_found: false,
+        }
+        | PackageResponse::Found(PackageDetails {
+            package_found: false,
+            ..
+        }) => {
+            return Err(PackageReadError::Unavailable);
+        }
+        PackageResponse::NotFound {
+            package_found: true,
+        } => {
+            return Err(PackageReadError::InvalidResponse);
+        }
+        _ => {}
     }
     let package =
         checked_package(response, content_id).map_err(|_| PackageReadError::InvalidResponse)?;
@@ -186,7 +212,10 @@ where
         .verify_current(tokens)
         .await
         .map_err(PackageReadError::Credentials)?;
-    Ok(package)
+    Ok(VerifiedPackageRead {
+        package,
+        profile: credentials.publication_witness(),
+    })
 }
 
 fn package_request(
@@ -222,9 +251,31 @@ fn checked_package(
         )));
     }
     for file in &package.package_files {
+        if uuid::Uuid::parse_str(&file.content_id).ok() != Some(content_id) {
+            return Err(Box::new(std::io::Error::other(
+                "Package file content does not match the requested content",
+            )));
+        }
+        let extension = std::path::Path::new(&file.file_name)
+            .extension()
+            .and_then(|extension| extension.to_str());
+        let base_payload = extension.is_none()
+            || extension.is_some_and(|extension| extension.eq_ignore_ascii_case("msixvc"));
+        if base_payload && !same_package_version(&file.version_id, &package.version_id) {
+            return Err(Box::new(std::io::Error::other(
+                "Base package file version does not match the enclosing version",
+            )));
+        }
         checked_package_file_source(file)?;
     }
     Ok(package)
+}
+
+fn same_package_version(file: &str, package: &str) -> bool {
+    match (uuid::Uuid::parse_str(file), uuid::Uuid::parse_str(package)) {
+        (Ok(file), Ok(package)) => file == package,
+        _ => !file.is_empty() && file == package,
+    }
 }
 
 pub fn checked_package_file_source(
@@ -354,6 +405,8 @@ mod tests {
             "success",
             "unavailable",
             "mismatch",
+            "wrong_file_content",
+            "wrong_base_version",
             "malformed",
             "rejected",
         ] {
@@ -377,6 +430,20 @@ mod tests {
                             package_found: false,
                         }),
                         "mismatch" => Ok(response(true, "PRIVATE_SENTINEL")),
+                        "wrong_file_content" | "wrong_base_version" => {
+                            let PackageResponse::Found(mut package) = response(true, CONTENT_ID)
+                            else {
+                                panic!("neutral package required");
+                            };
+                            let mut file = package_file();
+                            if outcome == "wrong_file_content" {
+                                file.content_id = "PRIVATE_SENTINEL".to_owned();
+                            } else {
+                                file.version_id = "PRIVATE_SENTINEL".to_owned();
+                            }
+                            package.package_files.push(file);
+                            Ok(PackageResponse::Found(package))
+                        }
                         "malformed" => Err(PackageReadError::Provider(
                             ProviderResponseError::InvalidJson,
                         )),
@@ -465,6 +532,78 @@ mod tests {
             "ModifiedDate": "2000-01-01T00:00:00Z"
         }))
         .unwrap()
+    }
+
+    #[tokio::test]
+    async fn real_package_not_found_json_is_unavailable_without_invalidating_credentials() {
+        use xodus::tokens::store::TokenBackend;
+        let (manager, memory) = management_profile();
+        let original = memory.get("management-store-user").unwrap();
+        let readonly = manager.readonly_management_profile().unwrap();
+        let credentials = ProviderCredentials::read_neutral(&readonly).unwrap();
+        let response: PackageResponse = serde_json::from_str(
+            r#"{"PackageFound":false,"FutureProviderField":"PRIVATE_SENTINEL"}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            response,
+            PackageResponse::NotFound {
+                package_found: false
+            }
+        ));
+        let result = get_packages_using(
+            &readonly,
+            credentials,
+            uuid::Uuid::parse_str(CONTENT_ID).unwrap(),
+            |_, _, _| async { Ok(auth_response()) },
+            |_, _| async { Ok(response) },
+        )
+        .await;
+        assert!(matches!(result, Err(PackageReadError::Unavailable)));
+        assert_eq!(memory.get("management-store-user").unwrap(), original);
+        assert!(manager.management_store_snapshot().is_ok());
+    }
+
+    #[test]
+    fn package_files_match_content_and_base_version_without_conflating_auxiliary_versions() {
+        let id = uuid::Uuid::parse_str(CONTENT_ID).unwrap();
+        let PackageResponse::Found(mut package) = response(true, CONTENT_ID) else {
+            panic!("neutral package required");
+        };
+        let mut base = package_file();
+        base.version_id = package.version_id.to_ascii_uppercase();
+        package.package_files.push(base.clone());
+        for name in ["fixture.phf", "fixture.xsp", "fixture.PHF", "fixture.XSP"] {
+            let mut auxiliary = base.clone();
+            auxiliary.file_name = name.to_owned();
+            auxiliary.version_id = "00000000-0000-0000-0000-000000000003".to_owned();
+            auxiliary.delta_version_id = Some("00000000-0000-0000-0000-000000000004".to_owned());
+            auxiliary.update_type = 123;
+            package.package_files.push(auxiliary);
+        }
+        assert!(checked_package(PackageResponse::Found(package.clone()), id).is_ok());
+        for name in ["fixture.msixvc", "fixture.MSIXVC", "fixture"] {
+            let mut wrong = package.clone();
+            wrong.package_files[0].file_name = name.to_owned();
+            wrong.package_files[0].version_id = "PRIVATE_SENTINEL".to_owned();
+            let error = checked_package(PackageResponse::Found(wrong), id).unwrap_err();
+            assert_eq!(
+                error.to_string(),
+                "Base package file version does not match the enclosing version"
+            );
+            assert!(!error.to_string().contains("PRIVATE_SENTINEL"));
+        }
+        for index in 0..package.package_files.len() {
+            let mut wrong = package.clone();
+            wrong.package_files[index].content_id =
+                "00000000-0000-0000-0000-000000000005".to_owned();
+            assert_eq!(
+                checked_package(PackageResponse::Found(wrong), id)
+                    .unwrap_err()
+                    .to_string(),
+                "Package file content does not match the requested content"
+            );
+        }
     }
 
     #[test]

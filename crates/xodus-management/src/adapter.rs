@@ -694,7 +694,9 @@ pub fn map_product(
 enum Completion {
     AuthVerified {
         request_id: String,
-        result: Result<(), WireError>,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        result: Result<xodus::tokens::ManagementProfileWitness, WireError>,
     },
     ConsentPrepared {
         request_id: String,
@@ -759,6 +761,7 @@ pub struct Backend {
     pending_requests: BTreeSet<String>,
     async_keychain_io: bool,
     account_mutation_pending: bool,
+    account_generation: Uuid,
     inspection_permits: Arc<tokio::sync::Semaphore>,
     native_host: Option<crate::native_auth::HostBinding>,
     auth_verifier: Option<Arc<dyn crate::auth_verify::AuthVerifier>>,
@@ -781,6 +784,7 @@ impl Backend {
             pending_requests: BTreeSet::new(),
             async_keychain_io: true,
             account_mutation_pending: false,
+            account_generation: Uuid::new_v4(),
             native_host: None,
             auth_verifier: None,
             inspection_permits: Arc::new(tokio::sync::Semaphore::new(4)),
@@ -914,6 +918,8 @@ impl Backend {
                     })?;
                 let request_id = request.request_id.clone();
                 let content_id = params.content_id.clone();
+                let generation = self.account_generation;
+                let deadline = tokio::time::Instant::now() + crate::auth_verify::DEADLINE;
                 self.pending_requests.insert(request_id.clone());
                 self.tasks.spawn(async move {
                     let result = crate::auth_verify::bounded_verification(
@@ -922,7 +928,12 @@ impl Backend {
                     )
                     .await
                     .map_err(crate::auth_verify::VerificationFailure::wire_error);
-                    Completion::AuthVerified { request_id, result }
+                    Completion::AuthVerified {
+                        request_id,
+                        generation,
+                        deadline,
+                        result,
+                    }
                 });
                 return Ok(None);
             }
@@ -950,6 +961,7 @@ impl Backend {
                     error.message = "The reviewed native Swift sign-in helper is unavailable. Configure the paired helper before connecting.".to_owned();
                     return Err(error);
                 }
+                self.account_generation = Uuid::new_v4();
                 if self.async_keychain_io {
                     self.reserve_worker()?;
                     let tokens = tokens
@@ -1082,6 +1094,7 @@ impl Backend {
                         false,
                     ));
                 }
+                self.account_generation = Uuid::new_v4();
                 self.stop_auth().await?;
                 self.auth_flow = None;
                 let tokens = self.token_manager()?;
@@ -1090,7 +1103,7 @@ impl Backend {
                         .with_explicit_management_keychain_interaction()
                         .map_err(|_| transport::invalid())?;
                     let request_id = request.request_id.clone();
-                    self.account_mutation_pending = true;
+                    self.begin_account_mutation();
                     self.pending_requests.insert(request_id.clone());
                     self.tasks.spawn(async move {
                         Completion::AccountLogout { request_id, result: account_work(move || {
@@ -1545,7 +1558,7 @@ impl Backend {
                 } else {
                     if self.async_keychain_io {
                         let tokens = self.token_manager()?;
-                        self.account_mutation_pending = true;
+                        self.begin_account_mutation();
                         self.tasks.spawn(async move {
                             Completion::AccountCommit { flow_id, result: account_work(move || {
                                 if !matches!(auth_status(&tokens)?.state, AuthState::SignedOut) {
@@ -1612,7 +1625,7 @@ impl Backend {
                     let tokens = self.token_manager()?;
                     let expires_at = pending.as_ref().map(|pending| pending.expires_at);
                     if self.async_keychain_io {
-                        self.account_mutation_pending = true;
+                        self.begin_account_mutation();
                         self.tasks.spawn(async move {
                             Completion::ExchangeRetained {
                                 flow_id,
@@ -1673,6 +1686,34 @@ impl Backend {
                 }
             }
         }
+    }
+
+    fn auth_verified_result(
+        &mut self,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        result: Result<xodus::tokens::ManagementProfileWitness, WireError>,
+    ) -> Result<Data, WireError> {
+        use crate::auth_verify::VerificationFailure;
+        if generation != self.account_generation || self.account_mutation_pending {
+            return Err(VerificationFailure::ProfileChanged.wire_error());
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return Err(VerificationFailure::TransportFailed.wire_error());
+        }
+        let witness = result?;
+        if !self
+            .token_manager()?
+            .management_publication_current(&witness)
+        {
+            return Err(VerificationFailure::ProfileChanged.wire_error());
+        }
+        Ok(Data::AuthVerified(AuthVerifiedData { verified: True }))
+    }
+
+    fn begin_account_mutation(&mut self) {
+        self.account_generation = Uuid::new_v4();
+        self.account_mutation_pending = true;
     }
 
     fn schedule_exchange_expiry(
@@ -2214,10 +2255,10 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
             },
             completion = backend.tasks.join_next(), if !backend.tasks.is_empty() => {
                 match completion {
-                    Some(Ok(Completion::AuthVerified { request_id, result })) => {
+                    Some(Ok(Completion::AuthVerified { request_id, generation, deadline, result })) => {
                         backend.pending_requests.remove(&request_id);
-                        write_result(writer, request_id, result.map(|()|
-                            Data::AuthVerified(AuthVerifiedData { verified: True }))).await?;
+                        let result = backend.auth_verified_result(generation, deadline, result);
+                        write_result(writer, request_id, result).await?;
                     },
                     Some(Ok(Completion::ConsentPrepared { request_id, flow_id, result })) => {
                         backend.pending_requests.remove(&request_id);
@@ -3755,12 +3796,25 @@ mod auth_lifecycle_tests {
                 &self,
                 tokens: TokenManager,
                 content_id: String,
-            ) -> Pin<Box<dyn Future<Output = Result<(), VerificationFailure>> + Send + '_>>
-            {
+            ) -> Pin<
+                Box<
+                    dyn Future<
+                            Output = Result<
+                                xodus::tokens::ManagementProfileWitness,
+                                VerificationFailure,
+                            >,
+                        > + Send
+                        + '_,
+                >,
+            > {
                 Box::pin(async move {
                     assert_eq!(content_id, "00000000-0000-0000-0000-000000000001");
                     assert!(tokens.save_user(&fixture_store_session().user).is_err());
-                    self.0.map_or(Ok(()), Err)
+                    if let Some(failure) = self.0 {
+                        return Err(failure);
+                    }
+                    let (_, stamp) = tokens.management_store_snapshot().unwrap();
+                    Ok(stamp.publication_witness())
                 })
             }
         }
@@ -3858,8 +3912,17 @@ mod auth_lifecycle_tests {
                 &self,
                 _: TokenManager,
                 _: String,
-            ) -> Pin<Box<dyn Future<Output = Result<(), VerificationFailure>> + Send + '_>>
-            {
+            ) -> Pin<
+                Box<
+                    dyn Future<
+                            Output = Result<
+                                xodus::tokens::ManagementProfileWitness,
+                                VerificationFailure,
+                            >,
+                        > + Send
+                        + '_,
+                >,
+            > {
                 struct Dropped(Arc<std::sync::atomic::AtomicBool>);
                 impl Drop for Dropped {
                     fn drop(&mut self) {
@@ -3917,6 +3980,123 @@ mod auth_lifecycle_tests {
         assert_eq!(value["error"]["code"], "CANCELLED");
         assert_eq!(task.await.unwrap().unwrap_err().code, ErrorCode::Cancelled);
         assert!(dropped.load(std::sync::atomic::Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn auth_verify_completed_worker_cannot_publish_after_logout_replacement_or_mutation() {
+        use crate::auth_verify::{AuthVerifier, VerificationFailure};
+        struct ProofVerifier;
+        impl AuthVerifier for ProofVerifier {
+            fn verify(
+                &self,
+                tokens: TokenManager,
+                _: String,
+            ) -> Pin<
+                Box<
+                    dyn Future<
+                            Output = Result<
+                                xodus::tokens::ManagementProfileWitness,
+                                VerificationFailure,
+                            >,
+                        > + Send
+                        + '_,
+                >,
+            > {
+                Box::pin(async move {
+                    let (_, stamp) = tokens
+                        .management_store_snapshot()
+                        .map_err(|_| VerificationFailure::CredentialUnavailable)?;
+                    Ok(stamp.publication_witness())
+                })
+            }
+        }
+        for action in [
+            "unchanged",
+            "logout",
+            "replacement",
+            "mutation",
+            "generation",
+            "deadline",
+        ] {
+            let (_temporary, mut backend) = backend();
+            backend
+                .tokens
+                .as_ref()
+                .unwrap()
+                .save_management_store_session(fixture_store_session())
+                .unwrap();
+            backend.auth_verifier = Some(Arc::new(ProofVerifier));
+            let request = Request {
+                kind: RequestKind::Request,
+                protocol: Protocol::default(),
+                request_id: "verify".to_owned(),
+                operation: Operation::AuthVerify(AuthVerifyParams {
+                    content_id: "00000000-0000-0000-0000-000000000001".to_owned(),
+                }),
+            };
+            assert!(backend.dispatch(&request).await.unwrap().is_none());
+            let Completion::AuthVerified {
+                request_id,
+                generation,
+                mut deadline,
+                result,
+            } = backend.tasks.join_next().await.unwrap().unwrap()
+            else {
+                panic!("verification completion required");
+            };
+            assert!(result.is_ok(), "worker must finish before account mutation");
+            match action {
+                "logout" => {
+                    let logout = Request {
+                        kind: RequestKind::Request,
+                        protocol: Protocol::default(),
+                        request_id: "logout".to_owned(),
+                        operation: Operation::AuthLogout(Empty {}),
+                    };
+                    let Some(Data::Auth(status)) = backend.dispatch(&logout).await.unwrap() else {
+                        panic!("logout must finish before verification is released");
+                    };
+                    assert!(matches!(status.state, AuthState::SignedOut));
+                }
+                "replacement" => {
+                    backend
+                        .tokens
+                        .as_ref()
+                        .unwrap()
+                        .save_management_store_session(fixture_store_session())
+                        .unwrap();
+                }
+                "mutation" => backend.begin_account_mutation(),
+                "generation" => backend.account_generation = Uuid::new_v4(),
+                "deadline" => deadline = tokio::time::Instant::now(),
+                _ => {}
+            }
+            backend.pending_requests.remove(&request_id);
+            let result = backend.auth_verified_result(generation, deadline, result);
+            let mut output = Vec::new();
+            write_result(&mut output, request_id, result).await.unwrap();
+            let frame: serde_json::Value = serde_json::from_slice(&output).unwrap();
+            assert_eq!(frame["ok"], action == "unchanged");
+            if action == "unchanged" {
+                assert_eq!(frame["data"], serde_json::json!({"verified":true}));
+            } else {
+                let expected = if action == "deadline" {
+                    VerificationFailure::TransportFailed
+                } else {
+                    VerificationFailure::ProfileChanged
+                };
+                assert_eq!(
+                    frame["error"],
+                    serde_json::to_value(expected.wire_error()).unwrap()
+                );
+                assert!(frame.get("data").is_none());
+            }
+            assert!(
+                !String::from_utf8(output)
+                    .unwrap()
+                    .contains("PRIVATE_SENTINEL")
+            );
+        }
     }
 
     #[tokio::test]

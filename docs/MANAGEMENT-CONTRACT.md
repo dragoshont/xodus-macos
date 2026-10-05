@@ -71,8 +71,14 @@ come from actual public Windows.Desktop package metadata, not a guessed
 product/edition ID. It reads only the isolated launcher Keychain profile, then
 reuses the existing silent Passport-to-Xbox authorization and authenticated
 `GetBasePackage` provider chain. Exactly `{"verified":true}` is returned only
-after successful bounded metadata parsing, matching package identity, and
-unchanged-profile checks. No metadata, account IDs, tokens, signed URLs or
+after successful bounded metadata parsing, matching package/file content identities,
+and unchanged-profile checks. The publication boundary additionally checks the
+reserved account generation, shared profile mutation epoch and original proof
+expiry. An intervening account mutation cannot publish a stale verification.
+Base payloads (`.msixvc` or extensionless files) must match the enclosing version;
+auxiliary `.phf`/`.xsp` and delta version identities remain separate. No meaning
+is invented for the provider's `UpdateType` values.
+No metadata, account IDs, tokens, signed URLs or
 provider bodies are returned. This does not prove ownership, license issuance,
 installability, compatibility, or gameplay.
 
@@ -88,7 +94,8 @@ Failures contain only the fixed `authenticatedReadFailure` category and stage:
 credentialUnavailable, profileChanged, authExchangeFailed, authRejected,
 transportFailed, responseInvalid, or packageUnavailable. Their exact
 code/message/retryable tuples are in the schema and sanitized fixtures.
-Deadline exhaustion is transportFailed. Package-unavailable is not successful
+Credential-read or total-deadline exhaustion is transportFailed, including
+delayed publication. Package-unavailable is not successful
 verification or proof of invalid credentials. Existing operations and all
 foundational envelope/evidence definitions remain unchanged; old clients need
 not request the added capability, while strict pinned consumers require the

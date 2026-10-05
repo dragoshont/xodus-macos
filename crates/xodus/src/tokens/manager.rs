@@ -49,7 +49,26 @@ impl Drop for ManagementMutation {
 #[derive(Clone)]
 pub struct ManagementProfileStamp {
     epoch: u64,
+    epoch_source: Arc<AtomicU64>,
+    expires_at: chrono::DateTime<chrono::Utc>,
     fingerprint: Arc<serde_json::Value>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ManagementProfileWitness {
+    epoch: u64,
+    epoch_source: Arc<AtomicU64>,
+    expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl ManagementProfileStamp {
+    pub fn publication_witness(&self) -> ManagementProfileWitness {
+        ManagementProfileWitness {
+            epoch: self.epoch,
+            epoch_source: self.epoch_source.clone(),
+            expires_at: self.expires_at,
+        }
+    }
 }
 
 impl TokenManager {
@@ -238,13 +257,38 @@ impl TokenManager {
         if !session.valid() {
             return Err(TokenStoreError::InvalidCredential);
         }
+        let Some(Token::Legacy(user)) = session.tokens.get(PASSPORT_STS) else {
+            return Err(TokenStoreError::InvalidCredential);
+        };
+        let expires_at = chrono::DateTime::parse_from_rfc3339(&user.lifetime.expires)
+            .and_then(|user| {
+                chrono::DateTime::parse_from_rfc3339(&session.device_token.lifetime.expires)
+                    .map(|device| user.min(device).with_timezone(&chrono::Utc))
+            })
+            .map_err(|_| TokenStoreError::InvalidCredential)?;
         let fingerprint = Arc::new(serde_json::to_value(&session)?);
         if self.management_mutations.load(Ordering::SeqCst) != 0
             || self.cache_epoch.load(Ordering::SeqCst) != epoch
         {
             return Err(TokenStoreError::InvalidCredential);
         }
-        Ok((session, ManagementProfileStamp { epoch, fingerprint }))
+        Ok((
+            session,
+            ManagementProfileStamp {
+                epoch,
+                epoch_source: self.cache_epoch.clone(),
+                expires_at,
+                fingerprint,
+            },
+        ))
+    }
+
+    pub fn management_publication_current(&self, witness: &ManagementProfileWitness) -> bool {
+        self.management_profile
+            && Arc::ptr_eq(&self.cache_epoch, &witness.epoch_source)
+            && self.management_mutations.load(Ordering::SeqCst) == 0
+            && self.cache_epoch.load(Ordering::SeqCst) == witness.epoch
+            && chrono::Utc::now() < witness.expires_at
     }
 
     pub fn verify_management_profile(
@@ -799,6 +843,39 @@ mod management_tests {
         assert!(tokens.verify_management_profile(&stamp).is_err());
         assert!(tokens.management_store_snapshot().is_err());
         assert!(tokens.get_device_sts_token().is_ok());
+    }
+
+    #[test]
+    fn management_publication_witness_is_bound_to_owner_epoch_and_unexpired_proof() {
+        let manager = TokenManager::with_management_backend(Arc::new(MemoryBackend::default()));
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let (_, stamp) = manager.management_store_snapshot().unwrap();
+        let witness = stamp.publication_witness();
+        assert!(manager.management_publication_current(&witness));
+        assert!(
+            manager
+                .readonly_management_profile()
+                .unwrap()
+                .management_publication_current(&witness)
+        );
+        let other = TokenManager::with_management_backend(Arc::new(MemoryBackend::default()));
+        other
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        assert!(!other.management_publication_current(&witness));
+        let mut expired = witness.clone();
+        expired.expires_at = chrono::Utc::now();
+        assert!(!manager.management_publication_current(&expired));
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        assert!(!manager.management_publication_current(&witness));
+        let (_, stamp) = manager.management_store_snapshot().unwrap();
+        let witness = stamp.publication_witness();
+        manager.remove_user_credentials().unwrap();
+        assert!(!manager.management_publication_current(&witness));
     }
 
     #[test]

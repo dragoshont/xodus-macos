@@ -88,7 +88,9 @@ impl NativeHost {
             .recv()
             .await
             .ok_or_else(unavailable)??
-            .ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof, "Native host channel closed"))?;
+            .ok_or_else(|| {
+                io::Error::new(io::ErrorKind::UnexpectedEof, "Native host channel closed")
+            })?;
         let expected = self.received.checked_add(1).ok_or_else(unavailable)?;
         if !native_auth::valid_identity(
             frame.version,

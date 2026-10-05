@@ -464,8 +464,10 @@ mod tests {
             };
             host.abort().await.unwrap();
             let (handoff, _) = failure_handoff(failure);
-            assert!(matches!(handoff, ConsentHandoff::FailedNativeSignIn { reason }
-                if reason == expected));
+            assert!(
+                matches!(handoff, ConsentHandoff::FailedNativeSignIn { reason }
+                if reason == expected)
+            );
         }
     }
 
@@ -499,9 +501,15 @@ mod tests {
             ),
         ] {
             let (handoff, _) = failure_handoff(host_unavailable(error));
-            assert!(matches!(handoff, ConsentHandoff::FailedNativeSignIn { reason }
-                if reason == expected));
-            assert!(!serde_json::to_string(&handoff).unwrap().contains("PRIVATE_SENTINEL"));
+            assert!(
+                matches!(handoff, ConsentHandoff::FailedNativeSignIn { reason }
+                if reason == expected)
+            );
+            assert!(
+                !serde_json::to_string(&handoff)
+                    .unwrap()
+                    .contains("PRIVATE_SENTINEL")
+            );
         }
     }
 

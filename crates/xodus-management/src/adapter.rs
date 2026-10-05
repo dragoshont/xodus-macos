@@ -2573,7 +2573,8 @@ mod auth_lifecycle_tests {
     }
 
     #[tokio::test]
-    async fn closed_helper_reasons_cross_failed_worker_reconciliation_without_changing_c95_details() {
+    async fn closed_helper_reasons_cross_failed_worker_reconciliation_without_changing_c95_details()
+    {
         use crate::native_auth::HostFailure;
         let mut cases: Vec<_> = [
             (HostFailure::InvalidFrame, "helper.invalidFrame"),

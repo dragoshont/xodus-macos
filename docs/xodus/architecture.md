@@ -871,3 +871,96 @@ new saved-status failure/recovery, expired uncertainty, HELLO-only and pending
 presentation cases executed using neutral children. This closes the bounded
 source/UI slice, not live authentication, a new Mac package, owned-library
 enumeration, installation, playability or live visual qualification.
+
+### Production-hardening source and controlled release
+
+The October 5 production review identified shipping fixture/test entry points,
+synthetic live hero art, arbitrary engine selection, premature empty-search
+copy, startup-query replacement and a fixture-transition planning hazard.
+The coherent hardening batch and additive corrections culminated in app
+`00ba51fd5e48f6298d27a56e75f491f6f697696f`, tree
+`9869d8ac428bd3f9ed2fa7418579097614066036`. Earlier `f9e6f97` and
+`5343b86` failed conditional-compilation checks; `24243a3` compiled but failed
+the relocated neutral-child test harness. None qualifies release artifacts.
+
+The coordinator independently verified exact normal push
+[37314629896](https://github.com/dragoshont/xodus-macos-app/actions/runs/37314629896)
+for `00ba51f`: hosted Xcode 27.0, build `27A266a`, SDK 27.0. Shipping Release
+launcher/helper and shipping XCTest compile. The run passed 15 core,
+358 management, 61 presentation, 176 neutral native-session and 87 private-host
+checks, plus 23 shipping assertions in one XCTest method, 22 portable packaging
+checks, five launcher and two helper forbidden-argument checks, fixture-resource
+exclusion and SVG reproducibility. These are source/neutral gates, not a real
+Microsoft login or gameplay test.
+
+The final read-only `8412f2c..00ba51f` review found no high-confidence release
+blocker within the frozen hardening requirements. Shipping physically excludes
+fixture state, art, views and test resources; developer selection/injection
+cannot choose its engine. Freshness-aware presentation remains in place.
+Search loading is distinct from confirmed empty results, and generation fencing
+prevents late startup seeding from replacing a user's query. The live Settings
+fixture transition was removed. Protected helper authentication, DA/credential
+writer and Quit implementation and C95 resource remain unchanged; management
+adds pair revalidation before launch and authentication mutations.
+
+Shipping admission uses only fixed bundle paths and compiled stage-generated
+source/engine/helper pins. Repository defaults are nil and fail closed before
+management or pure planning. Helper receipts must match the compiled app source
+and helper identity; file-descriptor ownership, link, mode, size and hash checks
+are repeated immediately before launch. Receipt claims and HELLO are not trust
+authorities. This is controlled local operator pairing, not a Developer ID
+distribution or anti-tampering certification.
+
+The exact reviewed producer remains
+`9ef0f298481fb48840734b538e0f6d22e1c98ff3`, tree
+`8b2f7abb54f91e347afe013eee18c93873b111a5`. Its fresh sealed arm64 Release CLI
+has SHA-256
+`ca86296dfdab23c63c7ff7c5428f9e2feb2f9b4bf6757072a64dbe7695c34d06`,
+21,315,008 bytes, mode `0500`, UID 501. Adjacent provenance has SHA-256
+`d72edb61fb45b0c5f9e91343d4e68ee25e2345ea0df9a0eeb7b4f13ae9d36f6d`,
+46,234 bytes, mode `0400`, UID 501. The coordinator freshly reverified both
+using no-follow descriptors, single-link ownership and stable file identities,
+without executing the engine. Provenance binds Release optimization 3,
+debuginfo 0, disabled debug assertions, exact source/tree, jobs 1/incremental 0
+and only the reviewed management `live` and Apple native-Keychain features.
+
+The user authorized autonomous isolated packaging and rollback-preserving
+redeployment using the existing app owner, not new workers or architecture.
+There is no CPU lease or build-slot prerequisite; bounded builds may proceed
+in parallel. Only foreground interaction and exact shared mutation targets
+require exclusive coordination. The frozen app source must be archived from immutable Git bytes; uncommitted
+Architrave adoption files are not package inputs. The hardened packager verifies
+external unsigned engine/provenance pins, signs separate copied engine/helper
+bytes, generates compiler pins, builds/signs the launcher and verifies final
+resources, signatures, helper receipt and raw source inputs. No completed
+package or deployment is claimed in this entry.
+
+The rollback target is the existing public bundle at
+`/Users/dragoshont/xodus-app-tooling/app-foundation/dist/Xodus.app`.
+Historical launcher `97e42398...` and embedded engine `4d04fd6c...` identities
+are not current closure evidence; recheck the bundle and app-owned process
+safety before replacement. Preserve prior bundle bytes, user configuration,
+Keychain, accounts, game prefixes and saves. Foreground is not released:
+skip GUI launch rather than interacting with human game/auth windows.
+Anonymous smokes must not invoke account-status reads, credential APIs or
+authentication mutations, nor claim that the user's account is signed out.
+
+The user's first-release product decision is a genuine, separately installed
+official CrossOver dependency. This is a release blocker for the next shipping
+candidate, not a reason to represent `00ba51f` as satisfying a later requirement.
+The existing app owner will implement one additive prerequisite/default/
+presentation slice and run fresh hosted CI before packaging its immutable
+source. Any already-built `00ba51f` package remains a nondeployed candidate.
+Read-only installation identity detection must distinguish absent/unverified
+CrossOver from an observed official installation without executing it or
+claiming a license. New/unset profiles prefer detected CrossOver; explicit
+persisted alternatives retain their selection with experimental status and
+explicit confirmation before use. Library, Account, Settings and runtime-plan
+readiness must agree without promoting dependency presence into playability.
+Other Wine/GPTK runtime tracks remain
+experimental alternatives, not supported first-release choices. This does not
+authorize redistribution of commercial binaries or imply CodeWeavers
+endorsement, detected installation, licensing, game compatibility or launch
+readiness. Provider plans still report unknown installation/preflight/game
+verification and `launchable=false`. Human Store login, live accessible UI,
+authoritative inventory and install/update/play gates remain open.

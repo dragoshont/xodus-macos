@@ -22,11 +22,11 @@ branches; this README is not a claim that it has all been merged or deployed.
 
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
-| Native launcher | Shared live/fixture header with artwork-toned native chrome, navigation, search and no visible app title; native Runtime Settings. | Fresh live visual/resize verification and deployment of the reviewed app. |
-| Store authentication | Swift AppKit/WKWebView helper, explicit executable/hash/version binding, bounded private communication and cancellation/cleanup; reviewed direct-notification and continuation-writer fixes. | A matching new native engine/app/helper build and one user-assisted end-to-end Store login. The reported face/fingerprint stall is not diagnosed or certified fixed. |
-| Helper preflight | Packaged apps missing both helper and receipt now fail before engine launch with an actionable helper-specific error; unpackaged anonymous checks remain supported. | General engine provenance/admission is still separate: HELLO capabilities and a valid helper receipt do not attest an arbitrary engine. |
+| Native launcher | Native navigation/search header and Runtime Settings; shipping builds exclude fixture UI, artwork, test entry points and developer engine selection. Loading copy and startup-query fencing are qualified. | Packaging/deployment and fresh live visual, accessibility and resize verification. |
+| Store authentication | Swift AppKit/WKWebView helper, explicit executable/hash/version binding, bounded private communication and cancellation/cleanup; reviewed direct-notification and continuation-writer fixes. Exact reviewed native Release engine built and independently pinned. | A verified matching installed package and one user-assisted end-to-end Store login. The reported face/fingerprint stall is not diagnosed or certified fixed. |
+| Shipping pair admission | Fixed bundled engine/helper paths and stage-generated compiled identities; missing approval or changed files fail before management, authentication mutations or runtime planning. | Controlled local operator approval only, not general Developer ID distribution attestation. HELLO alone grants no trust. |
 | Account presentation | Toolbar, Account, Settings and Library share freshness-aware account state. Failed status checks remove saved-account claims while retaining the safety snapshot; a pending flow does not claim that a Microsoft window opened. | Source-side UI changes do not establish live authentication, PC ownership or entitlement. |
-| Runtime selection | GPTK 3, GPTK 4, legitimately installed CrossOver and standalone/source-built Wine presets; independent declared engine/graphics versions, provenance and hashes; fresh isolated generation plans. | **Configuration/planning only.** No installation discovery, prefix creation/migration, device preflight or game execution is certified by these plans; `launchable` remains `false`. |
+| Runtime selection | CrossOver, GPTK 3, GPTK 4 and standalone Wine configuration/planning foundations. **First-release dependency: a genuine, separately installed official CrossOver copy.** Other runtime tracks remain experimental, not supported first-release alternatives. | **Configuration/planning only.** No installation discovery, prefix creation/migration, device preflight or game execution is certified by these plans; `launchable` remains `false`. No CodeWeavers endorsement is implied. |
 | Application shutdown | Normal Quit fences new work, cancels and joins the planning child through cleanup/reap, and awaits management shutdown. Failed cleanup refuses Quit and preserves ownership for retry. | Live application/game qualification remains distinct from neutral process checks. |
 | Public runtime components | Scoped offline transport, Windows RPS, TLS, graphics and async/shim checks with explicit source provenance and isolated fixtures. | These checks do not establish a production account/runtime pair, Store entitlement or general playability. |
 
@@ -51,20 +51,34 @@ branches; this README is not a claim that it has all been merged or deployed.
   and a live/fixture separation check. Authentication mutation predicates and
   lifecycle methods remain unchanged.
 
-All four hosted runs passed with zero failures and reproducible SVG output.
+- Production-hardening source: [00ba51f](https://github.com/dragoshont/xodus-macos-app/commit/00ba51fd5e48f6298d27a56e75f491f6f697696f),
+  tree `9869d8ac428bd3f9ed2fa7418579097614066036`.
+  Its exact SDK 27 [hosted run](https://github.com/dragoshont/xodus-macos-app/actions/runs/37314629896)
+  passed shipping and development builds, 697 existing/expanded neutral checks,
+  23 shipping assertions, 22 portable packaging checks, forbidden-entry checks
+  and SVG reproducibility. The coordinator independently verified the run
+  identity and reviewed the final delta against `8412f2c`.
+
+All four earlier hosted runs passed with zero failures and reproducible SVG output.
 The relevant source reviews are closed for their stated scopes. Their
 authentication checks use neutral children and detached synthetic WebKit,
 not real Microsoft credentials or a completed Store sign-in.
 
-**Current login gate:** the matching native Release engine compilation has
-not started. Source verification and isolated staging were prepared, but no
-new sealed engine or paired installation exists. The Mac test slot was
-returned to game testing; the current work is source-side launcher UI.
-Building, packaging and live login require a separately authorized slot and
-verification of signed-copy identities, helper receipts and the selected
-engine. The previous installed pair is preserved; its older engine cannot
-activate the reviewed Swift-helper flow. Successful Store login remains
-unverified.
+**Current release gate:** the exact `9ef0f2` native arm64 Release engine is
+built: unsigned SHA-256
+`ca86296dfdab23c63c7ff7c5428f9e2feb2f9b4bf6757072a64dbe7695c34d06`,
+21,315,008 bytes. Its adjacent provenance SHA-256 is
+`d72edb61fb45b0c5f9e91343d4e68ee25e2345ea0df9a0eeb7b4f13ae9d36f6d`,
+46,234 bytes. Both were independently rechecked, including exact source,
+Release profile and native-Keychain features. `00ba51f` qualifies the hardening
+source, not the new CrossOver-first release requirement. A bounded additive
+UI/default/prerequisite slice must pass fresh CI before its immutable source
+is packaged and deployed. An earlier `00ba51f` package, if built, is only a
+candidate and must not be deployed as that first release. Builds have no CPU
+lease prerequisite. The prior installed bundle must remain recoverable;
+foreground interaction and sign-in/MFA/consent/Keychain prompts remain
+human-gated. Successful Store login, authoritative owned inventory and
+download/install/update/play remain unverified.
 
 For exact source/artifact identities, review dispositions and remaining
 gates, see [the architecture and verification ledger](docs/xodus/architecture.md).

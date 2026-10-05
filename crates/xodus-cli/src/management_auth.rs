@@ -8,12 +8,13 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use xodus::models::secrets::{ManagementStoreSession, Token};
 use xodus::tokens::{PASSPORT_STS, TokenManager};
 use xodus_management::adapter::{
-    ConsentBootstrap, ConsentFailure, ConsentHandoff, MAX_AUTH_HANDOFF_BYTES,
+    ConsentBootstrap, ConsentFailure, ConsentHandoff, MAX_AUTH_HANDOFF_BYTES, NativeSignInFailure,
 };
 
 enum SessionFailure {
     Cancelled,
     Failed(ConsentFailure),
+    NativeSignIn(NativeSignInFailure),
 }
 
 const ACTIVE: u8 = 0;
@@ -124,7 +125,19 @@ fn failure_handoff(error: SessionFailure) -> (ConsentHandoff, ExitCode) {
         SessionFailure::Failed(failure) => {
             (ConsentHandoff::FailedAt { failure }, ExitCode::FAILURE)
         }
+        SessionFailure::NativeSignIn(reason) => (
+            ConsentHandoff::FailedNativeSignIn { reason },
+            ExitCode::FAILURE,
+        ),
     }
+}
+
+fn host_unavailable(error: std::io::Error) -> SessionFailure {
+    SessionFailure::NativeSignIn(if error.kind() == std::io::ErrorKind::UnexpectedEof {
+        NativeSignInFailure::ChannelEof
+    } else {
+        NativeSignInFailure::Unclassified
+    })
 }
 
 fn private_channel(fd: std::os::fd::OwnedFd) -> std::io::Result<std::os::unix::net::UnixStream> {
@@ -255,7 +268,10 @@ async fn issue_session(
 fn host_terminal(message: xodus_management::native_auth::HostResult) -> SessionFailure {
     match message {
         xodus_management::native_auth::HostResult::Cancelled => SessionFailure::Cancelled,
-        _ => SessionFailure::Failed(ConsentFailure::NativeSignIn),
+        xodus_management::native_auth::HostResult::Failed { reason } => {
+            SessionFailure::NativeSignIn(NativeSignInFailure::Host { reason })
+        }
+        _ => SessionFailure::NativeSignIn(NativeSignInFailure::Unclassified),
     }
 }
 
@@ -271,14 +287,14 @@ async fn issue_with_host(
     SessionFailure,
 > {
     use xodus_management::native_auth::{Command, HostResult};
-    let unavailable = || SessionFailure::Failed(ConsentFailure::NativeSignIn);
+    let unavailable = || SessionFailure::NativeSignIn(NativeSignInFailure::Unclassified);
     let mut continuations = 0;
     loop {
-        match host.receive().await.map_err(|_| unavailable())? {
+        match host.receive().await.map_err(host_unavailable)? {
             HostResult::Ready => {}
             other => return Err(host_terminal(other)),
         }
-        let property = match host.receive().await.map_err(|_| unavailable())? {
+        let property = match host.receive().await.map_err(host_unavailable)? {
             HostResult::Da { property } => xodus::models::live::DAProperty {
                 da_token: property.da_token,
                 da_session_key: property.da_session_key,
@@ -292,7 +308,7 @@ async fn issue_with_host(
         };
         let exchange = tokio::select! {
             biased;
-            reply = host.receive() => return Err(host_terminal(reply.map_err(|_| unavailable())?)),
+            reply = host.receive() => return Err(host_terminal(reply.map_err(host_unavailable)?)),
             result = crate::commands::login::exchange_user_property(client.clone(), device.clone(),
                 crate::commands::login::CLIENT_ID.to_owned(), property.clone()) =>
                 result.map_err(|_| unavailable())?,
@@ -407,6 +423,87 @@ pub async fn run(flow_id: String) -> ExitCode {
 mod tests {
     use super::*;
     use std::io::{Read, Write};
+
+    #[tokio::test]
+    async fn actual_native_pipeline_keeps_validated_failure_before_and_after_ready_vs_eof() {
+        use crate::native_auth_host::{NativeHost, fixtures};
+        use xodus_management::native_auth::HostFailure;
+        for (mode, expected) in [
+            (
+                "failedReady",
+                NativeSignInFailure::Host {
+                    reason: HostFailure::NavigationFailed,
+                },
+            ),
+            (
+                "failedDA",
+                NativeSignInFailure::Host {
+                    reason: HostFailure::JavaScriptFailed,
+                },
+            ),
+            ("eofReady", NativeSignInFailure::ChannelEof),
+            ("version", NativeSignInFailure::Unclassified),
+        ] {
+            let (_dir, binding) = fixtures::helper(mode);
+            let mut host = NativeHost::spawn(&binding, &uuid::Uuid::nil().to_string()).unwrap();
+            fixtures::open(&mut host, 1000).await.unwrap();
+            let device = xodus::models::secrets::LegacyToken {
+                key_name: None,
+                token: "NEUTRAL_NOT_TOKEN".to_owned(),
+                binary_secret: None,
+                tpm_key: None,
+                lifetime: xodus::models::soap::Timestamp {
+                    id: None,
+                    created: "2030-01-01T00:00:00Z".to_owned(),
+                    expires: "2030-01-01T01:00:00Z".to_owned(),
+                },
+            };
+            let failure = match issue_with_host(&mut host, reqwest::Client::new(), device).await {
+                Err(failure) => failure,
+                Ok(_) => panic!("Neutral helper must never produce a Store session"),
+            };
+            host.abort().await.unwrap();
+            let (handoff, _) = failure_handoff(failure);
+            assert!(matches!(handoff, ConsentHandoff::FailedNativeSignIn { reason }
+                if reason == expected));
+        }
+    }
+
+    #[test]
+    fn helper_terminal_names_survive_handoff_without_provider_text() {
+        use xodus_management::native_auth::{HostFailure, HostResult};
+        for reason in [
+            HostFailure::InvalidFrame,
+            HostFailure::InvalidNavigation,
+            HostFailure::NavigationFailed,
+            HostFailure::PopupUnsupported,
+            HostFailure::ContentTerminated,
+            HostFailure::JavaScriptFailed,
+            HostFailure::BridgeInvalid,
+            HostFailure::DeadlineExpired,
+            HostFailure::ParentUnavailable,
+        ] {
+            let (handoff, _) = failure_handoff(host_terminal(HostResult::Failed { reason }));
+            assert!(matches!(handoff, ConsentHandoff::FailedNativeSignIn {
+                reason: NativeSignInFailure::Host { reason: actual },
+            } if actual == reason));
+        }
+        for (error, expected) in [
+            (
+                std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "PRIVATE_SENTINEL"),
+                NativeSignInFailure::ChannelEof,
+            ),
+            (
+                std::io::Error::other("PRIVATE_SENTINEL"),
+                NativeSignInFailure::Unclassified,
+            ),
+        ] {
+            let (handoff, _) = failure_handoff(host_unavailable(error));
+            assert!(matches!(handoff, ConsentHandoff::FailedNativeSignIn { reason }
+                if reason == expected));
+            assert!(!serde_json::to_string(&handoff).unwrap().contains("PRIVATE_SENTINEL"));
+        }
+    }
 
     fn guardian_pair() -> (
         tokio::net::UnixStream,

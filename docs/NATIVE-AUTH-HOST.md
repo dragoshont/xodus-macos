@@ -116,6 +116,17 @@ frame/EOF has a bounded exit grace before owned kill/reap.
 An already disconnected helper socket is harmless only after its process has
 been reaped; other shutdown or cleanup errors remain failures.
 
+Validated helper `failed` reasons survive the worker's private handoff and use
+the existing public error `message`: `Native sign-in failed: helper.REASON.`
+`REASON` is one of the nine closed version-1 helper failure names above.
+Clean channel EOF uses `Native sign-in failed: channelEOF.`; other
+unclassified pipeline errors use `Native sign-in failed: unclassified.`.
+Public `AUTH_INVALID` / `nativeSignIn` / `pipelineFailed` details and the public
+schema are unchanged. These static messages contain no provider payload,
+URLs, exceptions, credentials or tokens. A malformed or foreign helper frame
+cannot supply a helper reason. A preserved reason identifies a failure
+boundary, not a successful login or a confirmed underlying browser cause.
+
 The helper executable path/version/SHA and paired engine identity are explicit
 nonsecret launch bindings, verified before spawning. No PATH discovery,
 external saved helper, shared credential import or implicit fallback.

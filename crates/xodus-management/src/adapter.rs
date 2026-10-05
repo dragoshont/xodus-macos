@@ -40,6 +40,43 @@ pub enum ConsentHandoff {
     FailedAt {
         failure: ConsentFailure,
     },
+    FailedNativeSignIn {
+        reason: NativeSignInFailure,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+pub enum NativeSignInFailure {
+    Host {
+        reason: crate::native_auth::HostFailure,
+    },
+    ChannelEof,
+    Unclassified,
+}
+
+impl NativeSignInFailure {
+    pub fn wire_error(self) -> WireError {
+        use crate::native_auth::HostFailure;
+        let reason = match self {
+            Self::Host { reason } => match reason {
+                HostFailure::InvalidFrame => "helper.invalidFrame",
+                HostFailure::InvalidNavigation => "helper.invalidNavigation",
+                HostFailure::NavigationFailed => "helper.navigationFailed",
+                HostFailure::PopupUnsupported => "helper.popupUnsupported",
+                HostFailure::ContentTerminated => "helper.contentTerminated",
+                HostFailure::JavaScriptFailed => "helper.javaScriptFailed",
+                HostFailure::BridgeInvalid => "helper.bridgeInvalid",
+                HostFailure::DeadlineExpired => "helper.deadlineExpired",
+                HostFailure::ParentUnavailable => "helper.parentUnavailable",
+            },
+            Self::ChannelEof => "channelEOF",
+            Self::Unclassified => "unclassified",
+        };
+        let mut error = ConsentFailure::NativeSignIn.wire_error();
+        error.message = format!("Native sign-in failed: {reason}.");
+        error
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -197,6 +234,7 @@ fn reconcile_handoff(
     match result {
         Ok(
             outcome @ (ConsentHandoff::FailedAt { .. }
+            | ConsentHandoff::FailedNativeSignIn { .. }
             | ConsentHandoff::Failed
             | ConsentHandoff::Cancelled),
         ) => Ok(outcome),
@@ -1432,6 +1470,7 @@ impl Backend {
             )),
             Ok(ConsentHandoff::Failed) => Err(ConsentFailure::StageUnavailable.wire_error()),
             Ok(ConsentHandoff::FailedAt { failure }) => Err(failure.wire_error()),
+            Ok(ConsentHandoff::FailedNativeSignIn { reason }) => Err(reason.wire_error()),
             Err(error) => Err(error),
         };
         self.finish_auth(outcome);
@@ -2530,6 +2569,78 @@ mod auth_lifecycle_tests {
                     .unwrap()
                     .is_none()
             );
+        }
+    }
+
+    #[tokio::test]
+    async fn closed_helper_reasons_cross_failed_worker_reconciliation_without_changing_c95_details() {
+        use crate::native_auth::HostFailure;
+        let mut cases: Vec<_> = [
+            (HostFailure::InvalidFrame, "helper.invalidFrame"),
+            (HostFailure::InvalidNavigation, "helper.invalidNavigation"),
+            (HostFailure::NavigationFailed, "helper.navigationFailed"),
+            (HostFailure::PopupUnsupported, "helper.popupUnsupported"),
+            (HostFailure::ContentTerminated, "helper.contentTerminated"),
+            (HostFailure::JavaScriptFailed, "helper.javaScriptFailed"),
+            (HostFailure::BridgeInvalid, "helper.bridgeInvalid"),
+            (HostFailure::DeadlineExpired, "helper.deadlineExpired"),
+            (HostFailure::ParentUnavailable, "helper.parentUnavailable"),
+        ]
+        .into_iter()
+        .map(|(reason, text)| (NativeSignInFailure::Host { reason }, text))
+        .collect();
+        cases.extend([
+            (NativeSignInFailure::ChannelEof, "channelEOF"),
+            (NativeSignInFailure::Unclassified, "unclassified"),
+        ]);
+        for (reason, text) in cases {
+            let (_temporary, mut backend) = backend();
+            backend.auth_flow = Some(AuthFlow {
+                flow_id: "fixture-flow".to_owned(),
+                state: AuthFlowState::Pending,
+                error: None,
+            });
+            let (mut writer, reader) = tokio::net::UnixStream::pair().unwrap();
+            let handoff = ConsentHandoff::FailedNativeSignIn { reason };
+            let bytes = serde_json::to_vec(&handoff).unwrap();
+            writer.write_u32(bytes.len() as u32).await.unwrap();
+            writer.write_all(&bytes).await.unwrap();
+            drop(writer);
+            let outcome = reconcile_handoff(read_consent(reader).await, true);
+            backend
+                .complete_auth("fixture-flow".to_owned(), outcome)
+                .await
+                .unwrap();
+            let flow = backend.auth_flow.as_ref().unwrap();
+            let error = flow.error.as_ref().unwrap();
+            assert_eq!(flow.state, AuthFlowState::Failed);
+            assert_eq!(error.code, ErrorCode::AuthInvalid);
+            assert_eq!(error.message, format!("Native sign-in failed: {text}."));
+            assert_eq!(
+                serde_json::to_value(&error.details).unwrap(),
+                serde_json::json!({"category":"nativeConsentFailure","stage":"nativeSignIn","reason":"pipelineFailed"})
+            );
+            assert!(
+                backend
+                    .tokens
+                    .as_ref()
+                    .unwrap()
+                    .get_management_store_session()
+                    .unwrap()
+                    .is_none()
+            );
+        }
+    }
+
+    #[test]
+    fn native_sign_in_handoff_rejects_unknown_and_secret_bearing_reason_fields() {
+        for bytes in [
+            r#"{"outcome":"failedNativeSignIn","reason":{"kind":"host","reason":"unknownProviderText"}}"#,
+            r#"{"outcome":"failedNativeSignIn","reason":{"kind":"host","reason":"navigationFailed","url":"PRIVATE_SENTINEL"}}"#,
+            r#"{"outcome":"failedNativeSignIn","reason":{"kind":"channelEof"},"error":"PRIVATE_SENTINEL"}"#,
+            r#"{"outcome":"failedNativeSignIn","reason":{"kind":"host","reason":"navigationFailed","reason":"bridgeInvalid"}}"#,
+        ] {
+            assert!(serde_json::from_str::<ConsentHandoff>(bytes).is_err());
         }
     }
 

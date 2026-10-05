@@ -88,7 +88,7 @@ impl NativeHost {
             .recv()
             .await
             .ok_or_else(unavailable)??
-            .ok_or_else(unavailable)?;
+            .ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof, "Native host channel closed"))?;
         let expected = self.received.checked_add(1).ok_or_else(unavailable)?;
         if !native_auth::valid_identity(
             frame.version,
@@ -197,7 +197,12 @@ while True:
  if f is None:break
  k=f['message']['kind']
  if k in ['open','navigate']:
+  if mode=='failedReady':
+   send(f,{{'kind':'failed','reason':'navigationFailed'}});os._exit(1)
+  if mode=='eofReady':os._exit(23)
   send(f,{{'kind':'ready'}})
+  if mode=='failedDA':
+   send(f,{{'kind':'failed','reason':'javaScriptFailed'}});os._exit(1)
   if mode=='crash':os._exit(23)
   if mode=='cancel':
    send(f,{{'kind':'cancelled'}});os._exit(2)

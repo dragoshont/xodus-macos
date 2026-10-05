@@ -264,6 +264,26 @@ authorized by this product requirement.
 
 ### Native launcher sign-in integration
 
+**October 6, 2026 live persistence update:** the installed app
+[`1759a61`](https://github.com/dragoshont/xodus-macos-app/commit/1759a61ea5dd308d998cb87a6e8176b1d04e52f7)
+is paired with backend
+[`397dd02`](https://github.com/dragoshont/xodus-macos/commit/397dd0249c81414dae3d75b3562f696378fd6b11).
+The engine restores upstream Xbox-first exchange ordering, with Passport
+requested after continuation. The app owner observed a saved Microsoft
+session after user-assisted sign-in and confirmed it remained saved after
+a normal app restart. Authenticated provider use remains unverified because
+the management interface has no supported authenticated provider-read
+operation; saved-session status must not substitute for that check.
+Validated failed-exchange inputs may be retained only in launcher Keychain
+for at most five minutes, bounded by their original device-auth/device
+expiry. Success clears them; retries do not renew their expiry. Expiry
+cleanup runs while the engine is alive or on the next access, not while
+the engine is stopped. Accidentally closing the browser exposed a stuck
+pending-state bug; cancelling the attempt and restarting recovered it,
+but the permanent cancellation/retry fix remains open.
+The chronology below records earlier source and runtime observations,
+not the current persistence result.
+
 The Store sign-in route currently uses inherited public Microsoft client ID
 `000000004424da1f`, not a Microsoft application registration created for this
 launcher. The active route is the existing native Windows TokenBroker-style
@@ -296,7 +316,7 @@ establish a cryptographic failure. The underlying cause and the cause of the
 older unobserved failure remain unknown. The user's subsequent instruction
 authorizes the owned-app click, fix, restart and retest loop, while preserving
 active human/OS-commit flows. Cryptographic verification remains mandatory.
-No successful Microsoft sign-in, Keychain commit, entitlement, package
+At that earlier stage, no successful Microsoft sign-in, Keychain commit, entitlement, package
 authorization or gameplay is established;
 credentials and consent remain user-controlled.
 

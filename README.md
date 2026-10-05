@@ -12,7 +12,7 @@
 
 ## macOS fork progress
 
-Status as of **October 5, 2026**. This fork is developing a native macOS
+Status as of **October 6, 2026**. This fork is developing a native macOS
 launcher backed by Xodus, rather than relying on an unverified Heroic
 extra-store plugin mechanism. Heroic remains a useful workflow reference.
 The Swift launcher lives in the separate
@@ -23,7 +23,7 @@ branches; this README is not a claim that it has all been merged or deployed.
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
 | Native launcher | Native navigation/search header and Runtime Settings; shipping builds exclude fixture UI, artwork, test entry points and developer engine selection. Loading copy and startup-query fencing are qualified. A new matching native package is built and independently verified. | Safe replacement of the old running app and live visual, accessibility and resize verification. |
-| Store authentication | Swift AppKit/WKWebView helper, explicit executable/hash/version binding, bounded private communication and cancellation/cleanup; reviewed direct-notification and continuation-writer fixes. Exact reviewed native Release engine built and independently pinned. | A verified matching installed package and one user-assisted end-to-end Store login. The reported face/fingerprint stall is not diagnosed or certified fixed. |
+| Store authentication | The installed native pair completed a user-assisted Microsoft sign-in; the app reports the session saved in macOS Keychain and still saved after a normal restart. The exchange now follows upstream request ordering. | Authenticated provider use is not verified: the management interface currently lacks a supported authenticated provider-read operation. Closing the sign-in window also exposed a stuck pending-state bug, recovered by cancelling and restarting; its permanent fix remains open. |
 | Shipping pair admission | Fixed bundled engine/helper paths and stage-generated compiled identities; missing approval or changed files fail before management, authentication mutations or runtime planning. | Controlled local operator approval only, not general Developer ID distribution attestation. HELLO alone grants no trust. |
 | Account presentation | Toolbar, Account, Settings and Library share freshness-aware account state. Failed status checks remove saved-account claims while retaining the safety snapshot; a pending flow does not claim that a Microsoft window opened. | Source-side UI changes do not establish live authentication, PC ownership or entitlement. |
 | Runtime selection | CrossOver, GPTK 3, GPTK 4 and standalone Wine configuration/planning foundations. **First-release dependency: a genuine, separately installed official CrossOver copy.** Other runtime tracks remain experimental, not supported first-release alternatives. | **Configuration/planning only.** No installation discovery, prefix creation/migration, device preflight or game execution is certified by these plans; `launchable` remains `false`. No CodeWeavers endorsement is implied. |
@@ -82,7 +82,7 @@ The relevant source reviews are closed for their stated scopes. Their
 authentication checks use neutral children and detached synthetic WebKit,
 not real Microsoft credentials or a completed Store sign-in.
 
-**Current release gate:** the exact `9ef0f2` native arm64 Release engine is
+**Earlier release baseline:** the exact `9ef0f2` native arm64 Release engine is
 built: unsigned SHA-256
 `ca86296dfdab23c63c7ff7c5428f9e2feb2f9b4bf6757072a64dbe7695c34d06`,
 21,315,008 bytes. Its adjacent provenance SHA-256 is
@@ -98,20 +98,17 @@ one resolved PC product, four explicit metadata failures, unknown ownership
 and compatibility, with continuation not followed. No authentication method
 or helper execution was requested by that smoke.
 
-**Deployment is blocked, not completed.** An older Xodus launcher/engine is still running
-with unknown operation state. It must exit safely before its installed bundle
-is replaced; the user was unavailable to resolve that gate, so it will not be
-terminated or duplicated. Safe staged packaging and anonymous checks are complete.
-Builds have no CPU lease prerequisite. The prior installed bundle remains
-recoverable; sign-in/MFA/consent/Keychain prompts remain human-only. Successful
-Store login, authoritative owned inventory and download/install/update/play
-remain unverified.
-
-The new package is preserved at
-`/Users/dragoshont/xodus-app-tooling/app-shipping9be-controlled-xi7xdyfz/packages/Xodus-controlled-pair.xgzNsv/Xodus.app`.
-The previous installed bundle remains unchanged and recoverable. Quit the old
-Xodus normally before replacement; pending sign-in, credentials, MFA, consent
-and Keychain approval must be handled locally by the user.
+**Current installed pair:** app
+[1759a61](https://github.com/dragoshont/xodus-macos-app/commit/1759a61ea5dd308d998cb87a6e8176b1d04e52f7)
+and backend
+[397dd02](https://github.com/dragoshont/xodus-macos/commit/397dd0249c81414dae3d75b3562f696378fd6b11).
+On October 6 the app owner observed a saved Microsoft session after human
+sign-in, then verified that it remained saved after a normal app restart.
+This establishes login persistence, not authenticated provider use,
+authoritative owned inventory or launcher-driven download/install/update/play.
+The backend retains validated failed-exchange inputs only in Keychain for a
+bounded retry window of at most five minutes and never extends their original
+expiry. Credentials and sign-in/MFA/consent/Keychain prompts remain human-only.
 
 For exact source/artifact identities, review dispositions and remaining
 gates, see [the architecture and verification ledger](docs/xodus/architecture.md).

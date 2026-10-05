@@ -23,9 +23,9 @@
     }
   },
   "workers": {
-    "defaultAdapter": "shell",
+    "defaultAdapter": "native",
     "maxParallel": 1,
-    "enabledAdapters": ["shell"],
+    "enabledAdapters": ["native", "shell"],
     "cleanupCompletedWorktrees": false
   },
   "learning": {

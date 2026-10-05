@@ -168,7 +168,7 @@ pub(crate) async fn exchange_user_property(
     client_id: String,
     prop: DAProperty,
     after_continuation: bool,
-) -> Result<ExchangeUserTokenOutcome, xodus::api::live::rst::RSTError> {
+) -> Result<ExchangeUserTokenOutcome, xodus::api::live::RSTError> {
     let username = prop.username;
     let inline_ft = prop.sts_inline_flow_token;
     let user_token = xodus::models::secrets::LegacyToken {

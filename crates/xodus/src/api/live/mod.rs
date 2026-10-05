@@ -9,6 +9,8 @@ use crate::models::soap;
 mod rst;
 mod utils;
 
+pub use rst::{RSTBuilderError, RSTError};
+
 pub const XML_HEADER: &str = r#"<?xml version="1.0" encoding="UTF-8"?>"#;
 
 pub async fn login_device_credential(

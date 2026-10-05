@@ -149,8 +149,8 @@ fn host_unavailable(error: std::io::Error) -> SessionFailure {
     })
 }
 
-fn token_exchange_failure(error: xodus::api::live::rst::RSTError) -> SessionFailure {
-    use xodus::api::live::rst::RSTError;
+fn token_exchange_failure(error: xodus::api::live::RSTError) -> SessionFailure {
+    use xodus::api::live::RSTError;
     let stage = match error {
         RSTError::Request(error) if error.is_timeout() => ExchangeFailureStage::RequestTimeout,
         RSTError::Request(error) => match error.status() {
@@ -632,7 +632,7 @@ mod tests {
         ));
         for (failure, expected) in [
             (
-                token_exchange_failure(xodus::api::live::rst::RSTError::InvalidResponseSignature(
+                token_exchange_failure(xodus::api::live::RSTError::InvalidResponseSignature(
                     "PRIVATE_SENTINEL".to_owned(),
                 )),
                 NativeSignInFailure::TokenExchangeStage {
@@ -660,7 +660,7 @@ mod tests {
 
     #[test]
     fn exchange_error_categories_never_retain_provider_response_or_exception() {
-        use xodus::api::live::rst::{RSTBuilderError, RSTError};
+        use xodus::api::live::{RSTBuilderError, RSTError};
         for (error, expected) in [
             (
                 RSTError::Builder(RSTBuilderError::UnsupportedTokenCombination),

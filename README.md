@@ -22,13 +22,14 @@ branches; this README is not a claim that it has all been merged or deployed.
 
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
-| Native launcher | Native navigation/search header and Runtime Settings; shipping builds exclude fixture UI, artwork, test entry points and developer engine selection. Loading copy and startup-query fencing are qualified. | Packaging/deployment and fresh live visual, accessibility and resize verification. |
+| Native launcher | Native navigation/search header and Runtime Settings; shipping builds exclude fixture UI, artwork, test entry points and developer engine selection. Loading copy and startup-query fencing are qualified. A new matching native package is built and independently verified. | Safe replacement of the old running app and live visual, accessibility and resize verification. |
 | Store authentication | Swift AppKit/WKWebView helper, explicit executable/hash/version binding, bounded private communication and cancellation/cleanup; reviewed direct-notification and continuation-writer fixes. Exact reviewed native Release engine built and independently pinned. | A verified matching installed package and one user-assisted end-to-end Store login. The reported face/fingerprint stall is not diagnosed or certified fixed. |
 | Shipping pair admission | Fixed bundled engine/helper paths and stage-generated compiled identities; missing approval or changed files fail before management, authentication mutations or runtime planning. | Controlled local operator approval only, not general Developer ID distribution attestation. HELLO alone grants no trust. |
 | Account presentation | Toolbar, Account, Settings and Library share freshness-aware account state. Failed status checks remove saved-account claims while retaining the safety snapshot; a pending flow does not claim that a Microsoft window opened. | Source-side UI changes do not establish live authentication, PC ownership or entitlement. |
 | Runtime selection | CrossOver, GPTK 3, GPTK 4 and standalone Wine configuration/planning foundations. **First-release dependency: a genuine, separately installed official CrossOver copy.** Other runtime tracks remain experimental, not supported first-release alternatives. | **Configuration/planning only.** No installation discovery, prefix creation/migration, device preflight or game execution is certified by these plans; `launchable` remains `false`. No CodeWeavers endorsement is implied. |
 | Application shutdown | Normal Quit fences new work, cancels and joins the planning child through cleanup/reap, and awaits management shutdown. Failed cleanup refuses Quit and preserves ownership for retry. | Live application/game qualification remains distinct from neutral process checks. |
 | Public runtime components | Scoped offline transport, Windows RPS, TLS, graphics and async/shim checks with explicit source provenance and isolated fixtures. | These checks do not establish a production account/runtime pair, Store entitlement or general playability. |
+| Preserved CrossOver controls | NMS and Hogwarts directly user-confirmed working; Hollow Knight reached its menu and quit normally. | Bounded existing controls only, not launcher-driven play, new-save coverage or certification of other configurations. |
 
 ### Reviewed source and evidence
 
@@ -68,6 +69,13 @@ branches; this README is not a claim that it has all been merged or deployed.
   Explicit alternatives remain selected and require Experimental acknowledgement.
   Library, Account and Settings share dependency status without license or
   gameplay claims. The coordinator reviewed this focused delta independently.
+- Final packaging-compatible source: [9be674d](https://github.com/dragoshont/xodus-macos-app/commit/9be674d28edaa79f376cc79592a09bedcf3cd6b7),
+  tree `3c951506850fe534ecec4e6e628eb768ab0135b7`.
+  Exact [SDK 27 run](https://github.com/dragoshont/xodus-macos-app/actions/runs/37323168881)
+  passed **795 checks with zero failures**, plus shipping-entry/resource checks
+  and SVG reproducibility. Follow-ups fixed Mac Python pin-file writing,
+  deterministic neutral shutdown observation and native SwiftPM resource layout
+  without weakening production authentication or cleanup.
 
 All four earlier hosted runs passed with zero failures and reproducible SVG output.
 The relevant source reviews are closed for their stated scopes. Their
@@ -80,20 +88,30 @@ built: unsigned SHA-256
 21,315,008 bytes. Its adjacent provenance SHA-256 is
 `d72edb61fb45b0c5f9e91343d4e68ee25e2345ea0df9a0eeb7b4f13ae9d36f6d`,
 46,234 bytes. Both were independently rechecked, including exact source,
-Release profile and native-Keychain features. The CrossOver-first source
-`95af7c0` has fresh green source CI, but its package attempt exposed an older
-Mac Python compatibility issue before launcher compilation. The additive
-byte-writing correction `bc429f1` passed portable generation checks but its
-full CI hit one existing neutral lifecycle assertion; that failure must be
-resolved before a new isolated package is qualified. Failed partial artifacts
-are preserved; no deployment is claimed. An older Xodus launcher/engine is still running
+Release profile and native-Keychain features.
+
+Final source `9be674d` now has a verified native staged package. The coordinator
+checked 55 raw Git inputs, exact generated pins, the canonical helper receipt,
+all 21 packaged files, protocol/provider resources and deep signature.
+Its separately signed engine also passed a real anonymous Halo Store query:
+one resolved PC product, four explicit metadata failures, unknown ownership
+and compatibility, with continuation not followed. No authentication method
+or helper execution was requested by that smoke.
+
+**Deployment is blocked, not completed.** An older Xodus launcher/engine is still running
 with unknown operation state. It must exit safely before its installed bundle
 is replaced; the user was unavailable to resolve that gate, so it will not be
-terminated or duplicated. Safe staged packaging and anonymous checks continue.
+terminated or duplicated. Safe staged packaging and anonymous checks are complete.
 Builds have no CPU lease prerequisite. The prior installed bundle remains
 recoverable; sign-in/MFA/consent/Keychain prompts remain human-only. Successful
 Store login, authoritative owned inventory and download/install/update/play
 remain unverified.
+
+The new package is preserved at
+`/Users/dragoshont/xodus-app-tooling/app-shipping9be-controlled-xi7xdyfz/packages/Xodus-controlled-pair.xgzNsv/Xodus.app`.
+The previous installed bundle remains unchanged and recoverable. Quit the old
+Xodus normally before replacement; pending sign-in, credentials, MFA, consent
+and Keychain approval must be handled locally by the user.
 
 For exact source/artifact identities, review dispositions and remaining
 gates, see [the architecture and verification ledger](docs/xodus/architecture.md).

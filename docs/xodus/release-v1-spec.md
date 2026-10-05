@@ -137,6 +137,19 @@ not part of a UI-only completion claim.
   package/anonymous checks and retain the explicit human shutdown/login gate.
 - Native successful human login, accessible live packaged UI and authenticated
   owned inventory/download/install/play are not yet certified.
+- Final source `9be674d28edaa79f376cc79592a09bedcf3cd6b7` passed exact SDK 27
+  run `37323168881`: 795 checks, zero failures, shipping exclusions and SVG.
+  The new native package passes independent exact raw-source, generated-pin,
+  helper-receipt, full file inventory, resource and deep-signature validation.
+- A signed-pair anonymous smoke now has retained real HELLO/query/cleanup
+  evidence. Its Halo query returned one live scoped PC product, four unresolved
+  metadata failures and unfollowed continuation, without entitlement or
+  gameplay promotion. The initial smoke harness incorrectly demanded page-level
+  market/language; that session-only assertion was corrected to the real
+  per-product contract and one explicitly authorized requery passed.
+- The old installed launcher and engine remain active and untouched. Deployment,
+  actual launcher UI observation and genuine human-assisted Microsoft login
+  are blocked on safe old-app exit and human availability, not complete.
 
 Completion reports must distinguish implemented source, green neutral tests,
 verified package, deployed bundle, observed human authentication and per-game

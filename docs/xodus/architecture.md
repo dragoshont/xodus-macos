@@ -1068,3 +1068,85 @@ or workflow code. However, exact run `37319757608` failed one of the existing
 ownership and block fixture/Quit. It does not qualify this successor. Diagnose
 the precise test/child observation rather than weakening cleanup or suppressing
 failure; a new package needs complete fresh green qualification and a new stage.
+
+### Final staged native package and signed-pair query
+
+Final source is `9be674d28edaa79f376cc79592a09bedcf3cd6b7`, tree
+`3c951506850fe534ecec4e6e628eb768ab0135b7`. Exact hosted
+[37323168881](https://github.com/dragoshont/xodus-macos-app/actions/runs/37323168881)
+passed Xcode 27.0/`27A266a`, SDK 27: 15 core, 358 management, 61 presentation,
+218 neutral native-session and 87 private-host checks, plus 27 shipping and
+29 POSIX portable packaging checks, all zero failures; shipping arguments,
+resource exclusions and SVG also passed. The deterministic neutral lifecycle
+fix releases the short observation only after all four real waiters join and
+holds the test child until explicit release. Production budgets, ownership,
+authentication, DA and writer behavior are unchanged.
+
+The native SwiftPM bundle uses `Contents/Resources`. Verifier follow-ups
+`1dcd7f1` and final `9be674d` accept exactly one complete known layout and reject
+duplicates, mixed/missing schemas, wrong hashes and matching-hash links.
+The generated Swift resource accessor searches the packaged app's resource URL.
+Failed `95af7c0` and `2aaba41` stages remain preserved and unqualified; no partial
+signed copy or receipt was substituted into the final package.
+
+The final new stage is:
+
+```text
+/Users/dragoshont/xodus-app-tooling/app-shipping9be-controlled-xi7xdyfz/packages/Xodus-controlled-pair.xgzNsv/Xodus.app
+```
+
+| Final artifact | SHA-256 | Bytes |
+| --- | --- | --- |
+| Launcher | `123f8fd349faed03ce487cdee8d541f48efcddb45d1978c5a48d96710dc0c0fa` | 3,349,680 |
+| Native helper | `b434836b9ebc3966626f2736ac3cee42ad2b1eb9568c22aecec15c4ad1cbc673` | 333,472 |
+| Separately signed bundled CLI | `55b0738da218b1b0fe4e1b8f29c86b515e244f83956e4e831ed90de824a9dc16` | 21,191,200 |
+| Package receipt | `e8654311a643b2ce39ce23354bc63412ed049dc3c041c0565044f15777fe92a3` | 12,288 |
+| Generated compiler pins | `330687de54f85c7a04dce5cec0c4b5bacdfc00a036b2a30aad72fe73a7279a47` | 762 |
+
+Executables are UID 501, regular, single-link, mode `0755`. Signed CLI identity
+is distinct from the original sealed unsigned `ca86296...`; original CLI and
+adjacent provenance retain their exact hashes, sizes and sealed modes.
+The coordinator independently verified the bound receipt, all three signed
+identities, 55 immutable raw Git inputs (only the generated pin template
+overridden), exact generated Swift pin recipe, canonical helper receipt,
+all 21 final package files, unchanged C95/runtime schema hashes, native resource
+layout, absent fixture/private bundles and system deep signature. No app,
+helper or engine was executed during that independent verification.
+
+Five actual staged launcher arguments rejected with exit 64; the helper was
+not executed. The first anonymous smoke correctly obtained public data but its
+session harness erroneously asserted top-level market/language fields absent
+from `CatalogQuery`. It did not preserve the raw result before assertion,
+so it was not certified. The corrected session-only harness preserves result/
+error/cleanup evidence before assertions, validates per-product scope and
+unknown anonymous access, and passed one positive/eight negative offline cases.
+One explicitly authorized corrected query then passed, with frozen source and
+package unchanged; there was no network retry loop or pagination.
+
+At `2026-10-05T14:30:28Z`, the signed pair's HELLO plus single Halo US/en-US
+query returned live `Halo Infinite` (`9PP5G1F0C2B6`), editions `0010`, `0011`,
+`0017`, four explicit Windows.Desktop metadata failures, partial
+`publicMicrosoftStoreSearch` coverage and an unfollowed cursor. Entitlement,
+installability, compatibility and inventory remain unknown; registry
+`notInstalled` is not filesystem evidence. The coordinator read and validated
+the retained raw successful frame. Evidence receipt SHA-256
+`67fb1f28e3a051d9c712c33bb0d3cc22db48f026d9cac36ef07105e906e9b107`,
+1,299 bytes, was independently verified through a stable no-follow owned FD.
+The child received EOF, exited zero and was joined/reaped; stderr, auth methods,
+helper/provider/game operations and forced cleanup were zero.
+
+Final closure confirms package identities, original sealed inputs and all
+26 protected prior-bundle/root-artifact files remain unchanged, with no new
+pair processes remaining. The coordinator's executable-only check confirms
+old launcher PID 76334 and embedded engine PID 76336 are still active. Their
+operation/auth state was not inspected. The user was unavailable to quit them
+normally, so no termination, adoption, bundle replacement, duplicate GUI,
+native authentication or human-prompt handling occurred.
+
+**Disposition:** source and staged controlled-local package are verified;
+deployment is not performed and rollback was not needed. The old installed
+bundle remains the rollback/current bundle. Safe old-app exit, actual new
+launcher UI/accessibility observation and one human-assisted Store login remain
+external gates. Authoritative ownership and game package/launch capabilities
+are still unavailable in the reviewed adapter; this package does not certify
+them or the reported biometric/passkey method.

@@ -54,11 +54,12 @@ pub struct ManagementProfileStamp {
     fingerprint: Arc<serde_json::Value>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ManagementProfileWitness {
     epoch: u64,
     epoch_source: Arc<AtomicU64>,
     expires_at: chrono::DateTime<chrono::Utc>,
+    fingerprint: Arc<serde_json::Value>,
 }
 
 impl ManagementProfileStamp {
@@ -67,6 +68,7 @@ impl ManagementProfileStamp {
             epoch: self.epoch,
             epoch_source: self.epoch_source.clone(),
             expires_at: self.expires_at,
+            fingerprint: self.fingerprint.clone(),
         }
     }
 }
@@ -289,6 +291,22 @@ impl TokenManager {
             && self.management_mutations.load(Ordering::SeqCst) == 0
             && self.cache_epoch.load(Ordering::SeqCst) == witness.epoch
             && chrono::Utc::now() < witness.expires_at
+    }
+
+    pub fn verify_management_publication(
+        &self,
+        witness: &ManagementProfileWitness,
+    ) -> Result<(), TokenStoreError> {
+        if !self.management_publication_current(witness) {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        let (_, current) = self.management_store_snapshot()?;
+        if current.fingerprint != witness.fingerprint
+            || !self.management_publication_current(witness)
+        {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        Ok(())
     }
 
     pub fn verify_management_profile(
@@ -876,6 +894,29 @@ mod management_tests {
         let witness = stamp.publication_witness();
         manager.remove_user_credentials().unwrap();
         assert!(!manager.management_publication_current(&witness));
+    }
+
+    #[test]
+    fn management_publication_reads_fence_independent_writers_on_a_shared_backend() {
+        let memory = Arc::new(MemoryBackend::default());
+        let first = TokenManager::with_management_backend(memory.clone());
+        let second = TokenManager::with_management_backend(memory);
+        first
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let (_, stamp) = first.management_store_snapshot().unwrap();
+        let witness = stamp.publication_witness();
+        first.verify_management_publication(&witness).unwrap();
+        let mut replacement = fixture_store_session();
+        replacement.flow_id = "fixture-independent-flow".to_owned();
+        second.save_management_store_session(replacement).unwrap();
+        assert!(first.management_publication_current(&witness));
+        assert!(first.verify_management_publication(&witness).is_err());
+        let (_, stamp) = first.management_store_snapshot().unwrap();
+        let witness = stamp.publication_witness();
+        second.remove_user_credentials().unwrap();
+        assert!(first.management_publication_current(&witness));
+        assert!(first.verify_management_publication(&witness).is_err());
     }
 
     #[test]

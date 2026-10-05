@@ -698,6 +698,12 @@ enum Completion {
         deadline: tokio::time::Instant,
         result: Result<xodus::tokens::ManagementProfileWitness, WireError>,
     },
+    AuthVerificationRevalidated {
+        request_id: String,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        result: Result<xodus::tokens::ManagementProfileWitness, WireError>,
+    },
     ConsentPrepared {
         request_id: String,
         flow_id: String,
@@ -1711,6 +1717,38 @@ impl Backend {
         Ok(Data::AuthVerified(AuthVerifiedData { verified: True }))
     }
 
+    fn revalidate_auth_verification(
+        &mut self,
+        request_id: String,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        result: Result<xodus::tokens::ManagementProfileWitness, WireError>,
+    ) -> Result<(), WireError> {
+        let witness = result?;
+        self.auth_verified_result(generation, deadline, Ok(witness.clone()))?;
+        let tokens = self
+            .token_manager()?
+            .readonly_management_profile()
+            .map_err(|_| {
+                crate::auth_verify::VerificationFailure::CredentialUnavailable.wire_error()
+            })?;
+        self.tasks.spawn(async move {
+            let result = crate::auth_verify::bounded_verification(
+                deadline.saturating_duration_since(tokio::time::Instant::now()),
+                crate::auth_verify::revalidate_publication(tokens, witness),
+            )
+            .await
+            .map_err(crate::auth_verify::VerificationFailure::wire_error);
+            Completion::AuthVerificationRevalidated {
+                request_id,
+                generation,
+                deadline,
+                result,
+            }
+        });
+        Ok(())
+    }
+
     fn begin_account_mutation(&mut self) {
         self.account_generation = Uuid::new_v4();
         self.account_mutation_pending = true;
@@ -2256,6 +2294,13 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
             completion = backend.tasks.join_next(), if !backend.tasks.is_empty() => {
                 match completion {
                     Some(Ok(Completion::AuthVerified { request_id, generation, deadline, result })) => {
+                        if let Err(error) = backend.revalidate_auth_verification(
+                            request_id.clone(), generation, deadline, result) {
+                            backend.pending_requests.remove(&request_id);
+                            write_result(writer, request_id, Err(error)).await?;
+                        }
+                    },
+                    Some(Ok(Completion::AuthVerificationRevalidated { request_id, generation, deadline, result })) => {
                         backend.pending_requests.remove(&request_id);
                         let result = backend.auth_verified_result(generation, deadline, result);
                         write_result(writer, request_id, result).await?;
@@ -4097,6 +4142,179 @@ mod auth_lifecycle_tests {
                     .contains("PRIVATE_SENTINEL")
             );
         }
+    }
+
+    #[tokio::test]
+    async fn auth_verify_publication_fences_independent_managers_over_the_same_store() {
+        use crate::auth_verify::{AuthVerifier, VerificationFailure};
+        struct ProofVerifier;
+        impl AuthVerifier for ProofVerifier {
+            fn verify(
+                &self,
+                tokens: TokenManager,
+                _: String,
+            ) -> Pin<
+                Box<
+                    dyn Future<
+                            Output = Result<
+                                xodus::tokens::ManagementProfileWitness,
+                                VerificationFailure,
+                            >,
+                        > + Send
+                        + '_,
+                >,
+            > {
+                Box::pin(async move {
+                    let (_, stamp) = tokens
+                        .management_store_snapshot()
+                        .map_err(|_| VerificationFailure::CredentialUnavailable)?;
+                    Ok(stamp.publication_witness())
+                })
+            }
+        }
+        for mutation in ["unchanged", "replace", "logout"] {
+            let (_temporary, mut backend) = backend();
+            let memory = Arc::new(xodus::tokens::backend::MemoryBackend::default());
+            let manager_a = TokenManager::with_management_backend(memory.clone());
+            let manager_b = TokenManager::with_management_backend(memory);
+            manager_a
+                .save_management_store_session(fixture_store_session())
+                .unwrap();
+            backend.tokens = Some(manager_a);
+            backend.auth_verifier = Some(Arc::new(ProofVerifier));
+            let request = Request {
+                kind: RequestKind::Request,
+                protocol: Protocol::default(),
+                request_id: "verify".to_owned(),
+                operation: Operation::AuthVerify(AuthVerifyParams {
+                    content_id: "00000000-0000-0000-0000-000000000001".to_owned(),
+                }),
+            };
+            backend.dispatch(&request).await.unwrap();
+            let Completion::AuthVerified {
+                request_id,
+                generation,
+                deadline,
+                result,
+            } = backend.tasks.join_next().await.unwrap().unwrap()
+            else {
+                panic!("completed verification must be held before publication");
+            };
+            assert!(result.is_ok());
+            match mutation {
+                "replace" => {
+                    let mut replacement = fixture_store_session();
+                    replacement.flow_id = "fixture-independent-flow".to_owned();
+                    manager_b
+                        .save_management_store_session(replacement)
+                        .unwrap();
+                }
+                "logout" => manager_b.remove_user_credentials().unwrap(),
+                _ => {}
+            }
+            assert_eq!(generation, backend.account_generation);
+            backend
+                .revalidate_auth_verification(request_id.clone(), generation, deadline, result)
+                .unwrap();
+            let Completion::AuthVerificationRevalidated {
+                generation,
+                deadline,
+                result,
+                ..
+            } = backend.tasks.join_next().await.unwrap().unwrap()
+            else {
+                panic!("publication revalidation required");
+            };
+            let result = backend.auth_verified_result(generation, deadline, result);
+            let mut output = Vec::new();
+            write_result(&mut output, request_id, result).await.unwrap();
+            let frame: serde_json::Value = serde_json::from_slice(&output).unwrap();
+            assert_eq!(frame["ok"], mutation == "unchanged");
+            if mutation != "unchanged" {
+                assert_eq!(
+                    frame["error"],
+                    serde_json::to_value(VerificationFailure::ProfileChanged.wire_error()).unwrap()
+                );
+                assert!(frame.get("data").is_none());
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn auth_verify_publication_os_read_is_bounded_and_does_not_block_public_actor_work() {
+        use xodus::tokens::store::TokenBackend;
+        struct SlowRead {
+            memory: Arc<xodus::tokens::backend::MemoryBackend>,
+            slow: std::sync::atomic::AtomicBool,
+            started: Arc<tokio::sync::Notify>,
+        }
+        impl TokenBackend for SlowRead {
+            fn get(&self, key: &str) -> Result<Option<Vec<u8>>, TokenStoreError> {
+                if key == "management-store-user"
+                    && self.slow.swap(false, std::sync::atomic::Ordering::SeqCst)
+                {
+                    self.started.notify_one();
+                    std::thread::sleep(Duration::from_millis(2200));
+                }
+                self.memory.get(key)
+            }
+            fn set(&self, _: &str, _: &[u8]) -> Result<(), TokenStoreError> {
+                panic!("publication must not write credentials");
+            }
+            fn remove(&self, _: &str) -> Result<(), TokenStoreError> {
+                panic!("publication must not remove credentials");
+            }
+        }
+        let (_temporary, mut backend) = backend();
+        let memory = Arc::new(xodus::tokens::backend::MemoryBackend::default());
+        let writer = TokenManager::with_management_backend(memory.clone());
+        writer
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let started = Arc::new(tokio::sync::Notify::new());
+        let reader = Arc::new(SlowRead {
+            memory,
+            slow: std::sync::atomic::AtomicBool::new(false),
+            started: started.clone(),
+        });
+        let tokens = TokenManager::with_management_backend(reader.clone());
+        let (_, stamp) = tokens.management_store_snapshot().unwrap();
+        backend.tokens = Some(tokens);
+        reader.slow.store(true, std::sync::atomic::Ordering::SeqCst);
+        let generation = backend.account_generation;
+        let deadline = tokio::time::Instant::now() + crate::auth_verify::DEADLINE;
+        backend
+            .revalidate_auth_verification(
+                "verify".to_owned(),
+                generation,
+                deadline,
+                Ok(stamp.publication_witness()),
+            )
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(1), started.notified())
+            .await
+            .unwrap();
+        let request = Request {
+            kind: RequestKind::Request,
+            protocol: Protocol::default(),
+            request_id: "public".to_owned(),
+            operation: Operation::DiagnosticsExport(Empty {}),
+        };
+        assert!(matches!(
+            tokio::time::timeout(Duration::from_millis(250), backend.dispatch(&request))
+                .await
+                .unwrap()
+                .unwrap(),
+            Some(Data::Diagnostics(_))
+        ));
+        let Completion::AuthVerificationRevalidated { result, .. } =
+            backend.tasks.join_next().await.unwrap().unwrap()
+        else {
+            panic!("bounded publication read required");
+        };
+        assert!(matches!(result, Err(error) if error.message ==
+            "Authenticated read failed: transportFailed." && error.retryable));
+        tokio::time::sleep(Duration::from_millis(250)).await;
     }
 
     #[tokio::test]

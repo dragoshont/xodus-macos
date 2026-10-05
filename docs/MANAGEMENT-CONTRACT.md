@@ -75,6 +75,13 @@ after successful bounded metadata parsing, matching package/file content identit
 and unchanged-profile checks. The publication boundary additionally checks the
 reserved account generation, shared profile mutation epoch and original proof
 expiry. An intervening account mutation cannot publish a stale verification.
+Once a completed provider check reaches the publication path, a bounded,
+no-prompt read revalidates the full original bundle against the current launcher
+store, including changes made through independently created token managers.
+The actor remains responsive during that OS read; its completion repeats the
+generation, epoch, expiry and original total-deadline fences before emitting
+success. The comparison witness remains private in memory and is never
+serialized, logged, or persisted.
 Base payloads (`.msixvc` or extensionless files) must match the enclosing version;
 auxiliary `.phf`/`.xsp` and delta version identities remain separate. No meaning
 is invented for the provider's `UpdateType` values.

@@ -123,10 +123,17 @@ pub(crate) async fn get_packages_checked(
         .map(|read| read.package)
 }
 
-#[derive(Debug)]
 pub(crate) struct VerifiedPackageRead {
     package: PackageDetails,
     pub profile: Option<xodus::tokens::ManagementProfileWitness>,
+}
+
+impl std::fmt::Debug for VerifiedPackageRead {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("VerifiedPackageRead")
+            .finish_non_exhaustive()
+    }
 }
 
 pub(crate) async fn get_packages_verified(

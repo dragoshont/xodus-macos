@@ -7,6 +7,8 @@ use xodus::tokens::{ManagementProfileWitness, TokenManager};
 use crate::wire::{ErrorCode, WireError};
 
 pub const DEADLINE: Duration = Duration::from_secs(30);
+const PUBLICATION_READ_DEADLINE: Duration = Duration::from_secs(2);
+static PUBLICATION_READ_PERMITS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum VerificationFailure {
@@ -84,6 +86,38 @@ mod tests {
         assert!(dropped.load(std::sync::atomic::Ordering::SeqCst));
         assert_eq!(DEADLINE, Duration::from_secs(30));
     }
+}
+
+pub async fn revalidate_publication(
+    tokens: TokenManager,
+    witness: ManagementProfileWitness,
+) -> Result<ManagementProfileWitness, VerificationFailure> {
+    let deadline = tokio::time::Instant::now() + PUBLICATION_READ_DEADLINE;
+    let permit = tokio::time::timeout_at(deadline, PUBLICATION_READ_PERMITS.acquire())
+        .await
+        .map_err(|_| VerificationFailure::TransportFailed)?
+        .map_err(|_| VerificationFailure::CredentialUnavailable)?;
+    let readonly = tokens
+        .readonly_management_profile()
+        .map_err(|_| VerificationFailure::CredentialUnavailable)?;
+    let read = tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        readonly
+            .verify_management_publication(&witness)
+            .map_err(|error| match error {
+                xodus::tokens::store::TokenStoreError::NotFound
+                | xodus::tokens::store::TokenStoreError::InvalidCredential
+                | xodus::tokens::store::TokenStoreError::Serde(_) => {
+                    VerificationFailure::ProfileChanged
+                }
+                _ => VerificationFailure::CredentialUnavailable,
+            })?;
+        Ok(witness)
+    });
+    tokio::time::timeout_at(deadline, read)
+        .await
+        .map_err(|_| VerificationFailure::TransportFailed)?
+        .map_err(|_| VerificationFailure::CredentialUnavailable)?
 }
 
 pub trait AuthVerifier: Send + Sync {

@@ -203,6 +203,9 @@ while True:
    send(f,{{'kind':'failed','reason':'navigationFailed'}});os._exit(1)
   if mode=='eofReady':os._exit(23)
   send(f,{{'kind':'ready'}})
+  if mode=='da':
+   keys=['sDAToken','sDASessionKey','sDAStartTime','sDAExpires','sSTSInlineFlowToken','sSigninName','K']
+   send(f,{{'kind':'da','property':dict.fromkeys(keys,'NEUTRAL_NOT_CREDENTIAL')}})
   if mode=='failedDA':
    send(f,{{'kind':'failed','reason':'javaScriptFailed'}});os._exit(1)
   if mode=='crash':os._exit(23)

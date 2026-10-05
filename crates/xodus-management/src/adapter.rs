@@ -52,6 +52,8 @@ pub enum NativeSignInFailure {
         reason: crate::native_auth::HostFailure,
     },
     ChannelEof,
+    TokenExchangeFailed,
+    HelperCompletionFailed,
     Unclassified,
 }
 
@@ -71,6 +73,8 @@ impl NativeSignInFailure {
                 HostFailure::ParentUnavailable => "helper.parentUnavailable",
             },
             Self::ChannelEof => "channelEOF",
+            Self::TokenExchangeFailed => "tokenExchangeFailed",
+            Self::HelperCompletionFailed => "helperCompletionFailed",
             Self::Unclassified => "unclassified",
         };
         let mut error = ConsentFailure::NativeSignIn.wire_error();
@@ -2592,6 +2596,11 @@ mod auth_lifecycle_tests {
         .collect();
         cases.extend([
             (NativeSignInFailure::ChannelEof, "channelEOF"),
+            (NativeSignInFailure::TokenExchangeFailed, "tokenExchangeFailed"),
+            (
+                NativeSignInFailure::HelperCompletionFailed,
+                "helperCompletionFailed",
+            ),
             (NativeSignInFailure::Unclassified, "unclassified"),
         ]);
         for (reason, text) in cases {

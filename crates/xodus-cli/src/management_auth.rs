@@ -140,6 +140,14 @@ fn host_unavailable(error: std::io::Error) -> SessionFailure {
     })
 }
 
+fn token_exchange_failure(_: Box<dyn std::error::Error>) -> SessionFailure {
+    SessionFailure::NativeSignIn(NativeSignInFailure::TokenExchangeFailed)
+}
+
+fn helper_completion_failure(_: std::io::Error) -> SessionFailure {
+    SessionFailure::NativeSignIn(NativeSignInFailure::HelperCompletionFailed)
+}
+
 fn private_channel(fd: std::os::fd::OwnedFd) -> std::io::Result<std::os::unix::net::UnixStream> {
     rustix::io::fcntl_setfd(&fd, rustix::io::FdFlags::CLOEXEC)?;
     let channel = std::os::unix::net::UnixStream::from(fd);
@@ -311,7 +319,7 @@ async fn issue_with_host(
             reply = host.receive() => return Err(host_terminal(reply.map_err(host_unavailable)?)),
             result = crate::commands::login::exchange_user_property(client.clone(), device.clone(),
                 crate::commands::login::CLIENT_ID.to_owned(), property.clone()) =>
-                result.map_err(|_| unavailable())?,
+                result.map_err(token_exchange_failure)?,
         };
         match exchange {
             xodus::models::live::ExchangeUserTokenOutcome::Issued(body) => {
@@ -324,7 +332,7 @@ async fn issue_with_host(
                 };
                 let credentials =
                     crate::commands::login::finish_issued(Some(output)).map_err(login_failure)?;
-                if !host.completed().await.map_err(|_| unavailable())? {
+                if !host.completed().await.map_err(helper_completion_failure)? {
                     return Err(SessionFailure::Cancelled);
                 }
                 return Ok(credentials);
@@ -443,6 +451,7 @@ mod tests {
             ),
             ("eofReady", NativeSignInFailure::ChannelEof),
             ("version", NativeSignInFailure::Unclassified),
+            ("da", NativeSignInFailure::TokenExchangeFailed),
         ] {
             let (_dir, binding) = fixtures::helper(mode);
             let mut host = NativeHost::spawn(&binding, &uuid::Uuid::nil().to_string()).unwrap();
@@ -468,6 +477,49 @@ mod tests {
                 matches!(handoff, ConsentHandoff::FailedNativeSignIn { reason }
                 if reason == expected)
             );
+        }
+    }
+
+    #[tokio::test]
+    async fn completion_failure_is_distinct_from_exchange_without_retaining_error_text() {
+        use crate::native_auth_host::{NativeHost, fixtures};
+        use xodus_management::native_auth::HostResult;
+        let (_dir, binding) = fixtures::helper("nonzero");
+        let mut host = NativeHost::spawn(&binding, &uuid::Uuid::nil().to_string()).unwrap();
+        fixtures::open(&mut host, 1000).await.unwrap();
+        assert!(matches!(host.receive().await.unwrap(), HostResult::Ready));
+        let failure = host
+            .completed()
+            .await
+            .map_err(helper_completion_failure)
+            .err()
+            .expect("Neutral helper nonzero exit must fail the completion fence");
+        host.abort().await.unwrap();
+        let (handoff, _) = failure_handoff(failure);
+        assert!(matches!(handoff, ConsentHandoff::FailedNativeSignIn {
+            reason: NativeSignInFailure::HelperCompletionFailed,
+        }));
+        for (failure, expected) in [
+            (
+                token_exchange_failure(Box::new(std::io::Error::other("PRIVATE_SENTINEL"))),
+                NativeSignInFailure::TokenExchangeFailed,
+            ),
+            (
+                helper_completion_failure(std::io::Error::other("PRIVATE_SENTINEL")),
+                NativeSignInFailure::HelperCompletionFailed,
+            ),
+        ] {
+            let (handoff, _) = failure_handoff(failure);
+            assert!(
+                matches!(handoff, ConsentHandoff::FailedNativeSignIn { reason }
+                if reason == expected)
+            );
+            assert!(
+                !serde_json::to_string(&handoff)
+                    .unwrap()
+                    .contains("PRIVATE_SENTINEL")
+            );
+            assert!(!expected.wire_error().message.contains("PRIVATE_SENTINEL"));
         }
     }
 

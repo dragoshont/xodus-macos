@@ -12,7 +12,7 @@
 
 ## macOS fork progress
 
-Status as of **October 4, 2026**. This fork is developing a native macOS
+Status as of **October 5, 2026**. This fork is developing a native macOS
 launcher backed by Xodus, rather than relying on an unverified Heroic
 extra-store plugin mechanism. Heroic remains a useful workflow reference.
 The Swift launcher lives in the separate
@@ -50,12 +50,15 @@ The relevant source reviews are closed for their stated scopes. Their
 authentication checks use neutral children and detached synthetic WebKit,
 not real Microsoft credentials or a completed Store sign-in.
 
-**Current login gate:** an isolated native Release build of the matching
-reviewed engine is being prepared for a controlled Mac test. Packaging,
-separate signed-copy identities, helper receipts and the actual selected
-engine must be verified before opening the app for the user. The previous
-installed pair is preserved; its older engine cannot activate the reviewed
-Swift-helper flow. No successful login on the new pair is claimed.
+**Current login gate:** the matching native Release engine compilation has
+not started. Source verification and isolated staging were prepared, but no
+new sealed engine or paired installation exists. The Mac test slot was
+returned to game testing; the current work is source-side launcher UI.
+Building, packaging and live login require a separately authorized slot and
+verification of signed-copy identities, helper receipts and the selected
+engine. The previous installed pair is preserved; its older engine cannot
+activate the reviewed Swift-helper flow. Successful Store login remains
+unverified.
 
 For exact source/artifact identities, review dispositions and remaining
 gates, see [the architecture and verification ledger](docs/xodus/architecture.md).

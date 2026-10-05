@@ -806,13 +806,22 @@ Xcode 27.0 build `27A266a`, SDK 27.0 and macOS 27.0 passed 15 core,
 helper-admission checks are fresh evidence, not inherited 668 qualification.
 This is source/fixture evidence, not a new Mac Release artifact or live login.
 
-The user has authorized an isolated matching native engine build and a
-controlled human login test, and the game-testing owner has released the
-bounded CPU/foreground slot. The new engine build, paired packaging and
-actual login remain unfinished at this checkpoint. A controlled test may use
+The user authorized an isolated matching native engine build and a
+controlled human login test on October 4, and the game-testing owner released
+a bounded CPU/foreground slot. Source verification and staging completed,
+but the backend confirmed that compilation never started: no new CLI,
+release seal or provenance receipt was produced. Before packaging or launch,
+the user changed priority to game testing and the full Mac slot was returned.
+No app signing, packaging, launch or agent Sign In action occurred.
+A future separately authorized controlled test may use
 the independently qualified `43d0d1` app/helper artifacts with a freshly
 verified helper receipt and matching new engine; it must not mix `6a2103c`
 source claims into that older package. The old installed bundle is preserved.
+
+The October 5 resume is bounded launcher UI/source work with focused neutral
+checks and the existing isolated hosted CI. It does not renew the previous
+Mac build/foreground lease or authorize account sign-in, Microsoft/MFA/consent
+or Keychain prompts, deployment, or interaction with active human windows.
 
 No public versioned engine-provenance loader exists yet. General admission of
 arbitrary engine paths or developer overrides remains a product gate.

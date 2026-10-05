@@ -98,9 +98,14 @@ not part of a UI-only completion claim.
 - The reviewed native Release engine and provenance have independently checked
   exact SHA-256/size/ownership/profile/features; immutable identities are in the
   architecture ledger. HELLO is not artifact attestation.
-- CrossOver publisher identity must be supplied from existing trusted official
-  installation evidence before RT-01 can claim verified detection. Until then,
-  detection remains unverified and must fail closed.
+- The existing game owner supplied a user-approved official installation
+  baseline: `/Applications/CrossOver.app`, observed version `26.3.0.39832`,
+  signed identifier `com.codeweavers.CrossOver`, publisher team `9C6B7X7Z8E`.
+  Deep strict signature verification passed and Gatekeeper accepted its
+  notarized Developer ID. RT-01 pins the identifier/team and Apple Developer ID
+  certificate chain, rather than trusting candidate metadata. This is scoped
+  trust from the approved installation, not a separately retrieved vendor team
+  allowlist, license check or compatibility claim.
 - Native successful human login, accessible live packaged UI and authenticated
   owned inventory/download/install/play are not yet certified.
 

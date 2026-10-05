@@ -22,8 +22,9 @@ branches; this README is not a claim that it has all been merged or deployed.
 
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
-| Native launcher | Native navigation/search header and Runtime Settings; shipping builds exclude fixture UI, artwork, test entry points and developer engine selection. Loading copy and startup-query fencing are qualified. A new matching native package is built and independently verified. | Safe replacement of the old running app and live visual, accessibility and resize verification. |
-| Store authentication | The installed native pair completed a user-assisted Microsoft sign-in; the app reports the session saved in macOS Keychain and still saved after a normal restart. The exchange now follows upstream request ordering. | Authenticated provider use is not verified: the management interface currently lacks a supported authenticated provider-read operation. Closing the sign-in window also exposed a stuck pending-state bug, recovered by cancelling and restarting; its permanent fix remains open. |
+| Native launcher | Native navigation/search header and Runtime Settings; shipping builds exclude fixture UI, artwork, test entry points and developer engine selection. The working login pair and close/retry fix are installed. | The gamer-facing status-wall cleanup remains in review; live visual, accessibility and resize acceptance is not complete. |
+| Store authentication | Microsoft sign-in is saved in macOS Keychain and persists across a normal restart and installation of the close/retry fix. The exchange follows upstream request ordering. | Read-only `auth.verify` is implemented and source-reviewed in backend `c42e21a`, with 81 native checks and two wire checks reported passing. A matching consumer/package and one actual authenticated provider read remain pending; restart status alone is not provider authorization. |
+| Owned and local games | Public Xbox catalog/search and bounded selected-folder structural inspection exist. | Complete Xbox PC-owned inventory is unsupported by the current integration. `installed.snapshot` currently returns a constant empty list, not a Mac installation scan; inspected folders remain unverified and not launchable. Catalog, achievements, Game Pass availability and folder markers are not ownership or playability evidence. |
 | Shipping pair admission | Fixed bundled engine/helper paths and stage-generated compiled identities; missing approval or changed files fail before management, authentication mutations or runtime planning. | Controlled local operator approval only, not general Developer ID distribution attestation. HELLO alone grants no trust. |
 | Account presentation | Toolbar, Account, Settings and Library share freshness-aware account state. Failed status checks remove saved-account claims while retaining the safety snapshot; a pending flow does not claim that a Microsoft window opened. | Source-side UI changes do not establish live authentication, PC ownership or entitlement. |
 | Runtime selection | CrossOver, GPTK 3, GPTK 4 and standalone Wine configuration/planning foundations. **First-release dependency: a genuine, separately installed official CrossOver copy.** Other runtime tracks remain experimental, not supported first-release alternatives. | **Configuration/planning only.** No installation discovery, prefix creation/migration, device preflight or game execution is certified by these plans; `launchable` remains `false`. No CodeWeavers endorsement is implied. |
@@ -99,11 +100,13 @@ and compatibility, with continuation not followed. No authentication method
 or helper execution was requested by that smoke.
 
 **Current installed pair:** app
-[1759a61](https://github.com/dragoshont/xodus-macos-app/commit/1759a61ea5dd308d998cb87a6e8176b1d04e52f7)
+[5ac830c](https://github.com/dragoshont/xodus-macos-app/commit/5ac830c8620c1f293a0cc0389b9ae41cfd00b1c6)
 and backend
 [397dd02](https://github.com/dragoshont/xodus-macos/commit/397dd0249c81414dae3d75b3562f696378fd6b11).
 On October 6 the app owner observed a saved Microsoft session after human
 sign-in, then verified that it remained saved after a normal app restart.
+The subsequent close/retry update also preserved the saved session without
+opening another browser or requesting credentials.
 This establishes login persistence, not authenticated provider use,
 authoritative owned inventory or launcher-driven download/install/update/play.
 The backend retains validated failed-exchange inputs only in Keychain for a

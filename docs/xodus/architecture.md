@@ -265,22 +265,38 @@ authorized by this product requirement.
 ### Native launcher sign-in integration
 
 **October 6, 2026 live persistence update:** the installed app
-[`1759a61`](https://github.com/dragoshont/xodus-macos-app/commit/1759a61ea5dd308d998cb87a6e8176b1d04e52f7)
+[`5ac830c`](https://github.com/dragoshont/xodus-macos-app/commit/5ac830c8620c1f293a0cc0389b9ae41cfd00b1c6)
 is paired with backend
 [`397dd02`](https://github.com/dragoshont/xodus-macos/commit/397dd0249c81414dae3d75b3562f696378fd6b11).
 The engine restores upstream Xbox-first exchange ordering, with Passport
 requested after continuation. The app owner observed a saved Microsoft
 session after user-assisted sign-in and confirmed it remained saved after
 a normal app restart. Authenticated provider use remains unverified because
-the management interface has no supported authenticated provider-read
-operation; saved-session status must not substitute for that check.
+the reviewed backend `c42e21a` read-only `auth.verify` operation still awaits
+matching consumer/package admission and one live read. Saved-session status
+must not substitute for that check.
 Validated failed-exchange inputs may be retained only in launcher Keychain
 for at most five minutes, bounded by their original device-auth/device
 expiry. Success clears them; retries do not renew their expiry. Expiry
 cleanup runs while the engine is alive or on the next access, not while
 the engine is stopped. Accidentally closing the browser exposed a stuck
 pending-state bug; cancelling the attempt and restarting recovered it,
-but the permanent cancellation/retry fix remains open.
+and the subsequent `5ac830c` cancellation/retry fix is installed. Hidden AppKit
+direct-close/perform-close and explicit-retry regressions passed; installation
+preserved the saved session without another credential prompt.
+
+**Owned/installed capability boundary:** the current backend has no complete
+consumer Xbox PC-owned inventory enumerator. Partner-configured Store queries
+and current-app add-on collections are not substitutes for that capability.
+`installed.snapshot` currently emits a constant empty vector with
+`managementRegistryOnly` scope; durable state has no installation map or
+writers. It is not evidence that the Mac has no installed games.
+`installed.inspect` performs bounded no-follow structural reads of a selected
+folder marker, not a Mac-wide scan or entitlement/playability check. Its
+partial/external/unregistered/unverified result must not be promoted to
+installed or launchable. Durable observations, if added, must remain distinct
+from verified installation records.
+
 The chronology below records earlier source and runtime observations,
 not the current persistence result.
 

@@ -2073,9 +2073,7 @@ where
             true,
         );
         let written = write_result(&mut writer, request_id, Err(error.clone())).await;
-        if result.is_ok()
-            && let Some(expires_at) = expires_at
-        {
+        if result.is_ok() {
             result = written.and(Err(error));
         }
     }
@@ -2205,7 +2203,7 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
                             flow.flow_id != flow_id || !matches!(flow.state, AuthFlowState::Pending)) {
                             return Err(NativeSignInFailure::ExchangeRetentionFailed.wire_error());
                         }
-                        if result.is_ok() {
+                        if result.is_ok() && let Some(expires_at) = expires_at {
                             backend.schedule_exchange_expiry(expires_at)?;
                         }
                         backend.finish_auth(Err(result.err().unwrap_or(failure)));

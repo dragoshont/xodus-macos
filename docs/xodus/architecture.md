@@ -1150,3 +1150,35 @@ launcher UI/accessibility observation and one human-assisted Store login remain
 external gates. Authoritative ownership and game package/launch capabilities
 are still unavailable in the reviewed adapter; this package does not certify
 them or the reported biometric/passkey method.
+
+### Repository-local canonical qualification references
+
+Architrave 0.12.1 binds source and gate evidence to one repository. Root Run
+`xodus-ui-production-20261005` revision 20 therefore cannot promote app
+`9be674d` CI/package evidence into root acceptance. Root adoption has its own
+fresh deterministic PASS; shipping, review, package and product remain UNTESTED.
+The following references provide traceability only, not root acceptance.
+
+The existing app owner established exactly one app-local qualification Run,
+`app-9be-qualification-20261005`, in an isolated clean checkout of
+`dragoshont/xodus-macos-app` at `9be674d28edaa79f376cc79592a09bedcf3cd6b7`,
+tree `3c951506850fe534ecec4e6e628eb768ab0135b7`. Native-enabled local
+configuration is ignored and separate from the reviewed source; the original
+app branch, user changes and adoption stash are preserved.
+
+The coordinator independently read its public native status: COMPLETED,
+revision 13, event cursor 14, `APP-QUAL: PASS`, fresh source SHA-256
+`bd93942a23e3bfd28259f18de0731088a024a4d4619a7cdafb59e30383dafebe`,
+no active/stale workers, and its finished deterministic worker retained.
+Supported executors observed exact app CI `37323168881` and reran 28 portable
+checks on Windows against that source:
+
+| App-local gate | Authenticated receipt SHA-256 |
+| --- | --- |
+| `gate-ci-5578e093537944d18bb9f2bd8df996db` | `fa1f7b62378177256166d46ab0d76145e679284a0d07f21fcd43a1dc940cd572` |
+| `gate-test-5273d3d257c9403086330af498a40698` | `54ed327a35e765e62bc7d1962bdbe0c21420ed627115c991265450a8c8ebbf4d` |
+
+This qualification covers deterministic app CI/build/test evidence only. It
+does not certify deployment, runtime behavior, human login, owned inventory,
+gameplay or complete production readiness. Recording these references changes
+neither root canonical state nor the genuine shutdown/deployment/login holds.

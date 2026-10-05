@@ -43,6 +43,10 @@ pub enum ConsentHandoff {
     FailedNativeSignIn {
         reason: NativeSignInFailure,
     },
+    ExchangeDeferred {
+        reason: NativeSignInFailure,
+        pending: Option<Box<xodus::models::secrets::PendingManagementExchange>>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -53,13 +57,62 @@ pub enum NativeSignInFailure {
     },
     ChannelEof,
     TokenExchangeFailed,
+    TokenExchangeStage {
+        stage: ExchangeFailureStage,
+    },
     HelperCompletionFailed,
+    ExchangeRetentionFailed,
     Unclassified,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ExchangeFailureStage {
+    RequestBuild,
+    RequestSerialization,
+    RequestTransport,
+    RequestTimeout,
+    HttpClientError,
+    HttpServerError,
+    HttpStatusRejected,
+    ResponseParsing,
+    ResponseSignature,
+    ResponseCryptography,
+    ResponseEncoding,
+    ContinuationRequired,
+    FaultWithoutContinuation,
+    ContinuationRejected,
+}
+
+impl ExchangeFailureStage {
+    fn name(self) -> &'static str {
+        match self {
+            Self::RequestBuild => "requestBuild",
+            Self::RequestSerialization => "requestSerialization",
+            Self::RequestTransport => "requestTransport",
+            Self::RequestTimeout => "requestTimeout",
+            Self::HttpClientError => "httpClientError",
+            Self::HttpServerError => "httpServerError",
+            Self::HttpStatusRejected => "httpStatusRejected",
+            Self::ResponseParsing => "responseParsing",
+            Self::ResponseSignature => "responseSignature",
+            Self::ResponseCryptography => "responseCryptography",
+            Self::ResponseEncoding => "responseEncoding",
+            Self::ContinuationRequired => "continuationRequired",
+            Self::FaultWithoutContinuation => "faultWithoutContinuation",
+            Self::ContinuationRejected => "continuationRejected",
+        }
+    }
 }
 
 impl NativeSignInFailure {
     pub fn wire_error(self) -> WireError {
         use crate::native_auth::HostFailure;
+        if let Self::TokenExchangeStage { stage } = self {
+            let mut error = ConsentFailure::NativeSignIn.wire_error();
+            error.message = format!("Native sign-in failed: tokenExchange.{}.", stage.name());
+            return error;
+        }
         let reason = match self {
             Self::Host { reason } => match reason {
                 HostFailure::InvalidFrame => "helper.invalidFrame",
@@ -74,7 +127,9 @@ impl NativeSignInFailure {
             },
             Self::ChannelEof => "channelEOF",
             Self::TokenExchangeFailed => "tokenExchangeFailed",
+            Self::TokenExchangeStage { .. } => unreachable!(),
             Self::HelperCompletionFailed => "helperCompletionFailed",
+            Self::ExchangeRetentionFailed => "exchangeRetentionFailed",
             Self::Unclassified => "unclassified",
         };
         let mut error = ConsentFailure::NativeSignIn.wire_error();
@@ -239,6 +294,7 @@ fn reconcile_handoff(
         Ok(
             outcome @ (ConsentHandoff::FailedAt { .. }
             | ConsentHandoff::FailedNativeSignIn { .. }
+            | ConsentHandoff::ExchangeDeferred { .. }
             | ConsentHandoff::Failed
             | ConsentHandoff::Cancelled),
         ) => Ok(outcome),
@@ -254,6 +310,8 @@ pub struct ConsentBootstrap {
     pub device_token: Option<xodus::models::secrets::LegacyToken>,
     pub native_host: Option<crate::native_auth::HostBinding>,
     pub remaining_millis: u64,
+    #[serde(default)]
+    pub resume_exchange: Option<Box<xodus::models::secrets::PendingManagementExchange>>,
 }
 
 struct ConsentReader {
@@ -641,6 +699,15 @@ enum Completion {
     },
     AccountCommit {
         flow_id: String,
+        result: Result<(), WireError>,
+    },
+    ExchangeRetained {
+        flow_id: String,
+        failure: WireError,
+        expires_at: Option<chrono::DateTime<chrono::Utc>>,
+        result: Result<(), WireError>,
+    },
+    ExchangeExpired {
         result: Result<(), WireError>,
     },
     AccountLogout {
@@ -1475,6 +1542,61 @@ impl Backend {
             Ok(ConsentHandoff::Failed) => Err(ConsentFailure::StageUnavailable.wire_error()),
             Ok(ConsentHandoff::FailedAt { failure }) => Err(failure.wire_error()),
             Ok(ConsentHandoff::FailedNativeSignIn { reason }) => Err(reason.wire_error()),
+            Ok(ConsentHandoff::ExchangeDeferred { reason, pending }) => {
+                if !matches!(reason, NativeSignInFailure::TokenExchangeStage { .. })
+                    || pending
+                        .as_ref()
+                        .is_some_and(|pending| pending.flow_id != flow_id || !pending.valid())
+                    || (pending.is_none()
+                        && !matches!(
+                            reason,
+                            NativeSignInFailure::TokenExchangeStage {
+                                stage: ExchangeFailureStage::ContinuationRequired,
+                            }
+                        ))
+                {
+                    Err(NativeSignInFailure::ExchangeRetentionFailed.wire_error())
+                } else {
+                    let tokens = self.token_manager()?;
+                    let expires_at = pending.as_ref().map(|pending| pending.expires_at);
+                    if self.async_keychain_io {
+                        self.account_mutation_pending = true;
+                        self.tasks.spawn(async move {
+                            Completion::ExchangeRetained {
+                                flow_id,
+                                failure: reason.wire_error(),
+                                expires_at,
+                                result: account_work(move || {
+                                    match pending {
+                                        Some(pending) => {
+                                            tokens.save_pending_management_exchange(*pending)
+                                        }
+                                        None => tokens.clear_pending_management_exchange(),
+                                    }
+                                    .map_err(|_| {
+                                        NativeSignInFailure::ExchangeRetentionFailed.wire_error()
+                                    })
+                                })
+                                .await,
+                            }
+                        });
+                        return Ok(());
+                    }
+                    let retained = match pending {
+                        Some(pending) => tokens.save_pending_management_exchange(*pending),
+                        None => tokens.clear_pending_management_exchange(),
+                    };
+                    match retained {
+                        Ok(()) => {
+                            if let Some(expires_at) = expires_at {
+                                self.schedule_exchange_expiry(expires_at)?;
+                            }
+                            Err(reason.wire_error())
+                        }
+                        Err(_) => Err(NativeSignInFailure::ExchangeRetentionFailed.wire_error()),
+                    }
+                }
+            }
             Err(error) => Err(error),
         };
         self.finish_auth(outcome);
@@ -1488,6 +1610,7 @@ impl Backend {
                     flow.state = AuthFlowState::Completed;
                     flow.error = None;
                 }
+
                 Err(error) => {
                     flow.state = if error.code == ErrorCode::AuthCancelled {
                         AuthFlowState::Cancelled
@@ -1499,6 +1622,30 @@ impl Backend {
             }
         }
     }
+
+    fn schedule_exchange_expiry(
+        &mut self,
+        expires_at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), WireError> {
+        let tokens = self.token_manager()?;
+        let delay = (expires_at - chrono::Utc::now())
+            .to_std()
+            .unwrap_or(Duration::ZERO);
+        self.tasks.spawn(async move {
+            tokio::time::sleep(delay).await;
+            Completion::ExchangeExpired {
+                result: account_work(move || {
+                    tokens
+                        .get_pending_management_exchange()
+                        .map(|_| ())
+                        .map_err(|_| NativeSignInFailure::ExchangeRetentionFailed.wire_error())
+                })
+                .await,
+            }
+        });
+        Ok(())
+    }
+
     fn start_job(&mut self, job: Job) -> Result<Job, WireError> {
         let job = self
             .store
@@ -1545,6 +1692,19 @@ fn prepare_consent(tokens: TokenManager, flow_id: String) -> Result<ConsentBoots
             false,
         ));
     }
+    let resume_exchange = tokens
+        .get_pending_management_exchange()
+        .map_err(|_| NativeSignInFailure::ExchangeRetentionFailed.wire_error())?;
+    if let Some(pending) = resume_exchange {
+        return Ok(ConsentBootstrap {
+            flow_id,
+            device: None,
+            device_token: None,
+            native_host: None,
+            remaining_millis: crate::native_auth::MAX_BUDGET_MILLIS,
+            resume_exchange: Some(Box::new(pending)),
+        });
+    }
     let device = match tokens.get_device_license() {
         Ok(device) => Some(device),
         Err(TokenStoreError::NotFound) => None,
@@ -1573,6 +1733,7 @@ fn prepare_consent(tokens: TokenManager, flow_id: String) -> Result<ConsentBoots
         device_token,
         native_host: None,
         remaining_millis: crate::native_auth::MAX_BUDGET_MILLIS,
+        resume_exchange: None,
     })
 }
 
@@ -1912,7 +2073,9 @@ where
             true,
         );
         let written = write_result(&mut writer, request_id, Err(error.clone())).await;
-        if result.is_ok() {
+        if result.is_ok()
+            && let Some(expires_at) = expires_at
+        {
             result = written.and(Err(error));
         }
     }
@@ -2036,6 +2199,18 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
                         }
                         backend.finish_auth(result);
                     },
+                    Some(Ok(Completion::ExchangeRetained { flow_id, failure, expires_at, result })) => {
+                        backend.account_mutation_pending = false;
+                        if backend.auth_flow.as_ref().is_none_or(|flow|
+                            flow.flow_id != flow_id || !matches!(flow.state, AuthFlowState::Pending)) {
+                            return Err(NativeSignInFailure::ExchangeRetentionFailed.wire_error());
+                        }
+                        if result.is_ok() {
+                            backend.schedule_exchange_expiry(expires_at)?;
+                        }
+                        backend.finish_auth(Err(result.err().unwrap_or(failure)));
+                    },
+                    Some(Ok(Completion::ExchangeExpired { result })) => { result?; },
                     Some(Ok(Completion::AccountLogout { request_id, result })) => {
                         backend.account_mutation_pending = false;
                         backend.pending_requests.remove(&request_id);
@@ -2592,20 +2767,49 @@ mod auth_lifecycle_tests {
             (HostFailure::ParentUnavailable, "helper.parentUnavailable"),
         ]
         .into_iter()
-        .map(|(reason, text)| (NativeSignInFailure::Host { reason }, text))
+        .map(|(reason, text)| (NativeSignInFailure::Host { reason }, text.to_owned()))
         .collect();
-        cases.extend([
-            (NativeSignInFailure::ChannelEof, "channelEOF"),
-            (
-                NativeSignInFailure::TokenExchangeFailed,
-                "tokenExchangeFailed",
-            ),
-            (
-                NativeSignInFailure::HelperCompletionFailed,
-                "helperCompletionFailed",
-            ),
-            (NativeSignInFailure::Unclassified, "unclassified"),
-        ]);
+        cases.extend(
+            [
+                (NativeSignInFailure::ChannelEof, "channelEOF"),
+                (
+                    NativeSignInFailure::TokenExchangeFailed,
+                    "tokenExchangeFailed",
+                ),
+                (
+                    NativeSignInFailure::HelperCompletionFailed,
+                    "helperCompletionFailed",
+                ),
+                (NativeSignInFailure::Unclassified, "unclassified"),
+                (
+                    NativeSignInFailure::ExchangeRetentionFailed,
+                    "exchangeRetentionFailed",
+                ),
+            ]
+            .into_iter()
+            .map(|(reason, text)| (reason, text.to_owned())),
+        );
+        for stage in [
+            ExchangeFailureStage::RequestBuild,
+            ExchangeFailureStage::RequestSerialization,
+            ExchangeFailureStage::RequestTransport,
+            ExchangeFailureStage::RequestTimeout,
+            ExchangeFailureStage::HttpClientError,
+            ExchangeFailureStage::HttpServerError,
+            ExchangeFailureStage::HttpStatusRejected,
+            ExchangeFailureStage::ResponseParsing,
+            ExchangeFailureStage::ResponseSignature,
+            ExchangeFailureStage::ResponseCryptography,
+            ExchangeFailureStage::ResponseEncoding,
+            ExchangeFailureStage::ContinuationRequired,
+            ExchangeFailureStage::FaultWithoutContinuation,
+            ExchangeFailureStage::ContinuationRejected,
+        ] {
+            cases.push((
+                NativeSignInFailure::TokenExchangeStage { stage },
+                format!("tokenExchange.{}", stage.name()),
+            ));
+        }
         for (reason, text) in cases {
             let (_temporary, mut backend) = backend();
             backend.auth_flow = Some(AuthFlow {
@@ -2652,6 +2856,8 @@ mod auth_lifecycle_tests {
             r#"{"outcome":"failedNativeSignIn","reason":{"kind":"host","reason":"navigationFailed","url":"PRIVATE_SENTINEL"}}"#,
             r#"{"outcome":"failedNativeSignIn","reason":{"kind":"channelEof"},"error":"PRIVATE_SENTINEL"}"#,
             r#"{"outcome":"failedNativeSignIn","reason":{"kind":"host","reason":"navigationFailed","reason":"bridgeInvalid"}}"#,
+            r#"{"outcome":"failedNativeSignIn","reason":{"kind":"tokenExchangeStage","stage":"PRIVATE_SENTINEL"}}"#,
+            r#"{"outcome":"failedNativeSignIn","reason":{"kind":"tokenExchangeStage","stage":"responseParsing","error":"PRIVATE_SENTINEL"}}"#,
         ] {
             assert!(serde_json::from_str::<ConsentHandoff>(bytes).is_err());
         }
@@ -2845,6 +3051,159 @@ mod auth_lifecycle_tests {
                 splicense: "fixture-not-a-license".to_owned(),
             },
             device_token: token,
+        }
+    }
+
+    fn fixture_pending_exchange() -> xodus::models::secrets::PendingManagementExchange {
+        let session = fixture_store_session();
+        xodus::models::secrets::PendingManagementExchange::new(
+            session.flow_id,
+            session.device,
+            session.device_token,
+            xodus::models::live::DAProperty {
+                da_token: "NEUTRAL_NOT_TOKEN".to_owned(),
+                da_session_key: "NEUTRAL_NOT_KEY".to_owned(),
+                da_start_time: "2026-01-01T00:00:00Z".to_owned(),
+                da_expires: "2099-01-01T00:00:00Z".to_owned(),
+                sts_inline_flow_token: "NEUTRAL_INLINE".to_owned(),
+                username: "fixture".to_owned(),
+                puid: "fixture".to_owned(),
+            },
+            false,
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn pending_exchange_retains_only_failed_exchange_and_explicit_resume_preserves_expiry() {
+        let (_temporary, mut backend) = backend();
+        let pending = fixture_pending_exchange();
+        let expires_at = pending.expires_at;
+        let flow_id = pending.flow_id.clone();
+        backend.auth_flow = Some(AuthFlow {
+            flow_id: flow_id.clone(),
+            state: AuthFlowState::Pending,
+            error: None,
+        });
+        let reason = NativeSignInFailure::TokenExchangeStage {
+            stage: ExchangeFailureStage::ResponseParsing,
+        };
+        backend
+            .complete_auth(
+                flow_id.clone(),
+                Ok(ConsentHandoff::ExchangeDeferred {
+                    reason,
+                    pending: Some(Box::new(pending)),
+                }),
+            )
+            .await
+            .unwrap();
+        assert!(matches!(
+            backend.auth_flow.as_ref().unwrap().state,
+            AuthFlowState::Failed
+        ));
+        assert_eq!(
+            backend
+                .auth_flow
+                .as_ref()
+                .unwrap()
+                .error
+                .as_ref()
+                .unwrap()
+                .message,
+            "Native sign-in failed: tokenExchange.responseParsing."
+        );
+        let tokens = backend.tokens.clone().unwrap();
+        assert!(matches!(
+            auth_status(&tokens).unwrap().state,
+            AuthState::SignedOut
+        ));
+        assert!(tokens.get_management_store_session().unwrap().is_none());
+        let bootstrap = prepare_consent(tokens.clone(), "retry-flow".to_owned()).unwrap();
+        assert!(bootstrap.device.is_none() && bootstrap.device_token.is_none());
+        assert_eq!(bootstrap.resume_exchange.unwrap().expires_at, expires_at);
+        backend.auth_flow = Some(AuthFlow {
+            flow_id: "retry-flow".to_owned(),
+            state: AuthFlowState::Pending,
+            error: None,
+        });
+        backend
+            .complete_auth(
+                "retry-flow".to_owned(),
+                Ok(ConsentHandoff::ExchangeDeferred {
+                    reason: NativeSignInFailure::TokenExchangeStage {
+                        stage: ExchangeFailureStage::ContinuationRequired,
+                    },
+                    pending: None,
+                }),
+            )
+            .await
+            .unwrap();
+        assert!(tokens.get_pending_management_exchange().unwrap().is_none());
+        assert!(tokens.get_management_store_session().unwrap().is_none());
+        assert!(
+            prepare_consent(tokens, "fresh-flow".to_owned())
+                .unwrap()
+                .resume_exchange
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn pending_exchange_rejects_foreign_flow_and_nonexchange_failure_without_storage() {
+        for foreign in [false, true] {
+            let (_temporary, mut backend) = backend();
+            let pending = fixture_pending_exchange();
+            let flow_id = if foreign {
+                "foreign-flow".to_owned()
+            } else {
+                pending.flow_id.clone()
+            };
+            backend.auth_flow = Some(AuthFlow {
+                flow_id: flow_id.clone(),
+                state: AuthFlowState::Pending,
+                error: None,
+            });
+            backend
+                .complete_auth(
+                    flow_id,
+                    Ok(ConsentHandoff::ExchangeDeferred {
+                        reason: if foreign {
+                            NativeSignInFailure::TokenExchangeStage {
+                                stage: ExchangeFailureStage::RequestTransport,
+                            }
+                        } else {
+                            NativeSignInFailure::Unclassified
+                        },
+                        pending: Some(Box::new(pending)),
+                    }),
+                )
+                .await
+                .unwrap();
+            assert!(matches!(
+                backend.auth_flow.as_ref().unwrap().state,
+                AuthFlowState::Failed
+            ));
+            assert_eq!(
+                backend
+                    .auth_flow
+                    .as_ref()
+                    .unwrap()
+                    .error
+                    .as_ref()
+                    .unwrap()
+                    .message,
+                "Native sign-in failed: exchangeRetentionFailed."
+            );
+            assert!(
+                backend
+                    .tokens
+                    .as_ref()
+                    .unwrap()
+                    .get_pending_management_exchange()
+                    .unwrap()
+                    .is_none()
+            );
         }
     }
 

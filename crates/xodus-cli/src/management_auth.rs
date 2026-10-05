@@ -5,16 +5,21 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use xodus::models::secrets::{ManagementStoreSession, Token};
+use xodus::models::secrets::{ManagementStoreSession, PendingManagementExchange, Token};
 use xodus::tokens::{PASSPORT_STS, TokenManager};
 use xodus_management::adapter::{
-    ConsentBootstrap, ConsentFailure, ConsentHandoff, MAX_AUTH_HANDOFF_BYTES, NativeSignInFailure,
+    ConsentBootstrap, ConsentFailure, ConsentHandoff, ExchangeFailureStage, MAX_AUTH_HANDOFF_BYTES,
+    NativeSignInFailure,
 };
 
 enum SessionFailure {
     Cancelled,
     Failed(ConsentFailure),
     NativeSignIn(NativeSignInFailure),
+    ExchangeDeferred {
+        reason: NativeSignInFailure,
+        pending: Option<Box<PendingManagementExchange>>,
+    },
 }
 
 const ACTIVE: u8 = 0;
@@ -129,6 +134,10 @@ fn failure_handoff(error: SessionFailure) -> (ConsentHandoff, ExitCode) {
             ConsentHandoff::FailedNativeSignIn { reason },
             ExitCode::FAILURE,
         ),
+        SessionFailure::ExchangeDeferred { reason, pending } => (
+            ConsentHandoff::ExchangeDeferred { reason, pending },
+            ExitCode::FAILURE,
+        ),
     }
 }
 
@@ -140,8 +149,26 @@ fn host_unavailable(error: std::io::Error) -> SessionFailure {
     })
 }
 
-fn token_exchange_failure(_: Box<dyn std::error::Error>) -> SessionFailure {
-    SessionFailure::NativeSignIn(NativeSignInFailure::TokenExchangeFailed)
+fn token_exchange_failure(error: xodus::api::live::rst::RSTError) -> SessionFailure {
+    use xodus::api::live::rst::RSTError;
+    let stage = match error {
+        RSTError::Request(error) if error.is_timeout() => ExchangeFailureStage::RequestTimeout,
+        RSTError::Request(error) => match error.status() {
+            Some(status) if status.is_client_error() => ExchangeFailureStage::HttpClientError,
+            Some(status) if status.is_server_error() => ExchangeFailureStage::HttpServerError,
+            Some(_) => ExchangeFailureStage::HttpStatusRejected,
+            None => ExchangeFailureStage::RequestTransport,
+        },
+        RSTError::Builder(_) => ExchangeFailureStage::RequestBuild,
+        RSTError::Serialization(_) => ExchangeFailureStage::RequestSerialization,
+        RSTError::Deserialization(_) => ExchangeFailureStage::ResponseParsing,
+        RSTError::Bergshamra(_) | RSTError::InvalidResponseSignature(_) => {
+            ExchangeFailureStage::ResponseSignature
+        }
+        RSTError::Base64(_) | RSTError::Utf8(_) => ExchangeFailureStage::ResponseEncoding,
+        _ => ExchangeFailureStage::ResponseCryptography,
+    };
+    SessionFailure::NativeSignIn(NativeSignInFailure::TokenExchangeStage { stage })
 }
 
 fn helper_completion_failure(_: std::io::Error) -> SessionFailure {
@@ -180,6 +207,10 @@ fn read_bootstrap(
         || (bootstrap.device.is_none() && bootstrap.device_token.is_some())
         || bootstrap.remaining_millis == 0
         || bootstrap.remaining_millis > xodus_management::native_auth::MAX_BUDGET_MILLIS
+        || bootstrap
+            .resume_exchange
+            .as_ref()
+            .is_some_and(|pending| !pending.valid())
     {
         return Err(invalid());
     }
@@ -198,10 +229,67 @@ fn write_handoff(
 }
 
 async fn issue_session(
-    bootstrap: ConsentBootstrap,
+    mut bootstrap: ConsentBootstrap,
     native: &mut Option<crate::native_auth_host::NativeHost>,
     deadline: Instant,
 ) -> Result<ManagementStoreSession, SessionFailure> {
+    if let Some(mut pending) = bootstrap.resume_exchange.take() {
+        if !pending.valid() {
+            return Err(SessionFailure::NativeSignIn(
+                NativeSignInFailure::ExchangeRetentionFailed,
+            ));
+        }
+        pending.flow_id = bootstrap.flow_id;
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|_| SessionFailure::Failed(ConsentFailure::ClientInitialization))?;
+        let exchanged = crate::commands::login::exchange_user_property(
+            client,
+            pending.device_token.clone(),
+            crate::commands::login::CLIENT_ID.to_owned(),
+            pending.property.clone(),
+            pending.after_continuation,
+        )
+        .await;
+        return match exchanged {
+            Err(error) => {
+                let SessionFailure::NativeSignIn(reason) = token_exchange_failure(error) else {
+                    unreachable!()
+                };
+                Err(SessionFailure::ExchangeDeferred {
+                    reason,
+                    pending: Some(pending),
+                })
+            }
+            Ok(xodus::models::live::ExchangeUserTokenOutcome::Fault(_)) => {
+                Err(SessionFailure::ExchangeDeferred {
+                    reason: NativeSignInFailure::TokenExchangeStage {
+                        stage: ExchangeFailureStage::ContinuationRequired,
+                    },
+                    pending: None,
+                })
+            }
+            Ok(xodus::models::live::ExchangeUserTokenOutcome::Issued(body)) => {
+                let user = xodus::models::secrets::User {
+                    puid: pending.property.puid.clone(),
+                    username: pending.property.username.clone(),
+                };
+                let (tokens, user) = crate::commands::login::finish_issued(Some(
+                    crate::commands::login::LoginOutput { body, user },
+                ))
+                .map_err(login_failure)?;
+                Ok(ManagementStoreSession {
+                    flow_id: pending.flow_id,
+                    user,
+                    tokens,
+                    device: pending.device,
+                    device_token: pending.device_token,
+                })
+            }
+        };
+    }
     let binding = bootstrap
         .native_host
         .ok_or(SessionFailure::Failed(ConsentFailure::NativeSignIn))?;
@@ -259,7 +347,31 @@ async fn issue_session(
     )
     .await
     .map_err(|_| SessionFailure::Failed(ConsentFailure::NativeSignIn))?;
-    let (issued, user) = issue_with_host(host, client, device_token.clone()).await?;
+    let mut captured = None;
+    let (issued, user) =
+        match issue_with_host(host, client, device_token.clone(), &mut captured).await {
+            Ok(credentials) => credentials,
+            Err(SessionFailure::NativeSignIn(
+                reason @ NativeSignInFailure::TokenExchangeStage { .. },
+            )) => {
+                if let Some((property, after_continuation)) = captured
+                    && let Some(pending) = PendingManagementExchange::new(
+                        bootstrap.flow_id.clone(),
+                        device,
+                        device_token,
+                        property,
+                        after_continuation,
+                    )
+                {
+                    return Err(SessionFailure::ExchangeDeferred {
+                        reason,
+                        pending: Some(Box::new(pending)),
+                    });
+                }
+                return Err(SessionFailure::NativeSignIn(reason));
+            }
+            Err(error) => return Err(error),
+        };
     let session = ManagementStoreSession {
         flow_id: bootstrap.flow_id,
         user,
@@ -287,6 +399,7 @@ async fn issue_with_host(
     host: &mut crate::native_auth_host::NativeHost,
     client: reqwest::Client,
     device: xodus::models::secrets::LegacyToken,
+    captured: &mut Option<(xodus::models::live::DAProperty, bool)>,
 ) -> Result<
     (
         std::collections::HashMap<String, Token>,
@@ -314,11 +427,12 @@ async fn issue_with_host(
             },
             other => return Err(host_terminal(other)),
         };
+        *captured = Some((property.clone(), continuations > 0));
         let exchange = tokio::select! {
             biased;
             reply = host.receive() => return Err(host_terminal(reply.map_err(host_unavailable)?)),
             result = crate::commands::login::exchange_user_property(client.clone(), device.clone(),
-                crate::commands::login::CLIENT_ID.to_owned(), property.clone()) =>
+                crate::commands::login::CLIENT_ID.to_owned(), property.clone(), continuations > 0) =>
                 result.map_err(token_exchange_failure)?,
         };
         match exchange {
@@ -339,10 +453,18 @@ async fn issue_with_host(
             }
             xodus::models::live::ExchangeUserTokenOutcome::Fault(fault) => {
                 let Some(url) = fault.and_then(|fault| fault.inline_auth_url) else {
-                    return Err(unavailable());
+                    return Err(SessionFailure::NativeSignIn(
+                        NativeSignInFailure::TokenExchangeStage {
+                            stage: ExchangeFailureStage::FaultWithoutContinuation,
+                        },
+                    ));
                 };
                 if continuations >= 4 || !crate::webview::trusted_login_url(&url) {
-                    return Err(unavailable());
+                    return Err(SessionFailure::NativeSignIn(
+                        NativeSignInFailure::TokenExchangeStage {
+                            stage: ExchangeFailureStage::ContinuationRejected,
+                        },
+                    ));
                 }
                 continuations += 1;
                 host.send(Command::Navigate { url })
@@ -451,7 +573,12 @@ mod tests {
             ),
             ("eofReady", NativeSignInFailure::ChannelEof),
             ("version", NativeSignInFailure::Unclassified),
-            ("da", NativeSignInFailure::TokenExchangeFailed),
+            (
+                "da",
+                NativeSignInFailure::TokenExchangeStage {
+                    stage: ExchangeFailureStage::ResponseCryptography,
+                },
+            ),
         ] {
             let (_dir, binding) = fixtures::helper(mode);
             let mut host = NativeHost::spawn(&binding, &uuid::Uuid::nil().to_string()).unwrap();
@@ -467,10 +594,11 @@ mod tests {
                     expires: "2030-01-01T01:00:00Z".to_owned(),
                 },
             };
-            let failure = match issue_with_host(&mut host, reqwest::Client::new(), device).await {
-                Err(failure) => failure,
-                Ok(_) => panic!("Neutral helper must never produce a Store session"),
-            };
+            let failure =
+                match issue_with_host(&mut host, reqwest::Client::new(), device, &mut None).await {
+                    Err(failure) => failure,
+                    Ok(_) => panic!("Neutral helper must never produce a Store session"),
+                };
             host.abort().await.unwrap();
             let (handoff, _) = failure_handoff(failure);
             assert!(
@@ -504,8 +632,12 @@ mod tests {
         ));
         for (failure, expected) in [
             (
-                token_exchange_failure(Box::new(std::io::Error::other("PRIVATE_SENTINEL"))),
-                NativeSignInFailure::TokenExchangeFailed,
+                token_exchange_failure(xodus::api::live::rst::RSTError::InvalidResponseSignature(
+                    "PRIVATE_SENTINEL".to_owned(),
+                )),
+                NativeSignInFailure::TokenExchangeStage {
+                    stage: ExchangeFailureStage::ResponseSignature,
+                },
             ),
             (
                 helper_completion_failure(std::io::Error::other("PRIVATE_SENTINEL")),
@@ -524,6 +656,116 @@ mod tests {
             );
             assert!(!expected.wire_error().message.contains("PRIVATE_SENTINEL"));
         }
+    }
+
+    #[test]
+    fn exchange_error_categories_never_retain_provider_response_or_exception() {
+        use xodus::api::live::rst::{RSTBuilderError, RSTError};
+        for (error, expected) in [
+            (
+                RSTError::Builder(RSTBuilderError::UnsupportedTokenCombination),
+                ExchangeFailureStage::RequestBuild,
+            ),
+            (
+                RSTError::MissingNonce,
+                ExchangeFailureStage::ResponseCryptography,
+            ),
+            (
+                RSTError::InvalidResponseSignature("PRIVATE_SENTINEL".to_owned()),
+                ExchangeFailureStage::ResponseSignature,
+            ),
+            (
+                RSTError::Request(
+                    reqwest::Client::new()
+                        .get("http://[PRIVATE_SENTINEL")
+                        .build()
+                        .err()
+                        .unwrap(),
+                ),
+                ExchangeFailureStage::RequestTransport,
+            ),
+        ] {
+            let (handoff, _) = failure_handoff(token_exchange_failure(error));
+            assert!(matches!(handoff, ConsentHandoff::FailedNativeSignIn {
+                reason: NativeSignInFailure::TokenExchangeStage { stage },
+            } if stage == expected));
+            assert!(
+                !serde_json::to_string(&handoff)
+                    .unwrap()
+                    .contains("PRIVATE_SENTINEL")
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn pending_exchange_retry_fails_locally_without_helper_or_expiry_renewal() {
+        let device_token = xodus::models::secrets::LegacyToken {
+            key_name: Some(PASSPORT_STS.to_owned()),
+            token: "<EncryptedData Id=\"fixture\" xmlns=\"http://www.w3.org/2001/04/xmlenc#\" Type=\"http://www.w3.org/2001/04/xmlenc#Element\"><EncryptionMethod Algorithm=\"http://www.w3.org/2001/04/xmlenc#tripledes-cbc\"/><KeyInfo><KeyName>http://Passport.NET/STS</KeyName></KeyInfo><CipherData><CipherValue>Zml4dHVyZQ==</CipherValue></CipherData></EncryptedData>".to_owned(),
+            binary_secret: Some(format!("BAAA{}AA==", "AAAA".repeat(1364))),
+            tpm_key: None,
+            lifetime: xodus::models::soap::Timestamp {
+                id: None, created: "2026-01-01T00:00:00Z".to_owned(),
+                expires: "2099-01-01T00:00:00Z".to_owned(),
+            },
+        };
+        let pending = PendingManagementExchange::new(
+            "original-flow".to_owned(),
+            xodus::models::secrets::Device {
+                puid: "fixture".to_owned(),
+                hwid: "fixture".to_owned(),
+                device_id: "fixture".to_owned(),
+                splicense: "fixture".to_owned(),
+                username: "fixture".to_owned(),
+                password: "fixture".to_owned(),
+            },
+            device_token,
+            xodus::models::live::DAProperty {
+                da_token: "NEUTRAL_NOT_XML".to_owned(),
+                da_session_key: "fixture".to_owned(),
+                da_start_time: "2026-01-01T00:00:00Z".to_owned(),
+                da_expires: "2099-01-01T00:00:00Z".to_owned(),
+                sts_inline_flow_token: "fixture".to_owned(),
+                username: "fixture".to_owned(),
+                puid: "fixture".to_owned(),
+            },
+            false,
+        )
+        .unwrap();
+        let expires_at = pending.expires_at;
+        let mut native = None;
+        let result = issue_session(
+            ConsentBootstrap {
+                flow_id: "retry-flow".to_owned(),
+                device: None,
+                device_token: None,
+                native_host: None,
+                remaining_millis: 1000,
+                resume_exchange: Some(Box::new(pending)),
+            },
+            &mut native,
+            Instant::now() + Duration::from_secs(1),
+        )
+        .await;
+        let Err(SessionFailure::ExchangeDeferred {
+            reason,
+            pending: Some(pending),
+        }) = result
+        else {
+            panic!(
+                "Neutral invalid XML must fail before any request and retain the bounded inputs"
+            );
+        };
+        assert!(matches!(
+            reason,
+            NativeSignInFailure::TokenExchangeStage {
+                stage: ExchangeFailureStage::RequestBuild
+                    | ExchangeFailureStage::ResponseCryptography,
+            }
+        ));
+        assert!(native.is_none());
+        assert_eq!(pending.expires_at, expires_at);
+        assert_eq!(pending.flow_id, "retry-flow");
     }
 
     #[test]

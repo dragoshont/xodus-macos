@@ -8,13 +8,14 @@ use crate::models::xbox::XstsResponse;
 use crate::tokens::backend::{KeychainBackend, ManagementKeychainBackend, MemoryBackend};
 use crate::tokens::store::{ExpiringTokenBackend, TokenBackend, TokenStoreError};
 
-mod keys {
+pub(crate) mod keys {
     pub const DEV_LICENSE: &str = "dev_license";
     pub const DEVICE_TOKENS: &str = "device-tokens";
     pub const USER_TOKENS: &str = "user-tokens";
     pub const USER_INFO: &str = "user-DA";
     pub const XAL_USER_SESSION: &str = "management-xal-user";
     pub const STORE_USER_SESSION: &str = "management-store-user";
+    pub const PENDING_STORE_EXCHANGE: &str = "management-pending-exchange";
 }
 
 pub const PASSPORT_STS: &str = "http://Passport.NET/STS";
@@ -29,6 +30,7 @@ pub struct TokenManager {
     ephemeral: Arc<dyn ExpiringTokenBackend>,
     cache_epoch: Arc<AtomicU64>,
     management_mutations: Arc<AtomicU64>,
+    pending_exchange_lock: Arc<std::sync::Mutex<()>>,
     management_profile: bool,
 }
 
@@ -64,6 +66,7 @@ impl TokenManager {
             ephemeral,
             cache_epoch: Arc::new(AtomicU64::new(0)),
             management_mutations: Arc::new(AtomicU64::new(0)),
+            pending_exchange_lock: Arc::new(std::sync::Mutex::new(())),
             management_profile: false,
         }
     }
@@ -122,7 +125,77 @@ impl TokenManager {
         let _mutation = self.begin_management_mutation();
         self.cache_epoch.fetch_add(1, Ordering::SeqCst);
         self.persistent
-            .set(keys::STORE_USER_SESSION, &serde_json::to_vec(&session)?)
+            .set(keys::STORE_USER_SESSION, &serde_json::to_vec(&session)?)?;
+        self.clear_pending_management_exchange()
+    }
+
+    pub fn get_pending_management_exchange(
+        &self,
+    ) -> Result<Option<crate::models::secrets::PendingManagementExchange>, TokenStoreError> {
+        if !self.management_profile {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        let _exclusive = self
+            .pending_exchange_lock
+            .lock()
+            .map_err(|_| TokenStoreError::InvalidCredential)?;
+        let Some(bytes) = self.persistent.get(keys::PENDING_STORE_EXCHANGE)? else {
+            return Ok(None);
+        };
+        if bytes.len() > 192 * 1024 {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        let pending: crate::models::secrets::PendingManagementExchange =
+            serde_json::from_slice(&bytes)?;
+        if chrono::Utc::now() >= pending.expires_at {
+            self.clear_pending_management_exchange_locked()?;
+            return Ok(None);
+        }
+        if !pending.valid() {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        Ok(Some(pending))
+    }
+
+    pub fn save_pending_management_exchange(
+        &self,
+        pending: crate::models::secrets::PendingManagementExchange,
+    ) -> Result<(), TokenStoreError> {
+        let _exclusive = self
+            .pending_exchange_lock
+            .lock()
+            .map_err(|_| TokenStoreError::InvalidCredential)?;
+        if !self.management_profile
+            || !pending.valid()
+            || self.get_management_store_session()?.is_some()
+        {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        self.persistent
+            .set(keys::PENDING_STORE_EXCHANGE, &serde_json::to_vec(&pending)?)
+    }
+
+    pub fn clear_pending_management_exchange(&self) -> Result<(), TokenStoreError> {
+        let _exclusive = self
+            .pending_exchange_lock
+            .lock()
+            .map_err(|_| TokenStoreError::InvalidCredential)?;
+        self.clear_pending_management_exchange_locked()
+    }
+
+    fn clear_pending_management_exchange_locked(&self) -> Result<(), TokenStoreError> {
+        if !self.management_profile {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        if self.persistent.get(keys::PENDING_STORE_EXCHANGE)?.is_none() {
+            return Ok(());
+        }
+        match self.persistent.remove(keys::PENDING_STORE_EXCHANGE) {
+            Ok(())
+            | Err(TokenStoreError::NotFound)
+            | Err(TokenStoreError::Keychain(keyring_core::Error::NoEntry)) => Ok(()),
+            Err(error) => Err(error),
+        }
     }
 
     pub fn management_store_snapshot(
@@ -212,6 +285,7 @@ impl TokenManager {
         let mut keys = vec![keys::USER_TOKENS, keys::USER_INFO, keys::XAL_USER_SESSION];
         if self.management_profile {
             keys.push(keys::STORE_USER_SESSION);
+            keys.push(keys::PENDING_STORE_EXCHANGE);
         }
         for key in keys {
             match self.persistent.remove(key) {
@@ -505,6 +579,136 @@ mod management_tests {
             },
             device_token: token,
         }
+    }
+
+    fn fixture_pending_exchange() -> crate::models::secrets::PendingManagementExchange {
+        let session = fixture_store_session();
+        crate::models::secrets::PendingManagementExchange::new(
+            session.flow_id,
+            session.device,
+            session.device_token,
+            crate::models::live::DAProperty {
+                da_token: "NEUTRAL_NOT_TOKEN".to_owned(),
+                da_session_key: "NEUTRAL_NOT_KEY".to_owned(),
+                da_start_time: "2026-01-01T00:00:00Z".to_owned(),
+                da_expires: "2099-01-01T00:00:00Z".to_owned(),
+                sts_inline_flow_token: "NEUTRAL_INLINE".to_owned(),
+                username: "fixture".to_owned(),
+                puid: "fixture".to_owned(),
+            },
+            false,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn pending_exchange_is_management_only_bounded_and_not_a_signed_in_session() {
+        let memory = Arc::new(MemoryBackend::default());
+        let manager = TokenManager::with_management_backend(memory.clone());
+        assert!(
+            TokenManager::with_memory()
+                .save_pending_management_exchange(fixture_pending_exchange())
+                .is_err()
+        );
+        manager
+            .save_pending_management_exchange(fixture_pending_exchange())
+            .unwrap();
+        assert!(manager.get_management_store_session().unwrap().is_none());
+        let pending = manager.get_pending_management_exchange().unwrap().unwrap();
+        assert!(pending.expires_at <= pending.created_at + chrono::Duration::seconds(300));
+        assert!(!pending.after_continuation);
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        assert!(memory.get(keys::PENDING_STORE_EXCHANGE).unwrap().is_none());
+        assert!(
+            manager
+                .get_management_store_session()
+                .unwrap()
+                .unwrap()
+                .valid()
+        );
+        assert!(
+            manager
+                .save_pending_management_exchange(fixture_pending_exchange())
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn expired_pending_exchange_is_deleted_without_deleting_device_or_final_profile() {
+        let memory = Arc::new(MemoryBackend::default());
+        let manager = TokenManager::with_management_backend(memory.clone());
+        let mut pending = fixture_pending_exchange();
+        pending.created_at = chrono::Utc::now() - chrono::Duration::seconds(301);
+        pending.expires_at = chrono::Utc::now() - chrono::Duration::seconds(1);
+        memory
+            .set(
+                keys::PENDING_STORE_EXCHANGE,
+                &serde_json::to_vec(&pending).unwrap(),
+            )
+            .unwrap();
+        manager.save_device_license(&pending.device).unwrap();
+        let device_before = memory.get(keys::DEV_LICENSE).unwrap();
+        assert!(manager.get_pending_management_exchange().unwrap().is_none());
+        assert!(memory.get(keys::PENDING_STORE_EXCHANGE).unwrap().is_none());
+        assert_eq!(memory.get(keys::DEV_LICENSE).unwrap(), device_before);
+    }
+
+    #[test]
+    fn pending_exchange_rejects_corruption_and_overlong_or_extended_expiry() {
+        let memory = Arc::new(MemoryBackend::default());
+        let manager = TokenManager::with_management_backend(memory.clone());
+        let mut pending = fixture_pending_exchange();
+        pending.expires_at += chrono::Duration::seconds(301);
+        assert!(manager.save_pending_management_exchange(pending).is_err());
+        memory
+            .set(keys::PENDING_STORE_EXCHANGE, b"PRIVATE_SENTINEL")
+            .unwrap();
+        assert!(manager.get_pending_management_exchange().is_err());
+        memory
+            .set(keys::PENDING_STORE_EXCHANGE, &vec![0; 192 * 1024 + 1])
+            .unwrap();
+        assert!(manager.get_pending_management_exchange().is_err());
+    }
+
+    #[test]
+    fn pending_cleanup_failure_is_explicit_and_preserves_the_committed_final_session() {
+        #[derive(Default)]
+        struct RejectPendingRemoval(MemoryBackend);
+        impl TokenBackend for RejectPendingRemoval {
+            fn get(&self, key: &str) -> Result<Option<Vec<u8>>, TokenStoreError> {
+                self.0.get(key)
+            }
+            fn set(&self, key: &str, value: &[u8]) -> Result<(), TokenStoreError> {
+                self.0.set(key, value)
+            }
+            fn remove(&self, key: &str) -> Result<(), TokenStoreError> {
+                if key == keys::PENDING_STORE_EXCHANGE {
+                    Err(TokenStoreError::InvalidCredential)
+                } else {
+                    self.0.remove(key)
+                }
+            }
+        }
+        let manager =
+            TokenManager::with_management_backend(Arc::new(RejectPendingRemoval::default()));
+        manager
+            .save_pending_management_exchange(fixture_pending_exchange())
+            .unwrap();
+        assert!(
+            manager
+                .save_management_store_session(fixture_store_session())
+                .is_err()
+        );
+        assert!(
+            manager
+                .get_management_store_session()
+                .unwrap()
+                .unwrap()
+                .valid()
+        );
+        assert!(manager.get_pending_management_exchange().unwrap().is_some());
     }
 
     #[test]

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::soap::{self, Timestamp};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Device {
     pub puid: String,
     pub hwid: String,
@@ -10,6 +10,75 @@ pub struct Device {
     pub splicense: String,
     pub username: String,
     pub password: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PendingManagementExchange {
+    pub flow_id: String,
+    pub device: Device,
+    pub device_token: LegacyToken,
+    pub property: crate::models::live::DAProperty,
+    pub after_continuation: bool,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl PendingManagementExchange {
+    pub fn new(
+        flow_id: String,
+        device: Device,
+        device_token: LegacyToken,
+        property: crate::models::live::DAProperty,
+        after_continuation: bool,
+    ) -> Option<Self> {
+        let created_at = chrono::Utc::now();
+        let expires_at = (created_at + chrono::Duration::seconds(300))
+            .min(
+                chrono::DateTime::parse_from_rfc3339(&property.da_expires)
+                    .ok()?
+                    .with_timezone(&chrono::Utc),
+            )
+            .min(
+                chrono::DateTime::parse_from_rfc3339(&device_token.lifetime.expires)
+                    .ok()?
+                    .with_timezone(&chrono::Utc),
+            );
+        let pending = Self {
+            flow_id,
+            device,
+            device_token,
+            property,
+            after_continuation,
+            created_at,
+            expires_at,
+        };
+        pending.valid().then_some(pending)
+    }
+
+    pub fn valid(&self) -> bool {
+        let now = chrono::Utc::now();
+        !self.flow_id.is_empty()
+            && self.created_at <= now
+            && now < self.expires_at
+            && self.expires_at <= self.created_at + chrono::Duration::seconds(300)
+            && !self.device.username.is_empty()
+            && !self.device.password.is_empty()
+            && !self.device.puid.is_empty()
+            && !self.device.splicense.is_empty()
+            && !self.device.hwid.is_empty()
+            && !self.device.device_id.is_empty()
+            && device_token_structurally_valid(&self.device_token)
+            && legacy_token_valid(&self.device_token)
+            && !self.property.da_token.is_empty()
+            && !self.property.username.is_empty()
+            && !self.property.puid.is_empty()
+            && chrono::DateTime::parse_from_rfc3339(&self.property.da_start_time)
+                .is_ok_and(|started| started <= now && started < self.expires_at)
+            && chrono::DateTime::parse_from_rfc3339(&self.property.da_expires)
+                .is_ok_and(|expires| self.expires_at <= expires)
+            && serde_json::to_vec(self).is_ok_and(|bytes| bytes.len() <= 192 * 1024)
+    }
 }
 
 #[derive(Serialize, Deserialize)]

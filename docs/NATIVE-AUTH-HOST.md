@@ -169,3 +169,38 @@ commit tests. No Microsoft requests, fake TLS, relaxed production origin,
 credentials or visible fixtures without separate GUI safety authorization.
 Source review and separately authorized immutable pairing/deployment remain
 required before a live retry.
+
+## Exchange order and bounded retry inputs
+
+The shared exchange follows the original upstream order: request the Xbox
+`TOKEN_BROKER` scope first, and add `http://Passport.NET/tb` only after a
+validated inline continuation. Client, DA inputs, signing, response checking
+and the required final Passport Store proof are unchanged. This corrects a
+source-proven divergence, not a confirmed cause of the live exchange failure.
+
+Exchange errors use only fixed `tokenExchange.` stage names in the existing
+message seam: requestBuild, requestSerialization, requestTransport,
+requestTimeout, httpClientError, httpServerError, httpStatusRejected,
+responseParsing, responseSignature, responseCryptography, responseEncoding,
+continuationRequired, faultWithoutContinuation or continuationRejected.
+Helper completion retains the separate `helperCompletionFailed` message.
+Neither path formats provider errors, URLs, responses or credentials.
+
+After failed exchange and owned-child cleanup, the parent may retain the
+validated device and seven DA inputs in the launcher-only Keychain entry
+`management-pending-exchange`. This is not an authenticated session and is
+never exported, logged, or written to a plaintext fallback. Its lifetime is
+at most five minutes, further bounded by DA and device expiry. Only an
+explicit new `auth.begin` retries it; retry does not extend its original
+expiry or open another browser. Final Store proof and clean worker exit
+remain mandatory before the existing atomic final-session write.
+
+Success clears the pending entry. Expiry cleanup runs while the engine stays
+alive and on the next pending-entry access after restart; an exited engine
+cannot guarantee immediate physical deletion. Pending-entry deletion cannot
+request Keychain interaction. A resumed exchange requiring browser
+continuation clears only the pending entry and reports continuationRequired,
+so the next explicit begin can open fresh consent. Storage/cleanup failure
+is explicit (`exchangeRetentionFailed` or the existing final-commit error);
+it never rolls back an already valid committed session. Prior failed
+attempts cannot be recovered because their DA inputs were not retained.

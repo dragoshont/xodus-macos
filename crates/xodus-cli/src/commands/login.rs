@@ -149,12 +149,15 @@ impl LoginHandler {
         prop: DAProperty,
     ) -> Result<ExchangeUserTokenOutcome, Box<dyn std::error::Error>> {
         tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(exchange_user_property(
-                self.client.clone(),
-                self.device.clone(),
-                self.client_id.clone(),
-                prop,
-            ))
+            tokio::runtime::Handle::current()
+                .block_on(exchange_user_property(
+                    self.client.clone(),
+                    self.device.clone(),
+                    self.client_id.clone(),
+                    prop,
+                    self.finish_count > 0,
+                ))
+                .map_err(|error| Box::new(error) as Box<dyn std::error::Error>)
         })
     }
 }
@@ -164,7 +167,8 @@ pub(crate) async fn exchange_user_property(
     device_token: secrets::LegacyToken,
     client_id: String,
     prop: DAProperty,
-) -> Result<ExchangeUserTokenOutcome, Box<dyn std::error::Error>> {
+    after_continuation: bool,
+) -> Result<ExchangeUserTokenOutcome, xodus::api::live::rst::RSTError> {
     let username = prop.username;
     let inline_ft = prop.sts_inline_flow_token;
     let user_token = xodus::models::secrets::LegacyToken {
@@ -179,13 +183,7 @@ pub(crate) async fn exchange_user_property(
         },
     };
 
-    let scopes = vec![
-        (
-            USER_AUTH_SCOPE.to_string(),
-            Some(soap::PolicyReference::token_broker()),
-        ),
-        ("http://Passport.NET/tb".to_string(), None),
-    ];
+    let scopes = exchange_scopes(after_continuation);
 
     xodus::api::live::exchange_user_token(
         &client,
@@ -198,7 +196,17 @@ pub(crate) async fn exchange_user_property(
         &scopes,
     )
     .await
-    .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
+}
+
+fn exchange_scopes(after_continuation: bool) -> Vec<(String, Option<soap::PolicyReference>)> {
+    let mut scopes = vec![(
+        USER_AUTH_SCOPE.to_string(),
+        Some(soap::PolicyReference::token_broker()),
+    )];
+    if after_continuation {
+        scopes.push(("http://Passport.NET/tb".to_owned(), None));
+    }
+    scopes
 }
 
 impl webview::SessionHandler for LoginHandler {
@@ -270,6 +278,19 @@ impl webview::SessionHandler for LoginHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn upstream_exchange_requests_xbox_first_and_passport_only_after_continuation() {
+        let initial = exchange_scopes(false);
+        assert_eq!(initial.len(), 1);
+        assert_eq!(initial[0].0, USER_AUTH_SCOPE);
+        assert_eq!(initial[0].1.as_ref().unwrap().uri, "TOKEN_BROKER");
+        let continued = exchange_scopes(true);
+        assert_eq!(continued.len(), 2);
+        assert_eq!(continued[0].0, initial[0].0);
+        assert_eq!(continued[1].0, "http://Passport.NET/tb");
+        assert!(continued[1].1.is_none());
+    }
 
     #[test]
     fn no_webview_output_is_cancellation_not_success() {

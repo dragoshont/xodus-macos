@@ -73,12 +73,15 @@ impl TokenBackend for ManagementKeychainBackend {
         })
     }
     fn remove(&self, key: &str) -> Result<(), TokenStoreError> {
-        management_operation(true, || {
-            Ok(
-                crate::secrets::get_entry_for(crate::secrets::MANAGEMENT_SERVICE_NAME, key)?
-                    .delete_credential()?,
-            )
-        })
+        management_operation(
+            key != crate::tokens::manager::keys::PENDING_STORE_EXCHANGE,
+            || {
+                Ok(
+                    crate::secrets::get_entry_for(crate::secrets::MANAGEMENT_SERVICE_NAME, key)?
+                        .delete_credential()?,
+                )
+            },
+        )
     }
 }
 

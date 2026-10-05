@@ -2596,7 +2596,10 @@ mod auth_lifecycle_tests {
         .collect();
         cases.extend([
             (NativeSignInFailure::ChannelEof, "channelEOF"),
-            (NativeSignInFailure::TokenExchangeFailed, "tokenExchangeFailed"),
+            (
+                NativeSignInFailure::TokenExchangeFailed,
+                "tokenExchangeFailed",
+            ),
             (
                 NativeSignInFailure::HelperCompletionFailed,
                 "helperCompletionFailed",

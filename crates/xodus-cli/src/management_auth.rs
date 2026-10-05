@@ -496,9 +496,12 @@ mod tests {
             .expect("Neutral helper nonzero exit must fail the completion fence");
         host.abort().await.unwrap();
         let (handoff, _) = failure_handoff(failure);
-        assert!(matches!(handoff, ConsentHandoff::FailedNativeSignIn {
-            reason: NativeSignInFailure::HelperCompletionFailed,
-        }));
+        assert!(matches!(
+            handoff,
+            ConsentHandoff::FailedNativeSignIn {
+                reason: NativeSignInFailure::HelperCompletionFailed,
+            }
+        ));
         for (failure, expected) in [
             (
                 token_exchange_failure(Box::new(std::io::Error::other("PRIVATE_SENTINEL"))),

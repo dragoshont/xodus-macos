@@ -973,3 +973,32 @@ adapter supports public catalog/query and catalog-check jobs, but does not
 advertise authoritative inventory; its empty installed snapshot is scoped to
 the management registry and its package/game lifecycle is unavailable.
 Developing UI against the schema must not promote these unsupported surfaces.
+
+### First real anonymous Store-query evidence
+
+The existing backend owner ran exactly one anonymous `catalog.query` using
+the independently pinned `9ef0f2` Release engine, after HELLO, in a fresh owned
+temporary state directory. Query `Halo`, market `US`, language `en-US`, limit 5,
+returned live public Store results at `2026-10-05T13:30:00Z` in 2.797 seconds.
+The source is `MicrosoftStoreEdge:v9.0/searchResults`, corpus
+`publicMicrosoftStoreSearch`, completeness `partial`.
+
+One resolved PC candidate, `Halo Infinite` (`9PP5G1F0C2B6`), came from
+`MicrosoftDisplayCatalog:v7.0` with resolved language `en` and editions
+`0010`, `0011`, `0017`. Every edition retains unknown entitlement,
+installability, compatibility and inventory. Its `notInstalled` field is
+management-registry scoped, not proof about external folders or bottles.
+Four returned IDs failed Windows.Desktop metadata qualification; this is not
+proof of missing packages, licensing or macOS incompatibility. A continuation
+cursor was present but not followed, so this is not complete Halo coverage.
+
+The response passed schema/correlation checks; stdout was 7,522 bytes and
+stderr was empty. The exact child received EOF, exited zero and was joined/
+reaped with no trailing output. Temporary anonymous state was removed.
+Engine and provenance identities remained unchanged before and after.
+No account, credential-store, helper, provider, GUI or game action occurred.
+The public evidence receipt is SHA-256
+`ab5975ab8bb496a597464be6e90a9246aaa08b767888cf455a17a0786e196556`,
+8,530 bytes, mode `0400`, UID 501; the coordinator independently verified its
+no-follow single-link hash/size/stable identity. This closes a real anonymous
+engine network-to-wire check, not shipping UI, ownership, login or playability.

@@ -99,13 +99,26 @@ not part of a UI-only completion claim.
   exact SHA-256/size/ownership/profile/features; immutable identities are in the
   architecture ledger. HELLO is not artifact attestation.
 - The existing game owner supplied a user-approved official installation
-  baseline: `/Applications/CrossOver.app`, observed version `26.3.0.39832`,
+  baseline: `/Applications/CrossOver.app`, observed version `26.3`, build `26.3.0.39832`,
   signed identifier `com.codeweavers.CrossOver`, publisher team `9C6B7X7Z8E`.
   Deep strict signature verification passed and Gatekeeper accepted its
   notarized Developer ID. RT-01 pins the identifier/team and Apple Developer ID
   certificate chain, rather than trusting candidate metadata. This is scoped
   trust from the approved installation, not a separately retrieved vendor team
   allowlist, license check or compatibility claim.
+- The coordinator independently matched that installation to the fixed
+  identifier/team/Apple certificate requirement without executing CrossOver or
+  inspecting games, prefixes or licensing.
+- DA-01 has real engine network-to-wire evidence: one anonymous
+  `catalog.query` for `Halo`, US/en-US, limit 5, returned live `Halo Infinite`
+  (`9PP5G1F0C2B6`) and four explicit unresolved metadata failures on
+  October 5 at 13:30:00 UTC. The result is partial; continuation was not followed.
+  Entitlement, installability, compatibility and inventory remain unknown.
+  Only HELLO and the query ran; the isolated child exited and was reaped.
+  This is not yet a packaged shipping-UI acceptance result.
+- NMS was confirmed working directly by the user on the preserved commercial
+  CrossOver control. The other two quick control opens remain pending; neither
+  this observation nor custom graphics control transfers gameplay certification.
 - Native successful human login, accessible live packaged UI and authenticated
   owned inventory/download/install/play are not yet certified.
 

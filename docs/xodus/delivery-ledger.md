@@ -2,6 +2,13 @@
 
 Updated: October 6, 2026. **The complete application is not finished.**
 
+**Latest user correction:** the main Library must represent actual Xbox PC Store
+ownership/subscription access, not TitleHub play history. Console activity such
+as a title without a PC Store edition must not appear as a PC-owned game.
+The [spec-driven API inventory](xbox-api-inventory.md) is the current operation/
+data contract and Figma-to-source map. History remains real evidence of activity
+only; its former owned-looking Library presentation is being corrected.
+
 ## Delivery outcome
 
 Deliver a native SwiftUI/AppKit Xbox-style launcher, using the approved Figma
@@ -101,11 +108,11 @@ The next game-lifecycle slice must be one legitimate selected PC edition.
 | AUTH-04 | Credential/privacy isolation | Implemented | AUTH-01 | Backend/App | Read-only provider consumers; publication/profile/epoch/generation fences; no secret logs; personal history cleared on account checks/change/disconnect |
 | CAT-01 | Real public Store browse/search/detail | Observed | Supported catalog capability | Backend/App | Actual scoped response shown; partial errors, no-result, continuation, offline and failure remain distinct |
 | ART-01 | Real Store BoxArt/Poster/SuperHeroArt | Observed | CAT-01 | Backend/App | Real covers and hero load through bounded native loader; final own-view images are not placeholders |
-| LIB-01 | Real Recently played Library | Observed | AUTH-02 | Backend/App | One actual bounded TitleHub result; native grid/filter/search use actual titles, not ownership or install claims |
+| LIB-01 | Real Recently played activity | Observed / presentation correction active | AUTH-02 | Backend/App | One actual bounded TitleHub result; only a separate recent-activity scope, never the owned-PC Library |
 | LIB-START | Real list loads in the ordinary shipping app | Observed | LIB-01, AUTH-01 | App | Default Library, one guarded foreground status/history sequence, visible failures and manual retry; actual same-process title publication and artwork decode, left running populated |
 | ART-02 | Real history tile artwork and Library feature | Observed | LIB-01 | Backend/App | Actual history references accepted safely, image downloads/decode succeed and Library PNG contains real title art |
 | LIB-02 | Useful history navigation | Installed / interaction qualified neutrally | LIB-01, CAT-01 | App/Backend | Explicit Find in Store action reuses real search; candidates are user-selected, never an inferred verified edition or ownership claim |
-| OWN-01 | Complete authoritative owned-PC inventory | External | Supported consumer entitlement API and account/product coverage evidence | Backend | Real entitlement enumeration, pagination and expired/subscription behavior; played history never substitutes |
+| OWN-01 | Complete authoritative owned-PC inventory | Primary investigation | Actual desktop-client collection source, account and PC product coverage evidence | Backend | Real entitlement enumeration, pagination and expired/subscription behavior; played history never substitutes |
 | UX-01 | Nine Figma flows with native composition | Active | Real contracts below | App | Screen-by-screen layout/interaction checks with real data; no fixture hero, project status or faux native chrome |
 | UX-02 | Loading/error/empty/partial/offline states | Implemented, integration pending | Each implemented surface | App | Every state has concise product copy and an appropriate action; no failure-to-empty success fallback |
 | UX-03 | Keyboard, VoiceOver, resize and native appearances | Pending | Integrated shipping screens | App | Native focus/shortcuts, visible controls, long labels, contrast/preferences and constrained-window checks; own-view PNGs alone do not certify these |

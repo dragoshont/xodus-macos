@@ -27,6 +27,12 @@ remove and CrossOver play work. Real recent history now returns 20 titles
 with successfully loaded artwork. The complete app is
 not finished, and this ledger is never presented as product UI.
 
+**Spec-driven data contract:** [the Xbox API inventory](docs/xodus/xbox-api-inventory.md)
+maps the required operations and all nine Figma screens to verified data.
+The current TitleHub list is cross-platform recent activity, **not an owned-PC
+library**. Its placement is being corrected; PC activity tags and title-name
+Store search do not prove ownership or a PC Store edition.
+
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
 | Native launcher | Installed `0a6dca17` opens Library and automatically loads recent activity, with native Find in Store actions for title-name search. The actual shipping process published 20 real titles and decoded 12 artwork images; that same populated process remains running. | No edition or ownership match is inferred; the user chooses a Store candidate. Own-view images do not certify compositor/Liquid Glass or accessibility. Install/update/play remain incomplete. |

@@ -299,6 +299,18 @@ requirements across two different builds. Provisioning and private-key/access
 approvals remain human-gated; no private-key export or ACL relaxation is
 authorized. The user was unavailable at the last availability check.
 
+**Installed UI cleanup:** app `b82ac96`, tree
+`393e71b9d7805781d105933559125bc9d0bcff94`, passed the scoped native source
+review and exact-source shipping CI
+[37389117999](https://github.com/dragoshont/xodus-macos-app/actions/runs/37389117999).
+The controlled package's binary and receipt hashes and deep strict signature
+were independently checked before installation. The signed `c42e21a` CLI
+remained byte-for-byte identical to the previous installed copy. The owned
+window is visible and responsive; no account or provider actions were taken.
+Screen Recording permission blocks screenshots, and preflight stopped before
+the keyboard/accessibility round. Source and CI acceptance do not certify
+actual visual, VoiceOver, keyboard or resize conformance.
+
 **Owned/installed capability boundary:** the current backend has no complete
 consumer Xbox PC-owned inventory enumerator. Partner-configured Store queries
 and current-app add-on collections are not substitutes for that capability.

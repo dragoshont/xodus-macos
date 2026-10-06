@@ -22,7 +22,7 @@ branches; this README is not a claim that it has all been merged or deployed.
 
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
-| Native launcher | Native navigation/search header and Runtime Settings; shipping builds exclude fixture UI, artwork, test entry points and developer engine selection. The working login pair and close/retry fix are installed. | The gamer-facing status-wall cleanup remains in review; live visual, accessibility and resize acceptance is not complete. |
+| Native launcher | The source-reviewed gamer-facing cleanup `b82ac96` is installed after exact-source shipping CI passed. Main-screen status walls are reduced, errors have scoped recovery copy, technical facets are collapsed, and unsupported Library capabilities are stated honestly. The signed engine was preserved byte-for-byte. | Live screenshots are blocked by macOS Screen Recording permission. Visual, keyboard, accessibility and resize acceptance remain unverified; no privacy prompt was approved or bypassed. |
 | Store authentication | Microsoft sign-in was saved in macOS Keychain and persisted across restart and the unchanged-engine close/retry update. The exchange follows upstream request ordering. The matching `2b4f962`/`c42e21a` authenticated-read pair is installed. | Its sole live `auth.verify` returned `credentialUnavailable`. Mac inspection established that per-build ad-hoc CLI signing identities prevent the new engine from reading the old Keychain item without approval. Stable signing and human access/sign-in approval are required; authenticated provider use is not established. |
 | Owned and local games | Public Xbox catalog/search and bounded selected-folder structural inspection exist. | Complete Xbox PC-owned inventory is unsupported by the current integration. `installed.snapshot` currently returns a constant empty list, not a Mac installation scan; inspected folders remain unverified and not launchable. Catalog, achievements, Game Pass availability and folder markers are not ownership or playability evidence. |
 | Shipping pair admission | Fixed bundled engine/helper paths and stage-generated compiled identities; missing approval or changed files fail before management, authentication mutations or runtime planning. | Controlled local operator approval only, not general Developer ID distribution attestation. HELLO alone grants no trust. |
@@ -100,7 +100,7 @@ and compatibility, with continuation not followed. No authentication method
 or helper execution was requested by that smoke.
 
 **Current installed pair:** app
-[2b4f962](https://github.com/dragoshont/xodus-macos-app/commit/2b4f962a0e51f91cb44d342fd45f57065a11e3fc)
+[b82ac96](https://github.com/dragoshont/xodus-macos-app/commit/b82ac96ff22ca5dbd0c502132da0420bb11e711d)
 and backend
 [c42e21a](https://github.com/dragoshont/xodus-macos/commit/c42e21aee18da893546cca94cbee09820bcbca95).
 On October 6 the app owner observed a saved Microsoft session after human

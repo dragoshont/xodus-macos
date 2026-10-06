@@ -343,6 +343,47 @@ The staged read-only check and second-build replacement must wait for that
 flow to finish; no new browser sign-in is permitted during the rebuild-reuse
 check. The private game runtime may need its own login again later.
 
+**Reference persistence and native permission parity:** the stable-signed
+`1759a61`/`397dd02` reference subsequently reported `credentialPresent` after
+fresh Microsoft sign-in and again after a new-process restart. The saved item
+and profile were preserved when switching to stable-signed `c42e21a`;
+that engine's single `auth.status` returned `credentialStoreUnavailable`,
+so no authenticated provider request was sent. Identical designated
+requirements did not establish cross-engine access.
+Apple's independent partition check explains why this can happen:
+[client partition selection](https://github.com/apple-oss-distributions/Security/blob/db15acbe6a7f257a859ad9a3bb86097bfe0679d9/securityd/src/clientid.cpp)
+uses a `cdhash` for signed code outside the validated Apple signing chains,
+and [ACL validation](https://github.com/apple-oss-distributions/Security/blob/db15acbe6a7f257a859ad9a3bb86097bfe0679d9/securityd/src/acls.cpp)
+checks that partition separately from the normal trusted-code requirement.
+The actual saved item's partition was not inspected or edited.
+
+Installed app `f30f1b1855c279cfe2c1c3391c5042f53cf76df7` and engine
+`d00a8b97501a2ce1045d579e62568c5feb017ca8` restore upstream-compatible
+foreground native permission reads without a new command or schema.
+Foreground `auth.status` has a 120-second off-actor permission budget and a
+130-second client budget. Its owned read permit remains held until the actual
+native read returns, even after timeout, preventing overlapping account work.
+The UI invalidates stale status and fences duplicate actions; denial is not
+converted to signed-out success. Active sign-in polling, unattended cleanup
+and the deliberate bounded `auth.verify` reads remain noninteractive.
+Status publication reconciles the current worker/flow rather than a pre-read
+snapshot, and the client makes one final reconciliation at its polling deadline.
+Native qualification reported 88 backend checks, 352 app native checks and
+453 management checks passing; exact app CI
+[37459156452](https://github.com/dragoshont/xodus-macos-app/actions/runs/37459156452)
+also passed. Package hashes, source bindings, bounded proof and strict deep
+signatures were independently verified before installation.
+The reference rollback and saved login remain preserved.
+
+After installation, the automated Account action timed out and the native
+observer reported `accessibilityNotTrusted`; neither result proves that a
+Keychain read or permission prompt was dispatched. No prompt was approved by
+the agent, and no overlapping read or provider call followed. The user was
+directed to open Account once and handle any native permission prompt.
+Actual updated-engine saved status, authenticated Xbox access and unattended
+cross-build credential reuse remain unverified. A local self-signed identity
+is not a guarantee of prompt-free updates.
+
 **Installed UI cleanup:** app `b82ac96`, tree
 `393e71b9d7805781d105933559125bc9d0bcff94`, passed the scoped native source
 review and exact-source shipping CI

@@ -29,8 +29,8 @@ not finished, and this ledger is never presented as product UI.
 
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
-| Native launcher | Installed `7aa9eb9d` opens Library and automatically loads recent activity. The actual shipping process published 20 real titles and decoded 12 artwork images; that same populated process remains running. Existing public views and the Library composition were visually reviewed earlier. | The shipping result is not exporter-only evidence. Own-view images still do not certify compositor/Liquid Glass or accessibility. Install/update/play remain incomplete. |
-| Store authentication | Current `7aa9eb9d` preserves exact signed `c1073100` engine bytes and uses the saved Microsoft session for automatic Library loading. Earlier `f30f1b18`/`d00a8b97` also completed a checked authenticated Halo package read. No new Microsoft login or credential copying/reset was used. | A changed engine can need native Keychain approval; this UI update did not change it. These reads do not prove ownership, entitlement, installation or gameplay. |
+| Native launcher | Installed `0a6dca17` opens Library and automatically loads recent activity, with native Find in Store actions for title-name search. The actual shipping process published 20 real titles and decoded 12 artwork images; that same populated process remains running. | No edition or ownership match is inferred; the user chooses a Store candidate. Own-view images do not certify compositor/Liquid Glass or accessibility. Install/update/play remain incomplete. |
+| Store authentication | Current `0a6dca17` preserves exact signed `c1073100` engine bytes and uses the saved Microsoft session for automatic Library loading. Earlier `f30f1b18`/`d00a8b97` also completed a checked authenticated Halo package read. No new Microsoft login or credential copying/reset was used. | A changed engine can need native Keychain approval; this UI update did not change it. These reads do not prove ownership, entitlement, installation or gameplay. |
 | Owned and local games | One corrected `library.recent` call returned 20 actual titles with 20 available images, zero rejected references and 20 successful preload references/zero failures. The real native Library image was visually reviewed. | Complete owned-PC inventory remains unsupported; genuine managed-registry reads are being implemented. Played history and catalog presence are not ownership or playability evidence. |
 | Shipping pair admission | Fixed bundled engine/helper paths and stage-generated compiled identities; missing approval or changed files fail before management, authentication mutations or runtime planning. | Controlled local operator approval only, not general Developer ID distribution attestation. HELLO alone grants no trust. |
 | Account presentation | Toolbar, Account, Settings and Library share freshness-aware account state. Failed status checks remove saved-account claims while retaining the safety snapshot; a pending flow does not claim that a Microsoft window opened. | Source-side UI changes do not establish live authentication, PC ownership or entitlement. |
@@ -107,7 +107,7 @@ and compatibility, with continuation not followed. No authentication method
 or helper execution was requested by that smoke.
 
 **Current installed pair:** app
-[7aa9eb9d](https://github.com/dragoshont/xodus-macos-app/commit/7aa9eb9de094c5f96233a6e99fb08b48c61fc92a)
+[0a6dca17](https://github.com/dragoshont/xodus-macos-app/commit/0a6dca1751576e2484b1f7606c174ae1cc5970c4)
 and backend
 [c1073100](https://github.com/dragoshont/xodus-macos/commit/c1073100ce8936a751b962b1401ddb641c8be38a).
 On October 6 the app owner observed a saved Microsoft session after human

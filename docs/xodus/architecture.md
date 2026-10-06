@@ -433,6 +433,40 @@ Screen Recording permission blocks screenshots, and preflight stopped before
 the keyboard/accessibility round. Source and CI acceptance do not certify
 actual visual, VoiceOver, keyboard or resize conformance.
 
+**October 6 real-data visual cleanup:** app
+[`a8df179`](https://github.com/dragoshont/xodus-macos-app/commit/a8df179a37ec5c6629104f5045dbf287fde55efd),
+tree `575e70388269ecbb69af57c0e6ddfe226b573a79`, passed focused native checks
+(64 preview and 354 native), direct source review, and exact-source shipping CI
+[37469198866](https://github.com/dragoshont/xodus-macos-app/actions/runs/37469198866).
+The controlled package's source, inventory hashes and strict deep signature
+were independently checked before installation. The actual packaged engine
+remains byte-for-byte the working signed `d00a8b97` CLI; no credential, signer
+or backend changes were needed for the UI update.
+
+Two bounded render rounds used real `LiveSession` data: Library's genuinely
+unavailable state, current public Halo search results including a partial-result
+warning, real product detail and a freshly confirmed saved account. A
+development-only exporter binds to the compiler-admitted installed pair and
+renders the app's own NSView hierarchy; shipping builds reject its flag.
+There are no fixture titles, fabricated owned/installed games or account IDs
+in the exported evidence, and no repeated authenticated-provider probe.
+The parent visually reviewed all four before and after images.
+The single correction batch removes repeated Library/Discover copy and moves
+folder diagnostics into secondary details. Product is actually 600 x 300 pt
+and Account 560 x 280 pt, reduced from 620 pt-high sheets, with visible native
+footers and no observed clipping in these renders. The latest app is open
+with one owned engine and no auth helper; the working `f30` and reference
+`397` rollbacks remain preserved.
+
+Final own-view PNGs are under
+`/Users/dragoshont/xodus-app-tooling/app-live-visual-round-7ytgw4eo/after/`:
+`live-library.png`, `live-discover-search.png`, `live-product.png`, and
+`live-account-signed-in.png`. These qualify the observed native content/layout,
+not the window-server compositor, live Glass or accessibility behavior.
+The current native-toolbar authority supersedes the Figma mockup's earlier
+custom chrome and fictional hero; neither was reintroduced to fake parity.
+Full owned inventory, installed-game scanning and gameplay remain unavailable.
+
 **Owned/installed capability boundary:** the current backend has no complete
 consumer Xbox PC-owned inventory enumerator. Partner-configured Store queries
 and current-app add-on collections are not substitutes for that capability.

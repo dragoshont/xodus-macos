@@ -22,7 +22,7 @@ branches; this README is not a claim that it has all been merged or deployed.
 
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
-| Native launcher | The source-reviewed gamer-facing cleanup `b82ac96` is installed after exact-source shipping CI passed. Main-screen status walls are reduced, errors have scoped recovery copy, technical facets are collapsed, and unsupported Library capabilities are stated honestly. The signed engine was preserved byte-for-byte. | Live screenshots are blocked by macOS Screen Recording permission. Visual, keyboard, accessibility and resize acceptance remain unverified; no privacy prompt was approved or bypassed. |
+| Native launcher | Cleanup `a8df179` is installed: Library has one empty state, Discover has one context line and visible partial-result warning, and Account/Product sheets shrink to 280/300 pt. Four in-process real-data renders were visually reviewed after the single correction batch. The signed engine and saved login are unchanged. | Own-view exports qualify content/layout without Screen Recording permission; they do not certify system compositor/Liquid Glass, VoiceOver, full keyboard or resize behavior. Owned-library and installation capabilities remain separate unfinished work. |
 | Store authentication | Installed `f30f1b18`/`d00a8b97` reads the saved Microsoft session after native Keychain approval. One authenticated Halo package read returned exact `verified:true`, without another Microsoft sign-in, credential copying or reset. The app is reopened and working. | This proves authentication and the checked package API, not ownership, entitlement or game execution. A different locally self-signed engine build may need its own native Keychain approval; identical signing requirements alone do not provide prompt-free updates. |
 | Owned and local games | Public Xbox catalog/search and bounded selected-folder structural inspection exist. | Complete Xbox PC-owned inventory is unsupported by the current integration. `installed.snapshot` currently returns a constant empty list, not a Mac installation scan; inspected folders remain unverified and not launchable. Catalog, achievements, Game Pass availability and folder markers are not ownership or playability evidence. |
 | Shipping pair admission | Fixed bundled engine/helper paths and stage-generated compiled identities; missing approval or changed files fail before management, authentication mutations or runtime planning. | Controlled local operator approval only, not general Developer ID distribution attestation. HELLO alone grants no trust. |
@@ -100,7 +100,7 @@ and compatibility, with continuation not followed. No authentication method
 or helper execution was requested by that smoke.
 
 **Current installed pair:** app
-[f30f1b18](https://github.com/dragoshont/xodus-macos-app/commit/f30f1b1855c279cfe2c1c3391c5042f53cf76df7)
+[a8df179](https://github.com/dragoshont/xodus-macos-app/commit/a8df179a37ec5c6629104f5045dbf287fde55efd)
 and backend
 [d00a8b97](https://github.com/dragoshont/xodus-macos/commit/d00a8b97501a2ce1045d579e62568c5feb017ca8).
 On October 6 the app owner observed a saved Microsoft session after human

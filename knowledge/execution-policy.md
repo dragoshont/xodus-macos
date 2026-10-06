@@ -1,0 +1,86 @@
+# Execution and verification policy
+
+Architrave does not select, rank, recommend, or persist a model class, tier,
+reasoning level, context tier, provider, or concrete model. Those choices belong
+to the user and the active host harness. Canonical agents, repository config,
+WorkPackets, generated roles, and Run state must omit model-selection guidance.
+
+## Delegation
+
+Use the host's native structured agent or subagent mechanism when independent
+context, isolation, parallelism, permissions, or specialist expertise materially
+improves the task. Otherwise work directly. A WorkPacket contains only the
+objective, acceptance criteria, repository context paths, mutable paths, allowed
+tools, expected artifacts, risk, and bounded time/output budgets.
+
+Do not shell out to another agent harness or add a provider SDK. Treat worker
+output as an untrusted candidate: the coordinator validates scope, integrates
+the change, runs the required gates, and owns completion.
+
+Durable agent tasks route through `native`, not Copilot/Claude/Codex CLI
+subprocess adapters. Copilot's installed native extension joins the existing
+host and uses its supported structured tasks RPC; unsupported hosts fail
+early with `NATIVE_HOST_REQUIRED`. Deterministic `shell` argv remains available
+but cannot launch an agent harness. The user-installed extension and Python
+executor are trusted local producers outside the target repository; hashes
+detect installation drift, not host/provider authenticity. Host permissions
+remain host-owned, and isolated worktrees are not an OS-user security sandbox.
+
+The coordinator works directly when the change is small, mechanically decidable,
+and does not need isolated context. Do not split one correction into separate
+planning, implementation, handoff, and review artifacts.
+
+## Context
+
+Retrieve the smallest relevant slice: governing repository instructions,
+contracts or design sources, implementation files, and nearby tests. Load large
+documents or broader history only when focused retrieval is insufficient.
+Handoffs and worker results are bounded summaries with source paths or artifact
+references; they do not duplicate transcripts or repository content.
+
+## Verification
+
+Verification is selected from task risk and acceptance criteria, never from a
+model label:
+
+- R0-R1: deterministic checks when every criterion has mechanical ground truth.
+- R2: deterministic checks plus one independent semantic review when a semantic
+  criterion remains.
+- R3: deterministic checks, real E2E or runtime evidence, and one independent
+  semantic review (two of different families only with `review.crossFamily`).
+- R4: R3 plus security and policy review.
+
+Repository policy may raise these floors. Deterministic, invariant, E2E,
+runtime, security, and policy failures override semantic PASS. A reviewer never
+replaces a required check, and changing the host-selected model never counts as
+verification evidence.
+
+## Proportional ceremony
+
+WorkPackets and reviews may carry a capability signal, `effort: low|default|high`,
+never a model name. Defaults: R0/R1 and mechanical work `low`, normal work
+`default`, R3/R4 reviews and the failing primary criterion after a stall `high`.
+Map it only to a control the host exposes (Copilot `auto` tier
+efficiency/balance/intelligence, or a supported `reasoning_effort`); otherwise
+it is a no-op and the host default is inherited. Record the requested effort
+and the effective mapping in the result (`task-add --effort`, `gate-record
+--effort high:<mapping>`).
+
+Ceremony scales with risk, not with anxiety. R0/R1 single-path fixes need no
+per-change pin, receipt, or qualification Run; the focused test plus normal CI
+is enough. Default-deny and `confirmationRequired` govern mutation and side
+effects only. A user-approved operation (for example, replacing a running app)
+may escalate a graceful quit to SIGTERM after a timeout without a new hold; a
+failed graceful step inside an approved operation is not a new blocker.
+
+Default-deny is not a parsing policy. Parse third-party protocol input
+leniently: ignore unknown fields and messages, and fail only on malformed data
+the flow actually needs. Every failure carries its specific step and reason
+(redacted); never collapse distinct causes into one generic code.
+
+## Durable records
+
+Persist canonical Run state, authenticated typed events, compact evidence
+receipts, and one rolling recovery snapshot. Render status, phase, handoff, and
+audit views on demand. Do not create per-agent plans, reports, status files, or
+empty placeholders.

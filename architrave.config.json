@@ -1,0 +1,79 @@
+{
+  "platform": "apple-macos",
+  "stack": "other",
+  "designSource": {
+    "type": "design-doc",
+    "path": "docs/macos-bringup"
+  },
+  "applyTo": [
+    "README.md",
+    "crates/**",
+    "scripts/macos/**"
+  ],
+  "build": "cargo build --workspace",
+  "test": "cargo test --workspace",
+  "backend": {
+    "stack": "other",
+    "solution": "Cargo.toml",
+    "architectureDocs": [
+      "docs/macos-bringup/00-current-state.md",
+      "docs/macos-bringup/09-rps-ticket-bridge-sdd.md"
+    ],
+    "applyTo": [
+      "crates/**"
+    ],
+    "build": "cargo build --workspace",
+    "test": "cargo test --workspace"
+  },
+  "autonomy": {
+    "scope": "approved-program",
+    "mutationPolicy": {
+      "default": "deny",
+      "allow": [],
+      "confirmationRequired": [
+        "push",
+        "merge",
+        "sign"
+      ]
+    }
+  },
+  "workers": {
+    "defaultAdapter": "copilot",
+    "maxParallel": 2,
+    "worktreeRoot": ".architrave/worktrees",
+    "cleanupCompletedWorktrees": false,
+    "enabledAdapters": [
+      "copilot",
+      "shell"
+    ]
+  },
+  "evaluation": {
+    "defaultRisk": "R3",
+    "realityGate": true,
+    "controlAudit": true,
+    "riskPolicy": {
+      "R0": [
+        "deterministic"
+      ],
+      "R1": [
+        "deterministic"
+      ],
+      "R2": [
+        "deterministic",
+        "semantic-any"
+      ],
+      "R3": [
+        "deterministic",
+        "reality",
+        "semantic-independent-2"
+      ],
+      "R4": [
+        "deterministic",
+        "reality",
+        "semantic-independent-2",
+        "security",
+        "policy"
+      ]
+    }
+  }
+}

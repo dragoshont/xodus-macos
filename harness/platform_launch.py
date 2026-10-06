@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""Minimal platform command selection for configured repository recipes."""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import shutil
+import re
+from typing import Sequence
+from typing import Callable, Optional
+
+
+Which = Callable[[str], Optional[str]]
+
+
+class LaunchError(RuntimeError):
+    pass
+
+
+def reject_agent_harness(command: str | Sequence[str]) -> None:
+    text = command if isinstance(command, str) else " ".join(command)
+    if re.search(r"""(?i)(?:^|[\s;&|('"\\/])(?:copilot|claude|codex)(?:\.(?:exe|cmd|bat))?(?=$|[\s;&|)'"])""", text):
+        raise LaunchError("agent CLI recipes are prohibited; use host-native structured delegation")
+
+
+def configured_shell_command(
+    command: str,
+    *,
+    platform: str | None = None,
+    which: Which = shutil.which,
+) -> list[str]:
+    reject_agent_harness(command)
+    effective = platform or ("windows" if os.name == "nt" else "posix")
+    if effective == "windows":
+        executable = which("pwsh") or which("powershell")
+        if executable:
+            prefix = [executable, "-NoProfile"]
+            if Path(executable).name.lower().startswith("powershell"):
+                prefix.extend(["-ExecutionPolicy", "Bypass"])
+            return [*prefix, "-Command", command]
+        shell = which("bash") or which("sh")
+        if shell:
+            return [shell, "-c", command]
+        raise LaunchError(
+            "no command shell is available; install PowerShell or a POSIX shell"
+        )
+    shell = which("bash") or which("sh")
+    if shell:
+        return [shell, "-c", command]
+    raise LaunchError("no POSIX shell is available")

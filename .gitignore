@@ -1,3 +1,9 @@
 /target
 .env
 samples
+
+# Architrave: private run evidence and isolated worker trees stay local.
+.architrave/runs/
+.architrave/worktrees/
+.architrave/runtime.key
+.architrave/resources.lock

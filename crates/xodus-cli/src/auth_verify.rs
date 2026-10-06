@@ -6,7 +6,7 @@ use xodus::api::xbox::XboxAuthError;
 use xodus::tokens::{ManagementProfileWitness, TokenManager};
 use xodus_management::auth_verify::{AuthVerifier, VerificationFailure};
 use xodus_management::install_plan::{PlanFailure, PlanRead, verification_failure};
-use xodus_management::wire::{PlanParams, ProductParams, Refresh};
+use xodus_management::wire::PlanParams;
 
 use crate::package::PackageReadError;
 use crate::provider_credentials::CredentialError;
@@ -165,16 +165,11 @@ fn select_plan_package(
     params: &PlanParams,
     catalog: xodus::models::displaycatalog::DisplayCatalogProductsResponse,
 ) -> Result<xodus::models::displaycatalog::Package, PlanFailure> {
-    xodus_management::adapter::map_product(
-        &ProductParams {
-            product_id: params.product_id.clone(),
-            market: params.market.clone(),
-            language: params.language.clone(),
-            refresh: Refresh::Network,
-        },
-        catalog.clone(),
-    )
-    .map_err(|_| PlanFailure::PackageUnavailable)?;
+    if catalog.product.product_id.as_deref() != Some(&params.product_id)
+        || catalog.product.display_sku_availabilities.len() > 256
+    {
+        return Err(PlanFailure::ResponseInvalid);
+    }
     let editions: Vec<_> = catalog
         .product
         .display_sku_availabilities
@@ -292,6 +287,8 @@ where
         return Err(PlanFailure::CredentialUnavailable);
     }
     let readonly = tokens
+        .with_noninteractive_management_keychain()
+        .map_err(|_| PlanFailure::CredentialUnavailable)?
         .readonly_management_profile()
         .map_err(|_| PlanFailure::CredentialUnavailable)?;
     let package_id = selected
@@ -498,25 +495,32 @@ mod tests {
             selected.content_id.as_deref(),
             Some("00000000-0000-0000-0000-000000000001")
         );
+        let mut without_presentation = plan_catalog();
+        without_presentation.product.localized_properties.clear();
+        assert_eq!(
+            select_plan_package(&params, without_presentation)
+                .unwrap()
+                .package_id,
+            selected.package_id
+        );
         for action in [
             "product",
+            "missingProduct",
             "edition",
-            "language",
             "console",
             "packageID",
             "nil",
             "noncanonical",
             "packages",
             "editions",
+            "conflictingEditions",
         ] {
             let mut catalog = plan_catalog();
             let edition = &mut catalog.product.display_sku_availabilities[0];
             match action {
                 "product" => catalog.product.product_id = Some("OTHER0000001".to_owned()),
+                "missingProduct" => catalog.product.product_id = None,
                 "edition" => edition.sku.sku_id = Some("different-edition".to_owned()),
-                "language" => {
-                    catalog.product.localized_properties[0].language = Some("fr-FR".to_owned())
-                }
                 "console" => {
                     edition.sku.properties.packages[0].platform_dependencies[0].platform_name =
                         "Xbox.One".to_owned()
@@ -535,8 +539,14 @@ mod tests {
                     .properties
                     .packages
                     .push(edition.sku.properties.packages[0].clone()),
-                "editions" => {
-                    let duplicate = edition.clone();
+                "editions" | "conflictingEditions" => {
+                    let mut duplicate = edition.clone();
+                    if action == "conflictingEditions" {
+                        duplicate.sku.properties.packages[0].package_id =
+                            Some("conflicting-fixture-package".to_owned());
+                        duplicate.sku.properties.packages[0].content_id =
+                            Some("00000000-0000-0000-0000-000000000002".to_owned());
+                    }
                     catalog.product.display_sku_availabilities.push(duplicate);
                 }
                 _ => unreachable!(),
@@ -544,15 +554,115 @@ mod tests {
             let failure = select_plan_package(&params, catalog).unwrap_err();
             assert_eq!(
                 failure,
-                if matches!(action, "packages" | "editions") {
+                if matches!(action, "packages" | "editions" | "conflictingEditions") {
                     PlanFailure::Ambiguous
-                } else if matches!(action, "nil" | "noncanonical") {
+                } else if matches!(
+                    action,
+                    "product" | "missingProduct" | "nil" | "noncanonical"
+                ) {
                     PlanFailure::ResponseInvalid
                 } else {
                     PlanFailure::PackageUnavailable
                 }
             );
         }
+    }
+
+    #[tokio::test]
+    async fn install_plan_dependency_declarations_block_unknown_and_reject_malformed_before_integrity()
+     {
+        for (action, expected) in [
+            ("malformedFramework", PlanFailure::ResponseInvalid),
+            ("malformedHardware", PlanFailure::ResponseInvalid),
+            ("nullFramework", PlanFailure::ResponseInvalid),
+            ("nullHardware", PlanFailure::ResponseInvalid),
+            ("missingFramework", PlanFailure::ApplicabilityUnproven),
+            ("missingHardware", PlanFailure::ApplicabilityUnproven),
+            ("unknownFramework", PlanFailure::ApplicabilityUnproven),
+            ("unknownHardware", PlanFailure::ApplicabilityUnproven),
+            ("oversizedFramework", PlanFailure::ResponseInvalid),
+            ("knownEmpty", PlanFailure::IntegrityUnproven),
+        ] {
+            let mut catalog = plan_catalog();
+            let package = &mut catalog.product.display_sku_availabilities[0]
+                .sku
+                .properties
+                .packages[0];
+            match action {
+                "malformedFramework" => {
+                    package.framework_dependencies = Some(serde_json::json!({"notAnArray": true}))
+                }
+                "malformedHardware" => {
+                    package.hardware_dependencies = Some(serde_json::json!("notAnArray"))
+                }
+                "nullFramework" => package.framework_dependencies = Some(serde_json::Value::Null),
+                "nullHardware" => package.hardware_dependencies = Some(serde_json::Value::Null),
+                "missingFramework" => package.framework_dependencies = None,
+                "missingHardware" => package.hardware_dependencies = None,
+                "unknownFramework" => {
+                    package.framework_dependencies =
+                        Some(serde_json::json!([{"unmodeledRequirement": true}]))
+                }
+                "unknownHardware" => {
+                    package.hardware_dependencies =
+                        Some(serde_json::json!(["unmodeledRequirement"]))
+                }
+                "oversizedFramework" => {
+                    package.framework_dependencies =
+                        Some(serde_json::json!(vec![serde_json::json!({}); 257]))
+                }
+                "knownEmpty" => {}
+                _ => unreachable!(),
+            }
+            let catalog = serde_json::from_value(serde_json::to_value(catalog).unwrap()).unwrap();
+            let result = read_plan_using(
+                None,
+                plan_params(),
+                |_| async { Ok(catalog) },
+                |_, _| async {
+                    panic!(
+                        "dependency/integrity blockers must precede credentials and package work"
+                    )
+                },
+            )
+            .await;
+            assert!(
+                matches!(result, Err(failure) if failure == expected),
+                "{action}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn install_plan_authenticated_seam_detaches_injected_backend_and_keeps_shared_profile_fences_without_io()
+     {
+        use std::sync::Arc;
+        use xodus::tokens::store::TokenBackend;
+        let (tokens, memory) = crate::package::tests::management_profile();
+        let original = memory.get("management-store-user").unwrap();
+        let owners = Arc::strong_count(&memory);
+        let read = verified_read(&tokens, "00000000-0000-0000-0000-000000000001");
+        let profile = read.profile.clone().unwrap();
+        let memory_ref = &memory;
+        let result = read_selected_plan_using(
+            tokens.clone(),
+            plan_params(),
+            select_plan_package(&plan_params(), plan_catalog()).unwrap(),
+            |readonly, _| async move {
+                // A plain read-only clone would retain an extra reference to the injected backend.
+                assert_eq!(Arc::strong_count(memory_ref), owners + 1);
+                assert!(readonly.management_publication_current(&profile));
+                Ok(read)
+            },
+        )
+        .await
+        .unwrap();
+        assert!(tokens.management_publication_current(&result.profile));
+        assert_eq!(memory.get("management-store-user").unwrap(), original);
+        let session = tokens.get_management_store_session().unwrap().unwrap();
+        tokens.save_management_store_session(session).unwrap();
+        assert!(!tokens.management_publication_current(&result.profile));
+        assert_eq!(memory.get("management-store-user").unwrap(), original);
     }
 
     #[tokio::test]

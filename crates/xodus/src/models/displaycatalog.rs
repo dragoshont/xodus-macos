@@ -60,9 +60,17 @@ pub struct Package {
     pub architectures: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub languages: Option<serde_json::Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "dependency_declaration"
+    )]
     pub framework_dependencies: Option<serde_json::Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "dependency_declaration"
+    )]
     pub hardware_dependencies: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub package_format: Option<serde_json::Value>,
@@ -75,6 +83,13 @@ pub struct Package {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_install_size_in_bytes: Option<serde_json::Value>,
     pub platform_dependencies: Vec<PlatformDependency>,
+}
+
+fn dependency_declaration<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<serde_json::Value>, D::Error> {
+    // Preserve explicit null as malformed input, distinct from an absent declaration.
+    serde_json::Value::deserialize(deserializer).map(Some)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

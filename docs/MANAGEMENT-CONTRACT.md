@@ -87,7 +87,14 @@ applicable packages remain blocked; missing/unknown applicability yields
 `UNSUPPORTED_CONFIGURATION / selection / applicabilityUnproven`, not package
 absence or invented resolved values. A known architecture/language mismatch
 returns `selection/unsupported`. Dependency declarations are preserved,
-not claimed satisfied by macOS or a runtime.
+and must be bounded arrays: missing declarations or nonempty requirements whose
+semantics are not established return `selection/applicabilityUnproven`;
+malformed declarations return `provider/invalidResponse`. Explicit empty arrays
+are known-empty provider declarations, not a claim of runtime satisfaction.
+Resolver identity checks precede any presentation mapping: a missing or
+mismatched product ID is invalid response, and duplicate selected-SKU rows
+are ambiguous even when their package identities conflict. Unrelated display
+titles/localizations are not package applicability gates.
 
 The resolver may fetch only the requested product's bounded anonymous
 DisplayCatalog metadata. Unsupported package formats and the still-unproven
@@ -98,6 +105,10 @@ algorithm/encoding/coverage. Nonpositive public install-size fields do not
 establish expanded padded layout or space sufficiency. An unsupported
 destination is rejected before provider work. Supported here means the
 negotiated read-only resolver/diagnostic, not a ready install plan.
+The private authenticated seam explicitly takes the noninteractive Keychain
+clone first and applies the read-only wrapper last before the existing provider
+credential reader. It shares the original profile fences; ordinary foreground
+`auth.status` interaction policy is unchanged.
 
 Destination binding is only the existing private current management state root,
 not future user-selected external roots. No directory/lock creation or

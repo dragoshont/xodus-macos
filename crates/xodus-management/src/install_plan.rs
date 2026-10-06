@@ -216,6 +216,24 @@ pub fn declared_applicability(
     params: &PlanParams,
     package: &xodus::models::displaycatalog::Package,
 ) -> Result<bool, PlanFailure> {
+    let mut dependencies_unknown = false;
+    for dependencies in [
+        package.framework_dependencies.as_ref(),
+        package.hardware_dependencies.as_ref(),
+    ] {
+        let Some(dependencies) = dependencies else {
+            dependencies_unknown = true;
+            continue;
+        };
+        let dependencies = dependencies
+            .as_array()
+            .ok_or(PlanFailure::ResponseInvalid)?;
+        if dependencies.len() > 256 {
+            return Err(PlanFailure::ResponseInvalid);
+        }
+        // Only the array shape is evidenced; nonempty requirements are not resolved.
+        dependencies_unknown |= !dependencies.is_empty();
+    }
     let Some(architectures) = package.architectures.as_ref() else {
         return Err(PlanFailure::ApplicabilityUnproven);
     };
@@ -238,6 +256,9 @@ pub fn declared_applicability(
         })
     {
         return Err(PlanFailure::ResponseInvalid);
+    }
+    if dependencies_unknown {
+        return Err(PlanFailure::ApplicabilityUnproven);
     }
     let requested = match params.architecture {
         crate::wire::Architecture::Arm64 => "arm64",

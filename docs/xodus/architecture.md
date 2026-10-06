@@ -479,7 +479,7 @@ partial/external/unregistered/unverified result must not be promoted to
 installed or launchable. Durable observations, if added, must remain distinct
 from verified installation records.
 
-**October 6 Store artwork and recent-history slice:** installed app
+**Earlier October 6 Store artwork and recent-history slice:** app
 [`fb39072`](https://github.com/dragoshont/xodus-macos-app/commit/fb39072cd9e0301c308c1b91bfd5ea157bf5e51d),
 tree `47cf0c73161e501024388321736f8fd273733b39`, binds producer
 [`680593de`](https://github.com/dragoshont/xodus-macos/commit/680593de3d32390fe2105780b9a21b09fd302337),
@@ -525,13 +525,29 @@ the read linearization point for independent writers; a later external write
 does not retroactively invalidate that read.
 
 The first live personal exporter stopped because saved status was not confirmed;
-its generic guard did not retain a fixed cause. No TitleHub request or personal
-PNG was produced. Development-only fixed-enum result capture is ready for a
-subsequent human-triggered attempt, without changing shipping bytes.
-The user was directed to open Account, choose Check status, and handle any
-native saved-login prompt with Always Allow. Personal history, Library artwork
-and the signed-in Account confirmation remain live-unverified. The verified
-public artwork does not substitute for those criteria.
+its generic guard did not retain a fixed cause. Subsequent bounded captures
+reported `credentialStoreUnavailable` before dispatching history. Those failed
+attempts produced no personal PNGs and did not establish signed-out state,
+expired credentials or a provider rejection.
+
+**Current saved-auth and history result:** the independently admitted
+`4e204270` app / `2b31d199` engine explicitly enables requested foreground
+Keychain interaction under the existing mutex and checks restoration of the
+prior setting. Background and verification reads remain noninteractive;
+credential writes are unchanged. This installed pair returned current
+`credentialPresent`, then 20 actual TitleHub titles, live/partial. Library and
+saved Account own-view PNGs were retrieved and visually reviewed. No Microsoft
+relogin, credential reset or inferred ownership was involved.
+
+All 20 history image references were rejected by the initial URL policy, so
+no personal images were fetched and Library artwork remains unverified.
+The qualified `c1073100` producer correction accepts HTTP metadata only for
+the exact Store origin and existing single-ASCII-asset grammar, emitting HTTPS
+for the same asset. Ports, credentials, query/fragment, wrapper URLs and other
+hosts remain rejected. Its sealed native Release is checked; matching app
+packaging and actual post-correction Library artwork are still pending.
+The [full delivery ledger](delivery-ledger.md) tracks that acceptance gap and
+all nine Figma flows, game authorization, installation, update and play.
 
 The chronology below records earlier source and runtime observations,
 not the current persistence result.

@@ -50,21 +50,25 @@ manufacture that registration.
 | --- | --- |
 | Microsoft session persistence | Reference app `1759a61` / engine `397dd02` saved a real login and read it after restart. No raw credentials were exported. |
 | Authenticated Xbox package service | App `f30f1b18` / engine `d00a8b97` returned `credentialPresent` and one Halo `auth.verify` returned exact `verified:true`. This was not a license, ownership or gameplay check. |
-| Current updated-engine saved access | Installed app `113be57c` / engine `c1073100` returned current `credentialPresent`, retaining the `2b31d199` foreground interaction correction. No new Microsoft login or credential reset was used. |
+| Current updated-engine saved access | Installed app `7aa9eb9d` retains the exact signed `c1073100` engine bytes and loads recent activity using the saved sign-in. No new Microsoft login, engine re-signing or credential reset was used. |
 | Actual personal Xbox service | One `library.recent` read on the corrected pair returned **20 real titles**, live/partial, with reported platforms and no guessed Store product mapping. |
 | Real personal artwork | All 20 titles now have available artwork; zero references were rejected. One preload batch succeeded for 20 references, with zero failures. References can share the cache; this is not a claim of 20 distinct HTTP requests. |
 | Qualified artwork correction | Engine `c1073100` safely converts exact Store HTTP image metadata to HTTPS; nine focused native checks passed. Its exact sealed Release/provenance and 205 Git-LF inputs were checked. Matching app CI passed; package and installed inventories/signatures matched. The one actual changed Library PNG was retrieved and visually reviewed, with real tile artwork and a tile-based feature, not an invented marketing hero. |
 | Real public artwork | Installed artwork code loaded Halo Infinite and Gears 5 covers plus Halo hero artwork from actual Store metadata: three successful loads, zero failures. Discover/Product own-view PNGs were visually reviewed. |
-| Current working package | App `113be57c7ceba230bc9252585bd98e4ce1679fa4`, engine `c1073100ce8936a751b962b1401ddb641c8be38a`; installed CLI SHA256 `c8fe69a3bc2b6a84c5bad5ef0c1ae041f36466a87419c0f17d9567c6df3ed14d`. All 21 installed files match the admitted receipt; shipping is reopened with one owned engine and no active login helper. The complete working `4e` rollback and saved profile are preserved. |
+| Current working package | App `7aa9eb9de094c5f96233a6e99fb08b48c61fc92a`, engine `c1073100ce8936a751b962b1401ddb641c8be38a`; unchanged CLI SHA256 `c8fe69a3bc2b6a84c5bad5ef0c1ae041f36466a87419c0f17d9567c6df3ed14d`. Exact CI passed; all 21 installed files and signatures match admission. The same populated shipping process remains running with one owned engine and no login helper. Full `113` rollback and saved profile are preserved. |
+| Actual shipping Library startup | Ordinary foreground startup published one real recently played list with 20 titles. That same shipping process produced 12 successful image-decode events. The coordinator independently read its fixed native OSLog events and checked its live ownership/bytes; this was not a private renderer, fixture injection or reopen-to-empty result. Decode count is not a unique-HTTP-request count. |
 | Native read correction | Foreground reads explicitly enable native interaction under the existing mutex, then restore the prior setting. Background/verification reads remain deliberately noninteractive. Fixed failed-read diagnostics contain no credentials or account identifiers. |
 | Signing limit | The local signer works, but identical self-signed designated requirements do not stabilize macOS's independent per-binary partition. A future engine can need native permission again. No prompt-free rebuild guarantee is claimed. |
 | Installation inventory | Shipping `installed.snapshot` remains an empty placeholder. Real read-only StagingStore registry wiring is active source work, with nullable runtime identity and unverified health rather than invented verification. No OS-wide scan or installed game is claimed. |
 | Historical CrossOver controls | Existing No Man's Sky/Hogwarts user confirmations and a Hollow Knight menu result are preserved references, not proof this launcher installs or launches them. |
 
-Personal history is intentionally memory-only. The development render session
-does not inject its history into a newly reopened shipping session. In the
-shipping app, loading Recently played is an explicit action after saved status
-is confirmed.
+Personal history is intentionally memory-only; no development render session
+injects data into shipping. Foreground Library startup/entry now checks saved
+status only when needed, then loads real recent activity automatically. One
+owned attempt per connection prevents navigation/view-rebuild polling; failures
+offer explicit retry. Account checks and connection changes still clear personal
+history. The verified populated shipping process was left running, not reopened
+into a fresh empty session.
 
 Private results remain in ignored session/Mac evidence locations:
 
@@ -75,6 +79,7 @@ Private results remain in ignored session/Mac evidence locations:
 - `app-art-history-fb39072/public-art-confirmation/images/live-discover-search.png`
 - `app-art-history-fb39072/public-art-confirmation/images/live-product.png`
 - `app-recent-art-113be57/personal-art-confirmation/after/live-library.png`
+- `app-library-autoload-7aa9eb9/actual-shipping-publication-proof.json`
 
 These paths are relative to `/Users/dragoshont/xodus-app-tooling/`.
 Do not commit personal title rows, raw provider responses, XUIDs, credentials,
@@ -95,6 +100,7 @@ The next game-lifecycle slice must be one legitimate selected PC edition.
 | CAT-01 | Real public Store browse/search/detail | Observed | Supported catalog capability | Backend/App | Actual scoped response shown; partial errors, no-result, continuation, offline and failure remain distinct |
 | ART-01 | Real Store BoxArt/Poster/SuperHeroArt | Observed | CAT-01 | Backend/App | Real covers and hero load through bounded native loader; final own-view images are not placeholders |
 | LIB-01 | Real Recently played Library | Observed | AUTH-02 | Backend/App | One actual bounded TitleHub result; native grid/filter/search use actual titles, not ownership or install claims |
+| LIB-START | Real list loads in the ordinary shipping app | Observed | LIB-01, AUTH-01 | App | Default Library, one guarded foreground status/history sequence, visible failures and manual retry; actual same-process title publication and artwork decode, left running populated |
 | ART-02 | Real history tile artwork and Library feature | Observed | LIB-01 | Backend/App | Actual history references accepted safely, image downloads/decode succeed and Library PNG contains real title art |
 | LIB-02 | Useful history navigation | Active | LIB-01, CAT-01 | App/Backend | Explicit Find in Store action reuses real search; candidates are user-selected, never an inferred verified edition or ownership claim |
 | OWN-01 | Complete authoritative owned-PC inventory | External | Supported consumer entitlement API and account/product coverage evidence | Backend | Real entitlement enumeration, pagination and expired/subscription behavior; played history never substitutes |

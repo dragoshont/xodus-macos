@@ -560,6 +560,21 @@ engine, no login helper and all 21 files matching the admitted receipt.
 The [full delivery ledger](delivery-ledger.md) tracks all nine Figma flows,
 game authorization, installation, update and play, which remain unfinished.
 
+**Actual shipping list-loading correction:** app `7aa9eb9d` defaults to Library
+and owns one automatic foreground load per connection. It checks saved status
+only when unconfirmed, then requests recent activity after `credentialPresent`.
+Busy and generation fences survive view cancellation/rebuilding; explicit
+Account checks still clear history without automatic rereads. Loading and
+failure-specific manual retry are visible, with no new sign-in or fixtures.
+Exact [CI 37509107895](https://github.com/dragoshont/xodus-macos-app/actions/runs/37509107895)
+and independent package checks passed. The update preserved every signed CLI
+byte and the full working rollback. Ordinary shipping startup itself published
+20 real titles and successfully decoded 12 images. The coordinator independently
+observed the fixed stage/count OSLog events for that installed process and
+verified its bytes/signature, one owned engine and no login helper. The same
+populated process remains running; no exporter or subsequent reopen was used.
+These counts establish recent-list loading, not ownership or installed gameplay.
+
 The chronology below records earlier source and runtime observations,
 not the current persistence result.
 

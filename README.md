@@ -23,7 +23,7 @@ branches; this README is not a claim that it has all been merged or deployed.
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
 | Native launcher | The source-reviewed gamer-facing cleanup `b82ac96` is installed after exact-source shipping CI passed. Main-screen status walls are reduced, errors have scoped recovery copy, technical facets are collapsed, and unsupported Library capabilities are stated honestly. The signed engine was preserved byte-for-byte. | Live screenshots are blocked by macOS Screen Recording permission. Visual, keyboard, accessibility and resize acceptance remain unverified; no privacy prompt was approved or bypassed. |
-| Store authentication | Microsoft sign-in was saved in macOS Keychain and persisted across restart and the unchanged-engine close/retry update. The exchange follows upstream request ordering. A local code-signing identity now exists, and two independent engine builds are available. | The sole live `auth.verify` returned `credentialUnavailable` after the ad-hoc engine identity changed. Signing with the new certificate is blocked by its creator-only partition permission despite a `codesign` signing ACL. A focused permission change awaits human approval; matching signatures, login reuse across rebuilds and authenticated provider use remain unverified. |
+| Store authentication | The stable local signer works. Two independently built engines have verified identical fixed-identifier/certificate-leaf signing requirements; the first matching stable app is installed and the second is staged. | The old ad-hoc credential was unreadable by the new identity; the supervisor subsequently reported a user-directed reset of saved Xodus credentials. A fresh Microsoft sign-in window is open. Saved-login reuse across the rebuilt engine and authenticated Xbox access still await that login and the live checks. |
 | Owned and local games | Public Xbox catalog/search and bounded selected-folder structural inspection exist. | Complete Xbox PC-owned inventory is unsupported by the current integration. `installed.snapshot` currently returns a constant empty list, not a Mac installation scan; inspected folders remain unverified and not launchable. Catalog, achievements, Game Pass availability and folder markers are not ownership or playability evidence. |
 | Shipping pair admission | Fixed bundled engine/helper paths and stage-generated compiled identities; missing approval or changed files fail before management, authentication mutations or runtime planning. | Controlled local operator approval only, not general Developer ID distribution attestation. HELLO alone grants no trust. |
 | Account presentation | Toolbar, Account, Settings and Library share freshness-aware account state. Failed status checks remove saved-account claims while retaining the safety snapshot; a pending flow does not claim that a Microsoft window opened. | Source-side UI changes do not establish live authentication, PC ownership or entitlement. |
@@ -117,11 +117,16 @@ signing-only. Temporary newly generated key, PKCS12 and passphrase files were
 removed; the existing private keys and Microsoft credential were not exported.
 Signing failed with `errSecInternalComponent`; read-only inspection confirmed
 the imported key's partition ACL permits only its importer, not `codesign`.
-The proposed recovery is confined to that exact new signing key and awaits
-human approval. No global trust or other Keychain permission changes occurred.
-Fixed identifiers under the same leaf-certificate requirement must still be
-verified across two independent signed builds, followed by a real login-reuse
-check; the existence of a matching certificate is not that evidence.
+The user completed the scoped Terminal permission command; the new signer and
+the known unused Xodus orphan key were the two approved targets. No global
+certificate trust change was made. Actual signatures on both independently
+built engines now pass strict verification and have identical requirements:
+the fixed CLI identifier and the same certificate leaf, without a build hash.
+The first stable app `b3973e67` is installed and the second paired package is
+verified and staged. The supervisor reported a user-directed reset of saved
+Xodus credentials; a fresh Microsoft window is open. The remaining acceptance
+is an actual authenticated read, followed by saved-login reuse on the second
+engine without another sign-in. Identical signatures alone do not prove it.
 Earlier observations establish persistence across the same engine identity, not authenticated provider use,
 authoritative owned inventory or launcher-driven download/install/update/play.
 The backend retains validated failed-exchange inputs only in Keychain for a

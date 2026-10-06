@@ -318,14 +318,30 @@ The first actual signing attempt failed with `errSecInternalComponent` in the
 unlocked Aqua user session. A single no-prompt inspection of the exact imported
 identity confirmed that its partition ACL contains only the importer's ad-hoc
 identity: Apple signing-tool partitions are absent despite the matching
-traditional signing ACL. No permission changes or subsequent signing retries
-occurred. A focused correction to this signing key awaits human approval;
-the user was unavailable at the latest approval request.
-Two independently built `c42e21a` engines exist, but neither identical signed
-designated requirements nor saved-login access after the second build has been
-established. Public certificate-policy evaluation also reported anchor and an
-unclassified policy failure; it does not establish the sole cause of signing
-failure or authorize a global trust change.
+traditional signing ACL. The user subsequently completed the visible Terminal
+permission command for the two explicitly approved Xodus signing keys: the
+imported signer and the unused certificate-less provisioning key. No password
+was captured by the agent, and no global certificate trust was changed.
+The cause-directed signing retry succeeded.
+
+Both independently built `c42e21a` engines now pass strict signature checks.
+Their actual designated requirements were independently inspected and match:
+`io.github.dragoshont.xodus.cli` and certificate leaf
+`6c5f1cd832a2b2842686245b4def219bb8b465b2`, without a build-specific `cdhash`.
+Matching app `b3973e67` is installed with the first build, and the second-build
+package is staged after independent hash, source, sealed-input, resource and
+signature checks. This establishes stable signing across two real builds,
+not credential persistence or provider authorization.
+
+The supervisor reported a user-directed fresh start clearing the saved Xodus
+management session and four private CLI credential items; that deletion was
+not performed or independently inspected by this coordinator. The working
+signer remains present. The installed app's old credential-store error had kept
+sign-in disabled until a fresh signed-out result. After restart, a genuine
+Microsoft helper window was observed and left untouched for human sign-in.
+The staged read-only check and second-build replacement must wait for that
+flow to finish; no new browser sign-in is permitted during the rebuild-reuse
+check. The private game runtime may need its own login again later.
 
 **Installed UI cleanup:** app `b82ac96`, tree
 `393e71b9d7805781d105933559125bc9d0bcff94`, passed the scoped native source

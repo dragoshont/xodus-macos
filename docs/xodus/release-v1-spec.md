@@ -3,6 +3,13 @@
 Status: implementation contract, October 5, 2026. This is not a release or
 compatibility certificate.
 
+**Current delivery status:** the original source/evidence sections below are
+historical snapshots, not the present installed capability list. The user's
+October 6 end-to-end request is tracked in the
+[complete delivery ledger](delivery-ledger.md), which maps all nine Figma
+screens and the remaining real game lifecycle. Saved-auth Xbox package access
+and 20-title recent history are now observed; install/update/play are not.
+
 ## Outcome and scope
 
 Deliver the existing native launcher with an official, separately installed

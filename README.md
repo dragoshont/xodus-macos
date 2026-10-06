@@ -20,11 +20,18 @@ The Swift launcher lives in the separate
 Reviewed backend and app work is published on their respective feature
 branches; this README is not a claim that it has all been merged or deployed.
 
+**Full application delivery:** [the delivery ledger](docs/xodus/delivery-ledger.md)
+maps every approved Figma screen and the saved-auth, Library artwork,
+single-game authorization, download/install, local inventory, update, rollback,
+remove and CrossOver play work. Real recent history now returns 20 titles;
+history images remain a separate active acceptance gap. The complete app is
+not finished, and this ledger is never presented as product UI.
+
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
 | Native launcher | Installed `fb39072` adds real Store cover-art cards and a Product hero. Actual Halo Infinite/Gears 5 covers and Halo hero artwork loaded successfully and were visually reviewed in own-view PNGs. The native toolbar, compact Account and saved session are preserved. | Own-view exports qualify content/layout, not system compositor/Liquid Glass or accessibility. The personal Library is implemented but not yet verified with a live history response. |
-| Store authentication | Installed `f30f1b18`/`d00a8b97` reads the saved Microsoft session after native Keychain approval. One authenticated Halo package read returned exact `verified:true`, without another Microsoft sign-in, credential copying or reset. The app is reopened and working. | This proves authentication and the checked package API, not ownership, entitlement or game execution. A different locally self-signed engine build may need its own native Keychain approval; identical signing requirements alone do not provide prompt-free updates. |
-| Owned and local games | Public Xbox catalog/search includes real normalized artwork. A separate, read-only `library.recent` provider and native **Your games / Recently played** UI are implemented and qualified with neutral tests. | The new engine's first live saved-status check did not confirm access; no TitleHub history request ran. Complete Xbox PC-owned inventory and installation scanning remain unsupported. Played history, catalog presence, achievements, Game Pass and folder markers do not establish ownership or playability. |
+| Store authentication | Corrected `4e204270`/`2b31d199` reads the saved Microsoft session and returned 20 real recently played titles. Earlier `f30f1b18`/`d00a8b97` also completed a checked authenticated Halo package read. No new Microsoft login or credential copying/reset was used by either verified read. | Different locally self-signed engine builds may need native Keychain approval. These reads do not prove ownership, entitlement, installation or gameplay. |
+| Owned and local games | Real public catalog artwork is visually verified. One read-only `library.recent` call returned 20 actual titles; the native **Your games / Recently played** grid and saved Account were rendered and reviewed. | All 20 personal image references were rejected by the initial URL policy; history artwork is being corrected. Complete owned-PC inventory and installation scanning are not implemented. Played history and catalog presence are not ownership or playability evidence. |
 | Shipping pair admission | Fixed bundled engine/helper paths and stage-generated compiled identities; missing approval or changed files fail before management, authentication mutations or runtime planning. | Controlled local operator approval only, not general Developer ID distribution attestation. HELLO alone grants no trust. |
 | Account presentation | Toolbar, Account, Settings and Library share freshness-aware account state. Failed status checks remove saved-account claims while retaining the safety snapshot; a pending flow does not claim that a Microsoft window opened. | Source-side UI changes do not establish live authentication, PC ownership or entitlement. |
 | Runtime selection | CrossOver, GPTK 3, GPTK 4 and standalone Wine configuration/planning foundations. **First-release dependency: a genuine, separately installed official CrossOver copy.** Other runtime tracks remain experimental, not supported first-release alternatives. | **Configuration/planning only.** No installation discovery, prefix creation/migration, device preflight or game execution is certified by these plans; `launchable` remains `false`. No CodeWeavers endorsement is implied. |
@@ -100,9 +107,9 @@ and compatibility, with continuation not followed. No authentication method
 or helper execution was requested by that smoke.
 
 **Current installed pair:** app
-[fb39072](https://github.com/dragoshont/xodus-macos-app/commit/fb39072cd9e0301c308c1b91bfd5ea157bf5e51d)
+[4e204270](https://github.com/dragoshont/xodus-macos-app/commit/4e204270550f2f83082e7562187f8619b777fc05)
 and backend
-[680593de](https://github.com/dragoshont/xodus-macos/commit/680593de3d32390fe2105780b9a21b09fd302337).
+[2b31d199](https://github.com/dragoshont/xodus-macos/commit/2b31d199a3be15422596b46bc70e0926df30b539).
 On October 6 the app owner observed a saved Microsoft session after human
 sign-in, then verified that it remained saved after a normal app restart.
 The subsequent close/retry update also preserved the saved session without

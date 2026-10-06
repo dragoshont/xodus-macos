@@ -530,7 +530,7 @@ reported `credentialStoreUnavailable` before dispatching history. Those failed
 attempts produced no personal PNGs and did not establish signed-out state,
 expired credentials or a provider rejection.
 
-**Current saved-auth and history result:** the independently admitted
+**Preceding saved-auth and history result:** the independently admitted
 `4e204270` app / `2b31d199` engine explicitly enables requested foreground
 Keychain interaction under the existing mutex and checks restoration of the
 prior setting. Background and verification reads remain noninteractive;
@@ -540,14 +540,25 @@ saved Account own-view PNGs were retrieved and visually reviewed. No Microsoft
 relogin, credential reset or inferred ownership was involved.
 
 All 20 history image references were rejected by the initial URL policy, so
-no personal images were fetched and Library artwork remains unverified.
-The qualified `c1073100` producer correction accepts HTTP metadata only for
+that earlier attempt fetched no personal images.
+The `c1073100` producer correction accepts HTTP metadata only for
 the exact Store origin and existing single-ASCII-asset grammar, emitting HTTPS
 for the same asset. Ports, credentials, query/fragment, wrapper URLs and other
-hosts remain rejected. Its sealed native Release is checked; matching app
-packaging and actual post-correction Library artwork are still pending.
-The [full delivery ledger](delivery-ledger.md) tracks that acceptance gap and
-all nine Figma flows, game authorization, installation, update and play.
+hosts remain rejected. Its sealed native Release, matching `113be57c` app CI,
+package inventory and strict signatures were independently checked before
+normal-Quit installation, preserving the full working rollback and profile.
+
+**Current personal-art result:** one foreground saved-status read returned
+current `credentialPresent`; one corrected history read returned 20 live/partial
+titles with available artwork and zero rejected references. All 20 preload
+references succeeded, with zero failures; shared caching means this is not a
+claim of 20 unique HTTP requests. The single actual changed Library PNG was
+retrieved and visually reviewed: real tile artwork, a tile-based feature,
+preserved branding and reported platform labels. No marketing hero role,
+ownership or installability was inferred. Shipping reopened with one owned
+engine, no login helper and all 21 files matching the admitted receipt.
+The [full delivery ledger](delivery-ledger.md) tracks all nine Figma flows,
+game authorization, installation, update and play, which remain unfinished.
 
 The chronology below records earlier source and runtime observations,
 not the current persistence result.

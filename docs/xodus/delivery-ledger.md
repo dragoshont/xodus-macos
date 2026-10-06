@@ -50,15 +50,15 @@ manufacture that registration.
 | --- | --- |
 | Microsoft session persistence | Reference app `1759a61` / engine `397dd02` saved a real login and read it after restart. No raw credentials were exported. |
 | Authenticated Xbox package service | App `f30f1b18` / engine `d00a8b97` returned `credentialPresent` and one Halo `auth.verify` returned exact `verified:true`. This was not a license, ownership or gameplay check. |
-| Current updated-engine saved access | App `4e204270` / engine `2b31d199` successfully read that saved session after the explicit foreground interaction correction. No new Microsoft login was used. |
-| Actual personal Xbox service | The same updated engine performed one `library.recent` read and returned **20 real titles**, live/partial, with reported platforms and no guessed Store product mapping. |
-| Personal artwork gap | All 20 history image references were rejected by the initial URL policy. Zero personal images were fetched. The grid's neutral fallback is not artwork acceptance. |
-| Qualified artwork correction | Engine `c1073100` safely converts exact Store HTTP image metadata to HTTPS; nine focused native checks passed. The sealed Release and provenance hashes, sizes, source/tree/schema identities and 205 exact Git-LF inputs were independently checked. Matching app packaging and an actual post-correction history image result are still pending. |
+| Current updated-engine saved access | Installed app `113be57c` / engine `c1073100` returned current `credentialPresent`, retaining the `2b31d199` foreground interaction correction. No new Microsoft login or credential reset was used. |
+| Actual personal Xbox service | One `library.recent` read on the corrected pair returned **20 real titles**, live/partial, with reported platforms and no guessed Store product mapping. |
+| Real personal artwork | All 20 titles now have available artwork; zero references were rejected. One preload batch succeeded for 20 references, with zero failures. References can share the cache; this is not a claim of 20 distinct HTTP requests. |
+| Qualified artwork correction | Engine `c1073100` safely converts exact Store HTTP image metadata to HTTPS; nine focused native checks passed. Its exact sealed Release/provenance and 205 Git-LF inputs were checked. Matching app CI passed; package and installed inventories/signatures matched. The one actual changed Library PNG was retrieved and visually reviewed, with real tile artwork and a tile-based feature, not an invented marketing hero. |
 | Real public artwork | Installed artwork code loaded Halo Infinite and Gears 5 covers plus Halo hero artwork from actual Store metadata: three successful loads, zero failures. Discover/Product own-view PNGs were visually reviewed. |
-| Current working package | App `4e204270550f2f83082e7562187f8619b777fc05`, engine `2b31d199a3be15422596b46bc70e0926df30b539`; installed CLI SHA256 `67b6de5ec1c56316313d6901a3beaa71857c782c1cd036fc19e08c209c8ae00a`. |
+| Current working package | App `113be57c7ceba230bc9252585bd98e4ce1679fa4`, engine `c1073100ce8936a751b962b1401ddb641c8be38a`; installed CLI SHA256 `c8fe69a3bc2b6a84c5bad5ef0c1ae041f36466a87419c0f17d9567c6df3ed14d`. All 21 installed files match the admitted receipt; shipping is reopened with one owned engine and no active login helper. The complete working `4e` rollback and saved profile are preserved. |
 | Native read correction | Foreground reads explicitly enable native interaction under the existing mutex, then restore the prior setting. Background/verification reads remain deliberately noninteractive. Fixed failed-read diagnostics contain no credentials or account identifiers. |
 | Signing limit | The local signer works, but identical self-signed designated requirements do not stabilize macOS's independent per-binary partition. A future engine can need native permission again. No prompt-free rebuild guarantee is claimed. |
-| Installation inventory | Current `installed.snapshot` is an empty placeholder, not a Mac scan or a durable managed installation list. Selected-folder marker inspection is structural observation only. |
+| Installation inventory | Shipping `installed.snapshot` remains an empty placeholder. Real read-only StagingStore registry wiring is active source work, with nullable runtime identity and unverified health rather than invented verification. No OS-wide scan or installed game is claimed. |
 | Historical CrossOver controls | Existing No Man's Sky/Hogwarts user confirmations and a Hollow Knight menu result are preserved references, not proof this launcher installs or launches them. |
 
 Personal history is intentionally memory-only. The development render session
@@ -74,6 +74,7 @@ Private results remain in ignored session/Mac evidence locations:
 - `app-foreground-read-4e20427/personal-history-confirmation/after/live-account-signed-in.png`
 - `app-art-history-fb39072/public-art-confirmation/images/live-discover-search.png`
 - `app-art-history-fb39072/public-art-confirmation/images/live-product.png`
+- `app-recent-art-113be57/personal-art-confirmation/after/live-library.png`
 
 These paths are relative to `/Users/dragoshont/xodus-app-tooling/`.
 Do not commit personal title rows, raw provider responses, XUIDs, credentials,
@@ -94,8 +95,8 @@ The next game-lifecycle slice must be one legitimate selected PC edition.
 | CAT-01 | Real public Store browse/search/detail | Observed | Supported catalog capability | Backend/App | Actual scoped response shown; partial errors, no-result, continuation, offline and failure remain distinct |
 | ART-01 | Real Store BoxArt/Poster/SuperHeroArt | Observed | CAT-01 | Backend/App | Real covers and hero load through bounded native loader; final own-view images are not placeholders |
 | LIB-01 | Real Recently played Library | Observed | AUTH-02 | Backend/App | One actual bounded TitleHub result; native grid/filter/search use actual titles, not ownership or install claims |
-| ART-02 | Real history tile artwork and Library feature | Active | LIB-01 | Backend/App | Actual history references accepted safely, image downloads/decode succeed and Library PNG contains real title art |
-| LIB-02 | Useful history navigation | Pending | LIB-01, CAT-01 | App/Backend | Real title selection has a usable detail/search route without treating Xbox title ID or a name match as a verified Store edition |
+| ART-02 | Real history tile artwork and Library feature | Observed | LIB-01 | Backend/App | Actual history references accepted safely, image downloads/decode succeed and Library PNG contains real title art |
+| LIB-02 | Useful history navigation | Active | LIB-01, CAT-01 | App/Backend | Explicit Find in Store action reuses real search; candidates are user-selected, never an inferred verified edition or ownership claim |
 | OWN-01 | Complete authoritative owned-PC inventory | External | Supported consumer entitlement API and account/product coverage evidence | Backend | Real entitlement enumeration, pagination and expired/subscription behavior; played history never substitutes |
 | UX-01 | Nine Figma flows with native composition | Active | Real contracts below | App | Screen-by-screen layout/interaction checks with real data; no fixture hero, project status or faux native chrome |
 | UX-02 | Loading/error/empty/partial/offline states | Implemented, integration pending | Each implemented surface | App | Every state has concise product copy and an appropriate action; no failure-to-empty success fallback |
@@ -105,7 +106,7 @@ The next game-lifecycle slice must be one legitimate selected PC edition.
 | DL-01 | One actual managed package download | Pending | PKG-01, LIC-01 | Backend/App | Immutable private source, authoritative checksum, byte limits, progress and owned staging; cancel/failure never corrupts active installation |
 | INSTALL-01 | Bounded extraction and complete manifest | Pending | DL-01 | Backend | Real supported MSIXVC format, authenticated content/integrity, safe names/counts/sizes and exact disk expansion |
 | INSTALL-02 | Atomic install promotion | Pending | INSTALL-01 | Backend/App | Staging verify/commit succeeds, restart reconciliation works; previous version and saves survive failure |
-| LOCAL-01 | Genuine managed installed-game list | Pending | INSTALL-02 | Backend/App | Actual StagingStore-backed entries, versions and health survive restart; no fabricated runtime fingerprint or OS-wide discovery |
+| LOCAL-01 | Genuine managed installed-game list | Active source / real install pending | Reviewed local-state contract; INSTALL-02 for live installation proof | Backend/App | Actual StagingStore-backed entries, versions and health survive restart; no fabricated runtime fingerprint or OS-wide discovery |
 | JOB-01 | Real install/download job queue | Pending | PKG-01, install/job contract | Backend/App | Genuine progress/events/cancel/retry/restart semantics; catalog-check jobs never masquerade as downloads |
 | UPDATE-01 | Full-base update with old-version retention | Pending | INSTALL-02, PKG-01 for new version | Backend/App | New immutable base staged and verified; atomic promotion, crash reconciliation and failed update preserve old version |
 | ROLLBACK-01 | Verified installation rollback | Pending | UPDATE-01 | Backend/App | Prior manifest/version revalidated; saves are untouched, unrelated paths never deleted |
@@ -126,7 +127,7 @@ Later native toolbar revisions supersede hand-drawn capsule chrome.
 
 | Screen / Figma node | Real data required | Current gap | Acceptance |
 | --- | --- | --- | --- |
-| Library, `3:115` | Recent history, real tile/feature art; later actual installed entries | 20 real titles observed; all history images rejected, no feature image yet | Real art grid/feature, platform filter/scoped search; no invented owned or installed counts |
+| Library, `3:115` | Recent history, real tile/feature art; later actual installed entries | Real artwork grid and tile-based feature visually confirmed; Store navigation and genuine installed entries still in progress | Real art grid/feature, platform filter/scoped search; no invented owned or installed counts |
 | Discover Browse, `3:365` | Real public catalog and actual title art | Public search/art observed; broader browse composition still needs integrated review | Useful real browse content, native navigation and real title selection |
 | Discover Search, `3:288` | Actual scoped results and cover URLs | Real Halo/Gears covers verified; pagination/partial behavior retained | Search keyboard/focus, real cards and one actionable partial notice |
 | Game detail, `3:248` | Store hero/cover, real product/SKU/availability; later genuine actions | Hero/cover observed; Install/Play not yet implemented | Artwork-led native detail, actual capabilities only, technical provenance in secondary information |
@@ -144,17 +145,16 @@ game flow.
 
 ## Current ordered task graph
 
-1. **Finish ART-02** with the smallest evidenced normalization change:
-   accept HTTP metadata only for the exact verified Store image origin and
-   single safe asset path, then emit HTTPS. No HTTP fetch, arbitrary CDN,
-   embedded `url` query, private host, redirect or credential-bearing query.
-   Public fixtures plus one actual canonical HTTPS asset fetch support this
-   input format; the user's 20 rejected references are not yet proven identical.
-2. **Verify the real Library once after the correction.** If images remain
-   rejected, collect only fixed aggregate shape categories (scheme/allowlisted
-   host/path kind/query-key categories), never live URLs, query values, asset
-   IDs, XUIDs or title rows in public diagnostics. Then fix the actual format
-   in one coherent batch instead of broadening fetch trust speculatively.
+1. **ART-02 observed complete:** exact Store HTTP metadata is normalized to
+   HTTPS without broadening origin/path/query trust. One corrected live
+   history read returned 20 available images; all 20 preload references
+   succeeded. The actual Library image was visually confirmed. No further
+   personal read, public-art rerun or polishing loop is required.
+2. **Deliver usable navigation and genuine local-state reads.** The app reuses
+   Discover for an explicit Find in Store action, without inferred mapping.
+   The backend reads the existing StagingStore registry without creating,
+   migrating, repairing or scanning it. Missing state is distinct from
+   permission, corruption, concurrent mutation and recovery failure.
 3. **Freeze PKG-01/LIC-01 and install-job contracts** from existing Exodus
    seams, including rollback/save/crash policy. Select one legitimate supported
    PC edition with the user; personal history is not proof of entitlement.

@@ -23,15 +23,15 @@ branches; this README is not a claim that it has all been merged or deployed.
 **Full application delivery:** [the delivery ledger](docs/xodus/delivery-ledger.md)
 maps every approved Figma screen and the saved-auth, Library artwork,
 single-game authorization, download/install, local inventory, update, rollback,
-remove and CrossOver play work. Real recent history now returns 20 titles;
-history images remain a separate active acceptance gap. The complete app is
+remove and CrossOver play work. Real recent history now returns 20 titles
+with successfully loaded artwork. The complete app is
 not finished, and this ledger is never presented as product UI.
 
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
-| Native launcher | Current `4e204270` preserves the real Store covers/hero and native toolbar. Actual public Discover/Product and personal Library/Account own-view PNGs were visually reviewed; personal history contains 20 real titles. | Own-view exports qualify content/layout, not system compositor/Liquid Glass or accessibility. Personal tile artwork and install/update/play remain incomplete. |
-| Store authentication | Corrected `4e204270`/`2b31d199` reads the saved Microsoft session and returned 20 real recently played titles. Earlier `f30f1b18`/`d00a8b97` also completed a checked authenticated Halo package read. No new Microsoft login or credential copying/reset was used by either verified read. | Different locally self-signed engine builds may need native Keychain approval. These reads do not prove ownership, entitlement, installation or gameplay. |
-| Owned and local games | Real public catalog artwork is visually verified. One read-only `library.recent` call returned 20 actual titles; the native **Your games / Recently played** grid and saved Account were rendered and reviewed. | All 20 personal image references were rejected by the initial URL policy; history artwork is being corrected. Complete owned-PC inventory and installation scanning are not implemented. Played history and catalog presence are not ownership or playability evidence. |
+| Native launcher | Installed `113be57c`/`c1073100` shows real personal tile artwork and a tile-based Library feature, preserving the Store covers/hero and native toolbar. Actual public Discover/Product, current Library and earlier saved Account own-view PNGs were visually reviewed. | Own-view exports qualify content/layout, not system compositor/Liquid Glass or accessibility. Install/update/play remain incomplete. |
+| Store authentication | Current `113be57c`/`c1073100` reads the saved Microsoft session and returned 20 real recently played titles. Earlier `f30f1b18`/`d00a8b97` also completed a checked authenticated Halo package read. No new Microsoft login or credential copying/reset was used by these verified reads. | Different locally self-signed engine builds may need native Keychain approval. These reads do not prove ownership, entitlement, installation or gameplay. |
+| Owned and local games | One corrected `library.recent` call returned 20 actual titles with 20 available images, zero rejected references and 20 successful preload references/zero failures. The real native Library image was visually reviewed. | Complete owned-PC inventory remains unsupported; genuine managed-registry reads are being implemented. Played history and catalog presence are not ownership or playability evidence. |
 | Shipping pair admission | Fixed bundled engine/helper paths and stage-generated compiled identities; missing approval or changed files fail before management, authentication mutations or runtime planning. | Controlled local operator approval only, not general Developer ID distribution attestation. HELLO alone grants no trust. |
 | Account presentation | Toolbar, Account, Settings and Library share freshness-aware account state. Failed status checks remove saved-account claims while retaining the safety snapshot; a pending flow does not claim that a Microsoft window opened. | Source-side UI changes do not establish live authentication, PC ownership or entitlement. |
 | Runtime selection | CrossOver, GPTK 3, GPTK 4 and standalone Wine configuration/planning foundations. **First-release dependency: a genuine, separately installed official CrossOver copy.** Other runtime tracks remain experimental, not supported first-release alternatives. | **Configuration/planning only.** No installation discovery, prefix creation/migration, device preflight or game execution is certified by these plans; `launchable` remains `false`. No CodeWeavers endorsement is implied. |
@@ -107,9 +107,9 @@ and compatibility, with continuation not followed. No authentication method
 or helper execution was requested by that smoke.
 
 **Current installed pair:** app
-[4e204270](https://github.com/dragoshont/xodus-macos-app/commit/4e204270550f2f83082e7562187f8619b777fc05)
+[113be57c](https://github.com/dragoshont/xodus-macos-app/commit/113be57c7ceba230bc9252585bd98e4ce1679fa4)
 and backend
-[2b31d199](https://github.com/dragoshont/xodus-macos/commit/2b31d199a3be15422596b46bc70e0926df30b539).
+[c1073100](https://github.com/dragoshont/xodus-macos/commit/c1073100ce8936a751b962b1401ddb641c8be38a).
 On October 6 the app owner observed a saved Microsoft session after human
 sign-in, then verified that it remained saved after a normal app restart.
 The subsequent close/retry update also preserved the saved session without

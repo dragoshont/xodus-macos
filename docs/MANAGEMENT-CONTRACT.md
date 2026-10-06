@@ -219,11 +219,30 @@ states are completed/cancelled/failed. Starting consent is not signed-in success
 No automatic consent window or Keychain-approval clicking is performed.
 
 Foreground read-only `auth.status` uses the upstream native Keychain interaction
-policy: macOS may ask the human to unlock the login Keychain or approve this
+policy: under the existing serialized management guard, the read explicitly
+allows process interaction and restores the exact prior flag afterward. macOS
+may ask the human to unlock the login Keychain or approve this
 engine's access to the saved launcher item. It runs outside the public actor
 with a 120-second human-permission budget; the client allows 130 seconds.
 Anonymous hello/startup never reads credentials. Polling during an active
 consent flow remains explicitly non-interactive with a two-second read budget.
+Silent reads explicitly disable interaction when needed and restore the prior
+flag. A failed restoration is a failed read, never success. Management writes
+and ordinary CLI interaction behavior are unchanged.
+
+An existing failed native management read emits one bounded stderr JSON line
+(at most 512 bytes including LF), never a wire result or product UI message.
+Its fixed `category` is `managementCredentialReadFailure`; `boundary` is one of
+interactionLock, interactionState, interactionEnable, interactionDisable,
+interactionRestore, entryCreate or secretRead. `role` is savedStore or
+otherManagement, and `class` is busy, interactionDenied, accessDenied,
+storeUnavailable, corrupt or unknown. `requestedInteractive` is required.
+Optional `osStatus` is the actual signed 32-bit native code, not parsed error
+text. Optional `processAllowed` reports the last known flag; it is omitted for
+lock/state/restore failures. Missing entries are not failures. Restoration
+failure takes diagnostic priority if the entry read also failed. No keys,
+accounts, credential bytes, URLs, native messages or provider metadata are
+formatted. These classes do not establish that the Keychain is locked.
 A blocked/unapproved/expired-budget read returns `AUTH_INVALID` with
 `details.category:credentialStoreUnavailable`, never a signed-out fallback or
 an empty account. Late results are discarded, including after disconnect.

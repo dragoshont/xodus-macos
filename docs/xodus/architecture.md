@@ -479,6 +479,60 @@ partial/external/unregistered/unverified result must not be promoted to
 installed or launchable. Durable observations, if added, must remain distinct
 from verified installation records.
 
+**October 6 Store artwork and recent-history slice:** installed app
+[`fb39072`](https://github.com/dragoshont/xodus-macos-app/commit/fb39072cd9e0301c308c1b91bfd5ea157bf5e51d),
+tree `47cf0c73161e501024388321736f8fd273733b39`, binds producer
+[`680593de`](https://github.com/dragoshont/xodus-macos/commit/680593de3d32390fe2105780b9a21b09fd302337),
+tree `4b6fda27f9cf8aa546dfff6693b4270eabfee230`, and generated public schema
+`6945db01df88eeaf80f495f6b9d7240e270a879851c2c830fc5548ba20d32192`.
+Source reviews, focused native tests, exact-source app CI
+[37477681227](https://github.com/dragoshont/xodus-macos-app/actions/runs/37477681227),
+sealed Release provenance and final package hashes/signatures qualified the
+pair before installation. The working `a8` rollback and saved profile are
+preserved; no credential reset or new Microsoft login was performed.
+
+DisplayCatalog's selected localized `Images` now map BoxArt, Poster and
+SuperHeroArt into a bounded typed artwork array. Only normalized HTTPS URLs
+on the verified Store image host/path are exposed. The native, memory-only
+loader rejects redirects, cookies and authentication and bounds requests to
+10 seconds, 8 MiB and 16,777,216 decoded pixels. Metadata absence/rejection is
+distinct from fetch/decode failure. Old cached catalog records explicitly
+migrate to empty artwork with `notQueried`.
+
+One actual anonymous Halo catalog query in an isolated public-metadata profile
+returned two products with available artwork. Actual HTTP/decode preload of
+two covers and the first hero succeeded, with zero failures. Both real native
+own-view PNGs were retrieved and visually reviewed:
+`/Users/dragoshont/xodus-app-tooling/app-art-history-fb39072/public-art-confirmation/images/live-discover-search.png`
+and `live-product.png` in the same directory. They show Halo Infinite/Gears 5
+covers and the Halo hero/box art, without fixtures or a personal account read.
+No further public-art probe or polish round was needed.
+
+The separate `library.recent` operation uses the existing saved-proof exchange
+to request a fresh Xbox XSTS token for `http://xboxlive.com`, then a bounded
+TitleHub GET with contract version 2 and an explicit item limit. Private XUID
+claims remain inside the provider; public results carry game titles, reported
+platforms, optional last-played dates and artwork, never guessed Store mapping
+or ownership. The source-backed
+[OpenXbox client](https://github.com/OpenXbox/xbox-webapi-python/blob/master/xbox/webapi/api/provider/titlehub/__init__.py)
+describes this as recently played history. It is a partial window, not a
+complete owned-game inventory or proof of PC installation.
+History stays in memory and is cleared before every explicit Account refresh,
+on failure/profile uncertainty, sign-out and disconnect. The read-only
+publication path compares the complete stored profile, then checks generation,
+shared epoch, expiry and deadline. Successful full-profile revalidation is
+the read linearization point for independent writers; a later external write
+does not retroactively invalidate that read.
+
+The first live personal exporter stopped because saved status was not confirmed;
+its generic guard did not retain a fixed cause. No TitleHub request or personal
+PNG was produced. Development-only fixed-enum result capture is ready for a
+subsequent human-triggered attempt, without changing shipping bytes.
+The user was directed to open Account, choose Check status, and handle any
+native saved-login prompt with Always Allow. Personal history, Library artwork
+and the signed-in Account confirmation remain live-unverified. The verified
+public artwork does not substitute for those criteria.
+
 The chronology below records earlier source and runtime observations,
 not the current persistence result.
 

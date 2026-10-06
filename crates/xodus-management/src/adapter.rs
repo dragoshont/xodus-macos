@@ -608,6 +608,7 @@ pub fn map_product(
         })
         .ok_or_else(invalid)?;
     let title = localized.product_title.trim();
+    let (artwork, artwork_status) = crate::artwork::catalog_images(&localized.images);
     if title.is_empty()
         || title.chars().count() > 1024
         || title.chars().any(char::is_control)
@@ -690,6 +691,8 @@ pub fn map_product(
         freshness: Freshness::Live,
         editions: editions.into_values().collect(),
         pc_catalog_candidate: pc_candidate,
+        artwork,
+        artwork_status,
     })
 }
 
@@ -954,6 +957,13 @@ impl Backend {
     async fn dispatch(&mut self, request: &Request) -> Result<Option<Data>, WireError> {
         let data = match &request.operation {
             Operation::Hello(params) => self.hello(params)?,
+            Operation::LibraryRecent(_) => {
+                return Err(WireError::new(
+                    ErrorCode::CapabilityMissing,
+                    "The recent title history provider is not available.",
+                    false,
+                ));
+            }
             Operation::AuthVerify(params) => {
                 if self.account_mutation_pending
                     || self.account_read_permits.available_permits() == 0

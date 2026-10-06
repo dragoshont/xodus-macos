@@ -22,6 +22,8 @@ pub struct LocalizedProperties {
     pub product_title: String,
     #[serde(default)]
     pub language: Option<String>,
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
+    pub images: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

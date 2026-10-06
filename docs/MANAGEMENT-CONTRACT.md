@@ -42,6 +42,7 @@ runtime/version. Account scope is only `default`, without an account identifier.
 | auth.status / auth.logout | authData, native macOS Keychain only |
 | auth.begin / auth.cancel | authData with optional flow, owned native WKWebView consent worker |
 | auth.verify | authVerifiedData, explicit read-only authenticated package-metadata check |
+| library.recent | recentLibraryData, negotiated bounded played-title history; not ownership inventory |
 | inventory.snapshot | gated: ACCESS_UNKNOWN; no catalog/history ownership substitution |
 | product.detail | productData, anonymous public product-ID lookup or explicit cached lookup |
 | catalog.search | searchData, **observedPublicProducts** corpus only, partial catalog coverage |
@@ -118,6 +119,79 @@ SKU IDs are errors, never fabricated editions. Content IDs are not package IDs.
 Entitlement and compatibility remain unknown. Installability is unknown for a
 public PC candidate and blocked when the returned edition has no PC package;
 neither is downloadable without a separate authorized package source.
+
+### Artwork and personal history extension
+
+Every product result contains required `artwork` and `artworkStatus`. Artwork is
+an array of at most four unique roles (`boxArt`, `poster`, `hero`, `tile`), each
+with exactly `role`, `url`, nullable `width`/`height`, and `source`. DisplayCatalog
+`BoxArt`, `Poster`, and `SuperHeroArt` map to the first three roles from the
+already-selected localized property only; unknown image purposes are ignored.
+URLs are actual metadata, not synthesized assets. Only HTTPS on the exact
+`store-images.s-microsoft.com` host with `/image/` and one ASCII asset segment is
+accepted; protocol-relative URLs normalize to HTTPS. Queries, fragments,
+credentials, explicit ports, alternate hosts, and path escapes are rejected.
+Rejected candidates produce fixed sanitized diagnostics, not raw URLs, and do
+not fail an otherwise valid product.
+
+`available` means a nonempty metadata array, not successful image delivery.
+`absent`, `rejected`, and `notQueried` require an empty array. `notQueried` is
+reserved for migrated old cached records; migration emits the required fields
+explicitly. Dimensions are either both null or both positive integers no greater
+than 8192, with a product no greater than 16,777,216 pixels. The multiplication
+bound is a producer/consumer invariant; standard JSON Schema describes the
+paired dimensions and individual bounds, not arithmetic multiplication.
+Consumers independently enforce the same URL/dimension policy, no redirects,
+cookies or authorization, a ten-second/eight-MiB image download budget, and the
+decoded-pixel cap. Loading or failed image delivery is distinct from missing
+metadata and keeps the native placeholder.
+
+`library.recent` accepts exactly `{"limit":1}` through `{"limit":100}`.
+Its separate `recentLibraryData` contains `scope:recentlyPlayed`,
+`source:XboxTitleHub:v2`, live `checkedAt`/`freshness`, `completeness:partial`,
+`nextCursor:null`, and at most 100 titles. Each title has `titleID`, `name`,
+nullable `lastPlayedAt`, reported `devices`, conservative `platform`, the same
+artwork/status fields, and `productID:null`. Title IDs, names and package-family
+names are never guessed Store product mappings. Played history is neither
+complete history nor purchases, active subscription, entitlement, PC package
+availability, installation or compatibility. A valid empty title collection is
+successful empty recent history, not a provider failure.
+
+The provider uses a newly exchanged XSTS for exactly `http://xboxlive.com`,
+never the package/update audience token, and one fixed HTTPS TitleHub
+`titlehistory/decoration/image` GET with contract version 2 and `maxItems`.
+The private validated XUID is only used inside that request and never appears
+in the public contract, errors, diagnostics or persistent state. No continuation
+or full-history guarantee is inferred from the different achievements-history
+API. Public source grounding is OpenXbox commit
+`672f34f256f18640d387147867950234fc2e140f`; its fixture uses `type:Game` with
+`mediaItemType:Application`, so media item type is not a PC/game entitlement.
+
+History reads share the existing saved-proof provider and publication fences:
+30 seconds overall, deliberate two-second noninteractive credential and
+publication reads, noninteractive clone first and read-only wrapper last.
+Foreground `auth.status` remains the separate 120-second human permission path.
+No history persistence, refreshed-token writes, helpers, consent, licensing,
+download or account mutation occurs. Account changes, proof expiry, timeout or
+disconnect cannot publish a stale or late successful history. The capability
+is false unless the native saved-profile provider is wired.
+
+Closed failures have exactly `details:{"category":"recentLibraryFailure",
+"stage":"..."}` and `message:"Recent library read failed: <stage>."`:
+
+| Stage | Code | Retryable |
+| --- | --- | --- |
+| credentialUnavailable | AUTH_INVALID | false |
+| profileChanged | AUTH_INVALID | false |
+| authExchangeFailed | AUTH_INVALID | true |
+| authRejected | ACCESS_REVOKED | false |
+| transportFailed | NETWORK_UNAVAILABLE | true |
+| responseInvalid | INTEGRITY_FAILED | false |
+
+Ordinary transition/capability/request failures retain their generic errors
+without this category. Actual authenticated TitleHub behavior is not proved by
+fixtures, source, compilation or a readable credential; live acceptance requires
+the reviewed matching engine and the app owner's explicit admitted request.
 
 ## Native account consent
 

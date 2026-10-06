@@ -359,6 +359,8 @@ mod tests {
                     freshness: Freshness::Live,
                     editions: vec![],
                     pc_catalog_candidate: true,
+                    artwork: vec![],
+                    artwork_status: crate::wire::ArtworkStatus::NotQueried,
                 })
             })
         }

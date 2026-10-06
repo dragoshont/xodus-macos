@@ -73,6 +73,8 @@ pub enum Operation {
     AuthLogout(Empty),
     #[serde(rename = "auth.verify")]
     AuthVerify(AuthVerifyParams),
+    #[serde(rename = "library.recent")]
+    LibraryRecent(RecentLibraryParams),
     #[serde(rename = "inventory.snapshot")]
     InventorySnapshot(InventoryParams),
     #[serde(rename = "catalog.search")]
@@ -152,6 +154,12 @@ pub struct AuthVerifyParams {
 #[serde(deny_unknown_fields)]
 pub struct AuthVerifiedData {
     pub verified: True,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecentLibraryParams {
+    pub limit: u32,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -443,6 +451,7 @@ pub enum Data {
     Hello(HelloData),
     Auth(AuthData),
     AuthVerified(AuthVerifiedData),
+    RecentLibrary(RecentLibraryData),
     Search(SearchData),
     Discovery(DiscoveryData),
     Query(QueryData),
@@ -536,6 +545,80 @@ pub struct ProductRecord {
     pub freshness: Freshness,
     pub editions: Vec<ProductEvidence>,
     pub pc_catalog_candidate: bool,
+    pub artwork: Vec<Artwork>,
+    pub artwork_status: ArtworkStatus,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "camelCase")]
+pub enum ArtworkRole {
+    BoxArt,
+    Poster,
+    Hero,
+    Tile,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub enum ArtworkSource {
+    #[serde(rename = "MicrosoftDisplayCatalog:v7.0")]
+    DisplayCatalog,
+    #[serde(rename = "XboxTitleHub:v2")]
+    TitleHub,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Artwork {
+    pub role: ArtworkRole,
+    pub url: String,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    pub source: ArtworkSource,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum ArtworkStatus {
+    Available,
+    Absent,
+    Rejected,
+    NotQueried,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RecentLibraryData {
+    pub scope: String,
+    pub source: String,
+    pub checked_at: String,
+    pub freshness: Freshness,
+    pub completeness: Completeness,
+    pub next_cursor: Option<String>,
+    pub titles: Vec<RecentTitle>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RecentTitle {
+    #[serde(rename = "titleID")]
+    pub title_id: String,
+    pub name: String,
+    pub last_played_at: Option<String>,
+    pub devices: Vec<String>,
+    pub platform: HistoryPlatform,
+    pub artwork: Vec<Artwork>,
+    pub artwork_status: ArtworkStatus,
+    #[serde(rename = "productID")]
+    pub product_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum HistoryPlatform {
+    Pc,
+    Console,
+    Mixed,
+    Unknown,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

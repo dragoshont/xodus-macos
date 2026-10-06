@@ -63,6 +63,7 @@ commands = {
         "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
         "not": {"const": str(uuid.UUID(int=0))},
     }}),
+    "library.recent": obj({"limit": {"type": "integer", "minimum": 1, "maximum": 100}}),
     "inventory.snapshot": obj({"accountScope": {"const": "default"},
                                "market": product_params["properties"]["market"],
                                "refresh": enum("cache", "network")}),
@@ -179,12 +180,81 @@ defs["error"].setdefault("allOf", []).append({
         for stage, (code, retryable) in verification_errors.items()
     ]},
 })
+recent_errors = {stage: value for stage, value in verification_errors.items()
+                 if stage != "packageUnavailable"}
+defs["recentLibraryFailure"] = obj({
+    "category": {"const": "recentLibraryFailure"},
+    "stage": enum(*recent_errors),
+})
+defs["error"]["allOf"].append({
+    "if": {"required": ["details"], "properties": {"details": {
+        "type": "object", "required": ["category"],
+        "properties": {"category": {"const": "recentLibraryFailure"}},
+    }}},
+    "then": {"properties": {"details": ref("recentLibraryFailure")}, "allOf": [
+        {"if": {"properties": {"details": {"properties": {"stage": {"const": stage}}}}},
+         "then": {"properties": {
+             "code": {"const": code}, "retryable": {"const": retryable},
+             "message": {"const": f"Recent library read failed: {stage}."},
+         }}}
+        for stage, (code, retryable) in recent_errors.items()
+    ]},
+})
+defs["artwork"] = obj({
+    "role": enum("boxArt", "poster", "hero", "tile"),
+    "url": {"type": "string", "maxLength": 2048,
+            "pattern": "^https://store-images\\.s-microsoft\\.com/image/[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "width": nullable({"type": "integer", "minimum": 1, "maximum": 8192}),
+    "height": nullable({"type": "integer", "minimum": 1, "maximum": 8192}),
+    "source": enum("MicrosoftDisplayCatalog:v7.0", "XboxTitleHub:v2"),
+})
+defs["artwork"]["oneOf"] = [
+    {"properties": {"width": {"type": "null"}, "height": {"type": "null"}}},
+    {"properties": {"width": {"type": "integer"}, "height": {"type": "integer"}}},
+]
+defs["artwork"]["description"] = (
+    "Validated public marketing image. Producer and consumer additionally enforce "
+    "width * height <= 16777216; standard JSON Schema cannot express multiplication."
+)
+artwork_fields = {
+    "artwork": array(ref("artwork"), 4),
+    "artworkStatus": enum("available", "absent", "rejected", "notQueried"),
+}
+artwork_rules = [
+    {"if": {"properties": {"artworkStatus": {"const": "available"}}},
+     "then": {"properties": {"artwork": {"minItems": 1}}},
+     "else": {"properties": {"artwork": {"maxItems": 0}}}},
+] + [
+    {"properties": {"artwork": {
+        "contains": {"properties": {"role": {"const": role}}},
+        "minContains": 0, "maxContains": 1,
+    }}} for role in ("boxArt", "poster", "hero", "tile")
+]
 defs["productRecord"] = obj({
     "productID": identifier, "title": text, "market": text, "language": text,
     "source": text, "checkedAt": date, "freshness": enum("live", "cached"),
     "editions": array(ref("productEvidence"), 256), "pcCatalogCandidate": boolean,
+    **artwork_fields,
 })
+defs["productRecord"]["allOf"] = artwork_rules
 defs["productRecord"]["properties"]["resolvedLanguage"] = text
+defs["recentTitle"] = obj({
+    "titleID": {"type": "string", "pattern":
+                "^([1-9][0-9]{0,8}|[1-3][0-9]{9}|4[0-1][0-9]{8}|42[0-8][0-9]{7}|"
+                "429[0-3][0-9]{6}|4294[0-8][0-9]{5}|42949[0-5][0-9]{4}|"
+                "429496[0-6][0-9]{3}|4294967[0-1][0-9]{2}|42949672[0-8][0-9]|"
+                "429496729[0-5])$"},
+    "name": text, "lastPlayedAt": nullable(date),
+    "devices": array({"type": "string", "minLength": 1, "maxLength": 64}, 32),
+    "platform": enum("pc", "console", "mixed", "unknown"),
+    **artwork_fields, "productID": {"type": "null"},
+})
+defs["recentTitle"]["allOf"] = artwork_rules
+defs["recentLibraryData"] = obj({
+    "scope": {"const": "recentlyPlayed"}, "source": {"const": "XboxTitleHub:v2"},
+    "checkedAt": date, "freshness": {"const": "live"}, "completeness": {"const": "partial"},
+    "nextCursor": {"type": "null"}, "titles": array(ref("recentTitle"), 100),
+})
 defs["productData"] = obj({"product": ref("productRecord")})
 defs["searchData"] = obj({
     "products": array(ref("productRecord"), 100),
@@ -278,7 +348,7 @@ defs["diagnosticsData"] = obj({
     "runtimeCertified": {"const": False}, "inventoryAuthorized": {"const": False},
 })
 defs["success"]["properties"]["data"] = {"oneOf": [
-    ref(name) for name in ("helloData", "authData", "authVerifiedData", "productData", "searchData", "discoveryData", "queryData",
+    ref(name) for name in ("helloData", "authData", "authVerifiedData", "recentLibraryData", "productData", "searchData", "discoveryData", "queryData",
                           "jobData", "jobsData", "replayData", "installedData", "inspectionData", "diagnosticsData")
 ]}
 
@@ -296,6 +366,7 @@ examples = {
     "hello": {"client": "fixture-client", "clientVersion": "1.0"},
     "auth.begin": {"accountScope": "default"}, "auth.cancel": {"flowID": "fixture-flow"},
     "auth.verify": {"contentID": str(uuid.UUID(int=1))},
+    "library.recent": {"limit": 100},
     "inventory.snapshot": {"accountScope": "default", "market": "US", "refresh": "cache"},
     "catalog.search": {"query": "", "market": "US", "language": "en-US",
                        "platform": "pc", "limit": 100, "cursor": None},
@@ -343,7 +414,25 @@ evidence = {
 }
 record = {"productID": "FIXTURE00001", "title": "Fixture Harbor", "market": "US",
           "language": "en-US", "source": "fixture", "checkedAt": timestamp,
-          "freshness": "cached", "editions": [evidence], "pcCatalogCandidate": True}
+          "freshness": "cached", "editions": [evidence], "pcCatalogCandidate": True,
+          "artwork": [], "artworkStatus": "notQueried"}
+artwork = [
+    {"role": role, "url": f"https://store-images.s-microsoft.com/image/fixture-{role}",
+     "width": width, "height": height, "source": "MicrosoftDisplayCatalog:v7.0"}
+    for role, width, height in (("boxArt", 1080, 1080), ("poster", 1440, 2160),
+                               ("hero", 3840, 2160))
+]
+recent = {
+    "scope": "recentlyPlayed", "source": "XboxTitleHub:v2", "checkedAt": timestamp,
+    "freshness": "live", "completeness": "partial", "nextCursor": None,
+    "titles": [{
+        "titleID": "1", "name": "Fixture Harbor", "lastPlayedAt": timestamp,
+        "devices": ["PC", "Win32"], "platform": "pc", "productID": None,
+        "artwork": [{"role": "tile", "url": "https://store-images.s-microsoft.com/image/fixture-tile",
+                     "width": None, "height": None, "source": "XboxTitleHub:v2"}],
+        "artworkStatus": "available",
+    }],
+}
 discovery = {"corpus": "pcGamePassDiscovery", "completeness": "partial",
     "source": "MicrosoftGamePassSigls:v3", "checkedAt": timestamp, "freshness": "live",
     "corpusRevision": "a" * 64, "products": [{**record, "freshness": "live", "resolvedLanguage":"en"}],
@@ -379,6 +468,11 @@ inspection = {"scope":"userSelectedDirectory","completeness":"partial","freshnes
         "launchable":False,"reason":"Marker metadata is not verified files, retail identity, authorization or a certified runtime."}}
 results = [
     {"verified": True},
+    recent,
+    {**recent, "titles": []},
+    {"product": {**record, "freshness": "live", "artwork": artwork, "artworkStatus": "available"}},
+    {"product": {**record, "freshness": "live", "artworkStatus": "absent"}},
+    {"product": {**record, "freshness": "live", "artworkStatus": "rejected"}},
     {"protocol": protocol, "backendVersion": "fixture", "runtimeFingerprint": None,
      "capabilities": [{"command": "game.launch", "supported": False,
                        "audience": "Xbox package authorization and signed paired runtime",
@@ -505,6 +599,64 @@ for stage, (code, retryable) in verification_errors.items():
         invalid = copy.deepcopy(frame)
         invalid["error"][field] = value
         negative.append({"name": f"verify-{stage}-{field}", "frame": invalid})
+for stage, (code, retryable) in recent_errors.items():
+    frame = {"kind": "result", "protocol": protocol, "requestID": "fixture-recent-error",
+             "ok": False, "error": {"code": code, "retryable": retryable,
+             "message": f"Recent library read failed: {stage}.",
+             "details": {"category": "recentLibraryFailure", "stage": stage}}}
+    positive.append(frame)
+    for field, value in [("message", "PRIVATE_SENTINEL"), ("code", "INTERNAL_ERROR"),
+                         ("retryable", not retryable),
+                         ("details", {**frame["error"]["details"], "xuid": "PRIVATE_SENTINEL"})]:
+        invalid = copy.deepcopy(frame)
+        invalid["error"][field] = value
+        negative.append({"name": f"recent-{stage}-{field}", "frame": invalid})
+recent_request = next(frame for frame in positive if frame.get("command") == "library.recent")
+for name, params in [("recentZeroLimit", {"limit": 0}), ("recentOverLimit", {"limit": 101}),
+                     ("recentCursor", {"limit": 100, "cursor": "PRIVATE_SENTINEL"}),
+                     ("recentUserID", {"limit": 100, "xuid": "PRIVATE_SENTINEL"})]:
+    negative.append({"name": name, "frame": {**recent_request, "params": params}})
+for name, data in [
+    ("recentOwnership", {**recent, "scope": "owned"}),
+    ("recentComplete", {**recent, "completeness": "complete"}),
+    ("recentCursorResult", {**recent, "nextCursor": "PRIVATE_SENTINEL"}),
+    ("recentCached", {**recent, "freshness": "cached"}),
+    ("recentIdentity", {**recent, "xuid": "PRIVATE_SENTINEL"}),
+]:
+    negative.append({"name": name, "frame": {"kind": "result", "protocol": protocol,
+                     "requestID": "fixture-recent-invalid", "ok": True, "data": data}})
+for name, key, value in [
+    ("artUnsafeHost", "url", "https://attacker.invalid/image/fixture"),
+    ("artHTTP", "url", "http://store-images.s-microsoft.com/image/fixture"),
+    ("artQuery", "url", "https://store-images.s-microsoft.com/image/fixture?token=PRIVATE_SENTINEL"),
+    ("artUserInfo", "url", "https://PRIVATE_SENTINEL@store-images.s-microsoft.com/image/fixture"),
+    ("artPort", "url", "https://store-images.s-microsoft.com:443/image/fixture"),
+    ("artZero", "width", 0), ("artTooWide", "width", 8193),
+    ("artUnpairedDimensions", "width", None), ("artExtra", "token", "PRIVATE_SENTINEL"),
+]:
+    invalid_art = copy.deepcopy(artwork)
+    invalid_art[0][key] = value
+    negative.append({"name": name, "frame": {"kind": "result", "protocol": protocol,
+        "requestID": "fixture-art-invalid", "ok": True,
+        "data": {"product": {**record, "artwork": invalid_art, "artworkStatus": "available"}}}})
+for name, images, status in [
+    ("artDuplicateRole", artwork + [artwork[0]], "available"),
+    ("artEmptyAvailable", [], "available"),
+    ("artNonemptyAbsent", artwork, "absent"),
+    ("artNonemptyRejected", artwork, "rejected"),
+]:
+    negative.append({"name": name, "frame": {"kind": "result", "protocol": protocol,
+        "requestID": "fixture-art-invalid", "ok": True,
+        "data": {"product": {**record, "artwork": images, "artworkStatus": status}}}})
+for field in ("artwork", "artworkStatus"):
+    old_record = {key: value for key, value in record.items() if key != field}
+    negative.append({"name": f"artRequired-{field}", "frame": {"kind": "result",
+        "protocol": protocol, "requestID": "fixture-art-required", "ok": True,
+        "data": {"product": old_record}}})
+mapped_recent = copy.deepcopy(recent)
+mapped_recent["titles"][0]["productID"] = "FIXTURE00001"
+negative.append({"name": "recentGuessedProduct", "frame": {"kind": "result",
+    "protocol": protocol, "requestID": "fixture-recent-mapped", "ok": True, "data": mapped_recent}})
 write(fixture_root / "positive.json", positive)
 write(fixture_root / "negative.json", negative)
 write(fixture_root / "evidence-edge.json", [

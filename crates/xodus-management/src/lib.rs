@@ -1,3 +1,4 @@
+pub mod artwork;
 pub mod inspection;
 pub mod native_auth;
 pub mod runtime_provider;

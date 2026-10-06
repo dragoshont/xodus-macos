@@ -93,7 +93,18 @@ impl Store {
                 file.take(MAX_STATE_BYTES + 1)
                     .read_to_end(&mut bytes)
                     .map_err(|_| recovery())?;
-                let state: DurableState = serde_json::from_slice(&bytes).map_err(|_| recovery())?;
+                let mut value: serde_json::Value =
+                    serde_json::from_slice(&bytes).map_err(|_| recovery())?;
+                if let Some(catalog) = value.get_mut("catalog").and_then(serde_json::Value::as_object_mut) {
+                    for product in catalog.values_mut() {
+                        let fields = product.as_object_mut().ok_or_else(recovery)?;
+                        if !fields.contains_key("artwork") && !fields.contains_key("artworkStatus") {
+                            fields.insert("artwork".to_owned(), serde_json::json!([]));
+                            fields.insert("artworkStatus".to_owned(), serde_json::json!("notQueried"));
+                        }
+                    }
+                }
+                let state: DurableState = serde_json::from_value(value).map_err(|_| recovery())?;
                 validate_state(&state)?;
                 state
             }
@@ -544,6 +555,10 @@ fn validate_state(state: &DurableState) -> Result<(), WireError> {
         previous = event.sequence;
     }
     if previous != state.watermark {
+        return Err(recovery());
+    }
+    if state.catalog.values().any(|product|
+        !crate::artwork::valid(&product.artwork, &product.artwork_status)) {
         return Err(recovery());
     }
     Ok(())

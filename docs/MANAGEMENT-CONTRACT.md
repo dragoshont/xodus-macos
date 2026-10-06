@@ -152,6 +152,14 @@ results are discarded; they cannot modify credentials. Explicit preparation,
 parent commit and logout also run outside the actor, so public discovery/jobs
 remain dispatchable while the user responds to an intentionally initiated
 Keychain prompt. The ordinary CLI process's interaction policy is unchanged.
+At publication, status reconciles the owned worker and attaches the current
+flow, not the flow captured before the credential read. Failure/cancellation
+during a read cannot republish an earlier pending flow. Account generation
+changes or a reserved account mutation reject the read with retryable
+`REVISION_CONFLICT`; old credential results cannot describe a replacement flow.
+The actor independently polls consent every 250 ms, with a ten-minute deadline.
+Clients still need a final status reconciliation when their polling budget
+ends; their last pending snapshot is not evidence that the worker remains live.
 
 Complete validated user/SOAP/device proof is committed by the parent in one
 native Keychain entry (`management-store-user`), paired with the matching flowID.

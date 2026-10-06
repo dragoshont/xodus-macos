@@ -728,6 +728,7 @@ enum Completion {
     },
     AccountStatus {
         request_id: String,
+        generation: Uuid,
         result: Result<AuthData, WireError>,
     },
     Discovery {
@@ -1057,15 +1058,13 @@ impl Backend {
                     self.reserve_worker()?;
                     let tokens = self.token_manager()?;
                     let request_id = request.request_id.clone();
-                    let flow = self.auth_flow.clone();
+                    let generation = self.account_generation;
                     self.pending_requests.insert(request_id.clone());
                     self.tasks.spawn(async move {
                         Completion::AccountStatus {
                             request_id,
-                            result: read_account_status(tokens).await.map(|mut status| {
-                                status.flow = flow;
-                                status
-                            }),
+                            generation,
+                            result: read_account_status(tokens).await,
                         }
                     });
                     return Ok(None);
@@ -1079,15 +1078,13 @@ impl Backend {
                 self.reserve_worker()?;
                 let tokens = self.token_manager()?;
                 let request_id = request.request_id.clone();
-                let flow = self.auth_flow.clone();
+                let generation = self.account_generation;
                 self.pending_requests.insert(request_id.clone());
                 self.tasks.spawn(async move {
                     Completion::AccountStatus {
                         request_id,
-                        result: read_account_status(tokens).await.map(|mut status| {
-                            status.flow = flow;
-                            status
-                        }),
+                        generation,
+                        result: read_account_status(tokens).await,
                     }
                 });
                 return Ok(None);
@@ -1367,6 +1364,24 @@ impl Backend {
         let mut status = auth_status(&self.token_manager()?)?;
         status.flow = self.auth_flow.clone();
         Ok(status)
+    }
+
+    fn account_status_result(
+        &mut self,
+        generation: Uuid,
+        result: Result<AuthData, WireError>,
+    ) -> Result<Data, WireError> {
+        self.poll_auth()?;
+        if generation != self.account_generation || self.account_mutation_pending {
+            return Err(WireError::new(
+                ErrorCode::RevisionConflict,
+                "Launcher account changed during status read. Check its current status.",
+                true,
+            ));
+        }
+        let mut status = result?;
+        status.flow = self.auth_flow.clone();
+        Ok(Data::Auth(status))
     }
 
     fn bind_consent(&self, mut bootstrap: ConsentBootstrap) -> Result<ConsentBootstrap, WireError> {
@@ -2357,9 +2372,9 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
                         backend.pending_requests.remove(&request_id);
                         write_result(writer, request_id, result.map(Data::Auth)).await?;
                     },
-                    Some(Ok(Completion::AccountStatus { request_id, result })) => {
+                    Some(Ok(Completion::AccountStatus { request_id, generation, result })) => {
                         backend.pending_requests.remove(&request_id);
-                        let result = result.map(Data::Auth);
+                        let result = backend.account_status_result(generation, result);
                         write_result(writer, request_id, result).await?;
                     },
                     Some(Ok(Completion::Discovery { request_id, result })) => {
@@ -4398,6 +4413,145 @@ mod auth_lifecycle_tests {
                 .is_some()
         );
         no_owned_process(pid);
+    }
+
+    #[tokio::test]
+    async fn delayed_account_status_publishes_terminal_flow_and_rejects_replacement() {
+        use xodus::tokens::store::TokenBackend;
+
+        struct HeldRead {
+            started: std::sync::Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
+            release: std::sync::Mutex<Option<tokio::sync::oneshot::Receiver<()>>>,
+        }
+        impl TokenBackend for HeldRead {
+            fn get(&self, _: &str) -> Result<Option<Vec<u8>>, TokenStoreError> {
+                let started = self.started.lock().unwrap().take();
+                if let Some(started) = started {
+                    started.send(()).unwrap();
+                    self.release
+                        .lock()
+                        .unwrap()
+                        .take()
+                        .unwrap()
+                        .blocking_recv()
+                        .unwrap();
+                }
+                Ok(None)
+            }
+            fn set(&self, _: &str, _: &[u8]) -> Result<(), TokenStoreError> {
+                panic!("status must not write")
+            }
+            fn remove(&self, _: &str) -> Result<(), TokenStoreError> {
+                panic!("status must not remove")
+            }
+        }
+
+        for transition in ["failure", "cancel", "deadline", "replacement", "mutation"] {
+            let (_temporary, mut backend) = backend();
+            let pid = own_worker(&mut backend);
+            backend.auth_started = Some(std::time::Instant::now());
+            let (started, observed) = tokio::sync::oneshot::channel();
+            let (release, held) = tokio::sync::oneshot::channel();
+            backend.tokens = Some(TokenManager::with_management_backend(Arc::new(HeldRead {
+                started: std::sync::Mutex::new(Some(started)),
+                release: std::sync::Mutex::new(Some(held)),
+            })));
+            let request = Request {
+                kind: RequestKind::Request,
+                protocol: Protocol::default(),
+                request_id: "held-status".to_owned(),
+                operation: Operation::AuthStatus(Empty {}),
+            };
+            assert!(backend.dispatch(&request).await.unwrap().is_none());
+            tokio::time::timeout(Duration::from_secs(1), observed)
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(matches!(
+                backend.auth_flow.as_ref().unwrap().state,
+                AuthFlowState::Pending
+            ));
+
+            match transition {
+                "cancel" => {
+                    backend.auth_handoff = Some(ConsentReader {
+                        flow_id: "fixture-flow".to_owned(),
+                        worker_failed: false,
+                        task: tokio::spawn(std::future::pending()),
+                    });
+                    backend.auth_child.as_mut().unwrap().kill().await.unwrap();
+                    let cancel = Request {
+                        request_id: "cancel".to_owned(),
+                        operation: Operation::AuthCancel(AuthCancelParams {
+                            flow_id: "fixture-flow".to_owned(),
+                        }),
+                        ..request
+                    };
+                    let Some(Data::Auth(status)) = backend.dispatch(&cancel).await.unwrap() else {
+                        panic!("owned cancel must return account status");
+                    };
+                    assert!(matches!(
+                        status.flow.unwrap().state,
+                        AuthFlowState::Cancelled
+                    ));
+                }
+                "failure" | "deadline" => {
+                    backend.auth_child.as_mut().unwrap().kill().await.unwrap();
+                    if transition == "deadline" {
+                        backend.auth_started =
+                            Some(std::time::Instant::now() - Duration::from_secs(601));
+                    }
+                }
+                "replacement" => {
+                    backend.account_generation = Uuid::new_v4();
+                    backend.auth_flow.as_mut().unwrap().flow_id = "replacement-flow".to_owned();
+                }
+                "mutation" => backend.begin_account_mutation(),
+                _ => unreachable!(),
+            }
+            release.send(()).unwrap();
+            let Completion::AccountStatus {
+                request_id,
+                generation,
+                result,
+            } = backend.tasks.join_next().await.unwrap().unwrap()
+            else {
+                panic!("held account status completion required");
+            };
+            assert_eq!(request_id, "held-status");
+            let published = backend.account_status_result(generation, result);
+            if matches!(transition, "replacement" | "mutation") {
+                let error = published.unwrap_err();
+                assert_eq!(error.code, ErrorCode::RevisionConflict);
+                assert!(error.retryable);
+                assert!(
+                    !serde_json::to_string(&error)
+                        .unwrap()
+                        .contains("replacement-flow")
+                );
+            } else {
+                let Data::Auth(status) = published.unwrap() else {
+                    panic!("account status required");
+                };
+                assert!(matches!(status.state, AuthState::SignedOut));
+                let flow = status.flow.unwrap();
+                assert_eq!(flow.flow_id, "fixture-flow");
+                assert!(matches!(
+                    flow.state,
+                    AuthFlowState::Failed | AuthFlowState::Cancelled
+                ));
+                assert_eq!(
+                    flow.error.as_ref().unwrap().code,
+                    match transition {
+                        "cancel" => ErrorCode::AuthCancelled,
+                        "deadline" => ErrorCode::AuthExpired,
+                        _ => ErrorCode::AuthInvalid,
+                    }
+                );
+            }
+            backend.stop_auth().await.unwrap();
+            no_owned_process(pid);
+        }
     }
 
     #[tokio::test]

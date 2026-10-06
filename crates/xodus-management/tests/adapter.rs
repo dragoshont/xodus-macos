@@ -65,6 +65,39 @@ fn catalog_pc_visibility_never_becomes_entitlement_or_package_identity() {
 }
 
 #[test]
+fn catalog_artwork_is_selected_language_actual_metadata_and_bad_optional_images_do_not_fail_product()
+ {
+    let mut response = public_response();
+    response.product.localized_properties[0].images = serde_json::json!([
+        {"ImagePurpose":"BoxArt","Uri":"//store-images.s-microsoft.com/image/apps.fixture","Width":1080,"Height":1080},
+        {"ImagePurpose":"Poster","Uri":"https://private.invalid/PRIVATE_SENTINEL","Width":1440,"Height":2160},
+        {"ImagePurpose":"FuturePurpose","Uri":"PRIVATE_SENTINEL"}
+    ]);
+    let mut other = response.product.localized_properties[0].clone();
+    other.language = Some("fr-FR".to_owned());
+    other.images = serde_json::json!([{"ImagePurpose":"SuperHeroArt","Uri":"//store-images.s-microsoft.com/image/wrong-locale"}]);
+    response.product.localized_properties.insert(0, other);
+    let product = map_product(&params(), response).unwrap();
+    assert_eq!(product.artwork.len(), 1);
+    assert_eq!(product.artwork[0].role, ArtworkRole::BoxArt);
+    assert_eq!(product.artwork_status, ArtworkStatus::Available);
+    let encoded = serde_json::to_string(&product).unwrap();
+    assert!(!encoded.contains("PRIVATE_SENTINEL") && !encoded.contains("wrong-locale"));
+    let mut malformed = public_response();
+    malformed.product.localized_properties[0].images = serde_json::json!("PRIVATE_SENTINEL");
+    assert_eq!(
+        map_product(&params(), malformed).unwrap().artwork_status,
+        ArtworkStatus::Rejected
+    );
+    assert_eq!(
+        map_product(&params(), public_response())
+            .unwrap()
+            .artwork_status,
+        ArtworkStatus::Absent
+    );
+}
+
+#[test]
 fn absent_or_mismatched_catalog_id_is_not_fabricated() {
     let mut response = public_response();
     response.product.product_id = None;

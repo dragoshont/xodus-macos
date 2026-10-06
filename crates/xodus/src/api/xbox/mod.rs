@@ -4,6 +4,7 @@ use crate::models::xbox::XstsResponse;
 
 pub mod auth;
 pub mod title;
+pub mod titlehub;
 pub use auth::{XboxAuthError, authenticate_xbox_user, get_xsts_auth_header, request_xsts_token};
 
 pub async fn run(

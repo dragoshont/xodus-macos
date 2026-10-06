@@ -12,9 +12,9 @@ pub fn normalize_url(value: &str) -> Option<String> {
     if value.len() > 2048 {
         return None;
     }
-    let asset = value.strip_prefix(PREFIX).or_else(|| {
-        value.strip_prefix("//store-images.s-microsoft.com/image/")
-    })?;
+    let asset = value
+        .strip_prefix(PREFIX)
+        .or_else(|| value.strip_prefix("//store-images.s-microsoft.com/image/"))?;
     if !asset.bytes().next()?.is_ascii_alphanumeric()
         || !asset
             .bytes()
@@ -74,7 +74,11 @@ pub fn catalog_images(value: &Value) -> (Vec<Artwork>, ArtworkStatus) {
                 continue;
             }
         };
-        let Some(url) = image.get("Uri").and_then(Value::as_str).and_then(normalize_url) else {
+        let Some(url) = image
+            .get("Uri")
+            .and_then(Value::as_str)
+            .and_then(normalize_url)
+        else {
             warning("unsupported public image URL");
             rejected = true;
             continue;
@@ -100,13 +104,22 @@ pub fn catalog_images(value: &Value) -> (Vec<Artwork>, ArtworkStatus) {
             continue;
         }
         let candidate = Artwork {
-            role: role.clone(), url, width, height, source: ArtworkSource::DisplayCatalog,
+            role: role.clone(),
+            url,
+            width,
+            height,
+            source: ArtworkSource::DisplayCatalog,
         };
-        let rank = |image: &Artwork| (
-            u64::from(image.width.unwrap_or(0)) * u64::from(image.height.unwrap_or(0)),
-            image.url.clone(),
-        );
-        if selected.get(&role).is_none_or(|existing| rank(&candidate) > rank(existing)) {
+        let rank = |image: &Artwork| {
+            (
+                u64::from(image.width.unwrap_or(0)) * u64::from(image.height.unwrap_or(0)),
+                image.url.clone(),
+            )
+        };
+        if selected
+            .get(&role)
+            .is_none_or(|existing| rank(&candidate) > rank(existing))
+        {
             selected.insert(role, candidate);
         }
     }
@@ -127,10 +140,16 @@ pub fn history_image(value: Option<&Value>) -> (Vec<Artwork>, ArtworkStatus) {
         Some(value) if value.as_str() == Some("") => (vec![], ArtworkStatus::Absent),
         Some(value) => {
             if let Some(url) = value.as_str().and_then(normalize_url) {
-                (vec![Artwork {
-                    role: ArtworkRole::Tile, url, width: None, height: None,
-                    source: ArtworkSource::TitleHub,
-                }], ArtworkStatus::Available)
+                (
+                    vec![Artwork {
+                        role: ArtworkRole::Tile,
+                        url,
+                        width: None,
+                        height: None,
+                        source: ArtworkSource::TitleHub,
+                    }],
+                    ArtworkStatus::Available,
+                )
             } else {
                 warning("unsupported recent title image URL");
                 (vec![], ArtworkStatus::Rejected)
@@ -146,8 +165,10 @@ mod tests {
 
     #[test]
     fn real_store_origin_only_and_exact_pixel_boundary() {
-        assert_eq!(normalize_url("//store-images.s-microsoft.com/image/apps.fixture").unwrap(),
-            "https://store-images.s-microsoft.com/image/apps.fixture");
+        assert_eq!(
+            normalize_url("//store-images.s-microsoft.com/image/apps.fixture").unwrap(),
+            "https://store-images.s-microsoft.com/image/apps.fixture"
+        );
         for url in [
             "http://store-images.s-microsoft.com/image/fixture",
             "https://store-images.s-microsoft.com:443/image/fixture",
@@ -184,9 +205,16 @@ mod tests {
         assert!(valid(&artwork, &status));
         images.as_array_mut().unwrap().reverse();
         assert_eq!(catalog_images(&images).0, artwork);
-        assert!(!serde_json::to_string(&artwork).unwrap().contains("PRIVATE_SENTINEL"));
+        assert!(
+            !serde_json::to_string(&artwork)
+                .unwrap()
+                .contains("PRIVATE_SENTINEL")
+        );
         assert_eq!(catalog_images(&json!([])).1, ArtworkStatus::Absent);
-        assert_eq!(catalog_images(&json!({"Uri":"PRIVATE_SENTINEL"})).1, ArtworkStatus::Rejected);
+        assert_eq!(
+            catalog_images(&json!({"Uri":"PRIVATE_SENTINEL"})).1,
+            ArtworkStatus::Rejected
+        );
         assert_eq!(catalog_images(&json!([
             {"ImagePurpose":"Poster","Uri":"//store-images.s-microsoft.com/image/fixture","Width":8192,"Height":8192}
         ])).1, ArtworkStatus::Rejected);

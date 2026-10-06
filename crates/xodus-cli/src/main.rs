@@ -15,6 +15,7 @@ mod management_auth;
 mod native_auth_host;
 mod package;
 mod provider_credentials;
+mod recent_library;
 mod runtime_plan;
 mod webview;
 

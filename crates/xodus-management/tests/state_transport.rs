@@ -189,6 +189,70 @@ fn lock_and_corrupt_state_fail_closed() {
 }
 
 #[test]
+fn legacy_catalog_artwork_migration_is_explicit_and_invalid_new_artwork_is_preserved_not_loaded() {
+    let (_temporary, path) = directory();
+    let store = Store::open(&path).unwrap();
+    drop(store);
+    let state_path = path.join("management.json");
+    let mut state: serde_json::Value =
+        serde_json::from_slice(&fs::read(&state_path).unwrap()).unwrap();
+    let frames: Vec<serde_json::Value> = serde_json::from_str(include_str!(
+        "../../../docs/contracts/fixtures/management-v1/positive.json"
+    ))
+    .unwrap();
+    let mut product = frames
+        .iter()
+        .find_map(|frame| frame["data"].get("product"))
+        .unwrap()
+        .clone();
+    product.as_object_mut().unwrap().remove("artwork");
+    product.as_object_mut().unwrap().remove("artworkStatus");
+    state["catalog"][catalog_key(&params())] = product;
+    fs::write(&state_path, serde_json::to_vec(&state).unwrap()).unwrap();
+    let store = Store::open(&path).unwrap();
+    let record = &store.state.catalog[&catalog_key(&params())];
+    assert!(record.artwork.is_empty());
+    assert_eq!(record.artwork_status, ArtworkStatus::NotQueried);
+    drop(store);
+    let mut migrated: serde_json::Value =
+        serde_json::from_slice(&fs::read(&state_path).unwrap()).unwrap();
+    assert_eq!(
+        migrated["catalog"][catalog_key(&params())]["artwork"],
+        serde_json::json!([])
+    );
+    assert_eq!(
+        migrated["catalog"][catalog_key(&params())]["artworkStatus"],
+        "notQueried"
+    );
+    migrated["catalog"][catalog_key(&params())]["artworkStatus"] = serde_json::json!("available");
+    let bad = serde_json::to_vec(&migrated).unwrap();
+    fs::write(&state_path, &bad).unwrap();
+    assert!(matches!(
+        Store::open(&path),
+        Err(WireError {
+            code: ErrorCode::RegistryRecoveryRequired,
+            ..
+        })
+    ));
+    assert_eq!(fs::read(&state_path).unwrap(), bad);
+}
+
+#[test]
+fn recent_library_request_limits_extra_fields_and_duplicate_keys_fail_closed() {
+    for input in [
+        r#"{"kind":"request","protocol":{"major":1,"minor":0},"requestID":"recent","command":"library.recent","params":{"limit":0}}"#,
+        r#"{"kind":"request","protocol":{"major":1,"minor":0},"requestID":"recent","command":"library.recent","params":{"limit":101}}"#,
+        r#"{"kind":"request","protocol":{"major":1,"minor":0},"requestID":"recent","command":"library.recent","params":{"limit":1,"xuid":"PRIVATE_SENTINEL"}}"#,
+        r#"{"kind":"request","protocol":{"major":1,"minor":0},"requestID":"recent","command":"library.recent","params":{"limit":1,"limit":2}}"#,
+    ] {
+        assert_eq!(
+            transport::parse(input.as_bytes()).unwrap_err().code,
+            ErrorCode::InvalidRequest
+        );
+    }
+}
+
+#[test]
 fn failed_persistence_does_not_mutate_memory() {
     let (_temporary, path) = directory();
     let mut store = Store::open(&path).unwrap();

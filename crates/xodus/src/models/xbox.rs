@@ -49,6 +49,15 @@ struct XtiClaim {
 }
 
 impl XstsResponse {
+    pub fn user_id(&self) -> Option<&str> {
+        let [claim] = self.display_claims.xui.as_slice() else {
+            return None;
+        };
+        let id = claim.xid.as_deref()?;
+        let number = id.parse::<u64>().ok()?;
+        (number != 0 && number.to_string() == id).then_some(id)
+    }
+
     pub fn user_hash(&self) -> Option<&str> {
         match self.display_claims.xui.as_slice() {
             [claim] => Some(claim.uhs.as_str()),

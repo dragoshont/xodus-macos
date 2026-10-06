@@ -697,6 +697,18 @@ pub fn map_product(
 }
 
 enum Completion {
+    RecentLibrary {
+        request_id: String,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        result: Result<crate::auth_verify::RecentLibraryRead, WireError>,
+    },
+    RecentLibraryRevalidated {
+        request_id: String,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        result: Result<crate::auth_verify::RecentLibraryRead, WireError>,
+    },
     AuthVerified {
         request_id: String,
         generation: Uuid,
@@ -778,6 +790,7 @@ pub struct Backend {
     inspection_permits: Arc<tokio::sync::Semaphore>,
     native_host: Option<crate::native_auth::HostBinding>,
     auth_verifier: Option<Arc<dyn crate::auth_verify::AuthVerifier>>,
+    recent_pending: bool,
 }
 
 impl Backend {
@@ -801,6 +814,7 @@ impl Backend {
             account_read_permits: Arc::new(tokio::sync::Semaphore::new(1)),
             native_host: None,
             auth_verifier: None,
+            recent_pending: false,
             inspection_permits: Arc::new(tokio::sync::Semaphore::new(4)),
         }
     }
@@ -835,10 +849,13 @@ impl Backend {
                 (*command == "catalog.query" && self.provider.query_supported()) ||
                 (*command == "installed.inspect" && cfg!(target_os = "macos")) ||
                 (self.native_auth && matches!(*command, "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout")) ||
-                (*command == "auth.verify" && self.native_auth && self.auth_verifier.is_some());
+                (*command == "auth.verify" && self.native_auth && self.auth_verifier.is_some()) ||
+                (*command == "library.recent" && self.native_auth &&
+                    self.auth_verifier.as_ref().is_some_and(|provider| provider.recent_supported()));
             let audience = match *command {
                 "auth.begin" | "auth.status" | "auth.logout" => Some("Isolated launcher profile; Passport.NET/STS store credential, not entitlement authorization"),
                 "auth.verify" => Some("http://update.xboxlive.com; authenticated package metadata read only"),
+                "library.recent" => Some("http://xboxlive.com"),
                 "inventory.snapshot" => Some("Unproven consumer PC entitlement audience"),
                 "install.plan" | "game.update" => Some("http://update.xboxlive.com and www.microsoft.com"),
                 "game.launch" => Some("Package license and signed paired runtime"),
@@ -856,6 +873,7 @@ impl Backend {
                     "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout" =>
                         "Native macOS Keychain is required; plaintext fallback is refused.",
                     "auth.verify" => "Native launcher Keychain and an authenticated read provider are required.",
+                    "library.recent" => "Native launcher Keychain and a recent played-title provider are required.",
                     _ => "Authorized package planning and verified failure-safe installation are not implemented.",
                 }.to_owned())
             } else if *command == "jobs.enqueue" {
@@ -870,6 +888,8 @@ impl Backend {
                 Some("Read-only selected-folder marker metadata only; no scan, registration, ownership, file verification or launch.".to_owned())
             } else if *command == "auth.verify" {
                 Some("Explicit authenticated package metadata check only; no ownership, licensing, download or installation claim.".to_owned())
+            } else if *command == "library.recent" {
+                Some("One partial recently played window, not ownership, complete history or installability.".to_owned())
             } else { None };
             Capability { command: (*command).to_owned(), supported,
                 audience: audience.map(str::to_owned), reason }
@@ -957,12 +977,57 @@ impl Backend {
     async fn dispatch(&mut self, request: &Request) -> Result<Option<Data>, WireError> {
         let data = match &request.operation {
             Operation::Hello(params) => self.hello(params)?,
-            Operation::LibraryRecent(_) => {
-                return Err(WireError::new(
-                    ErrorCode::CapabilityMissing,
-                    "The recent title history provider is not available.",
-                    false,
-                ));
+            Operation::LibraryRecent(params) => {
+                if self.recent_pending
+                    || self.account_mutation_pending
+                    || self.account_read_permits.available_permits() == 0
+                    || self
+                        .auth_flow
+                        .as_ref()
+                        .is_some_and(|flow| matches!(flow.state, AuthFlowState::Pending))
+                {
+                    return Err(WireError::new(
+                        ErrorCode::InvalidTransition,
+                        "Finish the active launcher account or recent history operation first.",
+                        false,
+                    ));
+                }
+                self.reserve_worker()?;
+                let provider = self
+                    .auth_verifier
+                    .clone()
+                    .filter(|provider| self.native_auth && provider.recent_supported())
+                    .ok_or_else(|| {
+                        WireError::new(
+                            ErrorCode::CapabilityMissing,
+                            "The recent title history provider is not available.",
+                            false,
+                        )
+                    })?;
+                let tokens = self
+                    .verification_tokens()
+                    .map_err(crate::auth_verify::recent_error)?;
+                let request_id = request.request_id.clone();
+                let params = params.clone();
+                let generation = self.account_generation;
+                let deadline = tokio::time::Instant::now() + crate::auth_verify::DEADLINE;
+                self.pending_requests.insert(request_id.clone());
+                self.recent_pending = true;
+                self.tasks.spawn(async move {
+                    let result = crate::auth_verify::bounded_verification(
+                        crate::auth_verify::DEADLINE,
+                        provider.recent(tokens, params),
+                    )
+                    .await
+                    .map_err(crate::auth_verify::VerificationFailure::recent_wire_error);
+                    Completion::RecentLibrary {
+                        request_id,
+                        generation,
+                        deadline,
+                        result,
+                    }
+                });
+                return Ok(None);
             }
             Operation::AuthVerify(params) => {
                 if self.account_mutation_pending
@@ -1774,12 +1839,12 @@ impl Backend {
         }
     }
 
-    fn auth_verified_result(
+    fn validated_authenticated_read(
         &mut self,
         generation: Uuid,
         deadline: tokio::time::Instant,
         result: Result<xodus::tokens::ManagementProfileWitness, WireError>,
-    ) -> Result<Data, WireError> {
+    ) -> Result<xodus::tokens::ManagementProfileWitness, WireError> {
         use crate::auth_verify::VerificationFailure;
         if generation != self.account_generation || self.account_mutation_pending {
             return Err(VerificationFailure::ProfileChanged.wire_error());
@@ -1794,7 +1859,63 @@ impl Backend {
         {
             return Err(VerificationFailure::ProfileChanged.wire_error());
         }
+        Ok(witness)
+    }
+
+    fn auth_verified_result(
+        &mut self,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        result: Result<xodus::tokens::ManagementProfileWitness, WireError>,
+    ) -> Result<Data, WireError> {
+        self.validated_authenticated_read(generation, deadline, result)?;
         Ok(Data::AuthVerified(AuthVerifiedData { verified: True }))
+    }
+
+    fn recent_library_result(
+        &mut self,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        result: Result<crate::auth_verify::RecentLibraryRead, WireError>,
+    ) -> Result<Data, WireError> {
+        let read = result?;
+        self.validated_authenticated_read(generation, deadline, Ok(read.profile))
+            .map_err(crate::auth_verify::recent_error)?;
+        Ok(Data::RecentLibrary(read.data))
+    }
+
+    fn revalidate_recent_library(
+        &mut self,
+        request_id: String,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        result: Result<crate::auth_verify::RecentLibraryRead, WireError>,
+    ) -> Result<(), WireError> {
+        let read = result?;
+        self.validated_authenticated_read(generation, deadline, Ok(read.profile.clone()))
+            .map_err(crate::auth_verify::recent_error)?;
+        let tokens = self
+            .verification_tokens()
+            .map_err(crate::auth_verify::recent_error)?;
+        self.tasks.spawn(async move {
+            let result = crate::auth_verify::bounded_verification(
+                deadline.saturating_duration_since(tokio::time::Instant::now()),
+                crate::auth_verify::revalidate_publication(tokens, read.profile),
+            )
+            .await
+            .map(|profile| crate::auth_verify::RecentLibraryRead {
+                data: read.data,
+                profile,
+            })
+            .map_err(crate::auth_verify::VerificationFailure::recent_wire_error);
+            Completion::RecentLibraryRevalidated {
+                request_id,
+                generation,
+                deadline,
+                result,
+            }
+        });
+        Ok(())
     }
 
     fn revalidate_auth_verification(
@@ -2374,6 +2495,20 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
             },
             completion = backend.tasks.join_next(), if !backend.tasks.is_empty() => {
                 match completion {
+                    Some(Ok(Completion::RecentLibrary { request_id, generation, deadline, result })) => {
+                        if let Err(error) = backend.revalidate_recent_library(
+                            request_id.clone(), generation, deadline, result) {
+                            backend.recent_pending = false;
+                            backend.pending_requests.remove(&request_id);
+                            write_result(writer, request_id, Err(error)).await?;
+                        }
+                    },
+                    Some(Ok(Completion::RecentLibraryRevalidated { request_id, generation, deadline, result })) => {
+                        backend.recent_pending = false;
+                        backend.pending_requests.remove(&request_id);
+                        let result = backend.recent_library_result(generation, deadline, result);
+                        write_result(writer, request_id, result).await?;
+                    },
                     Some(Ok(Completion::AuthVerified { request_id, generation, deadline, result })) => {
                         if let Err(error) = backend.revalidate_auth_verification(
                             request_id.clone(), generation, deadline, result) {
@@ -2609,6 +2744,381 @@ mod auth_lifecycle_tests {
             xodus::tokens::backend::MemoryBackend::default(),
         )));
         (temporary, backend)
+    }
+
+    fn fixture_recent_data() -> RecentLibraryData {
+        let frames: Vec<serde_json::Value> = serde_json::from_str(include_str!(
+            "../../../docs/contracts/fixtures/management-v1/positive.json"
+        ))
+        .unwrap();
+        serde_json::from_value(
+            frames
+                .into_iter()
+                .find_map(|frame| {
+                    (frame["data"]["scope"] == "recentlyPlayed"
+                        && frame["data"]["titles"]
+                            .as_array()
+                            .is_some_and(|titles| !titles.is_empty()))
+                    .then(|| frame["data"].clone())
+                })
+                .unwrap(),
+        )
+        .unwrap()
+    }
+
+    struct NeutralRecentProvider(Option<crate::auth_verify::VerificationFailure>);
+
+    impl crate::auth_verify::AuthVerifier for NeutralRecentProvider {
+        fn verify(
+            &self,
+            _: TokenManager,
+            _: String,
+        ) -> Pin<
+            Box<
+                dyn Future<
+                        Output = Result<
+                            xodus::tokens::ManagementProfileWitness,
+                            crate::auth_verify::VerificationFailure,
+                        >,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            Box::pin(async { Err(crate::auth_verify::VerificationFailure::ResponseInvalid) })
+        }
+        fn recent_supported(&self) -> bool {
+            true
+        }
+        fn recent(
+            &self,
+            tokens: TokenManager,
+            params: RecentLibraryParams,
+        ) -> Pin<
+            Box<
+                dyn Future<
+                        Output = Result<
+                            crate::auth_verify::RecentLibraryRead,
+                            crate::auth_verify::VerificationFailure,
+                        >,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            Box::pin(async move {
+                assert_eq!(params.limit, 100);
+                assert!(tokens.save_user(&fixture_store_session().user).is_err());
+                if let Some(failure) = self.0 {
+                    return Err(failure);
+                }
+                let (_, stamp) = tokens.management_store_snapshot().unwrap();
+                Ok(crate::auth_verify::RecentLibraryRead {
+                    data: fixture_recent_data(),
+                    profile: stamp.publication_witness(),
+                })
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn recent_library_negotiated_wire_is_readonly_private_and_never_durable_history() {
+        use crate::auth_verify::VerificationFailure as Failure;
+        use tokio::io::AsyncBufReadExt;
+        use xodus::tokens::store::TokenBackend;
+        for failure in [
+            None,
+            Some(Failure::CredentialUnavailable),
+            Some(Failure::ProfileChanged),
+            Some(Failure::AuthExchangeFailed),
+            Some(Failure::AuthRejected),
+            Some(Failure::TransportFailed),
+            Some(Failure::ResponseInvalid),
+        ] {
+            let (temporary, mut backend) = backend();
+            let memory = Arc::new(xodus::tokens::backend::MemoryBackend::default());
+            let tokens = TokenManager::with_management_backend(memory.clone());
+            tokens
+                .save_management_store_session(fixture_store_session())
+                .unwrap();
+            let original = memory.get("management-store-user").unwrap();
+            backend.tokens = Some(tokens);
+            assert!(
+                !backend
+                    .capabilities()
+                    .iter()
+                    .find(|cap| cap.command == "library.recent")
+                    .unwrap()
+                    .supported
+            );
+            backend.auth_verifier = Some(Arc::new(NeutralRecentProvider(failure)));
+            assert!(
+                backend
+                    .capabilities()
+                    .iter()
+                    .find(|cap| cap.command == "library.recent")
+                    .unwrap()
+                    .supported
+            );
+            let state_before = std::fs::read(temporary.path().join("management.json")).unwrap();
+            let (client, server) = tokio::io::duplex(65536);
+            let (read, write) = tokio::io::split(server);
+            let task = tokio::spawn(serve(backend, BufReader::new(read), write));
+            let (read, mut write) = tokio::io::split(client);
+            let mut reader = BufReader::new(read);
+            for (id, command, params) in [
+                (
+                    "hello",
+                    "hello",
+                    serde_json::json!({"client":"fixture","clientVersion":"1","requiredCapabilities":["library.recent"]}),
+                ),
+                ("recent", "library.recent", serde_json::json!({"limit":100})),
+            ] {
+                write.write_all(format!("{}\n",serde_json::json!({"kind":"request",
+                    "protocol":{"major":1,"minor":0},"requestID":id,"command":command,"params":params})).as_bytes()).await.unwrap();
+                let mut line = String::new();
+                reader.read_line(&mut line).await.unwrap();
+                let frame: serde_json::Value = serde_json::from_str(&line).unwrap();
+                assert_eq!(frame["requestID"], id);
+                if id == "recent" {
+                    if let Some(failure) = failure {
+                        assert_eq!(
+                            frame["error"],
+                            serde_json::to_value(failure.recent_wire_error()).unwrap()
+                        );
+                    } else {
+                        assert_eq!(frame["data"]["scope"], "recentlyPlayed");
+                        assert_eq!(
+                            frame["data"]["titles"][0]["productID"],
+                            serde_json::Value::Null
+                        );
+                        assert!(frame["data"].get("entitlement").is_none());
+                    }
+                    for value in [
+                        "fixture@example.invalid",
+                        "fixture-not-password",
+                        "fixture-not-license",
+                        "xuid",
+                        "Authorization",
+                    ] {
+                        assert!(!line.contains(value));
+                    }
+                }
+            }
+            write.shutdown().await.unwrap();
+            task.await.unwrap().unwrap();
+            assert_eq!(memory.get("management-store-user").unwrap(), original);
+            assert_eq!(
+                std::fs::read(temporary.path().join("management.json")).unwrap(),
+                state_before
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn recent_library_generation_deadline_and_busy_fences_do_not_publish_late_history() {
+        let (_temporary, mut backend) = backend();
+        let tokens = TokenManager::with_management_backend(Arc::new(
+            xodus::tokens::backend::MemoryBackend::default(),
+        ));
+        tokens
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        backend.tokens = Some(tokens.clone());
+        backend.auth_verifier = Some(Arc::new(NeutralRecentProvider(None)));
+        let request = Request {
+            kind: RequestKind::Request,
+            protocol: Protocol::default(),
+            request_id: "recent".to_owned(),
+            operation: Operation::LibraryRecent(RecentLibraryParams { limit: 100 }),
+        };
+        assert!(backend.dispatch(&request).await.unwrap().is_none());
+        assert_eq!(
+            backend.dispatch(&request).await.unwrap_err().code,
+            ErrorCode::InvalidTransition
+        );
+        let Completion::RecentLibrary {
+            generation,
+            deadline,
+            result,
+            ..
+        } = backend.tasks.join_next().await.unwrap().unwrap()
+        else {
+            panic!("wrong completion");
+        };
+        backend.account_generation = Uuid::new_v4();
+        let error = backend
+            .recent_library_result(generation, deadline, result)
+            .unwrap_err();
+        assert_eq!(
+            serde_json::to_value(error).unwrap(),
+            serde_json::to_value(
+                crate::auth_verify::VerificationFailure::ProfileChanged.recent_wire_error()
+            )
+            .unwrap()
+        );
+        let (_, stamp) = tokens.management_store_snapshot().unwrap();
+        let result = Ok(crate::auth_verify::RecentLibraryRead {
+            data: fixture_recent_data(),
+            profile: stamp.publication_witness(),
+        });
+        let generation = backend.account_generation;
+        let error = backend
+            .recent_library_result(generation, tokio::time::Instant::now(), result)
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::NetworkUnavailable);
+        assert_eq!(error.details.unwrap()["stage"], "transportFailed");
+    }
+
+    #[tokio::test]
+    async fn recent_library_independent_profile_change_fails_readonly_publication() {
+        let (_temporary, mut backend) = backend();
+        let memory = Arc::new(xodus::tokens::backend::MemoryBackend::default());
+        let tokens = TokenManager::with_management_backend(memory.clone());
+        tokens
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let (_, stamp) = tokens.management_store_snapshot().unwrap();
+        backend.tokens = Some(tokens);
+        let independent = TokenManager::with_management_backend(memory);
+        let mut replacement = fixture_store_session();
+        replacement.user.username = "different@example.invalid".to_owned();
+        independent
+            .save_management_store_session(replacement)
+            .unwrap();
+        let generation = backend.account_generation;
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        backend
+            .revalidate_recent_library(
+                "recent".to_owned(),
+                generation,
+                deadline,
+                Ok(crate::auth_verify::RecentLibraryRead {
+                    data: fixture_recent_data(),
+                    profile: stamp.publication_witness(),
+                }),
+            )
+            .unwrap();
+        let Completion::RecentLibraryRevalidated { result, .. } =
+            backend.tasks.join_next().await.unwrap().unwrap()
+        else {
+            panic!("wrong completion");
+        };
+        let error = backend
+            .recent_library_result(generation, deadline, result)
+            .unwrap_err();
+        assert_eq!(error.details.unwrap()["stage"], "profileChanged");
+    }
+
+    #[tokio::test]
+    async fn recent_library_pending_provider_keeps_actor_responsive_and_disconnect_drops_without_success()
+     {
+        use crate::auth_verify::{AuthVerifier, RecentLibraryRead, VerificationFailure};
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use tokio::io::AsyncBufReadExt;
+        struct PendingRecent {
+            entered: Arc<tokio::sync::Notify>,
+            dropped: Arc<AtomicBool>,
+        }
+        impl AuthVerifier for PendingRecent {
+            fn verify(
+                &self,
+                _: TokenManager,
+                _: String,
+            ) -> Pin<
+                Box<
+                    dyn Future<
+                            Output = Result<
+                                xodus::tokens::ManagementProfileWitness,
+                                VerificationFailure,
+                            >,
+                        > + Send
+                        + '_,
+                >,
+            > {
+                Box::pin(async { Err(VerificationFailure::ResponseInvalid) })
+            }
+            fn recent_supported(&self) -> bool {
+                true
+            }
+            fn recent(
+                &self,
+                _: TokenManager,
+                _: RecentLibraryParams,
+            ) -> Pin<
+                Box<
+                    dyn Future<Output = Result<RecentLibraryRead, VerificationFailure>> + Send + '_,
+                >,
+            > {
+                struct Dropped(Arc<AtomicBool>);
+                impl Drop for Dropped {
+                    fn drop(&mut self) {
+                        self.0.store(true, Ordering::SeqCst);
+                    }
+                }
+                let guard = Dropped(self.dropped.clone());
+                Box::pin(async move {
+                    let _guard = guard;
+                    self.entered.notify_one();
+                    std::future::pending().await
+                })
+            }
+        }
+        let (_temporary, mut backend) = backend();
+        let entered = Arc::new(tokio::sync::Notify::new());
+        let dropped = Arc::new(AtomicBool::new(false));
+        backend.auth_verifier = Some(Arc::new(PendingRecent {
+            entered: entered.clone(),
+            dropped: dropped.clone(),
+        }));
+        let (client, server) = tokio::io::duplex(65536);
+        let (read, write) = tokio::io::split(server);
+        let task = tokio::spawn(serve(backend, BufReader::new(read), write));
+        let (read, mut write) = tokio::io::split(client);
+        let mut reader = BufReader::new(read);
+        for (id, command, params) in [
+            (
+                "hello",
+                "hello",
+                serde_json::json!({"client":"fixture","clientVersion":"1"}),
+            ),
+            ("recent", "library.recent", serde_json::json!({"limit":100})),
+            ("jobs", "jobs.snapshot", serde_json::json!({})),
+        ] {
+            write
+                .write_all(
+                    format!(
+                        "{}\n",
+                        serde_json::json!({"kind":"request","protocol":{"major":1,"minor":0},
+                "requestID":id,"command":command,"params":params})
+                    )
+                    .as_bytes(),
+                )
+                .await
+                .unwrap();
+            if id == "recent" {
+                tokio::time::timeout(Duration::from_secs(2), entered.notified())
+                    .await
+                    .unwrap();
+                continue;
+            }
+            let mut line = String::new();
+            tokio::time::timeout(Duration::from_secs(2), reader.read_line(&mut line))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                serde_json::from_str::<serde_json::Value>(&line).unwrap()["requestID"],
+                id
+            );
+        }
+        write.shutdown().await.unwrap();
+        let mut line = String::new();
+        reader.read_line(&mut line).await.unwrap();
+        let frame: serde_json::Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(frame["requestID"], "recent");
+        assert_eq!(frame["ok"], false);
+        assert_eq!(frame["error"]["code"], "CANCELLED");
+        assert_eq!(task.await.unwrap().unwrap_err().code, ErrorCode::Cancelled);
+        assert!(dropped.load(Ordering::SeqCst));
     }
 
     fn own_worker(backend: &mut Backend) -> u32 {

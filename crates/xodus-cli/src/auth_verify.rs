@@ -25,7 +25,7 @@ impl PackageVerifier {
     }
 }
 
-fn provider_failure(error: ProviderResponseError) -> VerificationFailure {
+pub(crate) fn provider_failure(error: ProviderResponseError) -> VerificationFailure {
     match error {
         ProviderResponseError::HttpRejected { status: 401 | 403 } => {
             VerificationFailure::AuthRejected
@@ -40,7 +40,7 @@ fn provider_failure(error: ProviderResponseError) -> VerificationFailure {
     }
 }
 
-fn classify(error: PackageReadError) -> VerificationFailure {
+pub(crate) fn classify(error: PackageReadError) -> VerificationFailure {
     match error {
         PackageReadError::Credentials(CredentialError::ProfileChanged) => {
             VerificationFailure::ProfileChanged
@@ -65,6 +65,28 @@ fn classify(error: PackageReadError) -> VerificationFailure {
 }
 
 impl AuthVerifier for PackageVerifier {
+    fn recent_supported(&self) -> bool {
+        true
+    }
+
+    fn recent(
+        &self,
+        tokens: TokenManager,
+        params: xodus_management::wire::RecentLibraryParams,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        xodus_management::auth_verify::RecentLibraryRead,
+                        VerificationFailure,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        Box::pin(crate::recent_library::read(&self.client, tokens, params))
+    }
+
     fn verify(
         &self,
         tokens: TokenManager,

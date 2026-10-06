@@ -22,6 +22,15 @@ pub enum VerificationFailure {
 }
 
 impl VerificationFailure {
+    pub fn recent_wire_error(self) -> WireError {
+        let failure = if self == Self::PackageUnavailable {
+            Self::ResponseInvalid
+        } else {
+            self
+        };
+        recent_error(failure.wire_error())
+    }
+
     pub fn wire_error(self) -> WireError {
         let (stage, code, retryable) = match self {
             Self::CredentialUnavailable => ("credentialUnavailable", ErrorCode::AuthInvalid, false),
@@ -52,6 +61,24 @@ impl VerificationFailure {
         );
         error
     }
+}
+
+pub fn recent_error(mut error: WireError) -> WireError {
+    if let Some(details) = &mut error.details
+        && details.get("category").and_then(serde_json::Value::as_str)
+            == Some("authenticatedReadFailure")
+    {
+        if let Some(stage) = details.get("stage").and_then(serde_json::Value::as_str) {
+            error.message = format!("Recent library read failed: {stage}.");
+        }
+        details.insert("category".to_owned(), "recentLibraryFailure".into());
+    }
+    error
+}
+
+pub struct RecentLibraryRead {
+    pub data: crate::wire::RecentLibraryData,
+    pub profile: ManagementProfileWitness,
 }
 
 pub async fn bounded_verification<T>(
@@ -121,6 +148,19 @@ pub async fn revalidate_publication(
 }
 
 pub trait AuthVerifier: Send + Sync {
+    fn recent_supported(&self) -> bool {
+        false
+    }
+
+    fn recent(
+        &self,
+        _: TokenManager,
+        _: crate::wire::RecentLibraryParams,
+    ) -> Pin<Box<dyn Future<Output = Result<RecentLibraryRead, VerificationFailure>> + Send + '_>>
+    {
+        Box::pin(async { Err(VerificationFailure::ResponseInvalid) })
+    }
+
     fn verify(
         &self,
         tokens: TokenManager,

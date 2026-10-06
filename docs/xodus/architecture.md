@@ -287,7 +287,7 @@ preserved the saved session without another credential prompt.
 
 **Engine-update access boundary:** subsequent Mac inspection established that
 the old and new CLIs have different per-build ad-hoc signing identifiers and
-designated requirements, with no Team ID or available code-signing identities.
+designated requirements, with no Team ID or available signing identity at that stage.
 The old Keychain item remains present, but the new engine cannot read it under
 the no-prompt policy. This is not evidence that the credential was deleted or
 that its provider rejected it. The status-observation loop was stopped;
@@ -296,8 +296,36 @@ One human access/sign-in approval is needed for the current engine. Durable
 rebuild reuse requires fixed app/CLI identifiers under one stable signing
 identity whose private key remains in OS Keychain, and comparison of designated
 requirements across two different builds. Provisioning and private-key/access
-approvals remain human-gated; no private-key export or ACL relaxation is
-authorized. The user was unavailable at the last availability check.
+approvals remain human-gated; no export of an existing private key or saved
+credential, broad ACL change or permission bypass is authorized.
+
+**October 6 CLI signing setup:** after user approval, a standard local signer
+was imported with a permanent, nonextractable, signing-only private key and
+traditional signing access limited to `/usr/bin/codesign`. Matching identity
+enumeration independently confirms `Xodus Local Code Signing`; its self-signed
+trust status is not treated as a missing identity. Temporary newly generated
+key, PKCS12 and passphrase files were removed, without claiming secure erasure
+on APFS. Public certificate and non-secret receipts are retained.
+App signing policy
+[`b3973e67`](https://github.com/dragoshont/xodus-macos-app/commit/b3973e67dbbed9e01dcd01db08934fd8758eca19)
+passed targeted checks and exact-source CI
+[37424750870](https://github.com/dragoshont/xodus-macos-app/actions/runs/37424750870).
+It accepts the pinned matching local identity without requiring global trust,
+while retaining fixed identifiers, certificate-bound requirements and strict
+signature checks.
+
+The first actual signing attempt failed with `errSecInternalComponent` in the
+unlocked Aqua user session. A single no-prompt inspection of the exact imported
+identity confirmed that its partition ACL contains only the importer's ad-hoc
+identity: Apple signing-tool partitions are absent despite the matching
+traditional signing ACL. No permission changes or subsequent signing retries
+occurred. A focused correction to this signing key awaits human approval;
+the user was unavailable at the latest approval request.
+Two independently built `c42e21a` engines exist, but neither identical signed
+designated requirements nor saved-login access after the second build has been
+established. Public certificate-policy evaluation also reported anchor and an
+unclassified policy failure; it does not establish the sole cause of signing
+failure or authorize a global trust change.
 
 **Installed UI cleanup:** app `b82ac96`, tree
 `393e71b9d7805781d105933559125bc9d0bcff94`, passed the scoped native source

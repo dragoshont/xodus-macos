@@ -318,7 +318,7 @@ fn snapshot_timeout() -> WireError {
 }
 
 #[cfg(target_os = "macos")]
-fn snapshot_directory(path: &Path) -> Result<File, WireError> {
+pub(crate) fn snapshot_directory(path: &Path) -> Result<File, WireError> {
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
     if !path.is_absolute()
         || path.components().any(|component| {

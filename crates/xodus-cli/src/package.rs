@@ -124,7 +124,7 @@ pub(crate) async fn get_packages_checked(
 }
 
 pub(crate) struct VerifiedPackageRead {
-    package: PackageDetails,
+    pub(crate) package: PackageDetails,
     pub profile: Option<xodus::tokens::ManagementProfileWitness>,
 }
 
@@ -263,12 +263,7 @@ fn checked_package(
                 "Package file content does not match the requested content",
             )));
         }
-        let extension = std::path::Path::new(&file.file_name)
-            .extension()
-            .and_then(|extension| extension.to_str());
-        let base_payload = extension.is_none()
-            || extension.is_some_and(|extension| extension.eq_ignore_ascii_case("msixvc"));
-        if base_payload && !same_package_version(&file.version_id, &package.version_id) {
+        if is_base_payload(file) && !same_package_version(&file.version_id, &package.version_id) {
             return Err(Box::new(std::io::Error::other(
                 "Base package file version does not match the enclosing version",
             )));
@@ -278,7 +273,15 @@ fn checked_package(
     Ok(package)
 }
 
-fn same_package_version(file: &str, package: &str) -> bool {
+pub(crate) fn is_base_payload(file: &PackageFile) -> bool {
+    let extension = std::path::Path::new(&file.file_name)
+        .extension()
+        .and_then(|extension| extension.to_str());
+    extension.is_none()
+        || extension.is_some_and(|extension| extension.eq_ignore_ascii_case("msixvc"))
+}
+
+pub(crate) fn same_package_version(file: &str, package: &str) -> bool {
     match (uuid::Uuid::parse_str(file), uuid::Uuid::parse_str(package)) {
         (Ok(file), Ok(package)) => file == package,
         _ => !file.is_empty() && file == package,
@@ -328,7 +331,7 @@ pub fn checked_package_file_source(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     const CONTENT_ID: &str = "00000000-0000-0000-0000-000000000001";
@@ -341,7 +344,7 @@ mod tests {
         .unwrap()
     }
 
-    fn management_profile() -> (
+    pub(crate) fn management_profile() -> (
         TokenManager,
         std::sync::Arc<xodus::tokens::backend::MemoryBackend>,
     ) {
@@ -523,7 +526,7 @@ mod tests {
         .unwrap()
     }
 
-    fn package_file() -> PackageFile {
+    pub(crate) fn package_file() -> PackageFile {
         serde_json::from_value(serde_json::json!({
             "ContentId": CONTENT_ID,
             "VersionId": "00000000-0000-0000-0000-000000000002",

@@ -697,6 +697,26 @@ pub fn map_product(
 }
 
 enum Completion {
+    InstallPlanResolved {
+        request_id: String,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        params: PlanParams,
+        result: Result<
+            (
+                crate::install_plan::PlanRead,
+                crate::install_plan::DestinationBinding,
+            ),
+            WireError,
+        >,
+    },
+    InstallPlanRevalidated {
+        request_id: String,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        params: PlanParams,
+        result: Result<crate::install_plan::PlanRead, WireError>,
+    },
     RecentLibrary {
         request_id: String,
         generation: Uuid,
@@ -850,6 +870,8 @@ impl Backend {
                 "jobs.enqueue" | "jobs.cancel" | "jobs.retry" | "jobs.snapshot" |
                 "events.replay" | "diagnostics.export") ||
                 (*command == "installed.snapshot" && cfg!(target_os = "macos")) ||
+                (*command == "install.plan" && cfg!(target_os = "macos") && self.native_auth &&
+                    self.auth_verifier.as_ref().is_some_and(|provider| provider.plan_supported())) ||
                 (*command == "catalog.discover" && self.provider.discovery_supported()) ||
                 (*command == "catalog.query" && self.provider.query_supported()) ||
                 (*command == "installed.inspect" && cfg!(target_os = "macos")) ||
@@ -886,6 +908,8 @@ impl Backend {
                 Some("Only catalogRefresh jobs are supported; install jobs remain gated.".to_owned())
             } else if *command == "installed.snapshot" {
                 Some("Existing committed management registry only; no file re-verification, runtime certification or external-folder adoption.".to_owned())
+            } else if *command == "install.plan" {
+                Some("Read-only selected-edition metadata resolution only. Authoritative MSIXVC digest and pre-key layout are unproven; no ready/enqueueable plan is returned.".to_owned())
             } else if *command == "catalog.discover" {
                 Some("Partial public PC GamePass discovery, not ownership/subscription or whole-store text search.".to_owned())
             } else if *command == "catalog.query" {
@@ -983,6 +1007,88 @@ impl Backend {
     async fn dispatch(&mut self, request: &Request) -> Result<Option<Data>, WireError> {
         let data = match &request.operation {
             Operation::Hello(params) => self.hello(params)?,
+            Operation::InstallPlan(params) => {
+                if self.account_mutation_pending
+                    || self.account_read_permits.available_permits() == 0
+                    || self
+                        .auth_flow
+                        .as_ref()
+                        .is_some_and(|flow| matches!(flow.state, AuthFlowState::Pending))
+                {
+                    return Err(WireError::new(
+                        ErrorCode::InvalidTransition,
+                        "Finish the active launcher account operation before planning an install.",
+                        false,
+                    ));
+                }
+                self.reserve_worker()?;
+                let provider = self
+                    .auth_verifier
+                    .clone()
+                    .filter(|provider| {
+                        cfg!(target_os = "macos") && self.native_auth && provider.plan_supported()
+                    })
+                    .ok_or_else(|| {
+                        WireError::new(
+                            ErrorCode::CapabilityMissing,
+                            "Read-only install planning is unavailable in this producer.",
+                            false,
+                        )
+                    })?;
+                let root = self.store.directory().to_owned();
+                if root.to_str() != Some(params.destination.as_str())
+                    || !crate::inspection::directory_valid(&params.destination)
+                {
+                    return Err(
+                        crate::install_plan::PlanFailure::DestinationUnsupported.wire_error()
+                    );
+                }
+                if let Some(failure) = provider.plan_preflight() {
+                    return Err(failure.wire_error());
+                }
+                let tokens = self.tokens.clone();
+                let permits = self.inspection_permits.clone();
+                let params = params.clone();
+                let request_id = request.request_id.clone();
+                let generation = self.account_generation;
+                let deadline = tokio::time::Instant::now() + crate::auth_verify::DEADLINE;
+                self.pending_requests.insert(request_id.clone());
+                self.tasks.spawn(async move {
+                    let requested = params.destination.clone();
+                    let result = tokio::time::timeout_at(deadline, async {
+                        let destination = crate::inspection::bounded_local_read(
+                            permits,
+                            crate::auth_verify::DEADLINE,
+                            move || {
+                                crate::install_plan::DestinationBinding::read(&root, &requested)
+                                    .map_err(crate::install_plan::PlanFailure::wire_error)
+                            },
+                            crate::install_plan::PlanFailure::ProviderUnavailable.wire_error(),
+                            crate::install_plan::PlanFailure::DestinationUnsupported.wire_error(),
+                        )
+                        .await?;
+                        let read = provider
+                            .plan(tokens, params.clone())
+                            .await
+                            .map_err(crate::install_plan::PlanFailure::wire_error)?;
+                        read.validate(&params, tokio::time::Instant::now())
+                            .map_err(crate::install_plan::PlanFailure::wire_error)?;
+                        Ok((read, destination))
+                    })
+                    .await
+                    .unwrap_or_else(|_| {
+                        Err(crate::install_plan::PlanFailure::ProviderUnavailable.wire_error())
+                    });
+                    Completion::InstallPlanResolved {
+                        request_id,
+                        generation,
+                        deadline,
+                        params,
+                        result,
+                    }
+                });
+                return Ok(None);
+            }
             Operation::LibraryRecent(params) => {
                 if self.recent_pending
                     || self.account_mutation_pending
@@ -1470,8 +1576,7 @@ impl Backend {
                     false,
                 ));
             }
-            Operation::InstallPlan(_)
-            | Operation::JobsEnqueue(EnqueueParams::Install { .. })
+            Operation::JobsEnqueue(EnqueueParams::Install { .. })
             | Operation::GameUpdate(_)
             | Operation::GameRollback(_)
             | Operation::GameRemove(_) => {
@@ -1895,6 +2000,81 @@ impl Backend {
         self.validated_authenticated_read(generation, deadline, Ok(read.profile))
             .map_err(crate::auth_verify::recent_error)?;
         Ok(Data::RecentLibrary(read.data))
+    }
+
+    fn revalidate_install_plan(
+        &mut self,
+        request_id: String,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        params: PlanParams,
+        result: Result<
+            (
+                crate::install_plan::PlanRead,
+                crate::install_plan::DestinationBinding,
+            ),
+            WireError,
+        >,
+    ) -> Result<(), WireError> {
+        let (read, destination) = result?;
+        read.validate(&params, tokio::time::Instant::now())
+            .map_err(crate::install_plan::PlanFailure::wire_error)?;
+        self.validated_authenticated_read(generation, deadline, Ok(read.profile.clone()))
+            .map_err(crate::install_plan::verification_error)?;
+        let tokens = self
+            .verification_tokens()
+            .map_err(crate::install_plan::verification_error)?;
+        let permits = self.inspection_permits.clone();
+        self.tasks.spawn(async move {
+            let result = tokio::time::timeout_at(deadline, async {
+                crate::inspection::bounded_local_read(
+                    permits,
+                    deadline.saturating_duration_since(tokio::time::Instant::now()),
+                    move || {
+                        destination
+                            .revalidate()
+                            .map_err(crate::install_plan::PlanFailure::wire_error)
+                    },
+                    crate::install_plan::PlanFailure::ProviderUnavailable.wire_error(),
+                    crate::install_plan::PlanFailure::DestinationUnsupported.wire_error(),
+                )
+                .await?;
+                let profile =
+                    crate::auth_verify::revalidate_publication(tokens, read.profile.clone())
+                        .await
+                        .map_err(|failure| {
+                            crate::install_plan::verification_failure(failure).wire_error()
+                        })?;
+                Ok(crate::install_plan::PlanRead { profile, ..read })
+            })
+            .await
+            .unwrap_or_else(|_| {
+                Err(crate::install_plan::PlanFailure::ProviderUnavailable.wire_error())
+            });
+            Completion::InstallPlanRevalidated {
+                request_id,
+                generation,
+                deadline,
+                params,
+                result,
+            }
+        });
+        Ok(())
+    }
+
+    fn install_plan_result(
+        &mut self,
+        generation: Uuid,
+        deadline: tokio::time::Instant,
+        params: &PlanParams,
+        result: Result<crate::install_plan::PlanRead, WireError>,
+    ) -> Result<Data, WireError> {
+        let read = result?;
+        read.validate(params, tokio::time::Instant::now())
+            .map_err(crate::install_plan::PlanFailure::wire_error)?;
+        self.validated_authenticated_read(generation, deadline, Ok(read.profile.clone()))
+            .map_err(crate::install_plan::verification_error)?;
+        Err(read.readiness_failure().wire_error())
     }
 
     fn revalidate_recent_library(
@@ -2522,6 +2702,18 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
                         let result = backend.recent_library_result(generation, deadline, result);
                         write_result(writer, request_id, result).await?;
                     },
+                    Some(Ok(Completion::InstallPlanResolved { request_id, generation, deadline, params, result })) => {
+                        if let Err(error) = backend.revalidate_install_plan(
+                            request_id.clone(), generation, deadline, params, result) {
+                            backend.pending_requests.remove(&request_id);
+                            write_result(writer, request_id, Err(error)).await?;
+                        }
+                    },
+                    Some(Ok(Completion::InstallPlanRevalidated { request_id, generation, deadline, params, result })) => {
+                        backend.pending_requests.remove(&request_id);
+                        let result = backend.install_plan_result(generation, deadline, &params, result);
+                        write_result(writer, request_id, result).await?;
+                    },
                     Some(Ok(Completion::AuthVerified { request_id, generation, deadline, result })) => {
                         if let Err(error) = backend.revalidate_auth_verification(
                             request_id.clone(), generation, deadline, result) {
@@ -2767,6 +2959,256 @@ mod auth_lifecycle_tests {
             xodus::tokens::backend::MemoryBackend::default(),
         )));
         (temporary, backend)
+    }
+
+    struct NeutralPlanProvider {
+        preflight: bool,
+    }
+    impl crate::auth_verify::AuthVerifier for NeutralPlanProvider {
+        fn plan_supported(&self) -> bool {
+            true
+        }
+        fn plan_preflight(&self) -> Option<crate::install_plan::PlanFailure> {
+            self.preflight
+                .then_some(crate::install_plan::PlanFailure::ApplicabilityUnproven)
+        }
+        fn plan(
+            &self,
+            tokens: Option<TokenManager>,
+            params: PlanParams,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<
+                            crate::install_plan::PlanRead,
+                            crate::install_plan::PlanFailure,
+                        >,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            Box::pin(async move { Ok(fixture_plan_read(&tokens.unwrap(), params)) })
+        }
+        fn verify(
+            &self,
+            _: TokenManager,
+            _: String,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<
+                            xodus::tokens::ManagementProfileWitness,
+                            crate::auth_verify::VerificationFailure,
+                        >,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            Box::pin(async { panic!("install planning must not issue a separate verification") })
+        }
+    }
+
+    fn fixture_plan_read(
+        tokens: &TokenManager,
+        params: PlanParams,
+    ) -> crate::install_plan::PlanRead {
+        crate::install_plan::PlanRead {
+            params, profile: tokens.management_store_snapshot().unwrap().1.publication_witness(),
+            package_id: "fixture-package".to_owned(),
+            content_id: "00000000-0000-0000-0000-000000000001".to_owned(),
+            selected_package: serde_json::from_value(serde_json::json!({
+                "PackageId":"fixture-package", "ContentId":"00000000-0000-0000-0000-000000000001",
+                "Architectures":["x64"], "Languages":["en-US"], "FrameworkDependencies":[],
+                "HardwareDependencies":[], "PackageFormat":"MSIXVC",
+                "PlatformDependencies":[{"PlatformName":"Windows.Desktop"}],
+            })).unwrap(),
+            expires_at: tokio::time::Instant::now() + Duration::from_secs(600),
+            package: serde_json::from_value(serde_json::json!({
+                "PackageFound":true, "ContentId":"00000000-0000-0000-0000-000000000001",
+                "VersionId":"fixture-version", "Version":"1.0.0.0",
+                "PackageFiles":[{"ContentId":"00000000-0000-0000-0000-000000000001",
+                    "VersionId":"fixture-version","FileName":"fixture.msixvc","FileSize":1,
+                    "FileHash":"PRIVATE_SENTINEL","KeyBlob":"PRIVATE_SENTINEL",
+                    "CdnRootPaths":["https://fixture.invalid/PRIVATE_SENTINEL"],"BackgroundCdnRootPaths":[],
+                    "RelativeUrl":"PRIVATE_SENTINEL","UpdateType":0,"LicenseUsageType":0,"ModifiedDate":"fixture"}],
+                "UpdatePredownload":false,"AvailabilityDate":"fixture",
+            })).unwrap(),
+        }
+    }
+
+    fn fixture_plan_params(backend: &Backend) -> PlanParams {
+        PlanParams {
+            product_id: "FIXTURE00001".to_owned(),
+            edition_id: "fixture-edition".to_owned(),
+            architecture: Architecture::X86_64,
+            language: "en-US".to_owned(),
+            market: "US".to_owned(),
+            destination: backend.store.directory().to_str().unwrap().to_owned(),
+            experimental_consent: true,
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    async fn install_plan_known_gate_precedes_credentials_and_does_not_cache_or_create_destinations()
+     {
+        let (_temporary, mut backend) = backend();
+        backend.tokens = None;
+        backend.auth_verifier = Some(Arc::new(NeutralPlanProvider { preflight: true }));
+        let params = fixture_plan_params(&backend);
+        let before = std::fs::read_dir(backend.store.directory())
+            .unwrap()
+            .count();
+        let request = Request {
+            kind: RequestKind::Request,
+            protocol: Protocol::default(),
+            request_id: "blocked-plan".to_owned(),
+            operation: Operation::InstallPlan(params.clone()),
+        };
+        let result = backend.dispatch(&request).await.unwrap_err();
+        assert_eq!(
+            serde_json::to_value(result).unwrap(),
+            serde_json::to_value(
+                crate::install_plan::PlanFailure::ApplicabilityUnproven.wire_error()
+            )
+            .unwrap()
+        );
+        assert!(
+            backend.tokens.is_none(),
+            "preflight must not initialize or query Keychain"
+        );
+        assert!(backend.tasks.is_empty() && backend.pending_requests.is_empty());
+        assert!(backend.store.state.jobs.is_empty() && backend.store.state.idempotency.is_empty());
+        let mut external = params;
+        external.destination.push_str("/not-created");
+        let target = std::path::PathBuf::from(&external.destination);
+        let request = Request {
+            operation: Operation::InstallPlan(external),
+            ..request
+        };
+        assert_eq!(
+            serde_json::to_value(backend.dispatch(&request).await.unwrap_err()).unwrap(),
+            serde_json::to_value(
+                crate::install_plan::PlanFailure::DestinationUnsupported.wire_error()
+            )
+            .unwrap()
+        );
+        assert!(!target.exists());
+        assert_eq!(
+            std::fs::read_dir(backend.store.directory())
+                .unwrap()
+                .count(),
+            before
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    async fn install_plan_completed_resolution_checks_profile_request_destination_and_expiry_before_publication()
+     {
+        use crate::install_plan::PlanFailure;
+        for action in [
+            "unchanged",
+            "generation",
+            "replacement",
+            "logout",
+            "mutation",
+            "deadline",
+            "expiry",
+            "request",
+            "destination",
+        ] {
+            let (_temporary, mut backend) = backend();
+            let tokens = backend.tokens.as_ref().unwrap().clone();
+            tokens
+                .save_management_store_session(fixture_store_session())
+                .unwrap();
+            backend.auth_verifier = Some(Arc::new(NeutralPlanProvider { preflight: false }));
+            let params = fixture_plan_params(&backend);
+            let request = Request {
+                kind: RequestKind::Request,
+                protocol: Protocol::default(),
+                request_id: "plan".to_owned(),
+                operation: Operation::InstallPlan(params.clone()),
+            };
+            assert!(backend.dispatch(&request).await.unwrap().is_none());
+            let Completion::InstallPlanResolved {
+                request_id,
+                generation,
+                mut deadline,
+                mut params,
+                mut result,
+            } = backend.tasks.join_next().await.unwrap().unwrap()
+            else {
+                panic!("plan completion required")
+            };
+            assert!(result.is_ok());
+            match action {
+                "generation" => backend.account_generation = Uuid::new_v4(),
+                "replacement" => {
+                    let mut session = fixture_store_session();
+                    session.flow_id = "replacement".to_owned();
+                    tokens.save_management_store_session(session).unwrap();
+                }
+                "logout" => {
+                    tokens.remove_user_credentials().unwrap();
+                }
+                "mutation" => backend.account_mutation_pending = true,
+                "deadline" => deadline = tokio::time::Instant::now(),
+                "expiry" => result.as_mut().unwrap().0.expires_at = tokio::time::Instant::now(),
+                "request" => params.architecture = Architecture::Arm64,
+                "destination" => {
+                    use std::os::unix::fs::PermissionsExt;
+                    let root = backend.store.directory().to_owned();
+                    let retained = tempfile::tempdir().unwrap();
+                    std::fs::rename(&root, retained.path().join("retained")).unwrap();
+                    std::fs::create_dir(&root).unwrap();
+                    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700))
+                        .unwrap();
+                }
+                _ => {}
+            }
+            let observed = match backend.revalidate_install_plan(
+                request_id,
+                generation,
+                deadline,
+                params.clone(),
+                result,
+            ) {
+                Err(error) => error,
+                Ok(()) => {
+                    let Completion::InstallPlanRevalidated { result, .. } =
+                        backend.tasks.join_next().await.unwrap().unwrap()
+                    else {
+                        panic!("publication completion required")
+                    };
+                    backend
+                        .install_plan_result(generation, deadline, &params, result)
+                        .unwrap_err()
+                }
+            };
+            let expected = match action {
+                "unchanged" => PlanFailure::IntegrityUnproven,
+                "deadline" => PlanFailure::ProviderUnavailable,
+                "expiry" => PlanFailure::Expired,
+                "request" => PlanFailure::ResponseInvalid,
+                "destination" => PlanFailure::DestinationChanged,
+                _ => PlanFailure::ProfileChanged,
+            };
+            assert_eq!(
+                serde_json::to_value(&observed).unwrap(),
+                serde_json::to_value(expected.wire_error()).unwrap(),
+                "{action}"
+            );
+            assert!(
+                !serde_json::to_string(&observed)
+                    .unwrap()
+                    .contains("PRIVATE_SENTINEL")
+            );
+            assert!(
+                backend.store.state.jobs.is_empty() && backend.store.state.idempotency.is_empty()
+            );
+        }
     }
 
     fn fixture_recent_data() -> RecentLibraryData {

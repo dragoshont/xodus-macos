@@ -148,6 +148,32 @@ pub async fn revalidate_publication(
 }
 
 pub trait AuthVerifier: Send + Sync {
+    fn plan_supported(&self) -> bool {
+        false
+    }
+
+    fn plan_preflight(&self) -> Option<crate::install_plan::PlanFailure> {
+        None
+    }
+
+    fn plan(
+        &self,
+        _: Option<TokenManager>,
+        _: crate::wire::PlanParams,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        crate::install_plan::PlanRead,
+                        crate::install_plan::PlanFailure,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        Box::pin(async { Err(crate::install_plan::PlanFailure::FormatUnsupported) })
+    }
+
     fn recent_supported(&self) -> bool {
         false
     }

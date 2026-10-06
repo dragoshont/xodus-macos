@@ -56,6 +56,24 @@ pub struct Package {
     pub version: Option<String>,
     #[serde(default)]
     pub content_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub architectures: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub languages: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub framework_dependencies: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hardware_dependencies: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package_format: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hash: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hash_algorithm: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_download_size_in_bytes: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_install_size_in_bytes: Option<serde_json::Value>,
     pub platform_dependencies: Vec<PlatformDependency>,
 }
 

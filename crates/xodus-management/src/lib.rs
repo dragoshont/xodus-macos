@@ -1,5 +1,6 @@
 pub mod artwork;
 pub mod inspection;
+pub mod install_plan;
 pub mod native_auth;
 pub mod runtime_provider;
 pub mod staging;

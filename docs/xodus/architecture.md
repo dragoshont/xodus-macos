@@ -380,9 +380,46 @@ observer reported `accessibilityNotTrusted`; neither result proves that a
 Keychain read or permission prompt was dispatched. No prompt was approved by
 the agent, and no overlapping read or provider call followed. The user was
 directed to open Account once and handle any native permission prompt.
-Actual updated-engine saved status, authenticated Xbox access and unattended
-cross-build credential reuse remain unverified. A local self-signed identity
-is not a guarantee of prompt-free updates.
+At that stage, updated-engine saved status and authenticated Xbox access were
+unverified. A local self-signed identity is not a guarantee of prompt-free
+updates.
+
+**October 6, 15:20 live authentication closure:** after the user handled the
+native permission step, one typed `auth.status` on the admitted installed
+`f30f1b18`/`d00a8b97` pair returned `credentialPresent`, with no pending flow
+or failure. Immediately afterward, one `auth.verify` for the publicly derived
+Halo content ID `513710f5-ab8e-4d7c-9ed5-d0ba94dcfb33` returned exact
+`{"verified":true}`. The fixed, non-secret result binds package receipt
+`413bd87af89770aac3dd970f9306f35d059db586380c952daf8211e353052255`
+and signed CLI
+`9933bd8651d0df22bf1b1779da8fc89d10962493368882699ca97b2994dd22f2`
+(21,694,112 bytes), the same installed binary and management profile.
+The coordinator independently read that result. No browser, new Microsoft
+sign-in, logout, credential deletion, copying or reset was performed.
+The app owner confirmed Xodus reopened with one owned engine and no helper.
+The working reference rollback remains preserved.
+
+This establishes saved-session access by the current updated engine and a
+real authenticated package-provider read. It does not establish ownership,
+license acquisition, installation, gameplay or unattended access by a future
+engine hash. The normal native permission flow, rather than identical
+self-signed requirements alone, resolved the observed read barrier.
+
+**Supported Microsoft sign-in research:** Microsoft documents MSAL for Swift/
+Objective-C macOS clients, with `ASWebAuthenticationSession` as the default
+system authentication browser on macOS 10.15+:
+[browser guidance](https://learn.microsoft.com/en-us/entra/msal/objc/customize-webviews),
+[installation and redirect/cache configuration](https://learn.microsoft.com/en-us/entra/msal/objc/install-and-configure-msal),
+and [authorization code with PKCE](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
+App registration must support
+[personal Microsoft accounts](https://learn.microsoft.com/en-us/entra/identity-platform/v2-supported-account-types).
+These sources establish ordinary Microsoft account authentication, not
+compatibility with the inherited Passport/Store credential exchange.
+[Store authentication](https://learn.microsoft.com/en-us/gaming/gdk/docs/store/commerce/service-to-service/xstore-authenticating-your-service)
+requires additional service-specific credentials/configuration and distinguishes
+the purchasing account from the Xbox player account on PC. No MSAL dependency,
+authentication rewrite or invented Store entitlement capability was introduced
+by this research.
 
 **Installed UI cleanup:** app `b82ac96`, tree
 `393e71b9d7805781d105933559125bc9d0bcff94`, passed the scoped native source

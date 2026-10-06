@@ -23,7 +23,7 @@ branches; this README is not a claim that it has all been merged or deployed.
 | Area | Completed work | Remaining qualification |
 | --- | --- | --- |
 | Native launcher | The source-reviewed gamer-facing cleanup `b82ac96` is installed after exact-source shipping CI passed. Main-screen status walls are reduced, errors have scoped recovery copy, technical facets are collapsed, and unsupported Library capabilities are stated honestly. The signed engine was preserved byte-for-byte. | Live screenshots are blocked by macOS Screen Recording permission. Visual, keyboard, accessibility and resize acceptance remain unverified; no privacy prompt was approved or bypassed. |
-| Store authentication | The stable-signed reference `1759a61`/`397dd02` completed a fresh Microsoft login and read it again after restart. Updated `f30f1b18`/`d00a8b97` is installed with normal foreground Keychain permission handling, responsive bounded reads and stale-flow correction. | The newer engine previously failed to read the reference credential with interaction disabled. Identical self-signed requirements do not bypass per-binary Keychain partitions. Native permission approval and the actual authenticated Xbox read remain unconfirmed; automated UI observation is blocked by accessibility permission. No new Microsoft login is requested. |
+| Store authentication | Installed `f30f1b18`/`d00a8b97` reads the saved Microsoft session after native Keychain approval. One authenticated Halo package read returned exact `verified:true`, without another Microsoft sign-in, credential copying or reset. The app is reopened and working. | This proves authentication and the checked package API, not ownership, entitlement or game execution. A different locally self-signed engine build may need its own native Keychain approval; identical signing requirements alone do not provide prompt-free updates. |
 | Owned and local games | Public Xbox catalog/search and bounded selected-folder structural inspection exist. | Complete Xbox PC-owned inventory is unsupported by the current integration. `installed.snapshot` currently returns a constant empty list, not a Mac installation scan; inspected folders remain unverified and not launchable. Catalog, achievements, Game Pass availability and folder markers are not ownership or playability evidence. |
 | Shipping pair admission | Fixed bundled engine/helper paths and stage-generated compiled identities; missing approval or changed files fail before management, authentication mutations or runtime planning. | Controlled local operator approval only, not general Developer ID distribution attestation. HELLO alone grants no trust. |
 | Account presentation | Toolbar, Account, Settings and Library share freshness-aware account state. Failed status checks remove saved-account claims while retaining the safety snapshot; a pending flow does not claim that a Microsoft window opened. | Source-side UI changes do not establish live authentication, PC ownership or entitlement. |
@@ -131,8 +131,13 @@ partition even when its designated requirement is stable.
 The installed update restores normal interactive foreground status reads.
 The user must handle any native access prompt; anonymous startup and bounded
 provider verification do not trigger permission dialogs. Human approval may
-need to be repeated for a different engine build. The actual authenticated
-Xbox read remains unverified; signature equality is not credential-access proof.
+need to be repeated for a different engine build. On October 6 at 15:20, the updated engine returned `credentialPresent` and
+one authenticated Halo package read returned exact `verified:true`.
+The same saved profile and admitted signed binary were used, with no new
+Microsoft login, credential copying, deletion or reset. Xodus was reopened
+after the read. This closes current-binary login reuse and authenticated API
+access, not complete owned-library, entitlement, installation or gameplay
+qualification; signature equality alone remains insufficient.
 Earlier observations establish persistence across the same engine identity, not authenticated provider use,
 authoritative owned inventory or launcher-driven download/install/update/play.
 The backend retains validated failed-exchange inputs only in Keychain for a

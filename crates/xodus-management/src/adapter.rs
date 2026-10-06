@@ -23,6 +23,8 @@ use crate::wire::*;
 
 const CORPUS: &str = "observedPublicProducts";
 const MAX_WORKERS: usize = 4;
+const ACCOUNT_PERMISSION_DEADLINE: Duration = Duration::from_secs(120);
+const SILENT_ACCOUNT_READ_DEADLINE: Duration = Duration::from_secs(2);
 pub const MAX_AUTH_HANDOFF_BYTES: usize = 256 * 1024;
 
 // Private inherited socket payload, never a management stdout frame.
@@ -769,6 +771,7 @@ pub struct Backend {
     async_keychain_io: bool,
     account_mutation_pending: bool,
     account_generation: Uuid,
+    account_read_permits: Arc<tokio::sync::Semaphore>,
     inspection_permits: Arc<tokio::sync::Semaphore>,
     native_host: Option<crate::native_auth::HostBinding>,
     auth_verifier: Option<Arc<dyn crate::auth_verify::AuthVerifier>>,
@@ -792,6 +795,7 @@ impl Backend {
             async_keychain_io: true,
             account_mutation_pending: false,
             account_generation: Uuid::new_v4(),
+            account_read_permits: Arc::new(tokio::sync::Semaphore::new(1)),
             native_host: None,
             auth_verifier: None,
             inspection_permits: Arc::new(tokio::sync::Semaphore::new(4)),
@@ -869,6 +873,60 @@ impl Backend {
         }).collect()
     }
 
+    fn noninteractive_tokens(&mut self) -> Result<TokenManager, WireError> {
+        let tokens = self.token_manager()?;
+        if self.async_keychain_io {
+            tokens
+                .with_noninteractive_management_keychain()
+                .map_err(|_| account_read_unavailable())
+        } else {
+            Ok(tokens)
+        }
+    }
+
+    fn verification_tokens(&mut self) -> Result<TokenManager, WireError> {
+        self.noninteractive_tokens()?
+            .readonly_management_profile()
+            .map_err(|_| {
+                crate::auth_verify::VerificationFailure::CredentialUnavailable.wire_error()
+            })
+    }
+
+    fn account_status_read(
+        &mut self,
+    ) -> Result<(TokenManager, tokio::sync::OwnedSemaphorePermit, Duration), WireError> {
+        if self.account_mutation_pending {
+            return Err(account_read_unavailable());
+        }
+        self.reserve_worker()?;
+        let permit = self
+            .account_read_permits
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| account_read_unavailable())?;
+        let polling = self
+            .auth_flow
+            .as_ref()
+            .is_some_and(|flow| matches!(flow.state, AuthFlowState::Pending));
+        let tokens = if polling {
+            self.noninteractive_tokens()?
+        } else {
+            self.token_manager()?
+        };
+        let tokens = tokens
+            .readonly_management_profile()
+            .map_err(|_| account_read_unavailable())?;
+        Ok((
+            tokens,
+            permit,
+            if polling {
+                SILENT_ACCOUNT_READ_DEADLINE
+            } else {
+                ACCOUNT_PERMISSION_DEADLINE
+            },
+        ))
+    }
+
     fn hello(&self, params: &HelloParams) -> Result<Data, WireError> {
         let capabilities = self.capabilities();
         if params.required_capabilities.iter().any(|required| {
@@ -898,6 +956,7 @@ impl Backend {
             Operation::Hello(params) => self.hello(params)?,
             Operation::AuthVerify(params) => {
                 if self.account_mutation_pending
+                    || self.account_read_permits.available_permits() == 0
                     || self
                         .auth_flow
                         .as_ref()
@@ -917,12 +976,7 @@ impl Backend {
                         false,
                     )
                 })?;
-                let tokens = self
-                    .token_manager()?
-                    .readonly_management_profile()
-                    .map_err(|_| {
-                        crate::auth_verify::VerificationFailure::CredentialUnavailable.wire_error()
-                    })?;
+                let tokens = self.verification_tokens()?;
                 let request_id = request.request_id.clone();
                 let content_id = params.content_id.clone();
                 let generation = self.account_generation;
@@ -948,6 +1002,7 @@ impl Backend {
                 self.poll_auth()?;
                 let tokens = self.token_manager()?;
                 if self.account_mutation_pending
+                    || self.account_read_permits.available_permits() == 0
                     || self
                         .auth_flow
                         .as_ref()
@@ -1055,8 +1110,7 @@ impl Backend {
                     ));
                 }
                 if self.async_keychain_io {
-                    self.reserve_worker()?;
-                    let tokens = self.token_manager()?;
+                    let (tokens, permit, budget) = self.account_status_read()?;
                     let request_id = request.request_id.clone();
                     let generation = self.account_generation;
                     self.pending_requests.insert(request_id.clone());
@@ -1064,7 +1118,7 @@ impl Backend {
                         Completion::AccountStatus {
                             request_id,
                             generation,
-                            result: read_account_status(tokens).await,
+                            result: read_account_status(tokens, permit, budget).await,
                         }
                     });
                     return Ok(None);
@@ -1075,8 +1129,7 @@ impl Backend {
             }
             Operation::AuthStatus(_) => {
                 self.poll_auth()?;
-                self.reserve_worker()?;
-                let tokens = self.token_manager()?;
+                let (tokens, permit, budget) = self.account_status_read()?;
                 let request_id = request.request_id.clone();
                 let generation = self.account_generation;
                 self.pending_requests.insert(request_id.clone());
@@ -1084,13 +1137,15 @@ impl Backend {
                     Completion::AccountStatus {
                         request_id,
                         generation,
-                        result: read_account_status(tokens).await,
+                        result: read_account_status(tokens, permit, budget).await,
                     }
                 });
                 return Ok(None);
             }
             Operation::AuthLogout(_) => {
-                if self.account_mutation_pending {
+                if self.account_mutation_pending
+                    || self.account_read_permits.available_permits() == 0
+                {
                     return Err(WireError::new(
                         ErrorCode::InvalidTransition,
                         "A native Keychain account mutation is pending. Reconcile it before disconnecting.",
@@ -1741,12 +1796,7 @@ impl Backend {
     ) -> Result<(), WireError> {
         let witness = result?;
         self.auth_verified_result(generation, deadline, Ok(witness.clone()))?;
-        let tokens = self
-            .token_manager()?
-            .readonly_management_profile()
-            .map_err(|_| {
-                crate::auth_verify::VerificationFailure::CredentialUnavailable.wire_error()
-            })?;
+        let tokens = self.verification_tokens()?;
         self.tasks.spawn(async move {
             let result = crate::auth_verify::bounded_verification(
                 deadline.saturating_duration_since(tokio::time::Instant::now()),
@@ -1773,7 +1823,7 @@ impl Backend {
         &mut self,
         expires_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), WireError> {
-        let tokens = self.token_manager()?;
+        let tokens = self.noninteractive_tokens()?;
         let delay = (expires_at - chrono::Utc::now())
             .to_std()
             .unwrap_or(Duration::ZERO);
@@ -1883,30 +1933,36 @@ fn prepare_consent(tokens: TokenManager, flow_id: String) -> Result<ConsentBoots
     })
 }
 
-async fn read_account_status(tokens: TokenManager) -> Result<AuthData, WireError> {
-    let unavailable = || {
-        let mut error = WireError::new(
-            ErrorCode::AuthInvalid,
-            "Launcher Keychain read is unavailable. No approval was requested or credentials replaced.",
-            true,
-        );
-        error.details = serde_json::json!({"category":"credentialStoreUnavailable",
-            "action":"Review Keychain availability or use explicitly initiated account consent."})
+fn account_read_unavailable() -> WireError {
+    let mut error = WireError::new(
+        ErrorCode::AuthInvalid,
+        "Launcher Keychain read is unavailable or still awaiting permission. Respond to any native prompt before checking again; credentials were not replaced.",
+        true,
+    );
+    error.details = serde_json::json!({"category":"credentialStoreUnavailable",
+            "action":"Review native Keychain permission or availability; an outstanding prompt may still need a human response."})
         .as_object()
         .cloned();
-        error
-    };
+    error
+}
+
+async fn read_account_status(
+    tokens: TokenManager,
+    permit: tokio::sync::OwnedSemaphorePermit,
+    budget: Duration,
+) -> Result<AuthData, WireError> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     std::thread::Builder::new()
         .name("xodus-account-read".to_owned())
         .spawn(move || {
+            let _permit = permit;
             let _ = sender.send(auth_status(&tokens));
         })
-        .map_err(|_| unavailable())?;
-    tokio::time::timeout(Duration::from_secs(2), receiver)
+        .map_err(|_| account_read_unavailable())?;
+    tokio::time::timeout(budget, receiver)
         .await
-        .map_err(|_| unavailable())?
-        .map_err(|_| unavailable())?
+        .map_err(|_| account_read_unavailable())?
+        .map_err(|_| account_read_unavailable())?
 }
 
 pub fn auth_status(tokens: &TokenManager) -> Result<AuthData, WireError> {
@@ -4555,7 +4611,7 @@ mod auth_lifecycle_tests {
     }
 
     #[tokio::test]
-    async fn slow_read_only_account_lookup_does_not_block_public_actor_and_has_a_deadline() {
+    async fn foreground_account_read_exceeds_silent_budget_without_blocking_actor() {
         use tokio::io::AsyncBufReadExt;
         use xodus::tokens::store::TokenBackend;
         struct Slow {
@@ -4617,13 +4673,119 @@ mod auth_lifecycle_tests {
             .unwrap();
         let result: serde_json::Value = serde_json::from_str(&line).unwrap();
         assert_eq!(result["requestID"], "status");
-        assert_eq!(
-            result["error"]["details"]["category"],
-            "credentialStoreUnavailable"
-        );
+        assert_eq!(result["ok"], true);
+        assert_eq!(result["data"]["state"], "signedOut");
         client_write.shutdown().await.unwrap();
         task.await.unwrap().unwrap();
         tokio::time::sleep(Duration::from_millis(150)).await;
+    }
+
+    #[tokio::test]
+    async fn foreground_account_read_timeout_or_disconnect_keeps_permission_fenced_until_return() {
+        use xodus::tokens::store::TokenBackend;
+
+        struct Held {
+            started: std::sync::Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
+            release: std::sync::Mutex<Option<tokio::sync::oneshot::Receiver<()>>>,
+        }
+        impl TokenBackend for Held {
+            fn get(&self, _: &str) -> Result<Option<Vec<u8>>, TokenStoreError> {
+                let started = self.started.lock().unwrap().take();
+                if let Some(started) = started {
+                    started.send(()).unwrap();
+                    self.release
+                        .lock()
+                        .unwrap()
+                        .take()
+                        .unwrap()
+                        .blocking_recv()
+                        .unwrap();
+                }
+                Ok(None)
+            }
+            fn set(&self, _: &str, _: &[u8]) -> Result<(), TokenStoreError> {
+                panic!("status must not write")
+            }
+            fn remove(&self, _: &str) -> Result<(), TokenStoreError> {
+                panic!("status must not remove")
+            }
+        }
+
+        assert_eq!(ACCOUNT_PERMISSION_DEADLINE, Duration::from_secs(120));
+        assert_eq!(SILENT_ACCOUNT_READ_DEADLINE, Duration::from_secs(2));
+        for cancel in [false, true] {
+            let (_temporary, mut backend) = backend();
+            let (started, observed) = tokio::sync::oneshot::channel();
+            let (release, held) = tokio::sync::oneshot::channel();
+            backend.tokens = Some(TokenManager::with_management_backend(Arc::new(Held {
+                started: std::sync::Mutex::new(Some(started)),
+                release: std::sync::Mutex::new(Some(held)),
+            })));
+            let (tokens, permit, budget) = backend.account_status_read().unwrap();
+            assert_eq!(budget, ACCOUNT_PERMISSION_DEADLINE);
+            let read = tokio::spawn(read_account_status(
+                tokens,
+                permit,
+                Duration::from_millis(20),
+            ));
+            observed.await.unwrap();
+            if cancel {
+                read.abort();
+                assert!(read.await.unwrap_err().is_cancelled());
+            } else {
+                let error = read.await.unwrap().unwrap_err();
+                assert_eq!(error.code, ErrorCode::AuthInvalid);
+                assert_eq!(
+                    error.details.unwrap()["category"],
+                    "credentialStoreUnavailable"
+                );
+            }
+            assert_eq!(backend.account_read_permits.available_permits(), 0);
+            for operation in [
+                Operation::AuthStatus(Empty {}),
+                Operation::AuthBegin(AccountParams {
+                    account_scope: "default".to_owned(),
+                }),
+                Operation::AuthLogout(Empty {}),
+                Operation::AuthVerify(AuthVerifyParams {
+                    content_id: "00000000-0000-0000-0000-000000000001".to_owned(),
+                }),
+            ] {
+                let request = Request {
+                    kind: RequestKind::Request,
+                    protocol: Protocol::default(),
+                    request_id: "fenced".to_owned(),
+                    operation,
+                };
+                let error = backend.dispatch(&request).await.unwrap_err();
+                assert!(matches!(
+                    error.code,
+                    ErrorCode::AuthInvalid | ErrorCode::InvalidTransition
+                ));
+            }
+            assert!(backend.tasks.is_empty());
+            let generation = backend.account_generation;
+            release.send(()).unwrap();
+            let permit = tokio::time::timeout(
+                Duration::from_secs(1),
+                backend.account_read_permits.clone().acquire_owned(),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+            drop(permit);
+            assert_eq!(backend.account_generation, generation);
+            assert!(backend.auth_flow.is_none());
+            assert!(backend.tasks.is_empty());
+            let (tokens, permit, budget) = backend.account_status_read().unwrap();
+            assert!(matches!(
+                read_account_status(tokens, permit, budget)
+                    .await
+                    .unwrap()
+                    .state,
+                AuthState::SignedOut
+            ));
+        }
     }
 
     #[tokio::test]

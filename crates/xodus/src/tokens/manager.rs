@@ -103,7 +103,7 @@ impl TokenManager {
 
     pub fn with_management_keychain_and_memory() -> Self {
         Self::with_management_backend(Arc::new(ManagementKeychainBackend {
-            interactive_reads: false,
+            interactive_reads: true,
         }))
     }
 
@@ -141,6 +141,17 @@ impl TokenManager {
         let mut manager = self.clone();
         manager.persistent = Arc::new(ManagementKeychainBackend {
             interactive_reads: true,
+        });
+        Ok(manager)
+    }
+
+    pub fn with_noninteractive_management_keychain(&self) -> Result<Self, TokenStoreError> {
+        if !self.management_profile {
+            return Err(TokenStoreError::InvalidCredential);
+        }
+        let mut manager = self.clone();
+        manager.persistent = Arc::new(ManagementKeychainBackend {
+            interactive_reads: false,
         });
         Ok(manager)
     }
@@ -813,6 +824,42 @@ mod management_tests {
             original
         );
         assert!(memory.get(keys::USER_TOKENS).unwrap().is_none());
+    }
+
+    #[test]
+    fn management_interaction_clones_keep_profile_fences_and_readonly_last_without_keychain_access()
+    {
+        let manager = TokenManager::with_management_backend(Arc::new(MemoryBackend::default()));
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let (_, stamp) = manager.management_store_snapshot().unwrap();
+        let witness = stamp.publication_witness();
+        for clone in [
+            manager
+                .with_explicit_management_keychain_interaction()
+                .unwrap(),
+            manager.with_noninteractive_management_keychain().unwrap(),
+        ] {
+            assert!(clone.management_publication_current(&witness));
+            assert!(Arc::ptr_eq(&clone.cache_epoch, &manager.cache_epoch));
+            assert!(Arc::ptr_eq(
+                &clone.management_mutations,
+                &manager.management_mutations
+            ));
+            let readonly = clone.readonly_management_profile().unwrap();
+            assert!(readonly.save_user(&fixture_store_session().user).is_err());
+        }
+        manager
+            .save_management_store_session(fixture_store_session())
+            .unwrap();
+        let silent = manager.with_noninteractive_management_keychain().unwrap();
+        assert!(!silent.management_publication_current(&witness));
+        assert!(
+            TokenManager::with_memory()
+                .with_noninteractive_management_keychain()
+                .is_err()
+        );
     }
 
     #[test]

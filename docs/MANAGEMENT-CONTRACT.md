@@ -144,14 +144,33 @@ polls `auth.status` and may send `auth.cancel` with that flowID. Terminal flow
 states are completed/cancelled/failed. Starting consent is not signed-in success.
 No automatic consent window or Keychain-approval clicking is performed.
 
-Read-only `auth.status` explicitly disables native Security interaction and
-runs outside the public actor with a two-second deadline. A blocked/unapproved
-read returns `AUTH_INVALID` with `details.category:credentialStoreUnavailable`,
-not a permission dialog, signed-out fallback or an empty account. Late read
-results are discarded; they cannot modify credentials. Explicit preparation,
+Foreground read-only `auth.status` uses the upstream native Keychain interaction
+policy: macOS may ask the human to unlock the login Keychain or approve this
+engine's access to the saved launcher item. It runs outside the public actor
+with a 120-second human-permission budget; the client allows 130 seconds.
+Anonymous hello/startup never reads credentials. Polling during an active
+consent flow remains explicitly non-interactive with a two-second read budget.
+A blocked/unapproved/expired-budget read returns `AUTH_INVALID` with
+`details.category:credentialStoreUnavailable`, never a signed-out fallback or
+an empty account. Late results are discarded, including after disconnect.
+An outstanding read retains its permit until the native call actually returns:
+duplicate reads and new begin/logout/verification work cannot initiate a
+parallel account action while a permission response remains outstanding.
+Timeout cannot dismiss an OS-owned prompt or establish cancellation; respond
+to any remaining prompt or close the engine before retrying. No automatic
+retry, password capture, credential writes or cleanup are performed by status.
+Human "Allow" may authorize only one read; "Always Allow" can persist item
+permission metadata. Multiple prompts are possible. A self-signed fixed
+designated requirement does not stabilize the separate per-build `cdhash`
+partition, so approval for this engine does not prove future rebuild access.
+Explicit preparation,
 parent commit and logout also run outside the actor, so public discovery/jobs
 remain dispatchable while the user responds to an intentionally initiated
 Keychain prompt. The ordinary CLI process's interaction policy is unchanged.
+The deliberate two-second `auth.verify` credential/publication reads retain
+explicit no-UI clones, wrapped read-only last, and the original 30-second
+verification budget. Foreground status establishes human permission before
+that separate provider-read operation; neither initiates Microsoft login.
 At publication, status reconciles the owned worker and attaches the current
 flow, not the flow captured before the credential read. Failure/cancellation
 during a read cannot republish an earlier pending flow. Account generation

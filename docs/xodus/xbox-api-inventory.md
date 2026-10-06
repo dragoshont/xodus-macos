@@ -111,6 +111,28 @@ Start with package manifests, public code/models and safe diagnostic metadata.
 Observe one named UI operation at a time. Distinguish HTTPS services from local
 Gaming Services calls; do not pretend every requirement is a REST endpoint.
 
+### Read-only installed-client findings
+
+The accessible manifests declare separate GameCatalog, PlatformStore account,
+Store/licensing/package queue/content access and Xbox authentication interfaces.
+Those declarations are not proof that a specific Library action invokes them.
+
+Bounded inspection of the one shipped `Bundle\index.bundle` file
+(19,506,864 bytes; SHA256
+`038a60a67cec41055fc2e6d75525eb87a4828f7ee05150f869b0e8905475a8ca`)
+found fixed static references to `collections.mp.microsoft.com`,
+`purchase.mp.microsoft.com`, catalog/TitleHub services, and
+`getOwnedGamesCollection`, `fetchCollectionData`, `getGameEntitlements` and
+edition-entitlement operations. It did **not** establish a versioned collection
+route, request method/body, relying party, paging or account binding. Separate
+hostname and operation strings must not be combined into an invented call.
+The community v7 lead is strengthened, not admitted, by these references.
+
+No client launch, private-cache read, binary/source export, TLS interception,
+certificate/policy change, credential dump or endpoint invocation was performed.
+Permission to observe the live Windows client has not been obtained; actual
+Library-operation correlation remains the next external evidence requirement.
+
 No credential/token dump, root-certificate installation, TLS weakening,
 security-policy change, package modification or undocumented endpoint probing
 is approved by this specification. A capture requiring such a change needs

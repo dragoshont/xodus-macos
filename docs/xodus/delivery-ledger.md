@@ -78,6 +78,15 @@ offer explicit retry. Account checks and connection changes still clear personal
 history. The verified populated shipping process was left running, not reopened
 into a fresh empty session.
 
+**Superseding installed correction:** app `2d741a7` now keeps main PC Library
+unavailable rather than presenting those activity rows as owned games. Recent
+activity is a separate explicit scope; main Library does not initiate its saved
+status/history load and has no history hero or count. Exact source/CI/package
+checks passed, the unchanged signed C8 engine and full working rollback were
+preserved, and the corrected main process remains open. This establishes the
+presentation correction, not an authoritative PC collection. A bounded absence
+of publication/decode events is not a visual or API-traffic proof.
+
 Private results remain in ignored session/Mac evidence locations:
 
 - `app-native-permission-f30/nativepermission-saved-status-and-halo-read-result.json`

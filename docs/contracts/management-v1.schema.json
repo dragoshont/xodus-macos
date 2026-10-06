@@ -1607,6 +1607,29 @@
               }
             ]
           }
+        },
+        {
+          "if": {
+            "required": [
+              "details"
+            ],
+            "properties": {
+              "details": {
+                "type": "object",
+                "required": [
+                  "category"
+                ],
+                "properties": {
+                  "category": {
+                    "const": "installPlanFailure"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/installPlanError"
+          }
         }
       ]
     },
@@ -2204,6 +2227,1253 @@
         }
       },
       "additionalProperties": false
+    },
+    "installPlanFailure": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "credentials"
+            },
+            "reason": {
+              "const": "unavailable"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "credentials"
+            },
+            "reason": {
+              "const": "profileChanged"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "credentials"
+            },
+            "reason": {
+              "const": "rejected"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "selection"
+            },
+            "reason": {
+              "const": "ambiguous"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "package"
+            },
+            "reason": {
+              "const": "unavailable"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "selection"
+            },
+            "reason": {
+              "const": "applicabilityUnproven"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "selection"
+            },
+            "reason": {
+              "const": "unsupported"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "format"
+            },
+            "reason": {
+              "const": "unsupported"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "integrity"
+            },
+            "reason": {
+              "const": "unproven"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "layout"
+            },
+            "reason": {
+              "const": "incomplete"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "license"
+            },
+            "reason": {
+              "const": "acquisitionRequired"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "destination"
+            },
+            "reason": {
+              "const": "unsupported"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "destination"
+            },
+            "reason": {
+              "const": "changed"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "space"
+            },
+            "reason": {
+              "const": "insufficient"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "provider"
+            },
+            "reason": {
+              "const": "unavailable"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "provider"
+            },
+            "reason": {
+              "const": "invalidResponse"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "stage",
+            "reason"
+          ],
+          "properties": {
+            "category": {
+              "const": "installPlanFailure"
+            },
+            "stage": {
+              "const": "selection"
+            },
+            "reason": {
+              "const": "expired"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "installPlanError": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "AUTH_INVALID"
+            },
+            "message": {
+              "const": "Install planning requires a current saved launcher account."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "credentials"
+                },
+                "reason": {
+                  "const": "unavailable"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "AUTH_INVALID"
+            },
+            "message": {
+              "const": "The launcher account changed during install planning. Select the edition again."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "credentials"
+                },
+                "reason": {
+                  "const": "profileChanged"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "ACCESS_REVOKED"
+            },
+            "message": {
+              "const": "The package metadata provider rejected this account. No license was acquired."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "credentials"
+                },
+                "reason": {
+                  "const": "rejected"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "PACKAGE_AMBIGUOUS"
+            },
+            "message": {
+              "const": "The selected edition does not resolve to exactly one PC package."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "selection"
+                },
+                "reason": {
+                  "const": "ambiguous"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "PACKAGE_UNAVAILABLE"
+            },
+            "message": {
+              "const": "The selected edition has no available matching PC base package."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "package"
+                },
+                "reason": {
+                  "const": "unavailable"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "UNSUPPORTED_CONFIGURATION"
+            },
+            "message": {
+              "const": "Package architecture, language and dependency applicability are not established by the available metadata."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "selection"
+                },
+                "reason": {
+                  "const": "applicabilityUnproven"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "UNSUPPORTED_CONFIGURATION"
+            },
+            "message": {
+              "const": "The selected edition has no package declared for the requested architecture and language."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "selection"
+                },
+                "reason": {
+                  "const": "unsupported"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "UNSUPPORTED_CONFIGURATION"
+            },
+            "message": {
+              "const": "A supported authenticated pre-key package format has not been established."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "format"
+                },
+                "reason": {
+                  "const": "unsupported"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "INTEGRITY_FAILED"
+            },
+            "message": {
+              "const": "The provider digest algorithm, encoding and coverage are not established."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "integrity"
+                },
+                "reason": {
+                  "const": "unproven"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "PACKAGE_UNAVAILABLE"
+            },
+            "message": {
+              "const": "The pre-key expanded layout, padded file sizes and scratch bound are incomplete."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "layout"
+                },
+                "reason": {
+                  "const": "incomplete"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "ACCESS_UNKNOWN"
+            },
+            "message": {
+              "const": "Further planning would require a separately authorized license or key operation."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "license"
+                },
+                "reason": {
+                  "const": "acquisitionRequired"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "UNSUPPORTED_CONFIGURATION"
+            },
+            "message": {
+              "const": "Install planning currently supports only the existing private managed state root."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "destination"
+                },
+                "reason": {
+                  "const": "unsupported"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "PLAN_CHANGED"
+            },
+            "message": {
+              "const": "The managed destination changed during install planning. No files were created."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "destination"
+                },
+                "reason": {
+                  "const": "changed"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "INSUFFICIENT_SPACE"
+            },
+            "message": {
+              "const": "The selected volume has insufficient space for the established peak allocation."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "space"
+                },
+                "reason": {
+                  "const": "insufficient"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "NETWORK_UNAVAILABLE"
+            },
+            "message": {
+              "const": "The bounded package metadata read did not complete. No license or payload was requested."
+            },
+            "retryable": {
+              "const": true
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "provider"
+                },
+                "reason": {
+                  "const": "unavailable"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "INTEGRITY_FAILED"
+            },
+            "message": {
+              "const": "Required package metadata is malformed or inconsistent."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "provider"
+                },
+                "reason": {
+                  "const": "invalidResponse"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "retryable",
+            "details"
+          ],
+          "properties": {
+            "code": {
+              "const": "PLAN_EXPIRED"
+            },
+            "message": {
+              "const": "The in-memory install planning observation expired. Resolve the selected edition again."
+            },
+            "retryable": {
+              "const": false
+            },
+            "details": {
+              "type": "object",
+              "required": [
+                "category",
+                "stage",
+                "reason"
+              ],
+              "properties": {
+                "category": {
+                  "const": "installPlanFailure"
+                },
+                "stage": {
+                  "const": "selection"
+                },
+                "reason": {
+                  "const": "expired"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "installPlanData": {
+      "type": "object",
+      "required": [
+        "readiness",
+        "planID",
+        "planDigest",
+        "checkedAt",
+        "expiresAt",
+        "productID",
+        "editionID",
+        "packageID",
+        "contentID",
+        "versionID",
+        "packageVersion",
+        "architecture",
+        "language",
+        "market",
+        "packageFormat",
+        "formatVersion",
+        "integrity",
+        "downloadBytes",
+        "stagedVersionBytes",
+        "scratchBytes",
+        "peakAdditionalBytes",
+        "destinationBinding",
+        "licenseOperation",
+        "licenseState",
+        "compatibility",
+        "runtimeFingerprint",
+        "launchable"
+      ],
+      "properties": {
+        "readiness": {
+          "const": "readyForConfirmation"
+        },
+        "planID": {
+          "$ref": "#/$defs/identifier"
+        },
+        "planDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "checkedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "productID": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]{12}$"
+        },
+        "editionID": {
+          "$ref": "#/$defs/identifier"
+        },
+        "packageID": {
+          "$ref": "#/$defs/identifier"
+        },
+        "contentID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "not": {
+            "const": "00000000-0000-0000-0000-000000000000"
+          }
+        },
+        "versionID": {
+          "$ref": "#/$defs/identifier"
+        },
+        "packageVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "architecture": {
+          "enum": [
+            "arm64",
+            "x86_64"
+          ]
+        },
+        "language": {
+          "type": "string",
+          "pattern": "^[a-z]{2,3}(-[A-Z]{2})?$"
+        },
+        "market": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "packageFormat": {
+          "const": "msixvc"
+        },
+        "formatVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "integrity": {
+          "type": "object",
+          "required": [
+            "algorithm",
+            "encoding",
+            "coverage",
+            "source",
+            "digest"
+          ],
+          "properties": {
+            "algorithm": {
+              "const": "sha256"
+            },
+            "encoding": {
+              "const": "hexLowercase"
+            },
+            "coverage": {
+              "const": "completeBasePayload"
+            },
+            "source": {
+              "const": "authenticatedProvider"
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "downloadBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 18446744073709551615
+        },
+        "stagedVersionBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 18446744073709551615
+        },
+        "scratchBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "peakAdditionalBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 18446744073709551615
+        },
+        "destinationBinding": {
+          "$ref": "#/$defs/identifier"
+        },
+        "licenseOperation": {
+          "type": "object",
+          "required": [
+            "operation",
+            "concurrencyMode",
+            "needKey",
+            "keyOnly",
+            "requiresConfirmation"
+          ],
+          "properties": {
+            "operation": {
+              "const": "contentLicenseIssuance"
+            },
+            "concurrencyMode": {
+              "const": "Rude"
+            },
+            "needKey": {
+              "const": true
+            },
+            "keyOnly": {
+              "const": true
+            },
+            "requiresConfirmation": {
+              "const": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "licenseState": {
+          "const": "notAcquired"
+        },
+        "compatibility": {
+          "$ref": "#/$defs/compatibility"
+        },
+        "runtimeFingerprint": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "launchable": {
+          "const": false
+        }
+      },
+      "additionalProperties": false,
+      "description": "Reserved immutable confirmation descriptor only; not a permitted live success variant. The current resolver cannot establish applicability, digest authority or pre-key layout."
     },
     "artwork": {
       "type": "object",

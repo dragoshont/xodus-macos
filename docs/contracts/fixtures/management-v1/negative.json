@@ -1,5 +1,1602 @@
 [
   {
+    "name": "planTuple0code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-0",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "Install planning requires a current saved launcher account.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "unavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple0message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-0",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "unavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple0retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-0",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "message": "Install planning requires a current saved launcher account.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "unavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple0Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-0",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "message": "Install planning requires a current saved launcher account.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "unavailable",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple1code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-1",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "The launcher account changed during install planning. Select the edition again.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "profileChanged"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple1message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-1",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "profileChanged"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple1retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-1",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "message": "The launcher account changed during install planning. Select the edition again.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "profileChanged"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple1Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-1",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "message": "The launcher account changed during install planning. Select the edition again.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "profileChanged",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple2code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-2",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "The package metadata provider rejected this account. No license was acquired.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "rejected"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple2message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-2",
+      "ok": false,
+      "error": {
+        "code": "ACCESS_REVOKED",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "rejected"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple2retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-2",
+      "ok": false,
+      "error": {
+        "code": "ACCESS_REVOKED",
+        "message": "The package metadata provider rejected this account. No license was acquired.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "rejected"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple2Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-2",
+      "ok": false,
+      "error": {
+        "code": "ACCESS_REVOKED",
+        "message": "The package metadata provider rejected this account. No license was acquired.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "rejected",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple3code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-3",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "The selected edition does not resolve to exactly one PC package.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "ambiguous"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple3message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-3",
+      "ok": false,
+      "error": {
+        "code": "PACKAGE_AMBIGUOUS",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "ambiguous"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple3retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-3",
+      "ok": false,
+      "error": {
+        "code": "PACKAGE_AMBIGUOUS",
+        "message": "The selected edition does not resolve to exactly one PC package.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "ambiguous"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple3Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-3",
+      "ok": false,
+      "error": {
+        "code": "PACKAGE_AMBIGUOUS",
+        "message": "The selected edition does not resolve to exactly one PC package.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "ambiguous",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple4code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-4",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "The selected edition has no available matching PC base package.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "package",
+          "reason": "unavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple4message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-4",
+      "ok": false,
+      "error": {
+        "code": "PACKAGE_UNAVAILABLE",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "package",
+          "reason": "unavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple4retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-4",
+      "ok": false,
+      "error": {
+        "code": "PACKAGE_UNAVAILABLE",
+        "message": "The selected edition has no available matching PC base package.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "package",
+          "reason": "unavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple4Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-4",
+      "ok": false,
+      "error": {
+        "code": "PACKAGE_UNAVAILABLE",
+        "message": "The selected edition has no available matching PC base package.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "package",
+          "reason": "unavailable",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple5code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-5",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "Package architecture, language and dependency applicability are not established by the available metadata.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "applicabilityUnproven"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple5message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-5",
+      "ok": false,
+      "error": {
+        "code": "UNSUPPORTED_CONFIGURATION",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "applicabilityUnproven"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple5retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-5",
+      "ok": false,
+      "error": {
+        "code": "UNSUPPORTED_CONFIGURATION",
+        "message": "Package architecture, language and dependency applicability are not established by the available metadata.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "applicabilityUnproven"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple5Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-5",
+      "ok": false,
+      "error": {
+        "code": "UNSUPPORTED_CONFIGURATION",
+        "message": "Package architecture, language and dependency applicability are not established by the available metadata.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "applicabilityUnproven",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple6code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-6",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "The selected edition has no package declared for the requested architecture and language.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "unsupported"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple6message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-6",
+      "ok": false,
+      "error": {
+        "code": "UNSUPPORTED_CONFIGURATION",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "unsupported"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple6retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-6",
+      "ok": false,
+      "error": {
+        "code": "UNSUPPORTED_CONFIGURATION",
+        "message": "The selected edition has no package declared for the requested architecture and language.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "unsupported"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple6Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-6",
+      "ok": false,
+      "error": {
+        "code": "UNSUPPORTED_CONFIGURATION",
+        "message": "The selected edition has no package declared for the requested architecture and language.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "unsupported",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple7code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-7",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "A supported authenticated pre-key package format has not been established.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "format",
+          "reason": "unsupported"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple7message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-7",
+      "ok": false,
+      "error": {
+        "code": "UNSUPPORTED_CONFIGURATION",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "format",
+          "reason": "unsupported"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple7retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-7",
+      "ok": false,
+      "error": {
+        "code": "UNSUPPORTED_CONFIGURATION",
+        "message": "A supported authenticated pre-key package format has not been established.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "format",
+          "reason": "unsupported"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple7Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-7",
+      "ok": false,
+      "error": {
+        "code": "UNSUPPORTED_CONFIGURATION",
+        "message": "A supported authenticated pre-key package format has not been established.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "format",
+          "reason": "unsupported",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple8code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-8",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "The provider digest algorithm, encoding and coverage are not established.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "integrity",
+          "reason": "unproven"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple8message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-8",
+      "ok": false,
+      "error": {
+        "code": "INTEGRITY_FAILED",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "integrity",
+          "reason": "unproven"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple8retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-8",
+      "ok": false,
+      "error": {
+        "code": "INTEGRITY_FAILED",
+        "message": "The provider digest algorithm, encoding and coverage are not established.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "integrity",
+          "reason": "unproven"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple8Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-8",
+      "ok": false,
+      "error": {
+        "code": "INTEGRITY_FAILED",
+        "message": "The provider digest algorithm, encoding and coverage are not established.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "integrity",
+          "reason": "unproven",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple9code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-9",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "The pre-key expanded layout, padded file sizes and scratch bound are incomplete.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "layout",
+          "reason": "incomplete"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple9message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-9",
+      "ok": false,
+      "error": {
+        "code": "PACKAGE_UNAVAILABLE",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "layout",
+          "reason": "incomplete"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple9retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-9",
+      "ok": false,
+      "error": {
+        "code": "PACKAGE_UNAVAILABLE",
+        "message": "The pre-key expanded layout, padded file sizes and scratch bound are incomplete.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "layout",
+          "reason": "incomplete"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple9Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-9",
+      "ok": false,
+      "error": {
+        "code": "PACKAGE_UNAVAILABLE",
+        "message": "The pre-key expanded layout, padded file sizes and scratch bound are incomplete.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "layout",
+          "reason": "incomplete",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple10code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-10",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "Further planning would require a separately authorized license or key operation.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "license",
+          "reason": "acquisitionRequired"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple10message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-10",
+      "ok": false,
+      "error": {
+        "code": "ACCESS_UNKNOWN",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "license",
+          "reason": "acquisitionRequired"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple10retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-10",
+      "ok": false,
+      "error": {
+        "code": "ACCESS_UNKNOWN",
+        "message": "Further planning would require a separately authorized license or key operation.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "license",
+          "reason": "acquisitionRequired"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple10Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-10",
+      "ok": false,
+      "error": {
+        "code": "ACCESS_UNKNOWN",
+        "message": "Further planning would require a separately authorized license or key operation.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "license",
+          "reason": "acquisitionRequired",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple11code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-11",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "Install planning currently supports only the existing private managed state root.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "destination",
+          "reason": "unsupported"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple11message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-11",
+      "ok": false,
+      "error": {
+        "code": "UNSUPPORTED_CONFIGURATION",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "destination",
+          "reason": "unsupported"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple11retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-11",
+      "ok": false,
+      "error": {
+        "code": "UNSUPPORTED_CONFIGURATION",
+        "message": "Install planning currently supports only the existing private managed state root.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "destination",
+          "reason": "unsupported"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple11Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-11",
+      "ok": false,
+      "error": {
+        "code": "UNSUPPORTED_CONFIGURATION",
+        "message": "Install planning currently supports only the existing private managed state root.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "destination",
+          "reason": "unsupported",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple12code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-12",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "The managed destination changed during install planning. No files were created.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "destination",
+          "reason": "changed"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple12message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-12",
+      "ok": false,
+      "error": {
+        "code": "PLAN_CHANGED",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "destination",
+          "reason": "changed"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple12retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-12",
+      "ok": false,
+      "error": {
+        "code": "PLAN_CHANGED",
+        "message": "The managed destination changed during install planning. No files were created.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "destination",
+          "reason": "changed"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple12Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-12",
+      "ok": false,
+      "error": {
+        "code": "PLAN_CHANGED",
+        "message": "The managed destination changed during install planning. No files were created.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "destination",
+          "reason": "changed",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple13code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-13",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "The selected volume has insufficient space for the established peak allocation.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "space",
+          "reason": "insufficient"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple13message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-13",
+      "ok": false,
+      "error": {
+        "code": "INSUFFICIENT_SPACE",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "space",
+          "reason": "insufficient"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple13retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-13",
+      "ok": false,
+      "error": {
+        "code": "INSUFFICIENT_SPACE",
+        "message": "The selected volume has insufficient space for the established peak allocation.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "space",
+          "reason": "insufficient"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple13Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-13",
+      "ok": false,
+      "error": {
+        "code": "INSUFFICIENT_SPACE",
+        "message": "The selected volume has insufficient space for the established peak allocation.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "space",
+          "reason": "insufficient",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple14code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-14",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "The bounded package metadata read did not complete. No license or payload was requested.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "provider",
+          "reason": "unavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple14message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-14",
+      "ok": false,
+      "error": {
+        "code": "NETWORK_UNAVAILABLE",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "provider",
+          "reason": "unavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple14retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-14",
+      "ok": false,
+      "error": {
+        "code": "NETWORK_UNAVAILABLE",
+        "message": "The bounded package metadata read did not complete. No license or payload was requested.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "provider",
+          "reason": "unavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple14Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-14",
+      "ok": false,
+      "error": {
+        "code": "NETWORK_UNAVAILABLE",
+        "message": "The bounded package metadata read did not complete. No license or payload was requested.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "provider",
+          "reason": "unavailable",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple15code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-15",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "Required package metadata is malformed or inconsistent.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "provider",
+          "reason": "invalidResponse"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple15message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-15",
+      "ok": false,
+      "error": {
+        "code": "INTEGRITY_FAILED",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "provider",
+          "reason": "invalidResponse"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple15retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-15",
+      "ok": false,
+      "error": {
+        "code": "INTEGRITY_FAILED",
+        "message": "Required package metadata is malformed or inconsistent.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "provider",
+          "reason": "invalidResponse"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple15Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-15",
+      "ok": false,
+      "error": {
+        "code": "INTEGRITY_FAILED",
+        "message": "Required package metadata is malformed or inconsistent.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "provider",
+          "reason": "invalidResponse",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple16code",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-16",
+      "ok": false,
+      "error": {
+        "code": "INTERNAL_ERROR",
+        "message": "The in-memory install planning observation expired. Resolve the selected edition again.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "expired"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple16message",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-16",
+      "ok": false,
+      "error": {
+        "code": "PLAN_EXPIRED",
+        "message": "PRIVATE_SENTINEL",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "expired"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple16retryable",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-16",
+      "ok": false,
+      "error": {
+        "code": "PLAN_EXPIRED",
+        "message": "The in-memory install planning observation expired. Resolve the selected edition again.",
+        "retryable": true,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "expired"
+        }
+      }
+    }
+  },
+  {
+    "name": "planTuple16Extra",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-16",
+      "ok": false,
+      "error": {
+        "code": "PLAN_EXPIRED",
+        "message": "The in-memory install planning observation expired. Resolve the selected edition again.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "selection",
+          "reason": "expired",
+          "planID": "unready-plan"
+        }
+      }
+    }
+  },
+  {
+    "name": "planDetailsInvalidcategory",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-0",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "message": "Install planning requires a current saved launcher account.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "reason": "unavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "planDetailsInvalidstage",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-0",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "message": "Install planning requires a current saved launcher account.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "unknown",
+          "reason": "unavailable"
+        }
+      }
+    }
+  },
+  {
+    "name": "planDetailsInvalidreason",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-install-plan-error-0",
+      "ok": false,
+      "error": {
+        "code": "AUTH_INVALID",
+        "message": "Install planning requires a current saved launcher account.",
+        "retryable": false,
+        "details": {
+          "category": "installPlanFailure",
+          "stage": "credentials",
+          "reason": "unknown"
+        }
+      }
+    }
+  },
+  {
+    "name": "planIncompleteCannotSucceed",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-plan-incomplete",
+      "ok": true,
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "unready-plan",
+        "downloadBytes": 0,
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    }
+  },
+  {
     "name": "installedRuntimeWrongType",
     "frame": {
       "kind": "result",
@@ -3123,6 +4720,63 @@
             "artworkStatus": "available"
           }
         ]
+      }
+    }
+  },
+  {
+    "name": "reservedReadyPlanNotLiveSuccess",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-reserved-plan",
+      "ok": true,
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
       }
     }
   }

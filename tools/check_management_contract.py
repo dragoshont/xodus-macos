@@ -62,7 +62,15 @@ for item in evidence:
     jsonschema.Draft202012Validator(
         evidence_schema, format_checker=jsonschema.FormatChecker()).validate(item)
 assert positive == [json.loads(line) for line in (fixtures / "positive.jsonl").read_text().splitlines()]
+reserved = json.loads((fixtures / "install-plan-reserved.json").read_text())
+plan_validator = jsonschema.Draft202012Validator(
+    {**schema, "oneOf": [{"$ref": "#/$defs/installPlanData"}]},
+    format_checker=jsonschema.FormatChecker())
+plan_validator.validate(reserved["data"])
+for case in reserved["invalid"]:
+    assert list(plan_validator.iter_errors(case["data"])), case["name"]
 print(f"Contract fixtures: {len(positive)} positive, {len(negative)} negative, "
       f"{len(failed_cases)} failed-page negative checks, "
       f"{len(failed_query_cases)} failed-query negative checks, "
-      f"{len(evidence)} evidence-edge; preserved 9 foundation definitions.")
+      f"{len(evidence)} evidence-edge; reserved descriptor {len(reserved['invalid'])} negatives; "
+      "preserved 9 foundation definitions.")

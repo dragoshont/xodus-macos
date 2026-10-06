@@ -1,0 +1,1591 @@
+{
+  "purpose": "Reserved descriptor shape only, never a live result or an accepted plan.",
+  "data": {
+    "readiness": "readyForConfirmation",
+    "planID": "fixture-reserved-not-enqueueable",
+    "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "checkedAt": "2026-10-03T12:00:00Z",
+    "expiresAt": "2026-10-03T12:10:00Z",
+    "productID": "FIXTURE00001",
+    "editionID": "fixture-edition",
+    "packageID": "fixture-package",
+    "contentID": "00000000-0000-0000-0000-000000000001",
+    "versionID": "fixture-version",
+    "packageVersion": "1.0.0.0",
+    "architecture": "x86_64",
+    "language": "en-US",
+    "market": "US",
+    "packageFormat": "msixvc",
+    "formatVersion": "fixture-unimplemented-format",
+    "integrity": {
+      "algorithm": "sha256",
+      "encoding": "hexLowercase",
+      "coverage": "completeBasePayload",
+      "source": "authenticatedProvider",
+      "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "downloadBytes": 4096,
+    "stagedVersionBytes": 8192,
+    "scratchBytes": 4096,
+    "peakAdditionalBytes": 16384,
+    "destinationBinding": "fixture-private-binding",
+    "licenseOperation": {
+      "operation": "contentLicenseIssuance",
+      "concurrencyMode": "Rude",
+      "needKey": true,
+      "keyOnly": true,
+      "requiresConfirmation": true
+    },
+    "licenseState": "notAcquired",
+    "compatibility": {
+      "kind": "unknown",
+      "source": "reservedFixtureOnly",
+      "checkedAt": null
+    },
+    "runtimeFingerprint": null,
+    "launchable": false
+  },
+  "invalid": [
+    {
+      "name": "missingreadiness",
+      "data": {
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingplanID",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingplanDigest",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingcheckedAt",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingexpiresAt",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingproductID",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingeditionID",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingpackageID",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingcontentID",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingversionID",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingpackageVersion",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingarchitecture",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missinglanguage",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingmarket",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingpackageFormat",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingformatVersion",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingintegrity",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingdownloadBytes",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingstagedVersionBytes",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingscratchBytes",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingpeakAdditionalBytes",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingdestinationBinding",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missinglicenseOperation",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missinglicenseState",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingcompatibility",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "missingruntimeFingerprint",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "launchable": false
+      }
+    },
+    {
+      "name": "missinglaunchable",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null
+      }
+    },
+    {
+      "name": "invaliddownloadBytes",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 0,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "invalidstagedVersionBytes",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 0,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "invalidplanDigest",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    },
+    {
+      "name": "invalidlaunchable",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": true
+      }
+    },
+    {
+      "name": "invalidruntimeFingerprint",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "notAcquired",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": 42,
+        "launchable": false
+      }
+    },
+    {
+      "name": "invalidlicenseState",
+      "data": {
+        "readiness": "readyForConfirmation",
+        "planID": "fixture-reserved-not-enqueueable",
+        "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checkedAt": "2026-10-03T12:00:00Z",
+        "expiresAt": "2026-10-03T12:10:00Z",
+        "productID": "FIXTURE00001",
+        "editionID": "fixture-edition",
+        "packageID": "fixture-package",
+        "contentID": "00000000-0000-0000-0000-000000000001",
+        "versionID": "fixture-version",
+        "packageVersion": "1.0.0.0",
+        "architecture": "x86_64",
+        "language": "en-US",
+        "market": "US",
+        "packageFormat": "msixvc",
+        "formatVersion": "fixture-unimplemented-format",
+        "integrity": {
+          "algorithm": "sha256",
+          "encoding": "hexLowercase",
+          "coverage": "completeBasePayload",
+          "source": "authenticatedProvider",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "downloadBytes": 4096,
+        "stagedVersionBytes": 8192,
+        "scratchBytes": 4096,
+        "peakAdditionalBytes": 16384,
+        "destinationBinding": "fixture-private-binding",
+        "licenseOperation": {
+          "operation": "contentLicenseIssuance",
+          "concurrencyMode": "Rude",
+          "needKey": true,
+          "keyOnly": true,
+          "requiresConfirmation": true
+        },
+        "licenseState": "issued",
+        "compatibility": {
+          "kind": "unknown",
+          "source": "reservedFixtureOnly",
+          "checkedAt": null
+        },
+        "runtimeFingerprint": null,
+        "launchable": false
+      }
+    }
+  ]
+}

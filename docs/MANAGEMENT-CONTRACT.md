@@ -55,16 +55,90 @@ runtime/version. Account scope is only `default`, without an account identifier.
 | events.replay | replayData, ordered durable events |
 | installed.snapshot | installedData, managementRegistryOnly; no legacy-folder discovery |
 | installed.inspect | read-only userSelectedDirectory inspectionData on native macOS; no scan, registration, adoption or launch |
-| install.plan | gated: no authorized complete package plan provider |
+| install.plan | negotiated read-only public selected-edition resolution; unproven MSIXVC integrity blocks before credential/XSTS/package work |
 | game.launch | gated: no signed/certified paired runtime |
 | game.update / game.rollback / game.remove | gated: no management-installed version to mutate |
 | diagnostics.export | diagnosticsData, bounded preview object only; no export file or upload |
 
 All commands have strict parameter schemas, including gated commands. Gated
 commands **cannot** return successful plan/launch/update/remove objects in this
-version. No install plan or install-job success schema is promised before there
-is an implementation. `installationRecord` describes only an existing committed
+version. A reserved install-plan DTO is not a permitted live success variant;
+install jobs remain unavailable. `installationRecord` describes only an existing committed
 management registry entry, not an import of existing CLI installations.
+
+### Read-only install planning
+
+`install.plan` preserves the existing selected productID, editionID, requested
+guest architecture, language, market, destination and experimentalConsent
+request. Product/SKU/content/package identities are distinct; played history
+is not entitlement. The reuse-first resolver selects the exact public Store
+product and SKU, requires one Windows.Desktop package with real package/content
+identities, and reuses `get_packages_verified` for bounded authenticated base
+metadata when the read can establish needed evidence. It never selects the
+first edition/package, follows bundle prompts or issues a license POST.
+
+The DisplayCatalog DTO now retains its evidenced plural Architectures,
+Languages, FrameworkDependencies and HardwareDependencies fields, plus
+PackageFormat, Hash/HashAlgorithm and maximum download/install sizes. Missing
+fields stay absent, not empty/zero facts. Guest x86_64 maps to the provider's
+declared x64; arm64 maps only to declared arm64. Requested language must match
+an actual declaration, not a first-language fallback. Ambiguous editions or
+applicable packages remain blocked; missing/unknown applicability yields
+`UNSUPPORTED_CONFIGURATION / selection / applicabilityUnproven`, not package
+absence or invented resolved values. A known architecture/language mismatch
+returns `selection/unsupported`. Dependency declarations are preserved,
+not claimed satisfied by macOS or a runtime.
+
+The resolver may fetch only the requested product's bounded anonymous
+DisplayCatalog metadata. Unsupported package formats and the still-unproven
+MSIXVC digest authority short-circuit before initializing/reading Keychain,
+making an XSTS exchange or requesting GetBasePackage. A public AppxBundle
+SHA256 field does not establish MSIXVC or Update API FileHash/HashOfHashes
+algorithm/encoding/coverage. Nonpositive public install-size fields do not
+establish expanded padded layout or space sufficiency. An unsupported
+destination is rejected before provider work. Supported here means the
+negotiated read-only resolver/diagnostic, not a ready install plan.
+
+Destination binding is only the existing private current management state root,
+not future user-selected external roots. No directory/lock creation or
+destination redirection occurs. The internal bounded resolver binds the exact
+request and selected provider identities, private full saved-profile witness,
+account generation/epoch, destination descriptor and expiry in memory.
+An observation has at most a ten-minute in-memory lifetime; credential expiry
+and the 30-second complete request deadline remain independent stricter fences.
+Publication rechecks destination identity and the existing full saved-bundle
+witness off-actor, then repeats account/deadline/expiry fences. Disconnect drops
+the provider future; an already started metadata read holds its permit until
+real I/O ends and cannot write or publish late results.
+
+Unknown applicability, authoritative digest algorithm/encoding/coverage,
+pre-key authenticated format, expanded padded layout, scratch bounds or
+license-required metadata yield a blocked error, with exactly
+`{category:"installPlanFailure",stage,reason}`. Seventeen fixed
+code/message/retryable/details tuples are frozen in `installPlanError`; no
+provider strings, bearer URLs, asset/account IDs, content keys or native error
+text are returned. Only provider-unavailable transport failure is retryable.
+No blocked result has a plan ID, success-shaped zero-size descriptor or cache
+entry; no installation job can be enqueued from it.
+
+`installPlanData` and the Rust `InstallPlanData` type are **reserved descriptor
+shapes only**, excluded from the live `success.data` variants. They require all
+selected identities, established digest/format/storage facts, a private
+destination binding, checked/expiry times and the later explicit license
+operation facts. `licenseState:notAcquired`, nullable-but-required runtime
+identity and `launchable:false` do not prove ownership or compatibility.
+`install-plan-reserved.json` is a standalone synthetic codec fixture, never a
+provider response, an accepted plan or live product evidence. Adding a live
+ready variant requires evidenced gates and a separately reviewed contract.
+
+The later license operation remains the existing content-license issuance
+POST with concurrencyMode Rude, needKey/keyOnly true and explicit separate
+confirmation. Interrupted potentially sent issuance is outcomeUnknown and
+must not be replayed on restart. Future idempotency must bind the canonical
+request/plan/digest/destination/consent and reject content mismatch. Neither
+licensing nor durable install-job mutations are implemented by this resolver.
+No user-selected entitled game or license/storage/download/launch grant is
+inferred from this source-only slice.
 
 `auth.verify` is an additive, capability-negotiated operation with exactly
 `{"contentID":"canonical-lowercase-nonzero-UUID"}` params. The content ID must

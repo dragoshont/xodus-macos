@@ -200,6 +200,73 @@ defs["error"]["allOf"].append({
         for stage, (code, retryable) in recent_errors.items()
     ]},
 })
+plan_errors = [
+    ("credentials", "unavailable", "AUTH_INVALID", False, "Install planning requires a current saved launcher account."),
+    ("credentials", "profileChanged", "AUTH_INVALID", False, "The launcher account changed during install planning. Select the edition again."),
+    ("credentials", "rejected", "ACCESS_REVOKED", False, "The package metadata provider rejected this account. No license was acquired."),
+    ("selection", "ambiguous", "PACKAGE_AMBIGUOUS", False, "The selected edition does not resolve to exactly one PC package."),
+    ("package", "unavailable", "PACKAGE_UNAVAILABLE", False, "The selected edition has no available matching PC base package."),
+    ("selection", "applicabilityUnproven", "UNSUPPORTED_CONFIGURATION", False, "Package architecture, language and dependency applicability are not established by the available metadata."),
+    ("selection", "unsupported", "UNSUPPORTED_CONFIGURATION", False, "The selected edition has no package declared for the requested architecture and language."),
+    ("format", "unsupported", "UNSUPPORTED_CONFIGURATION", False, "A supported authenticated pre-key package format has not been established."),
+    ("integrity", "unproven", "INTEGRITY_FAILED", False, "The provider digest algorithm, encoding and coverage are not established."),
+    ("layout", "incomplete", "PACKAGE_UNAVAILABLE", False, "The pre-key expanded layout, padded file sizes and scratch bound are incomplete."),
+    ("license", "acquisitionRequired", "ACCESS_UNKNOWN", False, "Further planning would require a separately authorized license or key operation."),
+    ("destination", "unsupported", "UNSUPPORTED_CONFIGURATION", False, "Install planning currently supports only the existing private managed state root."),
+    ("destination", "changed", "PLAN_CHANGED", False, "The managed destination changed during install planning. No files were created."),
+    ("space", "insufficient", "INSUFFICIENT_SPACE", False, "The selected volume has insufficient space for the established peak allocation."),
+    ("provider", "unavailable", "NETWORK_UNAVAILABLE", True, "The bounded package metadata read did not complete. No license or payload was requested."),
+    ("provider", "invalidResponse", "INTEGRITY_FAILED", False, "Required package metadata is malformed or inconsistent."),
+    ("selection", "expired", "PLAN_EXPIRED", False, "The in-memory install planning observation expired. Resolve the selected edition again."),
+]
+defs["installPlanFailure"] = {"oneOf": [
+    obj({"category": {"const": "installPlanFailure"}, "stage": {"const": stage},
+         "reason": {"const": reason}})
+    for stage, reason, _, _, _ in plan_errors
+]}
+defs["installPlanError"] = {"oneOf": [
+    obj({"code": {"const": code}, "message": {"const": message},
+         "retryable": {"const": retryable}, "details": obj({
+             "category": {"const": "installPlanFailure"}, "stage": {"const": stage},
+             "reason": {"const": reason}})})
+    for stage, reason, code, retryable, message in plan_errors
+]}
+defs["installPlanData"] = obj({
+    "readiness": {"const": "readyForConfirmation"}, "planID": identifier,
+    "planDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "checkedAt": date, "expiresAt": date,
+    "productID": product_params["properties"]["productID"], "editionID": identifier,
+    "packageID": identifier, "contentID": commands["auth.verify"]["properties"]["contentID"],
+    "versionID": identifier, "packageVersion": text,
+    "architecture": enum("arm64", "x86_64"), "language": product_params["properties"]["language"],
+    "market": product_params["properties"]["market"],
+    "packageFormat": {"const": "msixvc"}, "formatVersion": text,
+    "integrity": obj({
+        "algorithm": {"const": "sha256"}, "encoding": {"const": "hexLowercase"},
+        "coverage": {"const": "completeBasePayload"}, "source": {"const": "authenticatedProvider"},
+        "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    }),
+    "downloadBytes": {**uint, "minimum": 1}, "stagedVersionBytes": {**uint, "minimum": 1},
+    "scratchBytes": uint, "peakAdditionalBytes": {**uint, "minimum": 1},
+    "destinationBinding": identifier,
+    "licenseOperation": obj({
+        "operation": {"const": "contentLicenseIssuance"}, "concurrencyMode": {"const": "Rude"},
+        "needKey": {"const": True}, "keyOnly": {"const": True}, "requiresConfirmation": {"const": True},
+    }),
+    "licenseState": {"const": "notAcquired"}, "compatibility": ref("compatibility"),
+    "runtimeFingerprint": nullable(text), "launchable": {"const": False},
+})
+defs["installPlanData"]["description"] = (
+    "Reserved immutable confirmation descriptor only; not a permitted live success variant. "
+    "The current resolver cannot establish applicability, digest authority or pre-key layout."
+)
+defs["error"]["allOf"].append({
+    "if": {"required": ["details"], "properties": {"details": {
+        "type": "object", "required": ["category"],
+        "properties": {"category": {"const": "installPlanFailure"}},
+    }}},
+    "then": ref("installPlanError"),
+})
 defs["artwork"] = obj({
     "role": enum("boxArt", "poster", "hero", "tile"),
     "url": {"type": "string", "maxLength": 2048,
@@ -531,6 +598,35 @@ for code in defs["error"]["properties"]["code"]["enum"]:
                      "ok": False, "error": {"code": code, "message": "Sanitized fixture error.",
                                            "retryable": False}})
 negative = []
+for index, (stage, reason, code, retryable, message) in enumerate(plan_errors):
+    frame = {"kind": "result", "protocol": protocol,
+             "requestID": f"fixture-install-plan-error-{index}", "ok": False,
+             "error": {"code": code, "message": message, "retryable": retryable,
+                       "details": {"category": "installPlanFailure", "stage": stage, "reason": reason}}}
+    positive.append(frame)
+    for field, invalid in [("code", "INTERNAL_ERROR"), ("message", "PRIVATE_SENTINEL"),
+                           ("retryable", not retryable)]:
+        candidate = copy.deepcopy(frame)
+        candidate["error"][field] = invalid
+        negative.append({"name": f"planTuple{index}{field}", "frame": candidate})
+    candidate = copy.deepcopy(frame)
+    candidate["error"]["details"]["planID"] = "unready-plan"
+    negative.append({"name": f"planTuple{index}Extra", "frame": candidate})
+plan_error_frame = next(frame for frame in positive
+                        if frame.get("requestID") == "fixture-install-plan-error-0")
+for field in ("category", "stage", "reason"):
+    candidate = copy.deepcopy(plan_error_frame)
+    if field == "category":
+        candidate["error"]["details"][field] = "installPlanFailure"
+        del candidate["error"]["details"]["stage"]
+    else:
+        candidate["error"]["details"][field] = "unknown"
+    negative.append({"name": f"planDetailsInvalid{field}", "frame": candidate})
+negative.append({"name": "planIncompleteCannotSucceed", "frame": {
+    "kind": "result", "protocol": protocol, "requestID": "fixture-plan-incomplete",
+    "ok": True, "data": {"readiness": "readyForConfirmation", "planID": "unready-plan",
+                        "downloadBytes": 0, "runtimeFingerprint": None, "launchable": False},
+}})
 registered_result = next(frame for frame in positive if
                          frame.get("data", {}).get("installations"))
 for name, field, value in [
@@ -577,7 +673,8 @@ negative.append({"name": "negativeSequence", "frame": bad_job})
 bad_result = copy.deepcopy(positive[len(commands)])
 bad_result["error"] = {"code": "INTERNAL_ERROR", "message": "fixture", "retryable": False}
 negative.append({"name": "bothSuccessAndFailure", "frame": bad_result})
-bad_flow = copy.deepcopy(positive[-len(defs["error"]["properties"]["code"]["enum"]) - 1])
+bad_flow = copy.deepcopy(next(frame for frame in positive if
+    frame.get("requestID") == "fixture-auth-failed"))
 bad_flow["data"]["flow"]["token"] = "fixture-not-a-token"
 negative.append({"name": "secretFieldInFlow", "frame": bad_flow})
 bad_discovery = copy.deepcopy(next(frame for frame in positive if frame.get("command") == "catalog.discover"))
@@ -685,6 +782,43 @@ mapped_recent["titles"][0]["productID"] = "FIXTURE00001"
 negative.append({"name": "recentGuessedProduct", "frame": {"kind": "result",
     "protocol": protocol, "requestID": "fixture-recent-mapped", "ok": True, "data": mapped_recent}})
 write(fixture_root / "positive.json", positive)
+reserved_plan = {
+    "readiness": "readyForConfirmation", "planID": "fixture-reserved-not-enqueueable",
+    "planDigest": "a" * 64, "checkedAt": timestamp, "expiresAt": "2026-10-03T12:10:00Z",
+    "productID": "FIXTURE00001", "editionID": "fixture-edition",
+    "packageID": "fixture-package", "contentID": str(uuid.UUID(int=1)),
+    "versionID": "fixture-version", "packageVersion": "1.0.0.0",
+    "architecture": "x86_64", "language": "en-US", "market": "US",
+    "packageFormat": "msixvc", "formatVersion": "fixture-unimplemented-format",
+    "integrity": {"algorithm": "sha256", "encoding": "hexLowercase",
+                  "coverage": "completeBasePayload", "source": "authenticatedProvider",
+                  "digest": "b" * 64},
+    "downloadBytes": 4096, "stagedVersionBytes": 8192, "scratchBytes": 4096,
+    "peakAdditionalBytes": 16384, "destinationBinding": "fixture-private-binding",
+    "licenseOperation": {"operation": "contentLicenseIssuance", "concurrencyMode": "Rude",
+                         "needKey": True, "keyOnly": True, "requiresConfirmation": True},
+    "licenseState": "notAcquired", "compatibility": {
+        "kind": "unknown", "source": "reservedFixtureOnly", "checkedAt": None},
+    "runtimeFingerprint": None, "launchable": False,
+}
+reserved_invalid = []
+for field in reserved_plan:
+    candidate = copy.deepcopy(reserved_plan)
+    del candidate[field]
+    reserved_invalid.append({"name": "missing" + field, "data": candidate})
+for field, invalid in [("downloadBytes", 0), ("stagedVersionBytes", 0), ("planDigest", ""),
+                       ("launchable", True), ("runtimeFingerprint", 42), ("licenseState", "issued")]:
+    candidate = copy.deepcopy(reserved_plan)
+    candidate[field] = invalid
+    reserved_invalid.append({"name": "invalid" + field, "data": candidate})
+write(fixture_root / "install-plan-reserved.json", {
+    "purpose": "Reserved descriptor shape only, never a live result or an accepted plan.",
+    "data": reserved_plan, "invalid": reserved_invalid,
+})
+negative.append({"name": "reservedReadyPlanNotLiveSuccess", "frame": {
+    "kind": "result", "protocol": protocol, "requestID": "fixture-reserved-plan",
+    "ok": True, "data": reserved_plan,
+}})
 write(fixture_root / "negative.json", negative)
 write(fixture_root / "evidence-edge.json", [
     {**evidence, "entitlement": {"kind": "purchase", "source": "fixture", "checkedAt": timestamp},

@@ -229,7 +229,7 @@ pub enum Platform {
     Pc,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PlanParams {
     #[serde(rename = "productID")]
@@ -243,12 +243,209 @@ pub struct PlanParams {
     pub experimental_consent: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub enum Architecture {
     #[serde(rename = "arm64")]
     Arm64,
     #[serde(rename = "x86_64")]
     X86_64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", try_from = "RawInstallPlanFailureDetails")]
+pub struct InstallPlanFailureDetails {
+    pub category: InstallPlanFailureCategory,
+    pub stage: InstallPlanFailureStage,
+    pub reason: InstallPlanFailureReason,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RawInstallPlanFailureDetails {
+    category: InstallPlanFailureCategory,
+    stage: InstallPlanFailureStage,
+    reason: InstallPlanFailureReason,
+}
+
+impl TryFrom<RawInstallPlanFailureDetails> for InstallPlanFailureDetails {
+    type Error = &'static str;
+    fn try_from(value: RawInstallPlanFailureDetails) -> Result<Self, Self::Error> {
+        use InstallPlanFailureReason as Reason;
+        use InstallPlanFailureStage as Stage;
+        if !matches!(
+            (&value.stage, &value.reason),
+            (
+                Stage::Credentials,
+                Reason::Unavailable | Reason::ProfileChanged | Reason::Rejected
+            ) | (
+                Stage::Selection,
+                Reason::Ambiguous
+                    | Reason::ApplicabilityUnproven
+                    | Reason::Expired
+                    | Reason::Unsupported
+            ) | (Stage::Package, Reason::Unavailable)
+                | (Stage::Format, Reason::Unsupported)
+                | (Stage::Integrity, Reason::Unproven)
+                | (Stage::Layout, Reason::Incomplete)
+                | (Stage::License, Reason::AcquisitionRequired)
+                | (Stage::Destination, Reason::Unsupported | Reason::Changed)
+                | (Stage::Space, Reason::Insufficient)
+                | (
+                    Stage::Provider,
+                    Reason::Unavailable | Reason::InvalidResponse
+                )
+        ) {
+            return Err("invalid install planning failure tuple");
+        }
+        Ok(Self {
+            category: value.category,
+            stage: value.stage,
+            reason: value.reason,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub enum InstallPlanFailureCategory {
+    #[serde(rename = "installPlanFailure")]
+    InstallPlanFailure,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum InstallPlanFailureStage {
+    Credentials,
+    Selection,
+    Package,
+    Format,
+    Integrity,
+    Layout,
+    License,
+    Destination,
+    Space,
+    Provider,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum InstallPlanFailureReason {
+    Unavailable,
+    ProfileChanged,
+    Rejected,
+    Ambiguous,
+    ApplicabilityUnproven,
+    Unsupported,
+    Unproven,
+    Incomplete,
+    AcquisitionRequired,
+    Insufficient,
+    Changed,
+    Expired,
+    InvalidResponse,
+}
+
+/// Reserved confirmation descriptor, deliberately not a live success Data variant.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InstallPlanData {
+    pub readiness: InstallPlanReadiness,
+    #[serde(rename = "planID")]
+    pub plan_id: String,
+    pub plan_digest: String,
+    pub checked_at: String,
+    pub expires_at: String,
+    #[serde(rename = "productID")]
+    pub product_id: String,
+    #[serde(rename = "editionID")]
+    pub edition_id: String,
+    #[serde(rename = "packageID")]
+    pub package_id: String,
+    #[serde(rename = "contentID")]
+    pub content_id: String,
+    #[serde(rename = "versionID")]
+    pub version_id: String,
+    pub package_version: String,
+    pub architecture: Architecture,
+    pub language: String,
+    pub market: String,
+    pub package_format: PlanPackageFormat,
+    pub format_version: String,
+    pub integrity: PlanIntegrity,
+    pub download_bytes: u64,
+    pub staged_version_bytes: u64,
+    pub scratch_bytes: u64,
+    pub peak_additional_bytes: u64,
+    pub destination_binding: String,
+    pub license_operation: PlanLicenseOperation,
+    pub license_state: PlanLicenseState,
+    pub compatibility: Compatibility,
+    #[serde(deserialize_with = "Option::<String>::deserialize")]
+    pub runtime_fingerprint: Option<String>,
+    pub launchable: False,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum InstallPlanReadiness {
+    #[serde(rename = "readyForConfirmation")]
+    ReadyForConfirmation,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum PlanPackageFormat {
+    #[serde(rename = "msixvc")]
+    Msixvc,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PlanIntegrity {
+    pub algorithm: PlanDigestAlgorithm,
+    pub encoding: PlanDigestEncoding,
+    pub coverage: PlanDigestCoverage,
+    pub source: PlanDigestSource,
+    pub digest: String,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum PlanDigestAlgorithm {
+    #[serde(rename = "sha256")]
+    Sha256,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum PlanDigestEncoding {
+    #[serde(rename = "hexLowercase")]
+    HexLowercase,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum PlanDigestCoverage {
+    #[serde(rename = "completeBasePayload")]
+    CompleteBasePayload,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum PlanDigestSource {
+    #[serde(rename = "authenticatedProvider")]
+    AuthenticatedProvider,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum PlanLicenseState {
+    #[serde(rename = "notAcquired")]
+    NotAcquired,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PlanLicenseOperation {
+    pub operation: PlanLicenseOperationKind,
+    pub concurrency_mode: PlanLicenseConcurrency,
+    pub need_key: True,
+    pub key_only: True,
+    pub requires_confirmation: True,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum PlanLicenseOperationKind {
+    #[serde(rename = "contentLicenseIssuance")]
+    ContentLicenseIssuance,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum PlanLicenseConcurrency {
+    #[serde(rename = "Rude")]
+    Rude,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

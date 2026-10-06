@@ -946,7 +946,8 @@ pub struct InstallationRecord {
     pub package_id: String,
     pub package_version: String,
     pub package_digest: String,
-    pub runtime_fingerprint: String,
+    #[serde(deserialize_with = "Option::<String>::deserialize")]
+    pub runtime_fingerprint: Option<String>,
     pub managed_root: String,
     pub save_policy: String,
     pub health: String,

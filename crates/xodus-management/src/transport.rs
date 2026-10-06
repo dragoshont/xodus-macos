@@ -46,7 +46,7 @@ pub async fn read_line<R: AsyncBufRead + Unpin>(reader: &mut R) -> std::io::Resu
     }
 }
 
-struct UniqueJson(serde_json::Value);
+pub(crate) struct UniqueJson(pub(crate) serde_json::Value);
 
 impl<'de> serde::Deserialize<'de> for UniqueJson {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {

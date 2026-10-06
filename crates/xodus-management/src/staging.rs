@@ -11,10 +11,11 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::state::{identifier_valid, validate_directory};
-use crate::wire::{ErrorCode, Protocol, WireError};
+use crate::wire::{ErrorCode, InstallationRecord, Protocol, WireError};
 
 pub const MAX_REGISTRY_INSTALLATIONS: usize = 256;
 pub const MAX_STORAGE_JSON_BYTES: usize = 4 * 1024 * 1024;
+const SNAPSHOT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -271,7 +272,357 @@ fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, WireError
     serde_json::from_reader(file.take(MAX_STORAGE_JSON_BYTES as u64 + 1)).map_err(|_| recovery())
 }
 
+fn validate_registry(registry: &Registry) -> Result<(), WireError> {
+    if registry.version != Protocol::default()
+        || registry.installations.len() > MAX_REGISTRY_INSTALLATIONS
+    {
+        return Err(recovery());
+    }
+    for (id, installation) in &registry.installations {
+        bounded_id(id)?;
+        if id != &installation.installation_id || installation.revision == 0 {
+            return Err(recovery());
+        }
+        for version in std::iter::once(&installation.active).chain(installation.rollback.iter()) {
+            bounded_id(&version.transaction_id)?;
+            validate_manifest(&version.manifest)?;
+        }
+    }
+    Ok(())
+}
+
+pub async fn installed_snapshot(
+    root: PathBuf,
+    permits: std::sync::Arc<tokio::sync::Semaphore>,
+) -> Result<Vec<InstallationRecord>, WireError> {
+    crate::inspection::bounded_local_read(
+        permits,
+        SNAPSHOT_TIMEOUT,
+        move || StagingStore::read_snapshot(&root),
+        snapshot_timeout(),
+        WireError::new(
+            ErrorCode::RegistryRecoveryRequired,
+            "Local registry snapshot worker is unavailable. No files were modified.",
+            true,
+        ),
+    )
+    .await
+}
+
+fn snapshot_timeout() -> WireError {
+    WireError::new(
+        ErrorCode::RegistryRecoveryRequired,
+        "Local registry snapshot did not finish within its bounded deadline. No files were modified.",
+        true,
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn snapshot_directory(path: &Path) -> Result<File, WireError> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    if !path.is_absolute()
+        || path.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir | std::path::Component::CurDir
+            )
+        })
+    {
+        return Err(recovery());
+    }
+    let directory = crate::inspection::open_directory(path).map_err(|_| recovery())?;
+    let metadata = directory.metadata().map_err(|_| recovery())?;
+    if metadata.uid() != unsafe { libc::geteuid() }
+        || metadata.permissions().mode() & 0o777 != 0o700
+    {
+        return Err(recovery());
+    }
+    Ok(directory)
+}
+
+#[cfg(target_os = "macos")]
+fn snapshot_open(
+    parent: &File,
+    name: &std::ffi::CStr,
+    directory: bool,
+) -> Result<Option<File>, WireError> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    match crate::inspection::open_at(Some(parent), name, directory) {
+        Ok(file) => {
+            let metadata = file.metadata().map_err(|_| recovery())?;
+            let parent_metadata = parent.metadata().map_err(|_| recovery())?;
+            if metadata.dev() != parent_metadata.dev()
+                || metadata.uid() != unsafe { libc::geteuid() }
+                || (directory && metadata.permissions().mode() & 0o777 != 0o700)
+            {
+                return Err(recovery());
+            }
+            Ok(Some(file))
+        }
+        Err(error) if error.code == ErrorCode::NotFound => Ok(None),
+        Err(_) => Err(recovery()),
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn snapshot_json<T: serde::de::DeserializeOwned>(
+    parent: &File,
+    name: &std::ffi::CStr,
+) -> Result<Option<T>, WireError> {
+    use std::os::unix::fs::MetadataExt;
+    let Some(mut file) = snapshot_open(parent, name, false)? else {
+        return Ok(None);
+    };
+    let before = file.metadata().map_err(|_| recovery())?;
+    if !before.is_file()
+        || before.nlink() != 1
+        || before.uid() != unsafe { libc::geteuid() }
+        || before.len() > MAX_STORAGE_JSON_BYTES as u64
+    {
+        return Err(recovery());
+    }
+    let mut bytes = Vec::new();
+    (&mut file)
+        .take(MAX_STORAGE_JSON_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| recovery())?;
+    if bytes.len() > MAX_STORAGE_JSON_BYTES {
+        return Err(recovery());
+    }
+    let after = file.metadata().map_err(|_| recovery())?;
+    let current = snapshot_open(parent, name, false)?.ok_or_else(recovery)?;
+    let current = current.metadata().map_err(|_| recovery())?;
+    let unchanged = |value: &fs::Metadata| crate::inspection::same_file(&before, value);
+    if !unchanged(&after) || !unchanged(&current) {
+        return Err(recovery());
+    }
+    let value: crate::transport::UniqueJson =
+        serde_json::from_slice(&bytes).map_err(|_| recovery())?;
+    serde_json::from_value(value.0)
+        .map(Some)
+        .map_err(|_| recovery())
+}
+
+#[cfg(target_os = "macos")]
+fn snapshot_journals(directory: &File) -> Result<Vec<std::ffi::CString>, WireError> {
+    use std::os::fd::IntoRawFd;
+    struct Listing(*mut libc::DIR);
+    impl Drop for Listing {
+        fn drop(&mut self) {
+            // SAFETY: this scope exclusively owns the successful fdopendir result.
+            unsafe {
+                libc::closedir(self.0);
+            }
+        }
+    }
+    let fd = directory.try_clone().map_err(|_| recovery())?.into_raw_fd();
+    // SAFETY: the duplicate is transferred to DIR only on successful fdopendir.
+    let listing = unsafe { libc::fdopendir(fd) };
+    if listing.is_null() {
+        unsafe {
+            libc::close(fd);
+        }
+        return Err(recovery());
+    }
+    let listing = Listing(listing);
+    let mut names = Vec::new();
+    loop {
+        let mut entry = std::mem::MaybeUninit::<libc::dirent>::uninit();
+        let mut result = std::ptr::null_mut();
+        // SAFETY: native dirent storage and result pointer belong to this exclusive iterator.
+        let status = unsafe { libc::readdir_r(listing.0, entry.as_mut_ptr(), &mut result) };
+        if status != 0 {
+            return Err(recovery());
+        }
+        if result.is_null() {
+            return Ok(names);
+        }
+        // SAFETY: successful enumeration returned a NUL-terminated name in entry.
+        let name = unsafe { std::ffi::CStr::from_ptr((*result).d_name.as_ptr()) };
+        if name == c"." || name == c".." {
+            continue;
+        }
+        if names.len() == 256 {
+            return Err(recovery());
+        }
+        names.push(name.to_owned());
+    }
+}
+
 impl StagingStore {
+    pub fn read_snapshot(root: &Path) -> Result<Vec<InstallationRecord>, WireError> {
+        #[cfg(target_os = "macos")]
+        {
+            Self::read_snapshot_macos(root)
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = root;
+            Err(error(
+                ErrorCode::UnsupportedConfiguration,
+                "Read-only registry snapshots require native macOS filesystem support.",
+            ))
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn read_snapshot_macos(root: &Path) -> Result<Vec<InstallationRecord>, WireError> {
+        use std::ffi::CString;
+        use std::os::unix::fs::MetadataExt;
+        let directory = snapshot_directory(root)?;
+        let initial = directory.metadata().map_err(|_| recovery())?;
+        let deadline = std::time::Instant::now() + SNAPSHOT_TIMEOUT;
+        let lock = snapshot_open(&directory, c"staging.lock", false)?;
+        let Some(lock) = lock else {
+            for name in [
+                c"registry.json",
+                c"staging",
+                c"versions",
+                c"journals",
+                c"saves",
+            ] {
+                if snapshot_open(&directory, name, false)?.is_some() {
+                    return Err(recovery());
+                }
+            }
+            let current = snapshot_directory(root)?
+                .metadata()
+                .map_err(|_| recovery())?;
+            if !crate::inspection::same_file(&initial, &current) {
+                return Err(WireError::new(
+                    ErrorCode::StateLocked,
+                    "Local staging scope changed during observation. Retry its snapshot later.",
+                    true,
+                ));
+            }
+            return Ok(Vec::new());
+        };
+        let lock_metadata = lock.metadata().map_err(|_| recovery())?;
+        if !lock_metadata.is_file()
+            || lock_metadata.nlink() != 1
+            || lock_metadata.uid() != unsafe { libc::geteuid() }
+        {
+            return Err(recovery());
+        }
+        FileExt::try_lock_shared(&lock).map_err(|failure| {
+            if failure.kind() != std::io::ErrorKind::WouldBlock {
+                return recovery();
+            }
+            WireError::new(
+                ErrorCode::StateLocked,
+                "Local staging scope is being modified. Retry its snapshot later.",
+                true,
+            )
+        })?;
+        let registry: Registry =
+            snapshot_json(&directory, c"registry.json")?.ok_or_else(recovery)?;
+        validate_registry(&registry).map_err(|_| recovery())?;
+        let journals = snapshot_open(&directory, c"journals", true)?.ok_or_else(recovery)?;
+        let versions = snapshot_open(&directory, c"versions", true)?.ok_or_else(recovery)?;
+        let initial_journals = journals.metadata().map_err(|_| recovery())?;
+        let initial_versions = versions.metadata().map_err(|_| recovery())?;
+        for name in [c"staging", c"saves"] {
+            snapshot_open(&directory, name, true)?.ok_or_else(recovery)?;
+        }
+        let journal_names = snapshot_journals(&journals)?;
+        let mut pending = BTreeSet::new();
+        let staging = snapshot_open(&directory, c"staging", true)?.ok_or_else(recovery)?;
+        for name in journal_names {
+            if std::time::Instant::now() >= deadline {
+                return Err(snapshot_timeout());
+            }
+            let id = name
+                .to_str()
+                .map_err(|_| recovery())?
+                .strip_suffix(".json")
+                .ok_or_else(recovery)?;
+            bounded_id(id).map_err(|_| recovery())?;
+            let transaction: Transaction = snapshot_json(&journals, &name)?.ok_or_else(recovery)?;
+            if transaction.transaction_id != id || transaction.phase == Phase::Promoting {
+                return Err(recovery());
+            }
+            bounded_id(&transaction.installation_id).map_err(|_| recovery())?;
+            validate_manifest(&transaction.manifest).map_err(|_| recovery())?;
+            let staged = snapshot_open(&staging, &CString::new(id).map_err(|_| recovery())?, true)?
+                .ok_or_else(recovery)?;
+            let owner: String = snapshot_json(&staged, c".owner.json")?.ok_or_else(recovery)?;
+            if owner != id {
+                return Err(recovery());
+            }
+            pending.insert(transaction.transaction_id);
+        }
+        let mut result = Vec::new();
+        let mut owned_versions = BTreeSet::new();
+        for installation in registry.installations.values() {
+            if std::time::Instant::now() >= deadline {
+                return Err(snapshot_timeout());
+            }
+            for version in std::iter::once(&installation.active).chain(installation.rollback.iter())
+            {
+                if pending.contains(&version.transaction_id)
+                    || !owned_versions.insert(&version.transaction_id)
+                {
+                    return Err(recovery());
+                }
+                let name = CString::new(version.transaction_id.as_str()).map_err(|_| recovery())?;
+                let version_directory =
+                    snapshot_open(&versions, &name, true)?.ok_or_else(recovery)?;
+                let owner: String =
+                    snapshot_json(&version_directory, c".owner.json")?.ok_or_else(recovery)?;
+                if owner != version.transaction_id {
+                    return Err(recovery());
+                }
+            }
+            let manifest = &installation.active.manifest;
+            let serialized = serde_json::to_vec(manifest).map_err(|_| recovery())?;
+            let managed_root = root
+                .join("versions")
+                .join(&installation.active.transaction_id);
+            let managed_root = managed_root
+                .to_str()
+                .filter(|path| path.len() <= 1024 && !path.chars().any(char::is_control))
+                .ok_or_else(recovery)?;
+            result.push(InstallationRecord {
+                installation_id: installation.installation_id.clone(),
+                revision: installation.revision,
+                product_id: manifest.product_id.clone(),
+                edition_id: manifest.edition_id.clone(),
+                package_id: manifest.package_id.clone(),
+                package_version: manifest.package_version.clone(),
+                package_digest: digest_hex(&Sha256::digest(serialized)),
+                runtime_fingerprint: None,
+                managed_root: managed_root.to_owned(),
+                save_policy: "preserve".to_owned(),
+                health: "notVerified".to_owned(),
+            });
+        }
+        let current = snapshot_directory(root)?
+            .metadata()
+            .map_err(|_| recovery())?;
+        let current_lock = snapshot_open(&directory, c"staging.lock", false)?
+            .ok_or_else(recovery)?
+            .metadata()
+            .map_err(|_| recovery())?;
+        let current_journals = snapshot_open(&directory, c"journals", true)?
+            .ok_or_else(recovery)?
+            .metadata()
+            .map_err(|_| recovery())?;
+        let current_versions = snapshot_open(&directory, c"versions", true)?
+            .ok_or_else(recovery)?
+            .metadata()
+            .map_err(|_| recovery())?;
+        if initial.dev() != current.dev()
+            || initial.ino() != current.ino()
+            || lock_metadata.dev() != current_lock.dev()
+            || lock_metadata.ino() != current_lock.ino()
+            || !crate::inspection::same_file(&initial_journals, &current_journals)
+            || !crate::inspection::same_file(&initial_versions, &current_versions)
+        {
+            return Err(recovery());
+        }
+        Ok(result)
+    }
+
     pub fn open(root: &Path) -> Result<Self, WireError> {
         validate_directory(root)?;
         for name in ["staging", "versions", "journals", "saves"] {
@@ -296,23 +647,7 @@ impl StagingStore {
         let registry = match fs::symlink_metadata(&registry_path) {
             Ok(_) => {
                 let registry: Registry = read_json(&registry_path)?;
-                if registry.version != Protocol::default()
-                    || registry.installations.len() > MAX_REGISTRY_INSTALLATIONS
-                {
-                    return Err(recovery());
-                }
-                for (id, installation) in &registry.installations {
-                    bounded_id(id)?;
-                    if id != &installation.installation_id || installation.revision == 0 {
-                        return Err(recovery());
-                    }
-                    for version in
-                        std::iter::once(&installation.active).chain(installation.rollback.iter())
-                    {
-                        bounded_id(&version.transaction_id)?;
-                        validate_manifest(&version.manifest)?;
-                    }
-                }
+                validate_registry(&registry)?;
                 registry
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Registry {

@@ -289,6 +289,138 @@ async fn result<R: tokio::io::AsyncBufRead + Unpin>(reader: &mut R, id: &str) ->
     .unwrap()
 }
 
+#[cfg(target_os = "macos")]
+#[tokio::test]
+async fn installed_snapshot_reads_real_registry_without_provider_or_account_calls_and_recovers_transport_errors()
+ {
+    use sha2::{Digest, Sha256};
+    use xodus_management::staging::{Manifest, ManifestFile, StagingStore};
+    let (_temporary, path) = directory();
+    let bytes = b"local transaction fixture";
+    let mut staging = StagingStore::open(&path).unwrap();
+    let transaction = staging
+        .prepare(
+            Manifest {
+                product_id: "fixture-product".to_owned(),
+                edition_id: "fixture-edition".to_owned(),
+                package_id: "fixture-package".to_owned(),
+                package_version: "fixture-version".to_owned(),
+                files: vec![ManifestFile {
+                    path: "game.bin".to_owned(),
+                    bytes: bytes.len() as u64,
+                    sha256: Sha256::digest(bytes)
+                        .iter()
+                        .map(|byte| format!("{byte:02x}"))
+                        .collect(),
+                }],
+            },
+            None,
+            0,
+            0,
+        )
+        .unwrap();
+    staging
+        .write_file(
+            &transaction.transaction_id,
+            "game.bin",
+            bytes.as_slice(),
+            || false,
+        )
+        .unwrap();
+    staging.verify(&transaction.transaction_id).unwrap();
+    let installed = staging.commit(&transaction.transaction_id).unwrap();
+    drop(staging);
+    let registry = path.join("registry.json");
+    let before = std::fs::read(&registry).unwrap();
+    let backend = Backend::new(Store::open(&path).unwrap(), Arc::new(SlowPublicFixture));
+    let (client, server) = tokio::io::duplex(65536);
+    let (server_read, server_write) = tokio::io::split(server);
+    let task = tokio::spawn(serve(backend, BufReader::new(server_read), server_write));
+    let (read, mut write) = tokio::io::split(client);
+    let mut read = BufReader::new(read);
+    send(
+        &mut write,
+        "hello",
+        "hello",
+        serde_json::json!({"client":"fixture","clientVersion":"1"}),
+    )
+    .await;
+    assert_eq!(result(&mut read, "hello").await["ok"], true);
+    for id in ["first", "second"] {
+        send(&mut write, id, "installed.snapshot", serde_json::json!({})).await;
+        let frame = result(&mut read, id).await;
+        assert_eq!(frame["ok"], true);
+        assert_eq!(frame["data"]["scope"], "managementRegistryOnly");
+        assert_eq!(frame["data"]["completeness"], "complete");
+        assert_eq!(frame["data"]["watermark"], 0);
+        let records = frame["data"]["installations"].as_array().unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0]["installationID"], installed.installation_id);
+        assert_eq!(records[0]["revision"], 1);
+        assert_eq!(records[0]["health"], "notVerified");
+        assert!(
+            records[0]
+                .as_object()
+                .unwrap()
+                .contains_key("runtimeFingerprint")
+        );
+        assert!(records[0]["runtimeFingerprint"].is_null());
+        assert_eq!(std::fs::read(&registry).unwrap(), before);
+    }
+    std::fs::write(&registry, b"PRIVATE_SENTINEL corrupt local registry").unwrap();
+    send(
+        &mut write,
+        "corrupt",
+        "installed.snapshot",
+        serde_json::json!({}),
+    )
+    .await;
+    let failed = result(&mut read, "corrupt").await;
+    assert_eq!(failed["ok"], false);
+    assert_eq!(failed["error"]["code"], "REGISTRY_RECOVERY_REQUIRED");
+    assert!(!failed.to_string().contains("PRIVATE_SENTINEL"));
+    assert!(failed.get("data").is_none());
+    send(
+        &mut write,
+        "responsive",
+        "jobs.snapshot",
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        result(&mut read, "responsive").await["data"]["watermark"],
+        0
+    );
+    std::fs::write(&registry, &before).unwrap();
+    let writer = StagingStore::open(&path).unwrap();
+    send(
+        &mut write,
+        "busy",
+        "installed.snapshot",
+        serde_json::json!({}),
+    )
+    .await;
+    let busy = result(&mut read, "busy").await;
+    assert_eq!(busy["error"]["code"], "STATE_LOCKED");
+    assert_eq!(busy["error"]["retryable"], true);
+    drop(writer);
+    send(
+        &mut write,
+        "after-busy",
+        "installed.snapshot",
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        result(&mut read, "after-busy").await["data"]["installations"][0]["revision"],
+        1
+    );
+    drop(write);
+    drop(read);
+    task.await.unwrap().unwrap();
+    assert_eq!(std::fs::read(&registry).unwrap(), before);
+}
+
 #[tokio::test]
 async fn live_transport_cancel_snapshot_and_replay_without_network_or_credentials() {
     let (_temporary, path) = directory();

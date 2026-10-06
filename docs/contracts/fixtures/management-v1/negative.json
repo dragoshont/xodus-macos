@@ -1,5 +1,112 @@
 [
   {
+    "name": "installedRuntimeWrongType",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-result-19",
+      "ok": true,
+      "data": {
+        "registryVersion": {
+          "major": 1,
+          "minor": 0
+        },
+        "scope": "managementRegistryOnly",
+        "completeness": "complete",
+        "installations": [
+          {
+            "installationID": "fixture-installation",
+            "revision": 1,
+            "productID": "fixture-product",
+            "editionID": "fixture-edition",
+            "packageID": "fixture-package",
+            "packageVersion": "fixture-version",
+            "packageDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "runtimeFingerprint": 42,
+            "managedRoot": "/fixture/versions/fixture-version",
+            "savePolicy": "preserve",
+            "health": "verified"
+          }
+        ],
+        "watermark": 2
+      }
+    }
+  },
+  {
+    "name": "installedHealthUnknown",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-result-19",
+      "ok": true,
+      "data": {
+        "registryVersion": {
+          "major": 1,
+          "minor": 0
+        },
+        "scope": "managementRegistryOnly",
+        "completeness": "complete",
+        "installations": [
+          {
+            "installationID": "fixture-installation",
+            "revision": 1,
+            "productID": "fixture-product",
+            "editionID": "fixture-edition",
+            "packageID": "fixture-package",
+            "packageVersion": "fixture-version",
+            "packageDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "runtimeFingerprint": "fixture-runtime",
+            "managedRoot": "/fixture/versions/fixture-version",
+            "savePolicy": "preserve",
+            "health": "launchable"
+          }
+        ],
+        "watermark": 2
+      }
+    }
+  },
+  {
+    "name": "installedRuntimeMissing",
+    "frame": {
+      "kind": "result",
+      "protocol": {
+        "major": 1,
+        "minor": 0
+      },
+      "requestID": "fixture-result-19",
+      "ok": true,
+      "data": {
+        "registryVersion": {
+          "major": 1,
+          "minor": 0
+        },
+        "scope": "managementRegistryOnly",
+        "completeness": "complete",
+        "installations": [
+          {
+            "installationID": "fixture-installation",
+            "revision": 1,
+            "productID": "fixture-product",
+            "editionID": "fixture-edition",
+            "packageID": "fixture-package",
+            "packageVersion": "fixture-version",
+            "packageDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "managedRoot": "/fixture/versions/fixture-version",
+            "savePolicy": "preserve",
+            "health": "verified"
+          }
+        ],
+        "watermark": 2
+      }
+    }
+  },
+  {
     "name": "verifyNotUUID",
     "frame": {
       "kind": "request",

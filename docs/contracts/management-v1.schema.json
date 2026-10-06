@@ -3428,9 +3428,16 @@
           "maxLength": 1024
         },
         "runtimeFingerprint": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 1024
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "managedRoot": {
           "type": "string",
@@ -3444,7 +3451,8 @@
           "enum": [
             "verified",
             "broken",
-            "recoveryRequired"
+            "recoveryRequired",
+            "notVerified"
           ]
         }
       },

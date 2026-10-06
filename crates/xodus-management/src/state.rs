@@ -63,6 +63,10 @@ pub fn catalog_key(product: &ProductParams) -> String {
 }
 
 impl Store {
+    pub(crate) fn directory(&self) -> &Path {
+        &self.directory
+    }
+
     pub fn open(directory: &Path) -> Result<Self, WireError> {
         validate_directory(directory)?;
         let lock_path = directory.join("management.lock");

@@ -760,6 +760,10 @@ enum Completion {
         request_id: String,
         result: Result<InspectionData, WireError>,
     },
+    Installed {
+        request_id: String,
+        result: Result<Vec<InstallationRecord>, WireError>,
+    },
     Product {
         request_id: String,
         result: Result<ProductRecord, WireError>,
@@ -844,7 +848,8 @@ impl Backend {
         COMMANDS.iter().map(|command| {
             let supported = matches!(*command, "hello" | "product.detail" | "catalog.search" |
                 "jobs.enqueue" | "jobs.cancel" | "jobs.retry" | "jobs.snapshot" |
-                "events.replay" | "installed.snapshot" | "diagnostics.export") ||
+                "events.replay" | "diagnostics.export") ||
+                (*command == "installed.snapshot" && cfg!(target_os = "macos")) ||
                 (*command == "catalog.discover" && self.provider.discovery_supported()) ||
                 (*command == "catalog.query" && self.provider.query_supported()) ||
                 (*command == "installed.inspect" && cfg!(target_os = "macos")) ||
@@ -868,6 +873,7 @@ impl Backend {
                     "catalog.discover" => "No proved public PC discovery feed is available in this provider.",
                     "catalog.query" => "No proved anonymous Microsoft Store search source is available in this provider.",
                     "installed.inspect" => "Read-only local folder inspection requires native macOS filesystem support.",
+                    "installed.snapshot" => "Read-only registry snapshots require native macOS filesystem support.",
                     "game.launch" => "A signed, distributable, exact version-paired runtime is not certified.",
                     "jobs.pause" | "jobs.resume" => "Catalog refresh does not support durable pause.",
                     "auth.begin" | "auth.cancel" | "auth.status" | "auth.logout" =>
@@ -879,7 +885,7 @@ impl Backend {
             } else if *command == "jobs.enqueue" {
                 Some("Only catalogRefresh jobs are supported; install jobs remain gated.".to_owned())
             } else if *command == "installed.snapshot" {
-                Some("Only management registry scope, not legacy installs or external folders.".to_owned())
+                Some("Existing committed management registry only; no file re-verification, runtime certification or external-folder adoption.".to_owned())
             } else if *command == "catalog.discover" {
                 Some("Partial public PC GamePass discovery, not ownership/subscription or whole-store text search.".to_owned())
             } else if *command == "catalog.query" {
@@ -1270,6 +1276,20 @@ impl Backend {
                 Data::Auth(status)
             }
             Operation::CatalogSearch(params) => Data::Search(search(&self.store, params)?),
+            Operation::InstalledSnapshot(_) => {
+                self.reserve_worker()?;
+                let root = self.store.directory().to_owned();
+                let permits = self.inspection_permits.clone();
+                let request_id = request.request_id.clone();
+                self.pending_requests.insert(request_id.clone());
+                self.tasks.spawn(async move {
+                    Completion::Installed {
+                        request_id,
+                        result: crate::staging::installed_snapshot(root, permits).await,
+                    }
+                });
+                return Ok(None);
+            }
             Operation::InstalledInspect(params) => {
                 if !cfg!(target_os = "macos") {
                     return Err(WireError::new(
@@ -1421,13 +1441,6 @@ impl Backend {
                 jobs: self.store.state.jobs.values().cloned().collect(),
             }),
             Operation::EventsReplay(params) => Data::Replay(self.store.replay(params)?),
-            Operation::InstalledSnapshot(_) => Data::Installed(InstalledData {
-                registry_version: Protocol::default(),
-                scope: "managementRegistryOnly".to_owned(),
-                completeness: Completeness::Complete,
-                installations: Vec::new(),
-                watermark: self.store.state.watermark,
-            }),
             Operation::DiagnosticsExport(_) => Data::Diagnostics(DiagnosticsData {
                 report_version: 1,
                 backend_version: env!("CARGO_PKG_VERSION").to_owned(),
@@ -2607,6 +2620,16 @@ async fn serve_loop<W: AsyncWrite + Unpin>(
                     Some(Ok(Completion::Inspection { request_id, result })) => {
                         backend.pending_requests.remove(&request_id);
                         write_result(writer, request_id, result.map(|data| Data::Inspection(Box::new(data)))).await?;
+                    },
+                    Some(Ok(Completion::Installed { request_id, result })) => {
+                        backend.pending_requests.remove(&request_id);
+                        write_result(writer, request_id, result.map(|installations|
+                            Data::Installed(InstalledData {
+                                registry_version: Protocol::default(),
+                                scope: "managementRegistryOnly".to_owned(),
+                                completeness: Completeness::Complete,
+                                installations, watermark: backend.store.state.watermark,
+                            }))).await?;
                     },
                     Some(Ok(Completion::Product {request_id, result})) => {
                         backend.pending_requests.remove(&request_id);

@@ -1132,6 +1132,72 @@
     }
   },
   {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-result-19",
+    "ok": true,
+    "data": {
+      "registryVersion": {
+        "major": 1,
+        "minor": 0
+      },
+      "scope": "managementRegistryOnly",
+      "completeness": "complete",
+      "installations": [
+        {
+          "installationID": "fixture-installation",
+          "revision": 1,
+          "productID": "fixture-product",
+          "editionID": "fixture-edition",
+          "packageID": "fixture-package",
+          "packageVersion": "fixture-version",
+          "packageDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "runtimeFingerprint": "fixture-runtime",
+          "managedRoot": "/fixture/versions/fixture-version",
+          "savePolicy": "preserve",
+          "health": "verified"
+        }
+      ],
+      "watermark": 2
+    }
+  },
+  {
+    "kind": "result",
+    "protocol": {
+      "major": 1,
+      "minor": 0
+    },
+    "requestID": "fixture-result-20",
+    "ok": true,
+    "data": {
+      "registryVersion": {
+        "major": 1,
+        "minor": 0
+      },
+      "scope": "managementRegistryOnly",
+      "completeness": "complete",
+      "installations": [
+        {
+          "installationID": "fixture-installation",
+          "revision": 1,
+          "productID": "fixture-product",
+          "editionID": "fixture-edition",
+          "packageID": "fixture-package",
+          "packageVersion": "fixture-version",
+          "packageDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "runtimeFingerprint": null,
+          "managedRoot": "/fixture/versions/fixture-version",
+          "savePolicy": "preserve",
+          "health": "notVerified"
+        }
+      ],
+      "watermark": 2
+    }
+  },
+  {
     "kind": "event",
     "protocol": {
       "major": 1,

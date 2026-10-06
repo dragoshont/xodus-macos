@@ -50,6 +50,278 @@ fn commit(
     store.commit(&transaction.transaction_id).unwrap()
 }
 
+#[cfg(target_os = "macos")]
+fn stored_bytes(root: &std::path::Path) -> std::collections::BTreeMap<std::path::PathBuf, Vec<u8>> {
+    fn collect(
+        root: &std::path::Path,
+        result: &mut std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
+    ) {
+        for entry in fs::read_dir(root).unwrap() {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_dir() {
+                collect(&entry.path(), result);
+            } else {
+                result.insert(entry.path(), fs::read(entry.path()).unwrap());
+            }
+        }
+    }
+    let mut result = std::collections::BTreeMap::new();
+    collect(root, &mut result);
+    result
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn read_snapshot_absent_scope_is_empty_without_creation_but_partial_scope_is_not() {
+    let (_temporary, path) = directory();
+    fs::write(path.join("management-only"), b"unrelated managed state").unwrap();
+    let before = stored_bytes(&path);
+    assert!(StagingStore::read_snapshot(&path).unwrap().is_empty());
+    assert_eq!(stored_bytes(&path), before);
+    let absent = path.join("not-created");
+    assert!(StagingStore::read_snapshot(&absent).is_err());
+    assert!(!absent.exists());
+    for component in [
+        "registry.json",
+        "staging.lock",
+        "versions",
+        "journals",
+        "staging",
+        "saves",
+    ] {
+        let target = path.join(component);
+        fs::write(&target, b"partial").unwrap();
+        assert_eq!(
+            StagingStore::read_snapshot(&path).unwrap_err().code,
+            ErrorCode::RegistryRecoveryRequired
+        );
+        assert_eq!(fs::read(&target).unwrap(), b"partial");
+        fs::remove_file(target).unwrap();
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn read_snapshot_lists_committed_only_and_preserves_old_format_bytes_and_revisions() {
+    let (_temporary, path) = directory();
+    let mut store = StagingStore::open(&path).unwrap();
+    let first = commit(&mut store, b"old", None, 0);
+    let active = commit(
+        &mut store,
+        b"current",
+        Some(first.installation_id.clone()),
+        1,
+    );
+    let prepared = store.prepare(manifest(b"pending"), None, 0, 0).unwrap();
+    let staged = store.prepare(manifest(b"verified"), None, 0, 0).unwrap();
+    store
+        .write_file(
+            &staged.transaction_id,
+            "content/data.bin",
+            b"verified".as_slice(),
+            || false,
+        )
+        .unwrap();
+    store.verify(&staged.transaction_id).unwrap();
+    let saves = path.join("saves").join(&active.installation_id);
+    fs::create_dir(&saves).unwrap();
+    fs::write(saves.join("progress"), b"user saves").unwrap();
+    let bytes = stored_bytes(&path);
+    assert!(
+        !String::from_utf8(bytes[&path.join("registry.json")].clone())
+            .unwrap()
+            .contains("runtimeFingerprint")
+    );
+    assert_eq!(
+        StagingStore::read_snapshot(&path).unwrap_err().code,
+        ErrorCode::StateLocked
+    );
+    drop(store);
+    let shared = fs::File::open(path.join("staging.lock")).unwrap();
+    fs2::FileExt::try_lock_shared(&shared).unwrap();
+    let records = StagingStore::read_snapshot(&path).unwrap();
+    drop(shared);
+    assert_eq!(records.len(), 1);
+    let record = &records[0];
+    assert_eq!(record.installation_id, active.installation_id);
+    assert_eq!(record.revision, 2);
+    assert_eq!(record.product_id, "fixture-product");
+    assert_eq!(record.package_version, "fixture-version");
+    assert_eq!(record.health, "notVerified");
+    assert!(record.runtime_fingerprint.is_none());
+    assert_eq!(record.save_policy, "preserve");
+    assert_eq!(
+        record.managed_root,
+        path.join("versions")
+            .join(&active.active.transaction_id)
+            .to_str()
+            .unwrap()
+    );
+    assert_ne!(record.installation_id, prepared.installation_id);
+    let digest: String = Sha256::digest(serde_json::to_vec(&active.active.manifest).unwrap())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    assert_eq!(record.package_digest, digest);
+    assert_eq!(stored_bytes(&path), bytes);
+    fs::write(
+        path.join("versions")
+            .join(&active.active.transaction_id)
+            .join("content/data.bin"),
+        b"changed without verification",
+    )
+    .unwrap();
+    assert_eq!(
+        StagingStore::read_snapshot(&path).unwrap()[0].health,
+        "notVerified"
+    );
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn read_snapshot_staging_only_is_empty_and_interrupted_promotion_requires_recovery_without_repair()
+{
+    let (_temporary, path) = directory();
+    let mut store = StagingStore::open(&path).unwrap();
+    let pending = store.prepare(manifest(b"pending"), None, 0, 0).unwrap();
+    drop(store);
+    assert!(StagingStore::read_snapshot(&path).unwrap().is_empty());
+    let owner = path
+        .join("staging")
+        .join(&pending.transaction_id)
+        .join(".owner.json");
+    let owner_bytes = fs::read(&owner).unwrap();
+    fs::write(&owner, b"\"unowned\"").unwrap();
+    assert_eq!(
+        StagingStore::read_snapshot(&path).unwrap_err().code,
+        ErrorCode::RegistryRecoveryRequired
+    );
+    fs::write(&owner, owner_bytes).unwrap();
+    let journal = path
+        .join("journals")
+        .join(format!("{}.json", pending.transaction_id));
+    let mut transaction: serde_json::Value =
+        serde_json::from_slice(&fs::read(&journal).unwrap()).unwrap();
+    transaction["phase"] = serde_json::json!("promoting");
+    fs::write(&journal, serde_json::to_vec(&transaction).unwrap()).unwrap();
+    let before = stored_bytes(&path);
+    assert_eq!(
+        StagingStore::read_snapshot(&path).unwrap_err().code,
+        ErrorCode::RegistryRecoveryRequired
+    );
+    assert_eq!(stored_bytes(&path), before);
+    assert!(path.join("staging").join(&pending.transaction_id).exists());
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn read_snapshot_rejects_corrupt_registry_unsafe_manifest_and_missing_owned_version_without_rewrite()
+ {
+    let (_temporary, path) = directory();
+    let mut store = StagingStore::open(&path).unwrap();
+    let installed = commit(&mut store, b"data", None, 0);
+    drop(store);
+    let registry_path = path.join("registry.json");
+    let original = fs::read(&registry_path).unwrap();
+    let registry: serde_json::Value = serde_json::from_slice(&original).unwrap();
+    let id = &installed.installation_id;
+    let mut invalid_path = registry.clone();
+    invalid_path["installations"][id]["active"]["manifest"]["files"][0]["path"] =
+        serde_json::json!("../escape");
+    let mut zero_revision = registry.clone();
+    zero_revision["installations"][id]["revision"] = serde_json::json!(0);
+    let mut unsupported = registry.clone();
+    unsupported["version"]["major"] = serde_json::json!(2);
+    for corrupt in [
+        b"invalid JSON PRIVATE_SENTINEL".to_vec(),
+        b"{\"version\":{\"major\":1,\"minor\":0},\"installations\":{},\"installations\":{}}"
+            .to_vec(),
+        serde_json::to_vec(&invalid_path).unwrap(),
+        serde_json::to_vec(&zero_revision).unwrap(),
+        serde_json::to_vec(&unsupported).unwrap(),
+        vec![b' '; MAX_STORAGE_JSON_BYTES + 1],
+    ] {
+        fs::write(&registry_path, &corrupt).unwrap();
+        let error = StagingStore::read_snapshot(&path).unwrap_err();
+        assert_eq!(error.code, ErrorCode::RegistryRecoveryRequired);
+        assert!(
+            !serde_json::to_string(&error)
+                .unwrap()
+                .contains("PRIVATE_SENTINEL")
+        );
+        assert_eq!(fs::read(&registry_path).unwrap(), corrupt);
+    }
+    fs::write(&registry_path, original).unwrap();
+    let version = path.join("versions").join(&installed.active.transaction_id);
+    let renamed = path.join("retained-unowned-version");
+    fs::rename(&version, &renamed).unwrap();
+    let before = stored_bytes(&path);
+    assert_eq!(
+        StagingStore::read_snapshot(&path).unwrap_err().code,
+        ErrorCode::RegistryRecoveryRequired
+    );
+    assert_eq!(stored_bytes(&path), before);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn read_snapshot_refuses_symlinks_hardlinks_permission_failures_and_partial_owned_scope() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    let (_temporary, path) = directory();
+    let mut store = StagingStore::open(&path).unwrap();
+    let installation = commit(&mut store, b"data", None, 0);
+    drop(store);
+    let registry = path.join("registry.json");
+    let retained = path.join("retained-registry");
+    fs::rename(&registry, &retained).unwrap();
+    symlink(&retained, &registry).unwrap();
+    assert_eq!(
+        StagingStore::read_snapshot(&path).unwrap_err().code,
+        ErrorCode::RegistryRecoveryRequired
+    );
+    fs::remove_file(&registry).unwrap();
+    fs::hard_link(&retained, &registry).unwrap();
+    assert_eq!(
+        StagingStore::read_snapshot(&path).unwrap_err().code,
+        ErrorCode::RegistryRecoveryRequired
+    );
+    fs::remove_file(&registry).unwrap();
+    fs::rename(&retained, &registry).unwrap();
+    fs::set_permissions(&registry, fs::Permissions::from_mode(0o000)).unwrap();
+    if unsafe { libc::geteuid() } != 0 {
+        assert_eq!(
+            StagingStore::read_snapshot(&path).unwrap_err().code,
+            ErrorCode::RegistryRecoveryRequired
+        );
+    }
+    fs::set_permissions(&registry, fs::Permissions::from_mode(0o600)).unwrap();
+    for component in ["staging", "saves", "versions", "journals"] {
+        let original = path.join(component);
+        let moved = path.join(format!("retained-{component}"));
+        fs::rename(&original, &moved).unwrap();
+        assert_eq!(
+            StagingStore::read_snapshot(&path).unwrap_err().code,
+            ErrorCode::RegistryRecoveryRequired
+        );
+        symlink(&moved, &original).unwrap();
+        assert_eq!(
+            StagingStore::read_snapshot(&path).unwrap_err().code,
+            ErrorCode::RegistryRecoveryRequired
+        );
+        fs::remove_file(&original).unwrap();
+        fs::rename(&moved, &original).unwrap();
+    }
+    let owner = path
+        .join("versions")
+        .join(&installation.active.transaction_id)
+        .join(".owner.json");
+    fs::write(&owner, b"\"00000000-0000-0000-0000-000000000000\"").unwrap();
+    assert_eq!(
+        StagingStore::read_snapshot(&path).unwrap_err().code,
+        ErrorCode::RegistryRecoveryRequired
+    );
+}
+
 #[test]
 fn registry_count_capacity_is_enforced_before_preparation_and_authoritative_promotion() {
     let (_temporary, path) = directory();

@@ -334,8 +334,9 @@ defs["replayData"] = obj({
 defs["installationRecord"] = obj({
     "installationID": identifier, "revision": uint, "productID": identifier,
     "editionID": identifier, "packageID": identifier, "packageVersion": text,
-    "packageDigest": text, "runtimeFingerprint": text, "managedRoot": text,
-    "savePolicy": {"const": "preserve"}, "health": enum("verified", "broken", "recoveryRequired"),
+    "packageDigest": text, "runtimeFingerprint": nullable(text), "managedRoot": text,
+    "savePolicy": {"const": "preserve"},
+    "health": enum("verified", "broken", "recoveryRequired", "notVerified"),
 })
 defs["installedData"] = obj({
     "registryVersion": ref("protocol"), "scope": {"const": "managementRegistryOnly"},
@@ -496,6 +497,18 @@ results = [
      "redacted": True, "jobCount": 1, "cachedProductCount": 1,
      "runtimeCertified": False, "inventoryAuthorized": False},
 ]
+for fingerprint in ("fixture-runtime", None):
+    results.append({
+        "registryVersion": protocol, "scope": "managementRegistryOnly",
+        "completeness": "complete", "installations": [{
+            "installationID": "fixture-installation", "revision": 1,
+            "productID": "fixture-product", "editionID": "fixture-edition",
+            "packageID": "fixture-package", "packageVersion": "fixture-version",
+            "packageDigest": "a" * 64, "runtimeFingerprint": fingerprint,
+            "managedRoot": "/fixture/versions/fixture-version", "savePolicy": "preserve",
+            "health": "notVerified" if fingerprint is None else "verified",
+        }], "watermark": 2,
+    })
 positive += [{"kind": "result", "protocol": protocol, "requestID": f"fixture-result-{i}",
               "ok": True, "data": data} for i, data in enumerate(results)]
 positive += [event]
@@ -518,6 +531,20 @@ for code in defs["error"]["properties"]["code"]["enum"]:
                      "ok": False, "error": {"code": code, "message": "Sanitized fixture error.",
                                            "retryable": False}})
 negative = []
+registered_result = next(frame for frame in positive if
+                         frame.get("data", {}).get("installations"))
+for name, field, value in [
+    ("installedRuntimeWrongType", "runtimeFingerprint", 42),
+    ("installedHealthUnknown", "health", "launchable"),
+    ("installedRuntimeMissing", "runtimeFingerprint", None),
+]:
+    frame = copy.deepcopy(registered_result)
+    installation = frame["data"]["installations"][0]
+    if name == "installedRuntimeMissing":
+        del installation[field]
+    else:
+        installation[field] = value
+    negative.append({"name": name, "frame": frame})
 verify_request = next(frame for frame in positive if frame.get("command") == "auth.verify")
 for name, params in [
     ("verifyNotUUID", {"contentID": "FIXTURE00001"}),

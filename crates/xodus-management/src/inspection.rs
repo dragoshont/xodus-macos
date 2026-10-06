@@ -163,36 +163,43 @@ async fn bounded_read<T: Send + 'static>(
     timeout: std::time::Duration,
     read: impl FnOnce() -> Result<T, WireError> + Send + 'static,
 ) -> Result<T, WireError> {
-    let unavailable = || {
-        WireError::new(
+    bounded_local_read(permits, timeout, read, WireError::new(
             ErrorCode::UnsupportedConfiguration,
             "Read-only folder inspection did not finish its local metadata read within the bounded deadline. No files were modified.",
             true,
-        )
-    };
+        ), unsupported()).await
+}
+
+pub(crate) async fn bounded_local_read<T: Send + 'static>(
+    permits: std::sync::Arc<tokio::sync::Semaphore>,
+    timeout: std::time::Duration,
+    read: impl FnOnce() -> Result<T, WireError> + Send + 'static,
+    timeout_error: WireError,
+    unavailable: WireError,
+) -> Result<T, WireError> {
     let deadline = tokio::time::Instant::now() + timeout;
     let permit = tokio::time::timeout_at(deadline, permits.acquire_owned())
         .await
-        .map_err(|_| unavailable())?
-        .map_err(|_| unsupported())?;
+        .map_err(|_| timeout_error.clone())?
+        .map_err(|_| unavailable)?;
     let work = tokio::task::spawn_blocking(move || {
         let _permit = permit;
         read()
     });
     tokio::time::timeout_at(deadline, work)
         .await
-        .map_err(|_| unavailable())?
+        .map_err(|_| timeout_error)?
         .map_err(|_| {
             WireError::new(
                 ErrorCode::InternalError,
-                "Read-only inspection worker failed unexpectedly. No files were modified.",
+                "Read-only local worker failed unexpectedly. No files were modified.",
                 false,
             )
         })?
 }
 
 #[cfg(unix)]
-fn open_at(
+pub(crate) fn open_at(
     parent: Option<&std::fs::File>,
     name: &std::ffi::CStr,
     directory: bool,
@@ -227,7 +234,7 @@ fn open_at(
 }
 
 #[cfg(unix)]
-fn open_directory(path: &Path) -> Result<std::fs::File, WireError> {
+pub(crate) fn open_directory(path: &Path) -> Result<std::fs::File, WireError> {
     use std::ffi::CString;
     use std::os::unix::ffi::OsStrExt;
     let mut directory = open_at(None, c"/", true)?;
@@ -275,7 +282,7 @@ fn regular(metadata: &std::fs::Metadata) -> Result<(), WireError> {
 }
 
 #[cfg(unix)]
-fn same_file(before: &std::fs::Metadata, after: &std::fs::Metadata) -> bool {
+pub(crate) fn same_file(before: &std::fs::Metadata, after: &std::fs::Metadata) -> bool {
     use std::os::unix::fs::MetadataExt;
     before.dev() == after.dev()
         && before.ino() == after.ino()

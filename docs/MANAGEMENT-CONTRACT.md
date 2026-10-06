@@ -63,8 +63,8 @@ runtime/version. Account scope is only `default`, without an account identifier.
 All commands have strict parameter schemas, including gated commands. Gated
 commands **cannot** return successful plan/launch/update/remove objects in this
 version. No install plan or install-job success schema is promised before there
-is an implementation. `installationRecord` is the future registry entry type,
-not a claim that existing CLI installations have been imported.
+is an implementation. `installationRecord` describes only an existing committed
+management registry entry, not an import of existing CLI installations.
 
 `auth.verify` is an additive, capability-negotiated operation with exactly
 `{"contentID":"canonical-lowercase-nonzero-UUID"}` params. The content ID must
@@ -519,8 +519,34 @@ it cannot establish ownership, license policy, the upstream FileHash algorithm,
 complete expanded-file manifests or runtime pairing. Filesystem tests run on
 synthetic bytes in an isolated test root. They are evidence of local transaction
 correctness, not evidence of a working Xbox package installation or gameplay.
-The management registry remains empty by construction until an authorized
-complete package adapter is implemented; legacy folders are never imported.
+On native macOS, `installed.snapshot` now reads this component's existing `registry.json` at the
+same current managed `--state-dir` root. This binding does not scan or redirect
+future user-selected external destinations. It does not call the mutating store opener,
+create its staging scope or lock, rewrite records, migrate, repair, enumerate
+external installations, inspect a runtime, or contact a provider. A wholly
+absent staging scope is genuinely empty; partial/corrupt scope, invalid paths,
+unowned versions and interrupted promotion return `REGISTRY_RECOVERY_REQUIRED`,
+never a successful empty substitute. An existing writer yields `STATE_LOCKED`.
+The bounded off-actor read shares the existing staging lock and refuses
+symlinks, hardlinked metadata, nonlocal roots and substituted descriptors.
+Prepared/verified staging transactions are not installations. Registry
+installation IDs, active package identities and revisions are preserved;
+snapshots do not advance registry revisions or the management event watermark.
+The watermark is the management event watermark at response emission, not a
+new installation revision or a claim of installation mutation event coverage.
+
+`runtimeFingerprint` is required but nullable: old nonnull wire records still
+decode, while omission is invalid. The current local registry contains no
+runtime certification, so this adapter emits `null` without altering that
+registry's format or bytes. `health: "notVerified"` means registry/ownership
+metadata was checked, not current game-file hashes, package authorization,
+Mac compatibility or launchability. `packageDigest` is the SHA256 of the
+serialized local manifest, not an authoritative provider package digest.
+`savePolicy: "preserve"` reflects the existing save-preserving staging policy;
+no saves are read or changed by this operation. Legacy folders are never
+imported. Complete here means the committed management registry only, not a
+complete Xbox/PC inventory. Other platforms advertise this operation as
+unsupported instead of returning a fabricated empty registry.
 
 ## Sanitized fixtures
 

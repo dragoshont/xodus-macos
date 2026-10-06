@@ -14,8 +14,10 @@ pub fn normalize_url(value: &str) -> Option<String> {
     }
     let asset = value
         .strip_prefix(PREFIX)
-        .or_else(|| value.strip_prefix("//store-images.s-microsoft.com/image/"))?;
+        .or_else(|| value.strip_prefix("//store-images.s-microsoft.com/image/"))
+        .or_else(|| value.strip_prefix("http://store-images.s-microsoft.com/image/"))?;
     if !asset.bytes().next()?.is_ascii_alphanumeric()
+        || PREFIX.len() + asset.len() > 2048
         || !asset
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
@@ -169,9 +171,26 @@ mod tests {
             normalize_url("//store-images.s-microsoft.com/image/apps.fixture").unwrap(),
             "https://store-images.s-microsoft.com/image/apps.fixture"
         );
+        assert_eq!(
+            normalize_url("http://store-images.s-microsoft.com/image/apps.fixture"),
+            Some("https://store-images.s-microsoft.com/image/apps.fixture".to_owned())
+        );
         for url in [
-            "http://store-images.s-microsoft.com/image/fixture",
             "https://store-images.s-microsoft.com:443/image/fixture",
+            "http://store-images.s-microsoft.com:80/image/fixture",
+            "http://store-images.s-microsoft.com:443/image/fixture",
+            "http://user@store-images.s-microsoft.com/image/fixture",
+            "http://store-images.s-microsoft.com/image/fixture?url=PRIVATE_SENTINEL",
+            "http://store-images.s-microsoft.com/image/fixture?token=PRIVATE_SENTINEL",
+            "http://store-images.s-microsoft.com/image/fixture#fragment",
+            "http://store-images.s-microsoft.com.attacker.invalid/image/fixture",
+            "http://images-eds.xboxlive.com/fixture?url=PRIVATE_SENTINEL",
+            "https://images-eds-ssl.xboxlive.com/fixture",
+            "http://store-images.s-microsoft.com/image/../fixture",
+            "http://store-images.s-microsoft.com/image/%2e%2e",
+            "http://store-images.s-microsoft.com/image/fixture/child",
+            "http://store-images.s-microsoft.com/image/fixture\\child",
+            "http://store-images.s-microsoft.com/other/fixture",
             "https://store-images.s-microsoft.com/image/fixture?token=PRIVATE_SENTINEL",
             "https://store-images.s-microsoft.com/image/fixture#fragment",
             "https://user@store-images.s-microsoft.com/image/fixture",
@@ -189,6 +208,36 @@ mod tests {
         assert!(!dimensions_valid(Some(0), Some(1)));
         assert!(!dimensions_valid(Some(8193), Some(1)));
         assert!(!dimensions_valid(None, Some(1)));
+    }
+
+    #[test]
+    fn history_store_scheme_upgrade_preserves_asset_and_canonical_wire_limits() {
+        let asset = "apps.01234567-89ab-cdef-0123-456789abcdef.asset_segment-1";
+        let input = format!("http://store-images.s-microsoft.com/image/{asset}");
+        let (images, status) = history_image(Some(&json!(input)));
+        assert_eq!(status, ArtworkStatus::Available);
+        assert_eq!(images.len(), 1);
+        assert_eq!(images[0].url, format!("{PREFIX}{asset}"));
+        assert_eq!(images[0].role, ArtworkRole::Tile);
+        assert_eq!(images[0].source, ArtworkSource::TitleHub);
+        assert!(valid(&images, &status));
+        let mut noncanonical = images.clone();
+        noncanonical[0].url = input;
+        assert!(!valid(&noncanonical, &status));
+        for input_prefix in [
+            PREFIX,
+            "http://store-images.s-microsoft.com/image/",
+            "//store-images.s-microsoft.com/image/",
+        ] {
+            let asset = "a".repeat(2048 - PREFIX.len());
+            assert_eq!(
+                normalize_url(&format!("{input_prefix}{asset}"))
+                    .unwrap()
+                    .len(),
+                2048
+            );
+            assert!(normalize_url(&format!("{input_prefix}{asset}a")).is_none());
+        }
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::Value;
 use xodus::api::xbox::titlehub;
@@ -88,6 +88,104 @@ fn platform(devices: &[String]) -> HistoryPlatform {
     }
 }
 
+#[derive(Default)]
+struct RejectedImageShapes {
+    count: u32,
+    scheme: BTreeMap<&'static str, u32>,
+    host: BTreeMap<&'static str, u32>,
+    path: BTreeMap<&'static str, u32>,
+    query_keys: BTreeMap<&'static str, u32>,
+    unknown_key_count: u32,
+}
+
+impl RejectedImageShapes {
+    fn record(&mut self, value: Option<&Value>) {
+        const KEYS: [&str; 12] = [
+            "w",
+            "h",
+            "q",
+            "f",
+            "m",
+            "mode",
+            "background",
+            "format",
+            "url",
+            "fit",
+            "crop",
+            "pad",
+        ];
+        let value = value
+            .and_then(Value::as_str)
+            .filter(|value| value.len() <= 2048);
+        let scheme = match value {
+            Some(value) if value.starts_with("http://") => "http",
+            Some(value) if value.starts_with("https://") => "https",
+            Some(value) if value.starts_with("//") => "relative",
+            _ => "other",
+        };
+        let parsed = value.and_then(|value| {
+            let url = if scheme == "relative" {
+                format!("https:{value}")
+            } else {
+                value.to_owned()
+            };
+            reqwest::Url::parse(&url).ok()
+        });
+        let host = match parsed.as_ref().and_then(reqwest::Url::host_str) {
+            Some("store-images.s-microsoft.com") => "store",
+            Some("images-eds.xboxlive.com") => "eds",
+            Some("images-eds-ssl.xboxlive.com") => "edsSSL",
+            _ => "other",
+        };
+        let path = match parsed.as_ref().map(reqwest::Url::path) {
+            Some(path) if path.starts_with("/image/") => {
+                let asset = path.strip_prefix("/image/").unwrap_or_default();
+                if !asset.is_empty() && !asset.contains('/') {
+                    "storeSingleAsset"
+                } else {
+                    "nested"
+                }
+            }
+            Some(path)
+                if path
+                    .strip_prefix('/')
+                    .is_some_and(|path| !path.is_empty() && !path.contains('/')) =>
+            {
+                "opaque"
+            }
+            _ => "other",
+        };
+        self.count += 1;
+        *self.scheme.entry(scheme).or_default() += 1;
+        *self.host.entry(host).or_default() += 1;
+        *self.path.entry(path).or_default() += 1;
+        if let Some(parsed) = parsed {
+            for (key, _) in parsed.query_pairs().take(64) {
+                if let Some(known) = KEYS.into_iter().find(|known| *known == key.as_ref()) {
+                    *self.query_keys.entry(known).or_default() += 1;
+                } else {
+                    self.unknown_key_count += 1;
+                }
+            }
+        }
+    }
+
+    fn line(&self) -> Option<String> {
+        (self.count != 0).then(|| {
+            serde_json::json!({
+                "category": "recentArtworkRejectedShapes",
+                "count": self.count,
+                "scheme": self.scheme,
+                "host": self.host,
+                "path": self.path,
+                "queryKeys": self.query_keys,
+                "unknownKeyCount": self.unknown_key_count,
+            })
+            .to_string()
+        })
+    }
+}
+
 fn parse(
     response: &Value,
     private_id: &str,
@@ -107,6 +205,7 @@ fn parse(
         .ok_or_else(invalid)?;
     let mut seen = BTreeSet::new();
     let mut titles = Vec::new();
+    let mut rejected_images = RejectedImageShapes::default();
     for entry in entries {
         let kind = entry
             .get("type")
@@ -166,6 +265,9 @@ fn parse(
         };
         let (artwork, artwork_status) =
             xodus_management::artwork::history_image(entry.get("displayImage"));
+        if artwork_status == xodus_management::wire::ArtworkStatus::Rejected {
+            rejected_images.record(entry.get("displayImage"));
+        }
         titles.push(RecentTitle {
             title_id: id.to_owned(),
             name: name.to_owned(),
@@ -176,6 +278,9 @@ fn parse(
             artwork_status,
             product_id: None,
         });
+    }
+    if let Some(line) = rejected_images.line() {
+        eprintln!("{line}");
     }
     Ok(RecentLibraryData {
         scope: "recentlyPlayed".to_owned(),
@@ -288,5 +393,99 @@ mod tests {
                 .titles
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn rejected_image_shapes_only_emit_closed_aggregate_categories_and_query_key_counts() {
+        let mut shapes = RejectedImageShapes::default();
+        assert!(shapes.line().is_none());
+        for url in [
+            "http://store-images.s-microsoft.com/image/PRIVATE_SENTINEL?w=PRIVATE_SENTINEL&h=100&PRIVATE_SENTINEL=PRIVATE_SENTINEL",
+            "https://images-eds-ssl.xboxlive.com/image/PRIVATE_SENTINEL?url=PRIVATE_SENTINEL",
+            "//images-eds.xboxlive.com/PRIVATE_SENTINEL?format=PRIVATE_SENTINEL",
+            "https://PRIVATE_SENTINEL.invalid/private/PRIVATE_SENTINEL?PRIVATE_SENTINEL=PRIVATE_SENTINEL",
+        ] {
+            shapes.record(Some(&json!(url)));
+        }
+        shapes.record(Some(&json!({"PRIVATE_SENTINEL": "PRIVATE_SENTINEL"})));
+        shapes.record(Some(&json!("PRIVATE_SENTINEL".repeat(2048))));
+        let line = shapes.line().unwrap();
+        assert!(!line.contains("PRIVATE_SENTINEL"));
+        assert!(!line.contains("http://"));
+        assert!(!line.contains("https://"));
+        let summary: Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(summary["count"], 6);
+        assert_eq!(
+            summary["host"],
+            json!({"store":1,"eds":1,"edsSSL":1,"other":3})
+        );
+        assert_eq!(
+            summary["queryKeys"],
+            json!({"w":1,"h":1,"url":1,"format":1})
+        );
+        assert_eq!(summary["unknownKeyCount"], 2);
+        assert_eq!(summary.as_object().unwrap().len(), 7);
+        assert!(line.len() + 1 <= 512);
+    }
+
+    #[test]
+    fn rejected_image_shape_summary_is_bounded_for_a_full_history_window() {
+        let mut shapes = RejectedImageShapes::default();
+        let query = [
+            "w",
+            "h",
+            "q",
+            "f",
+            "m",
+            "mode",
+            "background",
+            "format",
+            "url",
+            "fit",
+            "crop",
+            "pad",
+        ]
+        .map(|key| format!("{key}=PRIVATE_SENTINEL"))
+        .join("&");
+        for index in 0..100 {
+            let scheme = ["http://", "https://", "//", "file://"][index % 4];
+            let host = [
+                "store-images.s-microsoft.com",
+                "images-eds.xboxlive.com",
+                "images-eds-ssl.xboxlive.com",
+                "PRIVATE_SENTINEL.invalid",
+            ][index % 4];
+            let path = [
+                "image/PRIVATE_SENTINEL",
+                "image/nested/PRIVATE_SENTINEL",
+                "PRIVATE_SENTINEL",
+                "",
+            ][index % 4];
+            shapes.record(Some(&json!(format!(
+                "{scheme}{host}/{path}?{query}&PRIVATE_SENTINEL=value"
+            ))));
+        }
+        let line = shapes.line().unwrap();
+        assert!(!line.contains("PRIVATE_SENTINEL"));
+        assert!(line.len() + 1 <= 512);
+        assert_eq!(serde_json::from_str::<Value>(&line).unwrap()["count"], 100);
+    }
+
+    #[test]
+    fn actual_store_http_shape_produces_same_https_tile_without_guessed_metadata() {
+        let mut entry = game(json!(["PC"]));
+        entry["displayImage"] = json!("http://store-images.s-microsoft.com/image/apps.fixture");
+        let result = parse(&json!({"titles":[entry]}), "PRIVATE_SENTINEL", 1).unwrap();
+        assert_eq!(
+            result.titles[0].artwork_status,
+            xodus_management::wire::ArtworkStatus::Available
+        );
+        assert_eq!(
+            result.titles[0].artwork[0].url,
+            "https://store-images.s-microsoft.com/image/apps.fixture"
+        );
+        assert!(result.titles[0].artwork[0].width.is_none());
+        assert!(result.titles[0].artwork[0].height.is_none());
+        assert!(result.titles[0].product_id.is_none());
     }
 }

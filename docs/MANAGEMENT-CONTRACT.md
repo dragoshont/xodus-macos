@@ -129,7 +129,12 @@ with exactly `role`, `url`, nullable `width`/`height`, and `source`. DisplayCata
 already-selected localized property only; unknown image purposes are ignored.
 URLs are actual metadata, not synthesized assets. Only HTTPS on the exact
 `store-images.s-microsoft.com` host with `/image/` and one ASCII asset segment is
-accepted; protocol-relative URLs normalize to HTTPS. Queries, fragments,
+emitted; protocol-relative URLs and HTTP on that same exact host/path normalize
+to HTTPS without changing the validated asset segment. This never sends an
+HTTP request or downgrades HTTPS. Pinned public TitleHub fixture Store assets
+use this HTTP shape; one anonymous same-asset HTTPS request returned an image
+without redirects. This does not establish the shape or delivery of any user's
+history images. Queries, fragments,
 credentials, explicit ports, alternate hosts, and path escapes are rejected.
 Rejected candidates produce fixed sanitized diagnostics, not raw URLs, and do
 not fail an otherwise valid product.
@@ -156,6 +161,17 @@ names are never guessed Store product mappings. Played history is neither
 complete history nor purchases, active subscription, entitlement, PC package
 availability, installation or compatibility. A valid empty title collection is
 successful empty recent history, not a provider failure.
+
+If parsed recent titles contain rejected images, stderr additionally emits one
+bounded aggregate `recentArtworkRejectedShapes` JSON line. `count`, closed
+`scheme` (http/https/relative/other), `host` (store/eds/edsSSL/other), `path`
+(storeSingleAsset/nested/opaque/other), known `queryKeys` counts, and
+`unknownKeyCount` are its only other fields. Known keys are w, h, q, f, m, mode,
+background, format, url, fit, crop and pad. At most 64 query pairs per bounded
+URL are examined. Unknown names, all values, assets, URLs and user/title
+identities are never emitted. Host categories do not allow those hosts for
+image fetching. This is ephemeral diagnostic metadata, not a wire result or
+personal-history cache.
 
 The provider uses a newly exchanged XSTS for exactly `http://xboxlive.com`,
 never the package/update audience token, and one fixed HTTPS TitleHub

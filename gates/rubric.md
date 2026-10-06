@@ -9,7 +9,7 @@ Grounded in modern eval practice:
 
 ## Two grading layers (use both)
 1. **Deterministic gates (code‑graded — rule‑based):** `gates/checks.sh` / `gates/checks.ps1` (`config.generate` + `config.build` + `config.test` + `config.designMap` / `config.tokens` JSON valid) and `gates/reconcile.sh` / `gates/reconcile.ps1` (design↔code token drift) and the `.github/hooks` checks; for the backend lane, `gates/backend-checks.sh` (build/test + migration safety + secret scan + IaC plan/policy, **never apply**); plus Run v2 validation, invariant checks, configured E2E/reality checks, and policy/receipt validation. Objective ground truth; they **override optimistic or semantic claims** and must be green.
-2. **Semantic gate (LLM‑as‑judge):** this rubric, applied adversarially according to `knowledge/execution-policy.md`, by two independent reviewers with distinct reviewer identities. Both must PASS for an R3/R4 semantic gate. R2 uses one fresh-context reviewer. Low-risk mechanical work may close with deterministic evidence only when every acceptance criterion is mechanically decided and no semantic/high-risk floor applies. Model choice belongs to the user and host.
+2. **Semantic gate (LLM‑as‑judge):** this rubric, applied adversarially according to `knowledge/execution-policy.md`, by one independent reviewer for R3/R4 (two of different families, both PASS, only when `review.crossFamily` is true). R2 uses one fresh-context reviewer. Low-risk mechanical work may close with deterministic evidence only when every acceptance criterion is mechanically decided and no semantic/high-risk floor applies. Model choice belongs to the user and host.
 
 ## Before grading: derive acceptance criteria (BDD)
 Restate the request + the source‑of‑truth (Storybook + `config.designMap` + the platform pack + `config.tokens`) as a **numbered, testable acceptance‑criteria checklist**. Grade against the checklist, not vibes.
@@ -53,6 +53,17 @@ Score each **Pass / Concern / Fail** with a severity and cite evidence (a spec l
     tasks, repeated full gates on unchanged source without a hypothesis, or
     status reporting led by artifact counts is a Major concern and becomes a
     Blocker when it displaces an available product acceptance criterion.
+    Rewriting known-working behavior without a recorded reference and a parity
+    test on the real flow before hardening is a Major concern.
+
+16. **Diagnostics, protocol leniency, and product copy** — failures carry the
+    specific step and reason (redacted); collapsing distinct causes into one
+    generic failure code is a Major concern and a Blocker on the primary
+    criterion's path. Third-party protocol input is parsed leniently (unknown
+    fields/messages ignored, failure only on malformed required data);
+    exact-key-set parsing or catch-all rejection of a third-party bridge is a
+    Major concern. Internal evidence, spec, status, certification, or receipt
+    language in user-facing UI strings is a Major concern.
 
 ### Backend‑lane dimensions (apply when `config.backend` / `config.iac` are set — see `knowledge/backend.md`)
 15. **Contract conformance** — the implementation honors the agreed contract (`config.backend.contracts`): shapes, errors, auth scope, pagination; UI and backend bind to the *same* contract (no drift); capability honesty (nothing claimed that the service can't perform). For operational/admin work, the contract includes capability matrix, preflight, operation/job schema, readiness/health source, diagnostic evidence, audit, and scarce-limit fields from `knowledge/operations-ux.md`.
@@ -76,7 +87,7 @@ Score each **Pass / Concern / Fail** with a severity and cite evidence (a spec l
 **Blocker** (ship‑stopper / policy / spec miss) · **Major** (wrong but recoverable) · **Minor** (quality) · **Nit** (polish).
 
 ## Verdict rules
-- **PASS** — all acceptance criteria met, **zero Blockers**, deterministic gates green, design↔code reconciled when applicable, and the risk-based verification policy is met. R2 requires one fresh reviewer; R3/R4 require two distinct independent reviewer identities.
+- **PASS** — all acceptance criteria met, **zero Blockers**, deterministic gates green, design↔code reconciled when applicable, and the risk-based verification policy is met. R2 requires one fresh reviewer; R3/R4 require one independent review, or two different families with `review.crossFamily`.
 - **REVISE** — fixable issues (≥ 1 Blocker/Major) with concrete required fixes.
 - **FAIL** — fundamentally off‑spec or off‑pattern (reinvented an existing component, dishonest capability, policy/security violation).
 

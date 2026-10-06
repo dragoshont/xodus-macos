@@ -126,7 +126,21 @@
         "nextCheapestTest": { "type": ["string", "null"] },
         "lastResetReason": { "type": ["string", "null"] },
         "minimalSliceProven": { "type": "boolean" },
-        "reviewReopens": { "type": "integer", "minimum": 0 }
+        "reviewReopens": { "type": "integer", "minimum": 0 },
+        "pushbackRequired": { "type": "boolean" },
+        "primaryCriterion": {
+          "type": "object",
+          "required": ["id", "paths", "threshold", "sinceCommit", "declaredAt", "eventSequence"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "$ref": "#/definitions/id" },
+            "paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+            "threshold": { "type": "integer", "minimum": 1 },
+            "sinceCommit": { "type": "string", "minLength": 1 },
+            "declaredAt": { "$ref": "#/definitions/timestamp" },
+            "eventSequence": { "type": "integer", "minimum": 1 }
+          }
+        }
       }
     },
     "lanes": {
@@ -511,6 +525,26 @@
             },
             "reconciliation": { "type": ["string", "null"] }
           }
+        },
+        "reference": {
+          "type": "object",
+          "required": ["path", "difference", "evidenceRefs"],
+          "additionalProperties": false,
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "difference": { "type": "string", "minLength": 1 },
+            "evidenceRefs": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "effort": { "enum": ["low", "default", "high"] },
+        "pushback": {
+          "type": "object",
+          "required": ["verdict", "reason"],
+          "additionalProperties": false,
+          "properties": {
+            "verdict": { "enum": ["KEEP", "CUT", "DEFER"] },
+            "reason": { "type": "string", "minLength": 1 }
+          }
         }
       }
     },
@@ -565,7 +599,8 @@
             "CONSENT_REQUIRED",
             "SAFE_WRITE_TARGET_REQUIRED",
             "SIGNING_REQUIRED",
-            "HUMAN_JUDGMENT_REQUIRED"
+            "HUMAN_JUDGMENT_REQUIRED",
+            "PRODUCT_OUTCOME_CONFIRMED"
           ]
         },
         "principal": { "type": "string", "minLength": 1 },
@@ -699,6 +734,16 @@
         },
         "type": { "type": "string", "enum": ["deterministic", "e2e", "semantic", "reality", "policy", "security"] },
         "family": { "type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
+        "reviewer": { "type": "string", "enum": ["host-native", "architrave-judge"] },
+        "effort": {
+          "type": "object",
+          "required": ["requested", "effective"],
+          "additionalProperties": false,
+          "properties": {
+            "requested": { "enum": ["low", "default", "high"] },
+            "effective": { "type": ["string", "null"] }
+          }
+        },
         "objectiveVersion": { "type": "integer", "minimum": 1 },
         "status": { "type": "string", "enum": ["PASS", "FAIL", "BLOCKED", "SKIPPED"] },
         "startedAt": { "$ref": "#/definitions/timestamp" },

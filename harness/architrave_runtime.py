@@ -12,6 +12,7 @@ import argparse
 import contextlib
 import copy
 import datetime as dt
+import fnmatch
 import hashlib
 import hmac
 import json
@@ -68,6 +69,7 @@ EXTERNAL_TYPES = {
     "SAFE_WRITE_TARGET_REQUIRED",
     "SIGNING_REQUIRED",
     "HUMAN_JUDGMENT_REQUIRED",
+    "PRODUCT_OUTCOME_CONFIRMED",
 }
 EVENT_TYPE_RE = re.compile(r"^[a-z][a-z0-9_.-]+$")
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -131,6 +133,20 @@ SURFACE_VALUES = {"web", "electron", "ios", "deployment", "runtime"}
 SURFACE_VERIFICATION_TYPES = {"reality", "e2e"}
 WORK_KINDS = {"product", "diagnostic", "infrastructure", "review", "research", "communications"}
 TARGET_OPERATIONS = {"launch", "test", "install"}
+PRIMARY_STALL_THRESHOLD = 3
+PRIMARY_RESULT_EVENTS = {"worker.finished", "task.completed", "task.failed"}
+PRIMARY_BOUND_EVENTS = PRIMARY_RESULT_EVENTS | {
+    "gate.passed", "gate.failed", "gate.recorded", "acceptance.updated", "product.progress",
+}
+OBSERVED_OUTCOME_TYPES = {"reality", "e2e", "external"}
+PUSHBACK_VERDICTS = {"KEEP", "CUT", "DEFER"}
+BUDGET_LIMITS = {"turns": "maxTurns", "commits": "maxCommits", "dispatches": "maxDispatches", "minutes": "maxMinutes"}
+OWNER_MESSAGE_NOISE = (
+    re.compile(r"\b[0-9a-f]{40}(?:[0-9a-f]{24})?\b", re.IGNORECASE),
+    re.compile(r"\bpids?\s*[=:#]?\s*\d+", re.IGNORECASE),
+    re.compile(r"\brun-[A-Za-z0-9][A-Za-z0-9._-]*"),
+    re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.IGNORECASE),
+)
 TARGET_IDENTITY_FIELDS = {
     "provider",
     "artifact",
@@ -1242,6 +1258,9 @@ class RunStore:
         policy_allow: Sequence[dict[str, Any]] | None = None,
         confirmation_required: Sequence[str] | None = None,
         run_id: str | None = None,
+        primary_criterion: str | None = None,
+        primary_paths: Sequence[str] = (),
+        primary_threshold: int = PRIMARY_STALL_THRESHOLD,
     ) -> dict[str, Any]:
         # Explicit arguments always win; an omitted (None) argument falls back to the
         # repository's configured `autonomy` defaults, and only then to the built-in default.
@@ -1314,6 +1333,7 @@ class RunStore:
                     "lastResetReason": None,
                     "minimalSliceProven": False,
                     "reviewReopens": 0,
+                    "pushbackRequired": True,
                 },
                 "lanes": {
                     "maxActive": 2,
@@ -1325,6 +1345,10 @@ class RunStore:
                 "eventCursor": {"sequence": 0, "lastHash": ZERO_HASH},
                 "pendingEvent": None,
             }
+            if primary_criterion:
+                state["focus"]["primaryCriterion"] = normalize_primary_criterion(
+                    state, primary_criterion, primary_paths, primary_threshold, state["baseline"]["commit"],
+                )
             self._create_human_artifacts(run_dir, state)
             return self._commit_locked(
                 run_dir,
@@ -1453,6 +1477,7 @@ class RunStore:
             state["focus"]["minimalSliceProven"] = False
             state["focus"]["nextCheapestTest"] = next_cheapest_test.strip()
             state["focus"]["lastResetReason"] = correction.strip()
+            state["focus"].pop("primaryCriterion", None)
             state["lanes"]["deferred"].extend(
                 lane for lane in state["lanes"]["active"] if lane["id"] != "product"
             )
@@ -1477,6 +1502,27 @@ class RunStore:
             }
 
         return self._transaction(run_id, mutate, event_type="objective.replaced", actor=actor)
+
+    def set_primary_criterion(
+        self,
+        run_id: str,
+        *,
+        criterion_id: str,
+        paths: Sequence[str],
+        threshold: int = PRIMARY_STALL_THRESHOLD,
+        actor: str = "coordinator",
+    ) -> dict[str, Any]:
+        head = run_command(["git", "rev-parse", "HEAD"], self.repository)
+
+        def mutate(state: dict[str, Any]) -> dict[str, Any]:
+            if state["status"] in {"COMPLETED", "FAILED", "CANCELLED"}:
+                raise RuntimeFailure("RUN_TERMINAL", "cannot declare a primary criterion on a terminal Run")
+            state["focus"]["primaryCriterion"] = normalize_primary_criterion(
+                state, criterion_id, paths, threshold, head,
+            )
+            return copy.deepcopy(state["focus"]["primaryCriterion"])
+
+        return self._transaction(run_id, mutate, event_type="focus.primary_declared", actor=actor)
 
     def record_reuse_baseline(
         self,
@@ -1855,6 +1901,9 @@ class RunStore:
                 for task in state["tasks"]
                 if task["status"] == "DEFERRED"
             ][:8],
+            **({"ownerMessageLint": lint} if (lint := owner_message_lint(" ".join(
+                str(text) for text in (state["objective"]["description"], *acceptance, blocker,
+                                       state["focus"]["nextCheapestTest"]) if text))) else {}),
         }
 
     def add_task(self, run_id: str, task: dict[str, Any], actor: str = "coordinator") -> dict[str, Any]:
@@ -1957,6 +2006,15 @@ class RunStore:
                     deferred_reason = "large change is blocked until the minimal end-to-end path is reproduced"
             if work_kind == "review" and state["focus"]["reviewReopens"] >= 2:
                 deferred_reason = "review findings must be batched before another review"
+            pushback = task.get("pushback")
+            if pushback is not None:
+                verdict, _, reason = str(pushback).partition(":")
+                verdict, reason = verdict.strip().upper(), reason.strip()
+                if verdict not in PUSHBACK_VERDICTS or not reason or "\n" in reason:
+                    raise RuntimeFailure("INVALID_PUSHBACK", "push-back must be KEEP|CUT|DEFER:one-line reason")
+                pushback = {"verdict": verdict, "reason": reason}
+                if verdict != "KEEP":
+                    deferred_reason = f"push-back {verdict}: {reason}"
             operations = list(
                 dict.fromkeys(
                     [
@@ -2014,6 +2072,21 @@ class RunStore:
             }
             if not normalized["objective"]:
                 raise RuntimeFailure("INVALID_TASK", "task objective is required")
+            if pushback is not None:
+                normalized["pushback"] = pushback
+                if pushback["verdict"] == "CUT":
+                    normalized["status"] = "SKIPPED"
+            if task.get("effort") is not None:
+                if task["effort"] not in {"low", "default", "high"}:
+                    raise RuntimeFailure("INVALID_TASK", "effort must be low, default, or high")
+                normalized["effort"] = task["effort"]
+            if change_kind != "normal":
+                # Reference parity is the first gate: the replacement is bound to the tested baseline.
+                normalized["reference"] = {
+                    "path": state["reuseBaseline"]["path"],
+                    "difference": state["reuseBaseline"]["difference"],
+                    "evidenceRefs": list(state["reuseBaseline"]["evidenceRefs"]),
+                }
             state["tasks"].append(normalized)
             validate_task_graph(state["tasks"])
             state["status"] = "PLANNING" if state["status"] == "CREATED" else state["status"]
@@ -2338,6 +2411,25 @@ class RunStore:
         preflight_observation: dict[str, Any] | None = None
         snapshot = self.load(run_id)
         snapshot_task = find_task(snapshot, task_id)
+        pushback = snapshot_task.get("pushback")
+        if pushback is None and snapshot["focus"].get("pushbackRequired"):
+            raise RuntimeFailure("PUSHBACK_MISSING", "record a KEEP/CUT/DEFER push-back verdict before starting this task")
+        if pushback is not None and pushback["verdict"] != "KEEP":
+            raise RuntimeFailure("PUSHBACK_NOT_KEPT", f"push-back verdict {pushback['verdict']} never dispatches")
+        events = self.events(run_id)
+        budget = budget_signal(snapshot, events, self.repository)
+        if budget and budget["signal"] == "BUDGET_100":
+            raise RuntimeFailure("BUDGET_100", "Run budget is exhausted; no new worker dispatches", details=budget)
+        primary = snapshot["focus"].get("primaryCriterion")
+        if primary:
+            stall = primary_criterion_status(snapshot, events, self.repository)
+            bound = primary["id"] in snapshot_task["acceptanceCriteria"]
+            if stall and bound and stall["loopCapped"]:
+                escalation = primary_stalled_escalation(stall)
+                raise RuntimeFailure(escalation["code"], escalation["message"], details=escalation)
+            if stall and not bound and stall["stalled"]:
+                escalation = stalled_primary_escalation(stall)
+                raise RuntimeFailure(escalation["code"], escalation["message"], details=stall)
         if TARGET_OPERATIONS.intersection(snapshot_task.get("operations") or []):
             identity = snapshot.get("targetIdentity")
             if (
@@ -3129,11 +3221,22 @@ class RunStore:
         family: str | None = None,
         criteria: Sequence[str] | None = None,
         surface: str | None = None,
+        reviewer: str | None = None,
+        effort: str | None = None,
         actor: str = "coordinator",
     ) -> dict[str, Any]:
         require_id(gate_id, "gate id")
+        requested_level, _, effective_level = (effort or "").partition(":")
+        if effort is not None and requested_level not in {"low", "default", "high"}:
+            raise RuntimeFailure("INVALID_GATE", "effort must be low|default|high[:effective host mapping]")
         if gate_type not in {"deterministic", "e2e", "semantic", "reality", "policy", "security"}:
             raise RuntimeFailure("INVALID_GATE", f"invalid gate type: {gate_type}")
+        if gate_type == "semantic":
+            reviewer = reviewer or "architrave-judge"
+            if reviewer not in {"host-native", "architrave-judge"}:
+                raise RuntimeFailure("INVALID_GATE", "semantic reviewer must be host-native or architrave-judge")
+        elif reviewer is not None:
+            raise RuntimeFailure("INVALID_GATE", "only semantic gates record a reviewer kind")
         if family is not None and not ID_RE.fullmatch(family):
             raise RuntimeFailure("INVALID_GATE", f"invalid gate reviewer identity: {family}")
         if gate_type == "semantic" and family is None:
@@ -3167,6 +3270,20 @@ class RunStore:
             known_criteria = {item["id"] for item in state["acceptanceCriteria"]}
             if not bound_criteria or not set(bound_criteria).issubset(known_criteria):
                 raise RuntimeFailure("INVALID_GATE", "gate must bind to known acceptance criteria")
+            high_risk = {item["id"] for item in state["acceptanceCriteria"] if item["risk"] in {"R3", "R4"}}
+            cross_family = bool((repository_config(str(self.repository)).get("review") or {}).get("crossFamily"))
+            duplicate = next((
+                item["id"] for item in state["gateResults"]
+                if cross_family and gate_type == "semantic" and status == "PASS" and item["type"] == "semantic"
+                and item["status"] == "PASS" and item.get("family") == family
+                and item.get("objectiveVersion") == state["objective"]["version"]
+                and high_risk.intersection(bound_criteria).intersection(item["criteria"])
+            ), None)
+            if duplicate:
+                raise RuntimeFailure(
+                    "DUPLICATE_REVIEW_FAMILY",
+                    f"R3/R4 review family {family} already passed in {duplicate}; the second review needs a different family",
+                )
             if status == "PASS":
                 require_evidence_refs(state, evidence_refs, allowed={"artifact", "external"})
                 artifact_ids = [reference.split(":", 1)[1] for reference in evidence_refs if reference.startswith("artifact:")]
@@ -3291,6 +3408,9 @@ class RunStore:
                     "startedAt": now,
                     "finishedAt": now,
                     "evidenceRefs": list(dict.fromkeys(evidence_refs)),
+                    **({"reviewer": reviewer} if gate_type == "semantic" else {}),
+                    **({"effort": {"requested": requested_level, "effective": effective_level or None}}
+                       if effort is not None else {}),
                 }
             )
             append_checkpoint(state, task_id, "GATE_COMPLETION")
@@ -3324,6 +3444,18 @@ class RunStore:
             if status in {"PASS", "NOT_APPLICABLE"}:
                 self.assert_gate_sources_current(state, evidence_refs)
                 require_evidence_refs(state, evidence_refs, allowed={"gate", "external"})
+                primary = state["focus"].get("primaryCriterion") or {}
+                if status == "PASS" and primary.get("id") == criterion_id:
+                    rejected = [reference for reference in evidence_refs
+                                if not observed_product_outcome(state, criterion_id, reference)]
+                    if rejected:
+                        raise RuntimeFailure(
+                            "PRIMARY_EVIDENCE_NOT_OBSERVED",
+                            "the primary criterion passes only on a runtime-bound reality/e2e receipt or a "
+                            "PRODUCT_OUTCOME_CONFIRMED user confirmation; CI/test, auth/MFA/policy checkpoints, "
+                            "and self-authored evidence are rejected",
+                            details={"rejected": rejected},
+                        )
                 for reference in evidence_refs:
                     kind, identifier = reference.split(":", 1)
                     if kind == "gate":
@@ -4304,6 +4436,7 @@ class RunStore:
                     "acceptanceCriteria": ["MIGRATION-001"],
                     "requiredArtifacts": [],
                     "gate": str(phase.get("gate") or "legacy projection"),
+                    "pushback": "KEEP:migrated legacy phase",
                 },
             )
             legacy_statuses[task_id] = str(phase.get("status") or "not-started")
@@ -4612,6 +4745,16 @@ def validate_run(state: dict[str, Any]) -> None:
         raise RuntimeFailure("RUN_INVALID", "canonical objective is invalid")
     if not isinstance(state["focus"].get("reviewReopens"), int):
         raise RuntimeFailure("RUN_INVALID", "focus state is invalid")
+    primary = state["focus"].get("primaryCriterion")
+    if primary is not None and (
+        not isinstance(primary, dict)
+        or primary.get("id") not in criteria_ids
+        or not primary.get("paths")
+        or not isinstance(primary.get("threshold"), int)
+        or primary["threshold"] < 1
+        or not isinstance(primary.get("eventSequence"), int)
+    ):
+        raise RuntimeFailure("RUN_INVALID", "primary criterion focus is invalid")
     lanes = state["lanes"]
     if int(lanes.get("maxActive", 0)) < 1 or len(lanes.get("active") or []) > lanes["maxActive"]:
         raise RuntimeFailure("RUN_INVALID", "active lane limit exceeded")
@@ -4808,6 +4951,49 @@ def append_checkpoint(state: dict[str, Any], task_id: str | None, kind: str) -> 
     state["checkpoints"].append(checkpoint)
 
 
+def observed_product_outcome(state: dict[str, Any], criterion_id: str, reference: str) -> bool:
+    """True only for a runtime-bound reality/e2e receipt or a typed user product confirmation."""
+    kind, _, identifier = reference.partition(":")
+    started = parse_iso(state["createdAt"])
+    if kind == "gate":
+        gate = next((item for item in state["gateResults"] if item["id"] == identifier), None)
+        if gate is None or gate["type"] not in {"reality", "e2e"} or gate["status"] != "PASS" \
+                or criterion_id not in gate["criteria"] or parse_iso(gate["startedAt"]) < started:
+            return False
+        artifact_ids = {ref.split(":", 1)[1] for ref in gate["evidenceRefs"] if ref.startswith("artifact:")}
+        artifacts = [item for item in state["artifacts"] if item["id"] in artifact_ids]
+        return bool(artifacts) and all(
+            item["producer"] in {"legibility", "external-proof", "mutation"}
+            and parse_iso(item["createdAt"]) >= started for item in artifacts)
+    if kind == "external":
+        checkpoint = next((item for item in state["externalCheckpoints"] if item["id"] == identifier), None)
+        return bool(checkpoint) and checkpoint["type"] == "PRODUCT_OUTCOME_CONFIRMED" \
+            and checkpoint["status"] == "RESOLVED" and parse_iso(checkpoint["createdAt"]) >= started \
+            and criterion_id in find_task(state, checkpoint["taskId"])["acceptanceCriteria"]
+    return False
+
+
+def map_effort(requested: str, host: dict[str, Any]) -> dict[str, Any]:
+    """Map a capability signal to what the host exposes; never a model name."""
+    tiers = {"low": "efficiency", "default": None, "high": "intelligence"}
+    effective: dict[str, Any] | None = None
+    if requested != "default" and host.get("autoTier"):
+        effective = {"autoTier": tiers[requested]}
+    elif requested != "default" and requested in (host.get("reasoningLevels") or []):
+        effective = {"reasoning_effort": requested}
+    return {"requested": requested, "effective": effective,
+            "note": None if effective else "host default inherited (no per-task effort control or default requested)"}
+
+
+def requested_effort(state: dict[str, Any], task: dict[str, Any], stalled: bool = False) -> str:
+    primary = (state["focus"].get("primaryCriterion") or {}).get("id")
+    if task.get("effort"):
+        return task["effort"]
+    if stalled and primary in task["acceptanceCriteria"]:
+        return "high"
+    return "low" if task["risk"] in {"R0", "R1"} else "default"
+
+
 def evidence_ref_kind(state: dict[str, Any], reference: str) -> str | None:
     if ":" not in reference:
         return None
@@ -4872,12 +5058,14 @@ def missing_gate_requirements(state: dict[str, Any], criteria: Sequence[dict[str
     repo_config = repository_config(state["baseline"]["repository"])
     configured = repo_config.get("evaluation") or {}
     risk_policy = configured.get("riskPolicy") or {}
+    cross_family = bool((repo_config.get("review") or {}).get("crossFamily"))
     missing: list[str] = []
     for criterion in criteria:
         requirements = list(
             dict.fromkeys(
                 [
-                    *DEFAULT_RISK_GATES[criterion["risk"]],
+                    *(gate if cross_family or gate != "semantic-independent-2" else "semantic-any"
+                      for gate in DEFAULT_RISK_GATES[criterion["risk"]]),
                     *(risk_policy.get(criterion["risk"]) or []),
                 ]
             )
@@ -4988,6 +5176,185 @@ def split_csv(value: str | None) -> list[str]:
     return [item.strip() for item in (value or "").split(",") if item.strip()]
 
 
+def normalize_primary_criterion(
+    state: dict[str, Any],
+    criterion_id: str,
+    paths: Sequence[str],
+    threshold: int,
+    since_commit: str,
+) -> dict[str, Any]:
+    if criterion_id not in state["objective"]["acceptanceCriteria"]:
+        raise RuntimeFailure("INVALID_PRIMARY_CRITERION", "primary criterion must be a current objective criterion")
+    criterion = next(item for item in state["acceptanceCriteria"] if item["id"] == criterion_id)
+    if criterion["verificationType"] not in OBSERVED_OUTCOME_TYPES:
+        raise RuntimeFailure(
+            "INVALID_PRIMARY_CRITERION",
+            "primary criterion must be verified by an observed product outcome (reality, e2e, or external "
+            "user confirmation); CI and test counts cannot pass it",
+        )
+    normalized_paths = list(dict.fromkeys(safe_relative_path(str(path), "primary path") for path in paths))
+    if not normalized_paths:
+        raise RuntimeFailure("INVALID_PRIMARY_CRITERION", "primary criterion requires at least one code path")
+    if int(threshold) < 1:
+        raise RuntimeFailure("INVALID_PRIMARY_CRITERION", "stall threshold must be at least 1")
+    return {
+        "id": criterion_id,
+        "paths": normalized_paths,
+        "threshold": int(threshold),
+        "sinceCommit": since_commit,
+        "declaredAt": utc_now(),
+        "eventSequence": state["eventCursor"]["sequence"] + 1,
+    }
+
+
+def _path_touches(changed: str, declared: str) -> bool:
+    declared = declared.rstrip("/")
+    return changed == declared or changed.startswith(declared + "/") or fnmatch.fnmatchcase(changed, declared)
+
+
+def _primary_commits(repository: Path, primary: dict[str, Any]) -> list[tuple[dt.datetime, int, str, bool]]:
+    since = primary["sinceCommit"]
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", since, "HEAD"], cwd=repository, capture_output=True, check=False,
+    ).returncode == 0
+    selector = [f"{since}..HEAD"] if ancestor else [f"--since={primary['declaredAt']}", "HEAD"]
+    output = run_command(
+        ["git", "-c", "core.quotepath=false", "log", "--reverse", "--no-merges",
+         "--format=%x1e%H%x1f%cI", "--name-only", *selector],
+        repository,
+    )
+    commits: list[tuple[dt.datetime, int, str, bool]] = []
+    for record in output.split("\x1e"):
+        lines = [line.strip() for line in record.strip().splitlines() if line.strip()]
+        if not lines:
+            continue
+        sha, committed = lines[0].split("\x1f", 1)
+        touched = any(_path_touches(name, path) for name in lines[1:] for path in primary["paths"])
+        commits.append((parse_iso(committed), 0, f"commit:{sha[:12]}", touched))
+    return commits
+
+
+def primary_criterion_status(
+    state: dict[str, Any], events: Sequence[dict[str, Any]], repository: Path,
+) -> dict[str, Any] | None:
+    """Count consecutive commits/worker results that neither touch nor move the primary criterion."""
+    primary = state["focus"].get("primaryCriterion")
+    if not primary:
+        return None
+    criterion = next((item for item in state["acceptanceCriteria"] if item["id"] == primary["id"]), None)
+    criterion_status = criterion["status"] if criterion else "NOT_APPLICABLE"
+    tasks = {task["id"]: task for task in state["tasks"]}
+    gates = {gate["id"]: gate for gate in state["gateResults"]}
+    timeline = _primary_commits(repository, primary)
+    for event in events:
+        if event["sequence"] <= primary["eventSequence"] or event["type"] not in PRIMARY_BOUND_EVENTS:
+            continue
+        payload = event.get("payload") or {}
+        task = tasks.get(str(event.get("taskId") or ""))
+        gate = gates.get(str(payload.get("gateId") or ""))
+        bound = (
+            payload.get("criterionId") == primary["id"]
+            or (gate is not None and primary["id"] in gate["criteria"])
+            or (task is not None and primary["id"] in task["acceptanceCriteria"])
+        )
+        if bound:
+            timeline.append((parse_iso(event["timestamp"]), 1, f"event:{event['sequence']}", True))
+        elif event["type"] in PRIMARY_RESULT_EVENTS:
+            timeline.append((parse_iso(event["timestamp"]), 1, f"task:{event.get('taskId')}", False))
+    streak = 0
+    counted: set[str] = set()
+    last_touch = None
+    for _, _, label, touched in sorted(timeline, key=lambda item: (item[0], item[1])):
+        if touched:
+            streak, counted, last_touch = 0, set(), label
+        elif label not in counted:
+            counted.add(label)
+            streak += 1
+    failed_attempts = primary_failures(state, events, primary["id"])
+    open_criterion = criterion_status not in {"PASS", "NOT_APPLICABLE"}
+    return {
+        "id": primary["id"],
+        "criterionStatus": criterion_status,
+        "paths": list(primary["paths"]),
+        "threshold": primary["threshold"],
+        "untouchedStreak": streak,
+        "lastTouch": last_touch,
+        "stalled": open_criterion and streak >= primary["threshold"],
+        "failedAttempts": failed_attempts,
+        "loopCapped": open_criterion and len(failed_attempts) >= primary["threshold"],
+    }
+
+
+def budget_signal(state: dict[str, Any], events: Sequence[dict[str, Any]], repository: Path) -> dict[str, Any] | None:
+    """Real-signal counters since Run creation against optional evaluation.budget limits."""
+    limits = (repository_config(str(repository)).get("evaluation") or {}).get("budget") or {}
+    if not limits:
+        return None
+    base = state["baseline"]["commit"]
+    ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", base, "HEAD"], cwd=repository,
+                              capture_output=True, check=False).returncode == 0
+    counters = {
+        "turns": state["eventCursor"]["sequence"],
+        "commits": int(run_command(["git", "rev-list", "--count", f"{base}..HEAD"], repository)) if ancestor else None,
+        "dispatches": sum(1 for event in events if event["type"] == "task.started"),
+        "minutes": int((dt.datetime.now(dt.timezone.utc) - parse_iso(state["createdAt"])).total_seconds() // 60),
+    }
+    active = {name: limits[key] for name, key in BUDGET_LIMITS.items() if limits.get(key)}
+    ratios = {name: counters[name] / limit for name, limit in active.items() if counters[name] is not None}
+    unknown = sorted(name for name in active if counters[name] is None)
+    peak = max(ratios.values(), default=0)
+    signal = ("BUDGET_100" if peak >= 1 else "BUDGET_UNKNOWN" if unknown
+              else "BUDGET_80" if peak >= 0.8 else None)
+    return {"counters": counters, "limits": active, "signal": signal, "unknown": unknown,
+            "over": sorted(name for name, ratio in ratios.items() if ratio >= 0.8)}
+
+
+def primary_failures(state: dict[str, Any], events: Sequence[dict[str, Any]], criterion_id: str) -> list[dict[str, Any]]:
+    """Failed attempts on one criterion across workers and gates since its last observed PASS or objective replacement."""
+    tasks = {task["id"]: task for task in state["tasks"]}
+    gates = {gate["id"]: gate for gate in state["gateResults"]}
+    attempts: list[dict[str, Any]] = []
+    for event in events:
+        payload = event.get("payload") or {}
+        task = tasks.get(str(event.get("taskId") or ""))
+        if event["type"] == "objective.replaced" or (
+                event["type"] == "product.progress" and payload.get("criterionId") == criterion_id):
+            attempts = []
+        elif event["type"] in {"task.failed", "worker.finished"} and task and criterion_id in task["acceptanceCriteria"] \
+                and (event["type"] == "task.failed" or payload.get("candidateStatus") == "FAILED"):
+            attempts.append({"taskId": task["id"], "reason": str(payload.get("reason") or "worker failed")[:200]})
+        elif event["type"] == "gate.failed" and criterion_id in (gates.get(str(payload.get("gateId"))) or {}).get("criteria", []):
+            attempts.append({"gateId": payload.get("gateId"), "reason": "gate failed"})
+        elif event["type"] == "acceptance.updated" and payload.get("criterionId") == criterion_id \
+                and payload.get("status") == "FAIL":
+            attempts.append({"criterionId": criterion_id, "reason": "criterion observed FAIL"})
+    return attempts
+
+
+def primary_stalled_escalation(stall: dict[str, Any]) -> dict[str, Any]:
+    attempts = stall["failedAttempts"]
+    return {
+        "code": "PRIMARY_STALLED",
+        "criterion": stall["id"],
+        "bestAttempt": attempts[-1],
+        "caveats": [item["reason"] for item in attempts],
+        "message": (f"{len(attempts)} failed attempts on {stall['id']}; new work on it is blocked. Report the best "
+                    "attempt with its caveats and ask the user to approve a different approach or criterion"),
+    }
+
+
+def stalled_primary_escalation(stall: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "code": "STALLED_PRIMARY_CRITERION",
+        "criterion": stall["id"],
+        "message": (
+            f"{stall['untouchedStreak']} consecutive commits/worker results did not touch "
+            f"{stall['id']} ({', '.join(stall['paths'])}) or change its outcome; return to its "
+            "code path or ask the user to replace the objective"
+        ),
+    }
+
+
 def state_summary(state: dict[str, Any]) -> dict[str, Any]:
     from worker_adapters import workspace_fingerprint
 
@@ -5015,7 +5382,7 @@ def state_summary(state: dict[str, Any]) -> dict[str, Any]:
                     else "stale"
                 )
         evidence.append(item)
-    return {
+    summary = {
         "runId": state["runId"],
         "status": state["status"],
         "revision": state["revision"],
@@ -5043,6 +5410,37 @@ def state_summary(state: dict[str, Any]) -> dict[str, Any]:
                         if worker["status"] == "RUNNING" and worker["id"] not in active_worker_ids],
         "evidence": evidence,
     }
+    missing_pushback = [task["id"] for task in state["tasks"]
+                        if "pushback" not in task and task.get("objectiveVersion") == state["objective"]["version"]]
+    if missing_pushback:
+        summary["missingPushback"] = missing_pushback
+    store = RunStore(repository)
+    events = store._read_events(store.run_dir(state["runId"]))
+    budget = budget_signal(state, events, repository)
+    if budget:
+        summary["budget"] = budget
+    if state["focus"].get("primaryCriterion"):
+        stall = primary_criterion_status(state, events, repository)
+        summary["primaryCriterion"] = stall
+        if stall and stall["loopCapped"]:
+            summary["escalation"] = primary_stalled_escalation(stall)
+        elif stall and stall["stalled"]:
+            summary["escalation"] = stalled_primary_escalation(stall)
+    lint = owner_message_lint(" ".join(
+        str(text) for text in (summary["objective"], summary["nextCheapestTest"],
+                               (summary.get("escalation") or {}).get("message")) if text))
+    if lint:
+        summary["ownerMessageLint"] = lint
+    return summary
+
+
+def owner_message_lint(text: str) -> dict[str, Any] | None:
+    """Owner summaries fail when dense with full SHAs, PIDs, run-* IDs, or UUIDs (evidence payloads are exempt)."""
+    findings = [match.group(0) for pattern in OWNER_MESSAGE_NOISE for match in pattern.finditer(text)]
+    if len(findings) < 3:
+        return None
+    return {"code": "OWNER_MESSAGE_LINT_FAIL", "findings": findings,
+            "message": "rewrite in plain sentences with at most two identifiers"}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -5058,6 +5456,15 @@ def build_parser() -> argparse.ArgumentParser:
     create.add_argument("--allow", action="append", default=[])
     create.add_argument("--confirmation-required", action="append", default=[])
     create.add_argument("--run-id")
+    create.add_argument("--primary-criterion", help="failing user-visible criterion watched by the stall detector")
+    create.add_argument("--primary-path", action="append", default=[], help="repository path/glob of its code path")
+    create.add_argument("--stall-threshold", type=int, default=PRIMARY_STALL_THRESHOLD)
+
+    primary = subparsers.add_parser("primary-set", help="declare the failing primary criterion and its code paths")
+    primary.add_argument("run_id")
+    primary.add_argument("--criterion", required=True)
+    primary.add_argument("--path", action="append", required=True)
+    primary.add_argument("--threshold", type=int, default=PRIMARY_STALL_THRESHOLD)
 
     for command in ("status", "inspect", "events", "ready", "resume", "verify", "checkpoint"):
         current = subparsers.add_parser(command)
@@ -5097,6 +5504,9 @@ def build_parser() -> argparse.ArgumentParser:
     task_add.add_argument("--artifact", action="append", default=[])
     task_add.add_argument("--gate")
     task_add.add_argument("--max-attempts", type=int, default=1)
+    task_add.add_argument("--pushback", help="KEEP|CUT|DEFER:one-line reason (push-back verdict for this item)")
+    task_add.add_argument("--effort", choices=["low", "default", "high"],
+                          help="capability signal mapped only to host-exposed controls; never a model name")
     task_add.add_argument("--side-effect", help="OPERATION@TARGET")
     task_add.add_argument("--command", dest="execution_command", nargs=argparse.REMAINDER, help="deterministic shell argv (must be last)")
 
@@ -5167,6 +5577,9 @@ def build_parser() -> argparse.ArgumentParser:
     gate.add_argument("--family", help="independent reviewer identity; model selection remains host-owned")
     gate.add_argument("--criteria", help="comma-separated acceptance criterion ids")
     gate.add_argument("--surface", help="verification surface this reality/e2e gate proves (e.g. web, ios, electron)")
+    gate.add_argument("--reviewer", choices=["host-native", "architrave-judge"],
+                      help="semantic reviewer kind: the host's native reviewer or the Architrave judge fallback")
+    gate.add_argument("--effort", help="requested low|default|high[:effective host mapping], e.g. high:none")
     gate.add_argument("--status", choices=["PASS", "FAIL", "BLOCKED", "SKIPPED"], required=True)
     gate.add_argument("--evidence", action="append", default=[])
 
@@ -5255,6 +5668,9 @@ def cli(argv: Sequence[str] | None = None) -> int:
                 policy_allow=[parse_policy_allow(item) for item in args.allow],
                 confirmation_required=args.confirmation_required,
                 run_id=args.run_id,
+                primary_criterion=args.primary_criterion,
+                primary_paths=args.primary_path,
+                primary_threshold=args.stall_threshold,
             )
             output = state_summary(state)
         elif command == "status":
@@ -5295,6 +5711,12 @@ def cli(argv: Sequence[str] | None = None) -> int:
                     checkpoint_id=args.checkpoint_id,
                     challenge=args.challenge,
                     actor=args.actor,
+                )
+            )
+        elif command == "primary-set":
+            output = state_summary(
+                store.set_primary_criterion(
+                    args.run_id, criterion_id=args.criterion, paths=args.path, threshold=args.threshold,
                 )
             )
         elif command == "reuse-verify":
@@ -5364,6 +5786,8 @@ def cli(argv: Sequence[str] | None = None) -> int:
                     "requiredArtifacts": args.artifact,
                     "gate": args.gate,
                     "maxAttempts": args.max_attempts,
+                    "pushback": args.pushback,
+                    "effort": args.effort,
                     "sideEffect": side_effect,
                     "workPacket": {
                         "execution": {
@@ -5411,6 +5835,8 @@ def cli(argv: Sequence[str] | None = None) -> int:
                     family=args.family,
                     criteria=split_csv(args.criteria) if args.criteria else None,
                     surface=args.surface,
+                    reviewer=args.reviewer,
+                    effort=args.effort,
                 )
             )
         elif command == "criterion-set":

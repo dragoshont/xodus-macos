@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-07T23:14:43+03:00",
+  updatedAt: "2026-10-08T00:34:52+03:00",
   phase: "Phase 2 â€” functionally complete, user-serviceable",
-  budget: { totalHours: 24, spentHours: 21, note: "8 h delivered (S0–S6) + 16 h Phase 2" },
+  budget: { totalHours: 24, spentHours: 23.5, note: "8 h delivered (S0–S6) + 16 h Phase 2" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -25,13 +25,13 @@ window.XODUS_STATUS = {
     { id: "B2", title: "Store-wide search with ownership badges", hours: 1.5, status: "done", evidence: "Live: Lara and Hogwarts Owned + Play; Celeste Owned + Install.", done: "Lara, Hogwarts, Celeste found with correct badges; install from a result" },
     { id: "B3", title: "Plays-on-Mac check before download", hours: 1.5, status: "done", done: "Unsupported packages flagged with zero bytes downloaded", evidence: "Live: Celeste install checks first and is blocked with the reason; zero download." },
     { id: "B4", title: "Game Pass licence spike", hours: 1.0, status: "done", done: "Yes/no evidence for subscription status and one Game Pass licence", evidence: "YES: 3 unowned Game Pass titles licensed; 2 unowned non-Game Pass titles refused. Status command live (active)." },
-    { id: "B5", title: "Game Pass status and shelf", hours: 2.0, status: "blocked", done: "Subscription state correct; Install only when active and supported", evidence: "App fee7f5f installed: Game Pass status and section present. Shelf/install live check blocked: login keychain locked (needs user password)." },
-    { id: "B6", title: "One sign-in, no Keychain prompts", hours: 2.0, status: "blocked", done: "Sign in once; restarts cause zero prompts", evidence: "Root cause: app Keychain items use default ACLs. Fix scoped as its own package (2.5 h timebox); one-time approval during migration." },
+    { id: "B5", title: "Game Pass status and shelf", hours: 2.0, status: "done", done: "Subscription state correct; Install only when active and supported", evidence: "Live: Game Pass shelf; Install showed Plays on Mac · 5.3 GB and registered Abiotic Factor (not owned). Probe-order fix frozen in 208939c." },
+    { id: "B6", title: "One sign-in, no Keychain prompts", hours: 2.0, status: "blocked", done: "Sign in once; restarts cause zero prompts", evidence: "macOS requires one human approval to migrate the Keychain item (proven with synthetic items). Packaging of 208939c also stopped at certificate signing. Both need the user at the Mac." },
     { id: "B7", title: "Self-contained app", hours: 2.5, status: "done", evidence: "App now runs every script from ~/Library/Application Support/Xodus/Runtime (50 MB, self-contained). Remaining: game service still at ~/.local; runtime not yet inside the app bundle.", done: "Developer folders moved aside; Lara still installs and plays" },
     { id: "B8", title: "First-run setup and Repair Xodus", hours: 2.0, status: "done", evidence: "Live: Setup list in the app; Repair Xodus ran from the app (status 0); backend rebuilds the environment from scratch in 11 s.", done: "Missing template rebuilt from the app; Lara plays" },
-    { id: "B9", title: "Stop game", hours: 1.0, status: "blocked", done: "Stop ends the game; app returns to Play cleanly", evidence: "Backend proven (4 s, no leftovers); Stop button installed in fee7f5f. Live check blocked: login keychain locked." },
+    { id: "B9", title: "Stop game", hours: 1.0, status: "done", done: "Stop ends the game; app returns to Play cleanly", evidence: "Live: Stop from the app ended Abiotic in 6 s; app shows Stopped; Continue Playing updated." },
     { id: "B10", title: "Cloud saves and online spikes", hours: 0.5, status: "done", done: "Feasibility recorded with evidence", evidence: "Cloud saves: local-only, upload not implemented (deferred). Online: Lara Xbox user OK but publisher service offline; Abiotic Xbox user fails at SISU (E_INVALIDARG). Single player works." },
-    { id: "B11", title: "Release acceptance on a fresh account", hours: 1.0, status: "blocked", done: "Full journey passes using only the app" }
+    { id: "B11", title: "Release acceptance on a fresh account", hours: 1.0, status: "done", done: "Full journey passes using only the app", evidence: "On the user account (fresh macOS account deferred): setup, sign-in, Discover, search, Game Pass install, play, stop, uninstall with saves kept, reinstall restored 11 save files, play, stop." }
   ],
 
   lineage: [
@@ -75,9 +75,9 @@ window.XODUS_STATUS = {
     { feature: "Install, repair, uninstall, import", state: "matched", note: "Supported titles" },
     { feature: "Search the Store, browse Game Pass", state: "planned", note: "B1â€“B2" },
     { feature: "Compatibility before install", state: "planned", note: "B3 Â· Xodus-only" },
-    { feature: "Game Pass subscription and installs", state: "planned", note: "B4 proved licences work · B5 UI" },
-    { feature: "One sign-in", state: "planned", note: "B6" },
-    { feature: "Stop game", state: "planned", note: "B9 backend live" },
+    { feature: "Game Pass subscription and installs", state: "matched", note: "Shelf, status, install and play (supported titles)" },
+    { feature: "One sign-in", state: "planned", note: "B6 needs one human approval" },
+    { feature: "Stop game", state: "matched" },
     { feature: "Cloud save sync", state: "deferred", note: "Local-only; upload not implemented" },
     { feature: "Achievements, online play", state: "unproven", note: "Xbox user works for some titles; SISU fails for others" },
     { feature: "Install location, add-ons, auto-update", state: "deferred" },
@@ -87,6 +87,8 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-08T00:34:52+03:00", text: "B5, B9, B11 accepted live: Game Pass install, Stop, full journey with save restore" },
+    { at: "2026-10-08T00:34:52+03:00", text: "B6 blocked on one human Keychain approval; next app package signing needs the user too" },
     { at: "2026-10-07T23:14:43+03:00", text: "Blocked: Mac login keychain is locked; user password needed to finish B5, B6, B9 and B11" },
     { at: "2026-10-07T23:14:43+03:00", text: "App fee7f5f installed: Game Pass status, Setup and Repair Xodus live; Repair ran from the app" },
     { at: "2026-10-07T22:52:47+03:00", text: "App package for B5, B7, B8, B9 frozen (fee7f5f), CI green, source approved; packaging" },

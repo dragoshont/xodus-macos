@@ -410,6 +410,26 @@ admitted package with the signed engine preserved → install). New UI in B2, B5
 and B8 gets a short Figma check against the approved composition first. One full
 Figma review after B9.
 
+### Phase 2 result (8 October 2026, 23.5 of 24 h)
+
+Accepted live in the installed app (`fee7f5f`): B1 Discover, B2 search with
+ownership badges, B3 compatibility before download, B4 Game Pass licences, B5
+Game Pass status, shelf and install (Abiotic Factor, not owned), B7 runtime
+folder, B8 Setup and Repair Xodus, B9 Stop game, B10 parity spikes, B11 full
+journey on the user's account: setup → sign-in → Discover → search → Game Pass
+install → play → stop → uninstall (saves kept) → reinstall (11 save files
+restored) → play → stop.
+
+Open (needs the user at the Mac):
+- **B6** One-time Keychain migration approval; macOS refuses ACL changes
+  without it (proven with synthetic items). Then repackage.
+- **Package `208939c`** (B5 probe-order and setup-refresh fixes, CI green)
+  stopped at certificate signing in a non-graphical session; rerun with the
+  user present.
+- Not done: fresh macOS account run, game service inside the app bundle,
+  first-launch GPU dialog in new environments for Nixxes titles, cloud saves,
+  Xbox sign-in (SISU) for some titles.
+
 ## Stop rules
 
 - A slice is done only with its real-product evidence, not CI alone.

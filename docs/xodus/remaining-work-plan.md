@@ -17,7 +17,7 @@ game session to test.
 | S1 | Installed games look and behave like a launcher library | — | **Done** (installed `e401464`, live evidence below) |
 | S2 | Launch polish: clean quit, no driver-warning stop | S1 not required | **Done** (AC2.1–AC2.3 passed) |
 | S3 | One sign-in for launcher and games | — | **Decided: game service owns credentials**; app integration next |
-| S4 | Owned PC library | — | **Unblocked (user signed in; full list returned); building** |
+| S4 | Owned PC library | — | **Done** (13 owned PC games live; follow-ups noted) |
 | S5 | Install from the app | S3, S4 or explicit product ID | Planned |
 | S6 | Update, repair and remove | S5 | Planned |
 
@@ -155,6 +155,21 @@ Man's Sky present. Fields include `productId`, `skuId`, `productKind`,
 - AC4.5 No Xbox activity, Game Pass catalogue or guesses fill this list.
 - Evidence to close: installed app signed in by the user, owned PC games
   shown with art, Hogwarts marked installed with working Play.
+
+Result (7 October 2026, installed app `7ec1daa`, CI 37617059339, signed engine
+unchanged): the user completed the in-app device-code sign-in. **Your PC
+games** shows 13 owned PC titles with real Store box art (including Celeste,
+Cuphead, Fortnite, Gears 5, Gears of War 4, Hogwarts Legacy, Lara Croft and the
+Temple of Osiris, Minecraft Launcher, Minecraft: Java Edition, No Man's Sky,
+Roblox, Subnautica). Hogwarts matches the imported installation and shows the
+same Play control verified in S1/S2; the others show "Not installed".
+**S4 accepted.** Follow-ups: (a) the Windows Xbox app's Owned view also listed
+HITMAN 3, Candy Crush Saga and Minecraft for Windows, which are not in the first
+12 visible tiles — check whether they are non-Game kinds, bundle-satisfied
+entitlements or console-only, and adjust only with evidence; (b) container
+accessibility identifiers override child button identifiers in the Installed
+and PC games sections (buttons are reachable but not individually
+identifiable).
 
 ## S5 — Install from the app
 

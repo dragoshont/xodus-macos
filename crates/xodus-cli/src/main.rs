@@ -7,6 +7,8 @@ use tracing_subscriber::util::SubscriberInitExt;
 use xodus::tokens::TokenManager;
 
 mod auth_verify;
+#[cfg(debug_assertions)]
+mod collections_diagnostic;
 mod commands;
 mod license;
 #[cfg(target_os = "macos")]
@@ -21,6 +23,12 @@ mod webview;
 
 #[derive(Subcommand)]
 enum SubCommand {
+    #[cfg(debug_assertions)]
+    #[command(hide = true)]
+    CollectionsDiagnostic {
+        #[arg(long, value_parser = ["US"])]
+        market: String,
+    },
     #[command(about = "Pure JSON runtime configuration generation planning; no provider execution")]
     RuntimePlan,
     #[command(about = "Strict JSONL launcher management protocol")]
@@ -155,6 +163,31 @@ struct CliArgs {
 mod argument_tests {
     use super::*;
 
+    #[cfg(debug_assertions)]
+    #[test]
+    fn collections_diagnostic_requires_explicit_development_market() {
+        assert!(matches!(
+            CliArgs::try_parse_from(["xodus", "collections-diagnostic", "--market", "US"])
+                .unwrap()
+                .command,
+            SubCommand::CollectionsDiagnostic { market } if market == "US"
+        ));
+        for arguments in [
+            vec!["xodus", "collections-diagnostic"],
+            vec!["xodus", "collections-diagnostic", "--market", "TW"],
+            vec![
+                "xodus",
+                "collections-diagnostic",
+                "--market",
+                "US",
+                "--product",
+                "fixture",
+            ],
+        ] {
+            assert!(CliArgs::try_parse_from(arguments).is_err());
+        }
+    }
+
     #[test]
     fn runtime_planning_has_its_own_source_only_command() {
         assert!(matches!(
@@ -221,6 +254,10 @@ mod argument_tests {
 #[tokio::main]
 async fn main() -> ExitCode {
     let args = CliArgs::parse();
+    #[cfg(debug_assertions)]
+    if let SubCommand::CollectionsDiagnostic { market } = &args.command {
+        return collections_diagnostic::run(market).await;
+    }
     if matches!(args.command, SubCommand::RuntimePlan) {
         return runtime_plan::run().await;
     }
@@ -312,6 +349,10 @@ async fn main() -> ExitCode {
     }
 
     let code = match args.command {
+        #[cfg(debug_assertions)]
+        SubCommand::CollectionsDiagnostic { .. } => {
+            unreachable!("development diagnostic returns before legacy initialization")
+        }
         SubCommand::Manage { .. } | SubCommand::RuntimePlan => {
             unreachable!("management and pure planning return before legacy initialization")
         }

@@ -14,6 +14,18 @@ pub async fn run(
     username: String,
     relying_party: &str,
 ) -> Result<XstsResponse, XboxAuthError> {
+    let user = authenticate_saved_user(client, dev_token, legacy, username).await?;
+    let response = request_xsts_token(client, user.token, relying_party).await?;
+    get_xsts_auth_header(response.clone())?;
+    Ok(response)
+}
+
+pub async fn authenticate_saved_user(
+    client: &reqwest::Client,
+    dev_token: LegacyToken,
+    legacy: LegacyToken,
+    username: String,
+) -> Result<XstsResponse, XboxAuthError> {
     if username.trim().is_empty() {
         return Err(XboxAuthError::InvalidCredentials);
     }
@@ -39,7 +51,5 @@ pub async fn run(
     let resp = authenticate_xbox_user(client, user_token).await?;
     get_xsts_auth_header(resp.clone())?;
 
-    let response = request_xsts_token(client, resp.token, relying_party).await?;
-    get_xsts_auth_header(response.clone())?;
-    Ok(response)
+    Ok(resp)
 }

@@ -49,6 +49,13 @@ struct XtiClaim {
 }
 
 impl XstsResponse {
+    pub fn has_user_id_claim(&self) -> bool {
+        self.display_claims
+            .xui
+            .iter()
+            .any(|claim| claim.xid.is_some())
+    }
+
     pub fn user_id(&self) -> Option<&str> {
         let [claim] = self.display_claims.xui.as_slice() else {
             return None;

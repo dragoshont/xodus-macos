@@ -14,6 +14,51 @@ adds negotiated `auth.logout`, and adds explicit validation/state error codes.
 The subsequent optional `authData.flow` extension was explicitly agreed by the
 coordinator and native app owner before consumer integration.
 
+## Development-only consumer Collections diagnostic
+
+Debug builds alone expose hidden `xodus-cli collections-diagnostic --market US`.
+It is not a management RPC, `Data` variant, capability, ownership inventory or
+subscription resolver; Release builds omit the command and module. Do not invoke
+it without a separately authorized account/provider read. No such read is
+performed by source qualification.
+The command uses only the existing isolated management Keychain profile. It
+accepts no state-directory override, opens no management filesystem registry,
+and creates no alternative profile or root.
+
+The fixed read-only POST is
+`https://collections.mp.microsoft.com/v7.0/collections/query`, with literal XSTS
+audience `http://mp.microsoft.com/` (an audience identifier, not HTTP transport).
+This is grounded in public `threesecond/my-xbox-library` commit
+`472e6ac91d2801ed3d210b26be079d3664693a11`, `config.py:50`,
+`auth.py:33,181-207` and `library_sync.py:264-291`; it is a community contract
+lead, not independently observed Xbox PC app traffic.
+
+The diagnostic performs at most one page (100 items), bounded by the existing
+streamed 4 MiB response reader and a total 30-second deadline including silent
+authentication and publication. Redirects and HTTP retries are disabled. Test
+market US is explicit and is not the account's purchasing-country assertion.
+The existing native management Keychain clone is noninteractive first and
+read-only last, with full current-profile fingerprint/expiry checks before and
+after provider work and immediately before publication. The upfront dual-audience
+path obtains `http://xboxlive.com` and `http://mp.microsoft.com/` XSTS from the
+same fresh in-memory XBL user token, without a second login or audience fallback.
+A canonical nonzero beneficiary XUID must come from that Live response, with
+validated matching unique user hashes; a present malformed/conflicting Store
+XUID is rejected. This binds the same attempt, not the Windows purchasing
+account. Missing identity stops rather than substituting history, username or
+user hash.
+
+Only aggregate partial-page counts, unresolved identity counts, fixed status
+categories/field presence, trial/date-field counts and continuation shape are
+published. No raw response, token, account, product/SKU ID, title, continuation
+value, cache or output file is exposed. Unknown extensions are ignored; malformed
+required structures and present needed fields fail explicitly. Absent/null
+optional fields remain unresolved, never default Active or owned. An empty page
+or absent/empty continuation does not establish complete coverage. No license,
+Orders, history, public catalog, package, install or runtime call is made, and no
+credential is persisted, reset, refreshed into storage or provisioned. The
+management schema and existing shipping/profile artifacts remain unchanged.
+
 ## Transport
 
 `xodus-cli manage --protocol 1 --state-dir <absolute-private-directory>` (the

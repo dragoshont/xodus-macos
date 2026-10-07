@@ -291,6 +291,36 @@ The 60 s lifetime is not evidence of UI startup. The next rung needs Phase 3
 (`winemac.drv` on the Mac foreground), which needs the owner's release of the
 screen.
 
+### Sprint progress: Phase 2 checkpoint (2026-10-07 ~17:30, headless)
+
+**Result: the headless chain reached the display boundary.** Runs sp13–sp23
+followed the first real failure each time. Each was resolved upstream-first
+or against native VM measurements, with probe parity. Details, provenance and
+deviations are in `scripts/macos/compatibility/xaml-startup/README.md`.
+
+Reached and resolved:
+- combase design mode and process events
+- `GetQueueStatusReadonly`
+- `Windows.UI.Xaml.FrameworkView` registration
+- `IsOneCoreTransformMode`
+- `PrivateCoInternetCombineIUri`: backport of Wine `949c1ed5`
+- `GetUserColorPreference`
+- `GetColorFromPreference`: measured types only; others return magenta with
+  a FIXME
+- `RtlGetAppContainerNamedObjectPath`
+
+sp23 reaches no further unimplemented API. The Xaml render thread fails to
+create a DXGI factory (`0x887a0004`), because there is no display driver and
+the headless harness disables `winemac.drv`. It then calls
+`RaiseFailFastException`, and the process exits with `0xC0000602`.
+
+| Rung | Status |
+|---|---|
+| Packaged activation, registrar, ALPC | pass |
+| CoreApplication / Xaml framework startup (headless) | reaches rendering-device creation |
+| Original window (milestone 4) | **UNTESTED**: needs Phase 3 with `winemac.drv`, which needs owner permission |
+| Sign-in, library, play | UNTESTED |
+
 ## Xodus-backed substitutes for Windows dependencies (owner question, 2026-10-07)
 
 Xodus already reimplements several Windows pieces, using genuine Microsoft

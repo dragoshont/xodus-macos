@@ -1,0 +1,3323 @@
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -1,356 +1,365 @@
+-@ stub ObjectStublessClient3
+-@ stub ObjectStublessClient4
+-@ stub ObjectStublessClient5
+-@ stub ObjectStublessClient6
+-@ stub ObjectStublessClient7
+-@ stub ObjectStublessClient8
+-@ stub ObjectStublessClient9
+-@ stub ObjectStublessClient10
+-@ stub ObjectStublessClient11
+-@ stub ObjectStublessClient12
+-@ stub ObjectStublessClient13
+-@ stub ObjectStublessClient14
+-@ stub ObjectStublessClient15
+-@ stub ObjectStublessClient16
+-@ stub ObjectStublessClient17
+-@ stub ObjectStublessClient18
+-@ stub ObjectStublessClient19
+-@ stub ObjectStublessClient20
+-@ stub ObjectStublessClient21
+-@ stub ObjectStublessClient22
+-@ stub ObjectStublessClient23
+-@ stub ObjectStublessClient24
+-@ stub ObjectStublessClient25
+-@ stub ObjectStublessClient26
+-@ stub ObjectStublessClient27
+-@ stub ObjectStublessClient28
+-@ stub ObjectStublessClient29
+-@ stub ObjectStublessClient30
+-@ stub ObjectStublessClient31
+-@ stub ObjectStublessClient32
+-@ stub NdrProxyForwardingFunction3
+-@ stub NdrProxyForwardingFunction4
+-@ stub NdrProxyForwardingFunction5
+-@ stub NdrProxyForwardingFunction6
+-@ stub NdrProxyForwardingFunction7
+-@ stub NdrProxyForwardingFunction8
+-@ stub NdrProxyForwardingFunction9
+-@ stub NdrProxyForwardingFunction10
+-@ stub NdrProxyForwardingFunction11
+-@ stub NdrProxyForwardingFunction12
+-@ stub NdrProxyForwardingFunction13
+-@ stub NdrProxyForwardingFunction14
+-@ stub NdrProxyForwardingFunction15
+-@ stub NdrProxyForwardingFunction16
+-@ stub NdrProxyForwardingFunction17
+-@ stub NdrProxyForwardingFunction18
+-@ stub NdrProxyForwardingFunction19
+-@ stub NdrProxyForwardingFunction20
+-@ stub NdrProxyForwardingFunction21
+-@ stub NdrProxyForwardingFunction22
+-@ stub NdrProxyForwardingFunction23
+-@ stub NdrProxyForwardingFunction24
+-@ stub NdrProxyForwardingFunction25
+-@ stub NdrProxyForwardingFunction26
+-@ stub NdrProxyForwardingFunction27
+-@ stub NdrProxyForwardingFunction28
+-@ stub NdrProxyForwardingFunction29
+-@ stub NdrProxyForwardingFunction30
+-@ stub NdrProxyForwardingFunction31
+-@ stub NdrProxyForwardingFunction32
+-@ stub NdrOleInitializeExtension
+-@ stdcall RoFailFastWithErrorContextInternal2(long long ptr)
+-@ stub RoFailFastWithErrorContextInternal
+-@ stub UpdateProcessTracing
+-@ stdcall CLIPFORMAT_UserFree(ptr ptr)
+-@ stdcall CLIPFORMAT_UserMarshal(ptr ptr ptr)
+-@ stdcall CLIPFORMAT_UserSize(ptr long ptr)
+-@ stdcall CLIPFORMAT_UserUnmarshal(ptr ptr ptr)
+-@ stub CLSIDFromOle1Class
+-@ stdcall CLSIDFromProgID(wstr ptr)
+-@ stdcall CLSIDFromProgIDEx(wstr ptr)
+-@ stdcall CLSIDFromString(wstr ptr)
+-@ stub CleanupOleStateInAllTls
+-@ stdcall CleanupTlsOleState(ptr)
+-@ stub ClearCleanupFlag
+-@ stdcall CoAddRefServerProcess()
+-@ stdcall CoRegisterServerShutdownDelay(ptr long)
+-@ stub CoAllowUnmarshalerCLSID
+-@ stub CoCancelCall
+-@ stdcall CoCopyProxy(ptr ptr)
+-@ stdcall CoCreateErrorInfo(ptr) CreateErrorInfo
+-@ stdcall CoCreateFreeThreadedMarshaler(ptr ptr)
+-@ stdcall CoCreateGuid(ptr)
+-@ stdcall CoCreateInstance(ptr ptr long ptr ptr)
+-@ stdcall CoCreateInstanceEx(ptr ptr long ptr long ptr)
+-@ stdcall CoCreateInstanceFromApp(ptr ptr long ptr long ptr)
+-@ stub CoCreateObjectInContext
+-@ stub CoDeactivateObject
+-@ stdcall CoDecodeProxy(long int64 ptr)
+-@ stdcall CoDecrementMTAUsage(ptr)
+-@ stdcall CoDisableCallCancellation(ptr)
+-@ stub CoDisconnectContext
+-@ stdcall CoDisconnectObject(ptr long)
+-@ stdcall CoEnableCallCancellation(ptr)
+-@ stdcall CoFileTimeNow(ptr)
+-@ stdcall CoFreeUnusedLibraries()
+-@ stdcall CoFreeUnusedLibrariesEx(long long)
+-@ stdcall CoGetActivationState(int128 long ptr)
+-@ stub CoGetApartmentID
+-@ stdcall CoGetApartmentType(ptr ptr)
+-@ stdcall CoGetCallContext(ptr ptr)
+-@ stdcall CoGetCallState(long ptr)
+-@ stdcall CoGetCallerTID(ptr)
+-@ stub CoGetCancelObject
+-@ stdcall CoGetClassObject(ptr long ptr ptr ptr)
+-@ stub CoGetClassVersion
+-@ stdcall CoGetContextToken(ptr)
+-@ stdcall CoGetCurrentLogicalThreadId(ptr)
+-@ stdcall CoGetCurrentProcess()
+-@ stdcall CoGetDefaultContext(long ptr ptr)
+-@ stdcall CoGetErrorInfo(long ptr) GetErrorInfo
+-@ stdcall CoGetInstanceFromFile(ptr ptr ptr long long wstr long ptr)
+-@ stdcall CoGetInstanceFromIStorage(ptr ptr ptr long ptr long ptr)
+-@ stdcall CoGetInterfaceAndReleaseStream(ptr ptr ptr)
+-@ stdcall CoGetMalloc(long ptr)
+-@ stdcall CoGetMarshalSizeMax(ptr ptr ptr long ptr long)
+-@ stub CoGetModuleType
+-@ stdcall CoGetObjectContext(ptr ptr)
+-@ stdcall CoGetPSClsid(ptr ptr)
+-@ stub CoGetProcessIdentifier
+-@ stdcall CoGetStandardMarshal(ptr ptr long ptr long ptr)
+-@ stub CoGetStdMarshalEx
+-@ stdcall CoGetSystemSecurityPermissions(long ptr)
+-@ stdcall CoGetTreatAsClass(ptr ptr)
+-@ stdcall CoImpersonateClient()
+-@ stdcall CoIncrementMTAUsage(ptr)
+-@ stdcall CoInitializeEx(ptr long)
+-@ stdcall CoInitializeSecurity(ptr long ptr ptr long long ptr long ptr)
+-@ stdcall CoInitializeWOW(long long)
+-@ stub CoInvalidateRemoteMachineBindings
+-@ stdcall CoIsHandlerConnected(ptr)
+-@ stdcall CoIsOle1Class(ptr)
+-@ stdcall CoLockObjectExternal(ptr long long)
+-@ stdcall CoMarshalHresult(ptr long)
+-@ stdcall CoMarshalInterThreadInterfaceInStream(ptr ptr ptr)
+-@ stdcall CoMarshalInterface(ptr ptr ptr long ptr long)
+-@ stub CoPopServiceDomain
+-@ stub CoPushServiceDomain
+-@ stub CoQueryAuthenticationServices
+-@ stdcall CoQueryClientBlanket(ptr ptr ptr ptr ptr ptr ptr)
+-@ stdcall CoQueryProxyBlanket(ptr ptr ptr ptr ptr ptr ptr ptr)
+-@ stub CoReactivateObject
+-@ stub CoRegisterActivationFilter
+-@ stdcall CoRegisterChannelHook(ptr ptr)
+-@ stdcall CoRegisterClassObject(ptr ptr long long ptr)
+-@ stdcall CoRegisterInitializeSpy(ptr ptr)
+-@ stdcall CoRegisterMallocSpy(ptr)
+-@ stdcall CoRegisterMessageFilter(ptr ptr)
+-@ stdcall CoRegisterPSClsid(ptr ptr)
+-@ stdcall CoRegisterSurrogate(ptr)
+-@ stdcall CoRegisterSurrogateEx(ptr ptr)
+-@ stdcall CoReleaseMarshalData(ptr)
+-@ stdcall CoReleaseServerProcess()
+-@ stdcall CoResumeClassObjects()
+-@ stub CoRetireServer
+-@ stdcall CoRevertToSelf()
+-@ stdcall CoRevokeClassObject(long)
+-@ stdcall CoRevokeInitializeSpy(int64)
+-@ stdcall CoRevokeMallocSpy()
+-@ stub CoSetCancelObject
+-@ stdcall CoSetErrorInfo(long ptr) SetErrorInfo
+-@ stdcall CoSetProxyBlanket(ptr long long ptr long long ptr long)
+-@ stdcall CoSuspendClassObjects()
+-@ stdcall CoSwitchCallContext(ptr ptr)
+-@ stdcall CoTaskMemAlloc(long)
+-@ stdcall CoTaskMemFree(ptr)
+-@ stdcall CoTaskMemRealloc(ptr long)
+-@ stub CoTestCancel
+-@ stdcall CoTreatAsClass(ptr ptr)
+-@ stdcall CoUninitialize()
+-@ stub CoUnloadingWOW
+-@ stdcall CoUnmarshalHresult(ptr ptr)
+-@ stdcall CoUnmarshalInterface(ptr ptr ptr)
+-@ stub CoVrfCheckThreadState
+-@ stub CoVrfGetThreadState
+-@ stub CoVrfReleaseThreadState
+-@ stdcall CoWaitForMultipleHandles(long long long ptr ptr)
+-@ stub CoWaitForMultipleObjects
+-@ stdcall CreateErrorInfo(ptr)
+-@ stdcall CreateStreamOnHGlobal(ptr long ptr)
+-@ stub DcomChannelSetHResult
+-@ stdcall DllDebugObjectRPCHook(long ptr)
+-@ stdcall DllGetActivationFactory(ptr ptr)
+-@ stdcall -private DllGetClassObject(ptr ptr ptr)
+-@ stub EnableHookObject
+-@ stdcall FreePropVariantArray(long ptr)
+-@ stub FreePropVariantArrayWorker
+-@ stub GetCatalogHelper
+-@ stdcall GetErrorInfo(long ptr)
+-@ stub GetFuncDescs
+-@ stdcall GetHGlobalFromStream(ptr ptr)
+-@ stub GetHookInterface
+-@ stdcall GetRestrictedErrorInfo(ptr)
+-@ stdcall HACCEL_UserFree(ptr ptr)
+-@ stdcall HACCEL_UserMarshal(ptr ptr ptr)
+-@ stdcall HACCEL_UserSize(ptr long ptr)
+-@ stdcall HACCEL_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HBITMAP_UserFree(ptr ptr)
+-@ stdcall HBITMAP_UserMarshal(ptr ptr ptr)
+-@ stdcall HBITMAP_UserSize(ptr long ptr)
+-@ stdcall HBITMAP_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HBRUSH_UserFree(ptr ptr)
+-@ stdcall HBRUSH_UserMarshal(ptr ptr ptr)
+-@ stdcall HBRUSH_UserSize(ptr long ptr)
+-@ stdcall HBRUSH_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HDC_UserFree(ptr ptr)
+-@ stdcall HDC_UserMarshal(ptr ptr ptr)
+-@ stdcall HDC_UserSize(ptr long ptr)
+-@ stdcall HDC_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HGLOBAL_UserFree(ptr ptr)
+-@ stdcall HGLOBAL_UserMarshal(ptr ptr ptr)
+-@ stdcall HGLOBAL_UserSize(ptr long ptr)
+-@ stdcall HGLOBAL_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HICON_UserFree(ptr ptr)
+-@ stdcall HICON_UserMarshal(ptr ptr ptr)
+-@ stdcall HICON_UserSize(ptr long ptr)
+-@ stdcall HICON_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HMENU_UserFree(ptr ptr)
+-@ stdcall HMENU_UserMarshal(ptr ptr ptr)
+-@ stdcall HMENU_UserSize(ptr long ptr)
+-@ stdcall HMENU_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HPALETTE_UserFree(ptr ptr)
+-@ stdcall HPALETTE_UserMarshal(ptr ptr ptr)
+-@ stdcall HPALETTE_UserSize(ptr long ptr)
+-@ stdcall HPALETTE_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HSTRING_UserFree(ptr ptr)
+-@ stub -arch=win64 HSTRING_UserFree64
+-@ stdcall HSTRING_UserMarshal(ptr ptr ptr)
+-@ stub -arch=win64 HSTRING_UserMarshal64
+-@ stdcall HSTRING_UserSize(ptr long ptr)
+-@ stub -arch=win64 HSTRING_UserSize64
+-@ stdcall HSTRING_UserUnmarshal(ptr ptr ptr)
+-@ stub -arch=win64 HSTRING_UserUnmarshal64
+-@ stdcall HWND_UserFree(ptr ptr)
+-@ stdcall HWND_UserMarshal(ptr ptr ptr)
+-@ stdcall HWND_UserSize(ptr long ptr)
+-@ stdcall HWND_UserUnmarshal(ptr ptr ptr)
+-@ stub HkOleRegisterObject
+-@ stdcall IIDFromString(wstr ptr)
+-@ stub InternalAppInvokeExceptionFilter
+-@ stub InternalCCFreeUnused
+-@ stub InternalCCGetClassInformationForDde
+-@ stub InternalCCGetClassInformationFromKey
+-@ stub InternalCCSetDdeServerWindow
+-@ stub InternalCMLSendReceive
+-@ stub InternalCallAsProxyExceptionFilter
+-@ stub InternalCallFrameExceptionFilter
+-@ stub InternalCallerIsAppContainer
+-@ stub InternalCanMakeOutCall
+-@ stub InternalCoIsSurrogateProcess
+-@ stub InternalCoRegisterDisconnectCallback
+-@ stub InternalCoRegisterSurrogatedObject
+-@ stdcall InternalCoStdMarshalObject(ptr long ptr ptr)
+-@ stub InternalCoUnregisterDisconnectCallback
+-@ stub InternalCompleteObjRef
+-@ stub InternalCreateCAggId
+-@ stub InternalCreateIdentityHandler
+-@ stub InternalDoATClassCreate
+-@ stub InternalFillLocalOXIDInfo
+-@ stub InternalFreeObjRef
+-@ stub InternalGetWindowPropInterface
+-@ stdcall InternalIrotEnumRunning(ptr)
+-@ stdcall InternalIrotGetObject(ptr ptr ptr)
+-@ stdcall InternalIrotGetTimeOfLastChange(ptr ptr)
+-@ stdcall InternalIrotIsRunning(ptr)
+-@ stdcall InternalIrotNoteChangeTime(long ptr)
+-@ stdcall InternalIrotRegister(ptr ptr ptr ptr long ptr ptr)
+-@ stdcall InternalIrotRevoke(long ptr ptr ptr)
+-@ stub InternalIsApartmentInitialized
+-@ stdcall InternalIsProcessInitialized()
+-@ stub InternalMarshalObjRef
+-@ stub InternalNotifyDDStartOrStop
+-@ stub InternalOleModalLoopBlockFn
+-@ stub InternalRegisterWindowPropInterface
+-@ stub InternalReleaseMarshalObjRef
+-@ stub InternalSTAInvoke
+-@ stub InternalServerExceptionFilter
+-@ stub InternalSetAptCallCtrlOnTlsIfRequired
+-@ stub InternalSetOleThunkWowPtr
+-@ stub InternalStubInvoke
+-@ stdcall InternalTlsAllocData(ptr)
+-@ stub InternalUnmarshalObjRef
+-@ stub IsErrorPropagationEnabled
+-@ stub NdrExtStubInitialize
+-@ stub NdrOleDllGetClassObject
+-@ stub NdrpFindInterface
+-@ stdcall ProgIDFromCLSID(ptr ptr)
+-@ stdcall PropVariantClear(ptr)
+-@ stdcall PropVariantCopy(ptr ptr)
+-@ stub ReleaseFuncDescs
+-@ stdcall RoActivateInstance(ptr ptr)
+-@ stub RoCaptureErrorContext
+-@ stub RoClearError
+-@ stub RoFailFastWithErrorContext
+-@ stub RoFreeParameterizedTypeExtra
+-@ stdcall RoGetActivatableClassRegistration(ptr ptr)
+-@ stdcall RoGetActivationFactory(ptr ptr ptr)
+-@ stdcall RoGetAgileReference(long ptr ptr ptr)
+-@ stdcall RoGetApartmentIdentifier(ptr)
+-@ stdcall RoGetErrorReportingFlags(ptr)
+-@ stub RoGetMatchingRestrictedErrorInfo
+-@ stdcall RoGetParameterizedTypeInstanceIID(long ptr ptr ptr ptr)
+-@ stdcall RoGetServerActivatableClasses(ptr ptr ptr)
+-@ stdcall RoInitialize(long)
+-@ stub RoInspectCapturedStackBackTrace
+-@ stub RoInspectThreadErrorInfo
+-@ stdcall RoOriginateError(long ptr)
+-@ stdcall RoOriginateErrorW(long long ptr)
+-@ stdcall RoOriginateLanguageException(long ptr ptr)
+-@ stub RoParameterizedTypeExtraGetTypeSignature
+-@ stdcall RoRegisterActivationFactories(ptr ptr long ptr)
+-@ stdcall RoRegisterForApartmentShutdown(ptr ptr ptr)
+-@ stub RoReportCapabilityCheckFailure
+-@ stub RoReportFailedDelegate
+-@ stdcall RoReportUnhandledError(ptr)
+-@ stub RoResolveRestrictedErrorInfoReference
+-@ stdcall RoRevokeActivationFactories(ptr)
+-@ stdcall RoSetErrorReportingFlags(long)
+-@ stub RoTransformError
+-@ stub RoTransformErrorW
+-@ stdcall RoUninitialize()
+-@ stdcall RoUnregisterForApartmentShutdown(ptr)
+-@ stub SetCleanupFlag
+-@ stdcall SetErrorInfo(long ptr)
+-@ stdcall SetRestrictedErrorInfo(ptr)
+-@ stdcall StringFromCLSID(ptr ptr)
+-@ stdcall StringFromGUID2(ptr ptr long)
+-@ stdcall StringFromIID(ptr ptr) StringFromCLSID
+-@ stub UpdateDCOMSettings
+-@ stdcall WdtpInterfacePointer_UserFree(ptr)
+-@ stub -arch=win64 WdtpInterfacePointer_UserFree64
+-@ stdcall WdtpInterfacePointer_UserMarshal(ptr long ptr ptr ptr)
+-@ stub -arch=win64 WdtpInterfacePointer_UserMarshal64
+-@ stdcall WdtpInterfacePointer_UserSize(ptr long long ptr ptr)
+-@ stub -arch=win64 WdtpInterfacePointer_UserSize64
+-@ stdcall WdtpInterfacePointer_UserUnmarshal(ptr ptr ptr ptr)
+-@ stub -arch=win64 WdtpInterfacePointer_UserUnmarshal64
+-@ stdcall WindowsCompareStringOrdinal(ptr ptr ptr)
+-@ stdcall WindowsConcatString(ptr ptr ptr)
+-@ stdcall WindowsCreateString(wstr long ptr)
+-@ stdcall WindowsCreateStringReference(wstr long ptr ptr)
+-@ stdcall WindowsDeleteString(ptr)
+-@ stdcall WindowsDeleteStringBuffer(ptr)
+-@ stdcall WindowsDuplicateString(ptr ptr)
+-@ stdcall WindowsGetStringLen(ptr)
+-@ stdcall WindowsGetStringRawBuffer(ptr ptr)
+-@ stub WindowsInspectString
+-@ stdcall WindowsIsStringEmpty(ptr)
+-@ stdcall WindowsPreallocateStringBuffer(long ptr ptr)
+-@ stdcall WindowsPromoteStringBuffer(ptr ptr)
+-@ stub WindowsReplaceString
+-@ stdcall WindowsStringHasEmbeddedNull(ptr ptr)
+-@ stdcall WindowsSubstring(ptr long ptr)
+-@ stdcall WindowsSubstringWithSpecifiedLength(ptr long long ptr)
+-@ stdcall WindowsTrimStringEnd(ptr ptr ptr)
+-@ stdcall WindowsTrimStringStart(ptr ptr ptr)
++2 stub ObjectStublessClient3
++3 stub ObjectStublessClient4
++4 stub ObjectStublessClient5
++5 stub ObjectStublessClient6
++6 stub ObjectStublessClient7
++7 stub ObjectStublessClient8
++8 stub ObjectStublessClient9
++9 stub ObjectStublessClient10
++10 stub ObjectStublessClient11
++11 stub ObjectStublessClient12
++12 stub ObjectStublessClient13
++13 stub ObjectStublessClient14
++14 stub ObjectStublessClient15
++15 stub ObjectStublessClient16
++16 stub ObjectStublessClient17
++17 stub ObjectStublessClient18
++18 stub ObjectStublessClient19
++19 stub ObjectStublessClient20
++20 stub ObjectStublessClient21
++21 stub ObjectStublessClient22
++22 stub ObjectStublessClient23
++23 stub ObjectStublessClient24
++24 stub ObjectStublessClient25
++25 stub ObjectStublessClient26
++26 stub ObjectStublessClient27
++27 stub ObjectStublessClient28
++28 stub ObjectStublessClient29
++29 stub ObjectStublessClient30
++30 stub ObjectStublessClient31
++31 stub ObjectStublessClient32
++32 stub NdrProxyForwardingFunction3
++33 stub NdrProxyForwardingFunction4
++34 stub NdrProxyForwardingFunction5
++35 stub NdrProxyForwardingFunction6
++36 stub NdrProxyForwardingFunction7
++37 stub NdrProxyForwardingFunction8
++38 stub NdrProxyForwardingFunction9
++39 stub NdrProxyForwardingFunction10
++40 stub NdrProxyForwardingFunction11
++41 stub NdrProxyForwardingFunction12
++42 stub NdrProxyForwardingFunction13
++43 stub NdrProxyForwardingFunction14
++44 stub NdrProxyForwardingFunction15
++45 stub NdrProxyForwardingFunction16
++46 stub NdrProxyForwardingFunction17
++47 stub NdrProxyForwardingFunction18
++48 stub NdrProxyForwardingFunction19
++49 stub NdrProxyForwardingFunction20
++50 stub NdrProxyForwardingFunction21
++51 stub NdrProxyForwardingFunction22
++52 stub NdrProxyForwardingFunction23
++53 stub NdrProxyForwardingFunction24
++54 stub NdrProxyForwardingFunction25
++55 stub NdrProxyForwardingFunction26
++56 stub NdrProxyForwardingFunction27
++57 stub NdrProxyForwardingFunction28
++58 stub NdrProxyForwardingFunction29
++59 stub NdrProxyForwardingFunction30
++60 stub NdrProxyForwardingFunction31
++61 stub NdrProxyForwardingFunction32
++86 stdcall -noname CoBeginProcessEvents(ptr)
++87 stdcall -noname CoMsgWaitInProcessEvents(ptr long ptr long long long)
++88 stdcall -noname CoEndProcessEvents(ptr)
++110 stdcall -noname CoSetMessageDispatcher(ptr)
++111 stdcall -noname CoHandlePriorityEventsFromMessagePump()
++133 stdcall -noname RoIsASTAWorkScheduledAtPriorityOrHigher(long)
++536 stub NdrOleInitializeExtension
++82 stdcall RoFailFastWithErrorContextInternal2(long long ptr)
++83 stub RoFailFastWithErrorContextInternal
++84 stub UpdateProcessTracing
++85 stdcall CLIPFORMAT_UserFree(ptr ptr)
++91 stdcall CLIPFORMAT_UserMarshal(ptr ptr ptr)
++105 stdcall CLIPFORMAT_UserSize(ptr long ptr)
++107 stdcall CLIPFORMAT_UserUnmarshal(ptr ptr ptr)
++109 stub CLSIDFromOle1Class
++113 stdcall CLSIDFromProgID(wstr ptr)
++114 stdcall CLSIDFromProgIDEx(wstr ptr)
++115 stdcall CLSIDFromString(wstr ptr)
++249 stub CleanupOleStateInAllTls
++251 stdcall CleanupTlsOleState(ptr)
++252 stub ClearCleanupFlag
++254 stdcall CoAddRefServerProcess()
++69 stdcall CoRegisterServerShutdownDelay(ptr long)
++255 stub CoAllowUnmarshalerCLSID
++256 stub CoCancelCall
++257 stdcall CoCopyProxy(ptr ptr)
++258 stdcall CoCreateErrorInfo(ptr) CreateErrorInfo
++259 stdcall CoCreateFreeThreadedMarshaler(ptr ptr)
++260 stdcall CoCreateGuid(ptr)
++261 stdcall CoCreateInstance(ptr ptr long ptr ptr)
++262 stdcall CoCreateInstanceEx(ptr ptr long ptr long ptr)
++264 stdcall CoCreateInstanceFromApp(ptr ptr long ptr long ptr)
++266 stub CoCreateObjectInContext
++267 stub CoDeactivateObject
++268 stdcall CoDecodeProxy(long int64 ptr)
++269 stdcall CoDecrementMTAUsage(ptr)
++270 stdcall CoDisableCallCancellation(ptr)
++271 stub CoDisconnectContext
++272 stdcall CoDisconnectObject(ptr long)
++273 stdcall CoEnableCallCancellation(ptr)
++274 stdcall CoFileTimeNow(ptr)
++275 stdcall CoFreeUnusedLibraries()
++276 stdcall CoFreeUnusedLibrariesEx(long long)
++277 stdcall CoGetActivationState(int128 long ptr)
++278 stub CoGetApartmentID
++279 stdcall CoGetApartmentType(ptr ptr)
++280 stdcall CoGetCallContext(ptr ptr)
++281 stdcall CoGetCallState(long ptr)
++282 stdcall CoGetCallerTID(ptr)
++283 stub CoGetCancelObject
++284 stdcall CoGetClassObject(ptr long ptr ptr ptr)
++286 stub CoGetClassVersion
++287 stdcall CoGetContextToken(ptr)
++288 stdcall CoGetCurrentLogicalThreadId(ptr)
++289 stdcall CoGetCurrentProcess()
++290 stdcall CoGetDefaultContext(long ptr ptr)
++291 stdcall CoGetErrorInfo(long ptr) GetErrorInfo
++292 stdcall CoGetInstanceFromFile(ptr ptr ptr long long wstr long ptr)
++293 stdcall CoGetInstanceFromIStorage(ptr ptr ptr long ptr long ptr)
++294 stdcall CoGetInterfaceAndReleaseStream(ptr ptr ptr)
++295 stdcall CoGetMalloc(long ptr)
++296 stdcall CoGetMarshalSizeMax(ptr ptr ptr long ptr long)
++298 stub CoGetModuleType
++299 stdcall CoGetObjectContext(ptr ptr)
++300 stdcall CoGetPSClsid(ptr ptr)
++301 stub CoGetProcessIdentifier
++302 stdcall CoGetStandardMarshal(ptr ptr long ptr long ptr)
++303 stdcall CoGetStdMarshalEx(ptr long ptr)
++304 stdcall CoGetSystemSecurityPermissions(long ptr)
++305 stdcall CoGetTreatAsClass(ptr ptr)
++306 stdcall CoImpersonateClient()
++307 stdcall CoIncrementMTAUsage(ptr)
++308 stdcall CoInitializeEx(ptr long)
++309 stdcall CoInitializeSecurity(ptr long ptr ptr long long ptr long ptr)
++310 stdcall CoInitializeWOW(long long)
++311 stub CoInvalidateRemoteMachineBindings
++312 stdcall CoIsHandlerConnected(ptr)
++313 stdcall CoIsOle1Class(ptr)
++314 stdcall CoLockObjectExternal(ptr long long)
++315 stdcall CoMarshalHresult(ptr long)
++316 stdcall CoMarshalInterThreadInterfaceInStream(ptr ptr ptr)
++317 stdcall CoMarshalInterface(ptr ptr ptr long ptr long)
++318 stub CoPopServiceDomain
++319 stub CoPushServiceDomain
++320 stub CoQueryAuthenticationServices
++321 stdcall CoQueryClientBlanket(ptr ptr ptr ptr ptr ptr ptr)
++322 stdcall CoQueryProxyBlanket(ptr ptr ptr ptr ptr ptr ptr ptr)
++323 stub CoReactivateObject
++324 stub CoRegisterActivationFilter
++112 stdcall CoRegisterChannelHook(ptr ptr)
++325 stdcall CoRegisterClassObject(ptr ptr long long ptr)
++328 stdcall CoRegisterInitializeSpy(ptr ptr)
++329 stdcall CoRegisterMallocSpy(ptr)
++330 stdcall CoRegisterMessageFilter(ptr ptr)
++331 stdcall CoRegisterPSClsid(ptr ptr)
++333 stdcall CoRegisterSurrogate(ptr)
++334 stdcall CoRegisterSurrogateEx(ptr ptr)
++335 stdcall CoReleaseMarshalData(ptr)
++336 stdcall CoReleaseServerProcess()
++337 stdcall CoResumeClassObjects()
++338 stub CoRetireServer
++339 stdcall CoRevertToSelf()
++340 stdcall CoRevokeClassObject(long)
++343 stdcall CoRevokeInitializeSpy(int64)
++344 stdcall CoRevokeMallocSpy()
++346 stub CoSetCancelObject
++347 stdcall CoSetErrorInfo(long ptr) SetErrorInfo
++349 stdcall CoSetProxyBlanket(ptr long long ptr long long ptr long)
++350 stdcall CoSuspendClassObjects()
++351 stdcall CoSwitchCallContext(ptr ptr)
++352 stdcall CoTaskMemAlloc(long)
++353 stdcall CoTaskMemFree(ptr)
++354 stdcall CoTaskMemRealloc(ptr long)
++355 stub CoTestCancel
++356 stdcall CoTreatAsClass(ptr ptr)
++357 stdcall CoUninitialize()
++358 stub CoUnloadingWOW
++359 stdcall CoUnmarshalHresult(ptr ptr)
++360 stdcall CoUnmarshalInterface(ptr ptr ptr)
++361 stub CoVrfCheckThreadState
++362 stub CoVrfGetThreadState
++363 stub CoVrfReleaseThreadState
++364 stdcall CoWaitForMultipleHandles(long long long ptr ptr)
++365 stub CoWaitForMultipleObjects
++366 stdcall CreateErrorInfo(ptr)
++367 stdcall CreateStreamOnHGlobal(ptr long ptr)
++368 stub DcomChannelSetHResult
++369 stdcall DllDebugObjectRPCHook(long ptr)
++370 stdcall DllGetActivationFactory(ptr ptr)
++371 stdcall -private DllGetClassObject(ptr ptr ptr)
++372 stub EnableHookObject
++373 stdcall FreePropVariantArray(long ptr)
++374 stub FreePropVariantArrayWorker
++375 stub GetCatalogHelper
++376 stdcall GetErrorInfo(long ptr)
++377 stub GetFuncDescs
++378 stdcall GetHGlobalFromStream(ptr ptr)
++379 stub GetHookInterface
++380 stdcall GetRestrictedErrorInfo(ptr)
++381 stdcall HACCEL_UserFree(ptr ptr)
++383 stdcall HACCEL_UserMarshal(ptr ptr ptr)
++385 stdcall HACCEL_UserSize(ptr long ptr)
++387 stdcall HACCEL_UserUnmarshal(ptr ptr ptr)
++389 stdcall HBITMAP_UserFree(ptr ptr)
++391 stdcall HBITMAP_UserMarshal(ptr ptr ptr)
++393 stdcall HBITMAP_UserSize(ptr long ptr)
++395 stdcall HBITMAP_UserUnmarshal(ptr ptr ptr)
++397 stdcall HBRUSH_UserFree(ptr ptr)
++399 stdcall HBRUSH_UserMarshal(ptr ptr ptr)
++401 stdcall HBRUSH_UserSize(ptr long ptr)
++403 stdcall HBRUSH_UserUnmarshal(ptr ptr ptr)
++405 stdcall HDC_UserFree(ptr ptr)
++407 stdcall HDC_UserMarshal(ptr ptr ptr)
++409 stdcall HDC_UserSize(ptr long ptr)
++411 stdcall HDC_UserUnmarshal(ptr ptr ptr)
++413 stdcall HGLOBAL_UserFree(ptr ptr)
++415 stdcall HGLOBAL_UserMarshal(ptr ptr ptr)
++417 stdcall HGLOBAL_UserSize(ptr long ptr)
++419 stdcall HGLOBAL_UserUnmarshal(ptr ptr ptr)
++421 stdcall HICON_UserFree(ptr ptr)
++423 stdcall HICON_UserMarshal(ptr ptr ptr)
++425 stdcall HICON_UserSize(ptr long ptr)
++427 stdcall HICON_UserUnmarshal(ptr ptr ptr)
++429 stdcall HMENU_UserFree(ptr ptr)
++431 stdcall HMENU_UserMarshal(ptr ptr ptr)
++433 stdcall HMENU_UserSize(ptr long ptr)
++435 stdcall HMENU_UserUnmarshal(ptr ptr ptr)
++445 stdcall HPALETTE_UserFree(ptr ptr)
++447 stdcall HPALETTE_UserMarshal(ptr ptr ptr)
++449 stdcall HPALETTE_UserSize(ptr long ptr)
++451 stdcall HPALETTE_UserUnmarshal(ptr ptr ptr)
++453 stdcall HSTRING_UserFree(ptr ptr)
++454 stub -arch=win64 HSTRING_UserFree64
++455 stdcall HSTRING_UserMarshal(ptr ptr ptr)
++456 stub -arch=win64 HSTRING_UserMarshal64
++457 stdcall HSTRING_UserSize(ptr long ptr)
++458 stub -arch=win64 HSTRING_UserSize64
++459 stdcall HSTRING_UserUnmarshal(ptr ptr ptr)
++460 stub -arch=win64 HSTRING_UserUnmarshal64
++461 stdcall HWND_UserFree(ptr ptr)
++463 stdcall HWND_UserMarshal(ptr ptr ptr)
++465 stdcall HWND_UserSize(ptr long ptr)
++467 stdcall HWND_UserUnmarshal(ptr ptr ptr)
++469 stub HkOleRegisterObject
++470 stdcall IIDFromString(wstr ptr)
++471 stub InternalAppInvokeExceptionFilter
++474 stub InternalCCFreeUnused
++475 stub InternalCCGetClassInformationForDde
++476 stub InternalCCGetClassInformationFromKey
++477 stub InternalCCSetDdeServerWindow
++478 stub InternalCMLSendReceive
++483 stub InternalCallAsProxyExceptionFilter
++484 stub InternalCallFrameExceptionFilter
++485 stub InternalCallerIsAppContainer
++486 stub InternalCanMakeOutCall
++488 stub InternalCoIsSurrogateProcess
++489 stub InternalCoRegisterDisconnectCallback
++490 stub InternalCoRegisterSurrogatedObject
++491 stdcall InternalCoStdMarshalObject(ptr long ptr ptr)
++492 stub InternalCoUnregisterDisconnectCallback
++493 stub InternalCompleteObjRef
++494 stub InternalCreateCAggId
++495 stub InternalCreateIdentityHandler
++496 stub InternalDoATClassCreate
++497 stub InternalFillLocalOXIDInfo
++498 stub InternalFreeObjRef
++499 stub InternalGetWindowPropInterface
++501 stdcall InternalIrotEnumRunning(ptr)
++503 stdcall InternalIrotGetObject(ptr ptr ptr)
++506 stdcall InternalIrotGetTimeOfLastChange(ptr ptr)
++508 stdcall InternalIrotIsRunning(ptr)
++510 stdcall InternalIrotNoteChangeTime(long ptr)
++511 stdcall InternalIrotRegister(ptr ptr ptr ptr long ptr ptr)
++512 stdcall InternalIrotRevoke(long ptr ptr ptr)
++513 stub InternalIsApartmentInitialized
++514 stdcall InternalIsProcessInitialized()
++515 stub InternalMarshalObjRef
++516 stub InternalNotifyDDStartOrStop
++518 stub InternalOleModalLoopBlockFn
++520 stub InternalRegisterWindowPropInterface
++522 stub InternalReleaseMarshalObjRef
++524 stub InternalSTAInvoke
++525 stub InternalServerExceptionFilter
++526 stub InternalSetAptCallCtrlOnTlsIfRequired
++527 stub InternalSetOleThunkWowPtr
++528 stub InternalStubInvoke
++529 stdcall InternalTlsAllocData(ptr)
++530 stub InternalUnmarshalObjRef
++531 stub IsErrorPropagationEnabled
++534 stub NdrExtStubInitialize
++535 stub NdrOleDllGetClassObject
++537 stub NdrpFindInterface
++538 stdcall ProgIDFromCLSID(ptr ptr)
++539 stdcall PropVariantClear(ptr)
++540 stdcall PropVariantCopy(ptr ptr)
++541 stub ReleaseFuncDescs
++542 stdcall RoActivateInstance(ptr ptr)
++543 stub RoCaptureErrorContext
++544 stub RoClearError
++545 stub RoFailFastWithErrorContext
++546 stub RoFreeParameterizedTypeExtra
++547 stdcall RoGetActivatableClassRegistration(ptr ptr)
++548 stdcall RoGetActivationFactory(ptr ptr ptr)
++549 stdcall RoGetAgileReference(long ptr ptr ptr)
++# xodus-designmode: native NONAME ordinals
++90 stdcall -noname RoGetDesignMode(ptr)
++157 stdcall -noname RoGetDesignModeV2(ptr)
++550 stdcall RoGetApartmentIdentifier(ptr)
++551 stdcall RoGetErrorReportingFlags(ptr)
++552 stub RoGetMatchingRestrictedErrorInfo
++553 stdcall RoGetParameterizedTypeInstanceIID(long ptr ptr ptr ptr)
++554 stdcall RoGetServerActivatableClasses(ptr ptr ptr)
++555 stdcall RoInitialize(long)
++556 stub RoInspectCapturedStackBackTrace
++557 stub RoInspectThreadErrorInfo
++558 stdcall RoOriginateError(long ptr)
++559 stdcall RoOriginateErrorW(long long ptr)
++560 stdcall RoOriginateLanguageException(long ptr ptr)
++561 stub RoParameterizedTypeExtraGetTypeSignature
++562 stdcall RoRegisterActivationFactories(ptr ptr long ptr)
++563 stdcall RoRegisterForApartmentShutdown(ptr ptr ptr)
++564 stub RoReportCapabilityCheckFailure
++565 stub RoReportFailedDelegate
++566 stdcall RoReportUnhandledError(ptr)
++567 stub RoResolveRestrictedErrorInfoReference
++568 stdcall RoRevokeActivationFactories(ptr)
++569 stdcall RoSetErrorReportingFlags(long)
++570 stub RoTransformError
++571 stub RoTransformErrorW
++572 stdcall RoUninitialize()
++573 stdcall RoUnregisterForApartmentShutdown(ptr)
++574 stub SetCleanupFlag
++575 stdcall SetErrorInfo(long ptr)
++576 stdcall SetRestrictedErrorInfo(ptr)
++577 stdcall StringFromCLSID(ptr ptr)
++578 stdcall StringFromGUID2(ptr ptr long)
++579 stdcall StringFromIID(ptr ptr) StringFromCLSID
++580 stub UpdateDCOMSettings
++581 stdcall WdtpInterfacePointer_UserFree(ptr)
++582 stub -arch=win64 WdtpInterfacePointer_UserFree64
++583 stdcall WdtpInterfacePointer_UserMarshal(ptr long ptr ptr ptr)
++584 stub -arch=win64 WdtpInterfacePointer_UserMarshal64
++585 stdcall WdtpInterfacePointer_UserSize(ptr long long ptr ptr)
++586 stub -arch=win64 WdtpInterfacePointer_UserSize64
++587 stdcall WdtpInterfacePointer_UserUnmarshal(ptr ptr ptr ptr)
++588 stub -arch=win64 WdtpInterfacePointer_UserUnmarshal64
++589 stdcall WindowsCompareStringOrdinal(ptr ptr ptr)
++590 stdcall WindowsConcatString(ptr ptr ptr)
++591 stdcall WindowsCreateString(wstr long ptr)
++592 stdcall WindowsCreateStringReference(wstr long ptr ptr)
++593 stdcall WindowsDeleteString(ptr)
++594 stdcall WindowsDeleteStringBuffer(ptr)
++595 stdcall WindowsDuplicateString(ptr ptr)
++596 stdcall WindowsGetStringLen(ptr)
++597 stdcall WindowsGetStringRawBuffer(ptr ptr)
++598 stub WindowsInspectString
++600 stdcall WindowsIsStringEmpty(ptr)
++601 stdcall WindowsPreallocateStringBuffer(long ptr ptr)
++602 stdcall WindowsPromoteStringBuffer(ptr ptr)
++603 stub WindowsReplaceString
++604 stdcall WindowsStringHasEmbeddedNull(ptr ptr)
++605 stdcall WindowsSubstring(ptr long ptr)
++606 stdcall WindowsSubstringWithSpecifiedLength(ptr long long ptr)
++607 stdcall WindowsTrimStringEnd(ptr ptr ptr)
++608 stdcall WindowsTrimStringStart(ptr ptr ptr)
+--- a/dlls/combase/marshal.c
++++ b/dlls/combase/marshal.c
+@@ -2277,4 +2277,252 @@
+     TRACE("%s, %p, %lx, %p, %lx, %p\n", debugstr_guid(riid), pUnk, dwDestContext, dest_context, flags, marshal);
+ 
+     return StdMarshalImpl_Construct(&IID_IMarshal, dwDestContext, dest_context, (void **)marshal);
++}
++
++
++/* Aggregatable standard marshaler returned by CoGetStdMarshalEx(SMEXF_SERVER). The outer object
++ * is not referenced (aggregation); IMarshal delegates IUnknown to it and the marshaling work to the
++ * regular standard marshaler. While it is alive it represents the object's standard identity, so a
++ * second request for the same object fails with RPC_E_TOO_LATE as on Windows. */
++struct std_marshal_ex
++{
++    IUnknown IUnknown_inner;
++    IMarshal IMarshal_iface;
++    LONG refcount;
++    IUnknown *outer;
++    IMarshal *std;
++    struct list entry;
++};
++
++static struct list std_marshal_ex_list = LIST_INIT(std_marshal_ex_list);
++static CRITICAL_SECTION std_marshal_ex_cs;
++static CRITICAL_SECTION_DEBUG std_marshal_ex_cs_debug =
++{
++    0, 0, &std_marshal_ex_cs,
++    { &std_marshal_ex_cs_debug.ProcessLocksList, &std_marshal_ex_cs_debug.ProcessLocksList },
++      0, 0, { (DWORD_PTR)(__FILE__ ": std_marshal_ex_cs") }
++};
++static CRITICAL_SECTION std_marshal_ex_cs = { &std_marshal_ex_cs_debug, -1, 0, 0, 0, 0 };
++
++static inline struct std_marshal_ex *std_marshal_ex_from_IUnknown(IUnknown *iface)
++{
++    return CONTAINING_RECORD(iface, struct std_marshal_ex, IUnknown_inner);
++}
++
++static inline struct std_marshal_ex *std_marshal_ex_from_IMarshal(IMarshal *iface)
++{
++    return CONTAINING_RECORD(iface, struct std_marshal_ex, IMarshal_iface);
++}
++
++static HRESULT WINAPI std_marshal_ex_inner_QueryInterface(IUnknown *iface, REFIID riid, void **obj)
++{
++    struct std_marshal_ex *marshal = std_marshal_ex_from_IUnknown(iface);
++
++    TRACE("%p, %s, %p.\n", iface, debugstr_guid(riid), obj);
++
++    if (IsEqualIID(riid, &IID_IUnknown))
++        *obj = &marshal->IUnknown_inner;
++    else if (IsEqualIID(riid, &IID_IMarshal) || IsEqualIID(riid, &IID_IMarshal2))
++        *obj = &marshal->IMarshal_iface;
++    else
++    {
++        *obj = NULL;
++        return E_NOINTERFACE;
++    }
++
++    IUnknown_AddRef((IUnknown *)*obj);
++    return S_OK;
++}
++
++static ULONG WINAPI std_marshal_ex_inner_AddRef(IUnknown *iface)
++{
++    struct std_marshal_ex *marshal = std_marshal_ex_from_IUnknown(iface);
++    return InterlockedIncrement(&marshal->refcount);
++}
++
++static ULONG WINAPI std_marshal_ex_inner_Release(IUnknown *iface)
++{
++    struct std_marshal_ex *marshal = std_marshal_ex_from_IUnknown(iface);
++    ULONG refcount = InterlockedDecrement(&marshal->refcount);
++
++    if (!refcount)
++    {
++        EnterCriticalSection(&std_marshal_ex_cs);
++        list_remove(&marshal->entry);
++        LeaveCriticalSection(&std_marshal_ex_cs);
++        IMarshal_Release(marshal->std);
++        free(marshal);
++    }
++
++    return refcount;
++}
++
++static const IUnknownVtbl std_marshal_ex_inner_vtbl =
++{
++    std_marshal_ex_inner_QueryInterface,
++    std_marshal_ex_inner_AddRef,
++    std_marshal_ex_inner_Release,
++};
++
++static HRESULT WINAPI std_marshal_ex_QueryInterface(IMarshal *iface, REFIID riid, void **obj)
++{
++    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
++    return IUnknown_QueryInterface(marshal->outer, riid, obj);
++}
++
++static ULONG WINAPI std_marshal_ex_AddRef(IMarshal *iface)
++{
++    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
++    return IUnknown_AddRef(marshal->outer);
++}
++
++static ULONG WINAPI std_marshal_ex_Release(IMarshal *iface)
++{
++    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
++    return IUnknown_Release(marshal->outer);
++}
++
++static HRESULT WINAPI std_marshal_ex_GetUnmarshalClass(IMarshal *iface, REFIID riid, void *pv,
++        DWORD dest_context, void *dest_context_data, DWORD mshlflags, CLSID *clsid)
++{
++    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
++    return IMarshal_GetUnmarshalClass(marshal->std, riid, pv, dest_context, dest_context_data, mshlflags, clsid);
++}
++
++static HRESULT WINAPI std_marshal_ex_GetMarshalSizeMax(IMarshal *iface, REFIID riid, void *pv,
++        DWORD dest_context, void *dest_context_data, DWORD mshlflags, DWORD *size)
++{
++    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
++    return IMarshal_GetMarshalSizeMax(marshal->std, riid, pv, dest_context, dest_context_data, mshlflags, size);
++}
++
++static HRESULT WINAPI std_marshal_ex_MarshalInterface(IMarshal *iface, IStream *stream, REFIID riid, void *pv,
++        DWORD dest_context, void *dest_context_data, DWORD mshlflags)
++{
++    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
++    return IMarshal_MarshalInterface(marshal->std, stream, riid, pv, dest_context, dest_context_data, mshlflags);
++}
++
++static HRESULT WINAPI std_marshal_ex_UnmarshalInterface(IMarshal *iface, IStream *stream, REFIID riid, void **obj)
++{
++    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
++    return IMarshal_UnmarshalInterface(marshal->std, stream, riid, obj);
+ }
++
++static HRESULT WINAPI std_marshal_ex_ReleaseMarshalData(IMarshal *iface, IStream *stream)
++{
++    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
++    return IMarshal_ReleaseMarshalData(marshal->std, stream);
++}
++
++static HRESULT WINAPI std_marshal_ex_DisconnectObject(IMarshal *iface, DWORD reserved)
++{
++    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
++    struct stub_manager *manager;
++    struct apartment *apt;
++
++    TRACE("%p, %#lx.\n", iface, reserved);
++
++    if (!(apt = apartment_get_current_or_mta()))
++        return CO_E_NOTINITIALIZED;
++
++    if ((manager = get_stub_manager_from_object(apt, marshal->outer, FALSE)))
++    {
++        stub_manager_disconnect(manager);
++        /* Release stub manager twice, to remove the apartment reference. */
++        stub_manager_int_release(manager);
++        stub_manager_int_release(manager);
++    }
++
++    apartment_release(apt);
++    return S_OK;
++}
++
++static const IMarshalVtbl std_marshal_ex_vtbl =
++{
++    std_marshal_ex_QueryInterface,
++    std_marshal_ex_AddRef,
++    std_marshal_ex_Release,
++    std_marshal_ex_GetUnmarshalClass,
++    std_marshal_ex_GetMarshalSizeMax,
++    std_marshal_ex_MarshalInterface,
++    std_marshal_ex_UnmarshalInterface,
++    std_marshal_ex_ReleaseMarshalData,
++    std_marshal_ex_DisconnectObject,
++};
++
++/***********************************************************************
++ *            CoGetStdMarshalEx        (combase.@)
++ */
++HRESULT WINAPI CoGetStdMarshalEx(IUnknown *outer, DWORD smexflags, IUnknown **inner)
++{
++    struct std_marshal_ex *object, *cur;
++    struct stub_manager *manager;
++    struct apartment *apt;
++    BOOL identity = FALSE;
++    HRESULT hr;
++
++    TRACE("%p, %#lx, %p.\n", outer, smexflags, inner);
++
++    if (!outer || !inner || (smexflags != SMEXF_SERVER && smexflags != SMEXF_HANDLER))
++        return E_INVALIDARG;
++
++    *inner = NULL;
++
++    if (!(apt = apartment_get_current_or_mta()))
++        return CO_E_NOTINITIALIZED;
++
++    if (smexflags == SMEXF_HANDLER)
++    {
++        FIXME("SMEXF_HANDLER is not supported.\n");
++        apartment_release(apt);
++        return E_NOTIMPL;
++    }
++
++    if (!(object = malloc(sizeof(*object))))
++    {
++        apartment_release(apt);
++        return E_OUTOFMEMORY;
++    }
++
++    if (FAILED(hr = StdMarshalImpl_Construct(&IID_IMarshal, MSHCTX_INPROC, NULL, (void **)&object->std)))
++    {
++        free(object);
++        apartment_release(apt);
++        return hr;
++    }
++
++    object->IUnknown_inner.lpVtbl = &std_marshal_ex_inner_vtbl;
++    object->IMarshal_iface.lpVtbl = &std_marshal_ex_vtbl;
++    object->refcount = 1;
++    object->outer = outer;
++
++    EnterCriticalSection(&std_marshal_ex_cs);
++    LIST_FOR_EACH_ENTRY(cur, &std_marshal_ex_list, struct std_marshal_ex, entry)
++    {
++        if (cur->outer == outer)
++        {
++            identity = TRUE;
++            break;
++        }
++    }
++    if (!identity && (manager = get_stub_manager_from_object(apt, outer, FALSE)))
++    {
++        identity = TRUE;
++        stub_manager_int_release(manager);
++    }
++    if (!identity)
++        list_add_tail(&std_marshal_ex_list, &object->entry);
++    LeaveCriticalSection(&std_marshal_ex_cs);
++    apartment_release(apt);
++
++    if (identity)
++    {
++        IMarshal_Release(object->std);
++        free(object);
++        return RPC_E_TOO_LATE;
++    }
++
++    *inner = &object->IUnknown_inner;
++    return S_OK;
++}
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -19,6 +19,7 @@
+ #define COBJMACROS
+ #define WIN32_NO_STATUS
+ #include "objbase.h"
++#include "winuser.h"
+ #include "initguid.h"
+ #include "roapi.h"
+ #include "roparameterizediid.h"
+@@ -447,9 +448,101 @@
+ {
+     FIXME("%#lx, %lu, %p stub.\n", error, exception_count, information);
+     RaiseFailFastException(NULL, NULL, 0);
++}
++
++/* xodus-designmode: native combase derives the XAML design-mode state from the
++ * WIN://DESIGN_MODE[_V2] token security attributes (process token, then the
++ * thread token while impersonating). */
++static LONG design_mode_state; /* 0 unknown, 1 design mode, 2 design mode v2, 3 none */
++
++static HRESULT token_has_security_attribute(HANDLE token, const WCHAR *name, BOOL *present)
++{
++    struct { USHORT version, reserved; ULONG count; } *info;
++    UNICODE_STRING str;
++    ULONG len = 0;
++    NTSTATUS status;
++    HRESULT hr = S_OK;
++
++    *present = FALSE;
++    RtlInitUnicodeString(&str, name);
++    status = NtQuerySecurityAttributesToken(token, &str, 1, NULL, 0, &len);
++    if (status == STATUS_NOT_FOUND) return S_OK;
++    if (!(info = HeapAlloc(GetProcessHeap(), 0, len))) return E_OUTOFMEMORY;
++    status = NtQuerySecurityAttributesToken(token, &str, 1, info, len, &len);
++    if (status) hr = HRESULT_FROM_WIN32(RtlNtStatusToDosError(status));
++    else *present = info->count != 0;
++    HeapFree(GetProcessHeap(), 0, info);
++    return hr;
++}
++
++static HRESULT get_design_mode_state(LONG *state)
++{
++    BOOL present;
++    HRESULT hr;
++
++    if ((*state = ReadNoFence(&design_mode_state))) return S_OK;
++    if (FAILED(hr = token_has_security_attribute(GetCurrentProcessToken(), L"WIN://DESIGN_MODE_V2", &present)))
++        return hr;
++    if (present) *state = 2;
++    else
++    {
++        if (FAILED(hr = token_has_security_attribute(GetCurrentProcessToken(), L"WIN://DESIGN_MODE", &present)))
++            return hr;
++        *state = present ? 1 : 3;
++    }
++    WriteNoFence(&design_mode_state, *state);
++    return S_OK;
+ }
+ 
+ /***********************************************************************
++ *      RoGetDesignMode (combase.90)
++ */
++HRESULT WINAPI RoGetDesignMode(BOOL *design_mode)
++{
++    BOOL present = FALSE;
++    LONG state;
++    HRESULT hr;
++
++    TRACE("%p.\n", design_mode);
++
++    if (!design_mode) return E_INVALIDARG;
++    *design_mode = FALSE;
++    if (FAILED(hr = get_design_mode_state(&state))) return hr;
++    if (state == 1 || state == 2) present = TRUE;
++    else if (NtCurrentTeb()->IsImpersonating)
++    {
++        if (FAILED(hr = token_has_security_attribute(GetCurrentThreadToken(), L"WIN://DESIGN_MODE_V2", &present)))
++            return hr;
++        if (!present && FAILED(hr = token_has_security_attribute(GetCurrentThreadToken(), L"WIN://DESIGN_MODE", &present)))
++            return hr;
++    }
++    *design_mode = present;
++    return S_OK;
++}
++
++/***********************************************************************
++ *      RoGetDesignModeV2 (combase.157)
++ */
++HRESULT WINAPI RoGetDesignModeV2(BOOL *design_mode)
++{
++    BOOL present = FALSE;
++    LONG state;
++    HRESULT hr;
++
++    TRACE("%p.\n", design_mode);
++
++    if (!design_mode) return E_INVALIDARG;
++    *design_mode = FALSE;
++    if (FAILED(hr = get_design_mode_state(&state))) return hr;
++    if (state == 2) present = TRUE;
++    else if (NtCurrentTeb()->IsImpersonating &&
++             FAILED(hr = token_has_security_attribute(GetCurrentThreadToken(), L"WIN://DESIGN_MODE_V2", &present)))
++        return hr;
++    *design_mode = present;
++    return S_OK;
++}
++
++/***********************************************************************
+  *      RoGetApartmentIdentifier (combase.@)
+  */
+ HRESULT WINAPI RoGetApartmentIdentifier(UINT64 *identifier)
+@@ -598,3 +691,51 @@
+ 
+     return REGDB_E_CLASSNOTREG;
+ }
++
++/* xodus-process-events: native combase process-events family.  Native
++ * implements real work only for application STA (ASTA) threads; Wine
++ * apartments are never ASTA, so these reproduce the native non-ASTA paths. */
++static BOOL is_modern_sta_thread(void)
++{
++    return FALSE;
++}
++
++void WINAPI CoSetMessageDispatcher(void *dispatcher)
++{
++    TRACE("%p, modern STA %d.\n", dispatcher, is_modern_sta_thread());
++}
++
++void WINAPI CoBeginProcessEvents(void *context)
++{
++    TRACE("%p.\n", context);
++    memset(context, 0, 0x60);
++}
++
++void WINAPI CoEndProcessEvents(void *context)
++{
++    TRACE("%p.\n", context);
++}
++
++DWORD WINAPI CoMsgWaitInProcessEvents(void *context, DWORD count, const HANDLE *handles,
++        DWORD timeout, DWORD wake_mask, DWORD flags)
++{
++    TRACE("%p, %lu, %p, %lu, %#lx, %#lx.\n", context, count, handles, timeout, wake_mask, flags);
++
++    if (count > 0x38 || (flags & MWMO_WAITALL))
++    {
++        SetLastError(ERROR_INVALID_PARAMETER);
++        return WAIT_FAILED;
++    }
++    return MsgWaitForMultipleObjectsEx(count, handles, timeout, wake_mask, flags);
++}
++
++void WINAPI CoHandlePriorityEventsFromMessagePump(void)
++{
++    TRACE(".\n");
++}
++
++BOOL WINAPI RoIsASTAWorkScheduledAtPriorityOrHigher(int priority)
++{
++    TRACE("%d.\n", priority);
++    return FALSE;
++}
+--- a/dlls/iertutil/iertutil.spec
++++ b/dlls/iertutil/iertutil.spec
+@@ -1,3 +1,4 @@
+ @ stdcall -private DllCanUnloadNow()
+ @ stdcall -private DllGetActivationFactory(ptr ptr)
+ @ stdcall -private DllGetClassObject(ptr ptr ptr)
++@ stdcall PrivateCoInternetCombineIUri(ptr ptr long ptr long) urlmon.PrivateCoInternetCombineIUri
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -160,6 +160,7 @@
+ @ stdcall -arch=win64 -syscall NtAlpcCreatePort(ptr ptr ptr)
+ @ stdcall -arch=win64 -syscall NtAlpcDisconnectPort(long long)
+ @ stdcall -arch=win64 -syscall NtAlpcImpersonateClientOfPort(long ptr ptr)
++@ stdcall -arch=win64 -syscall NtAlpcQueryInformation(long long ptr long ptr)
+ @ stdcall -arch=win64 -syscall NtAlpcSendWaitReceivePort(long long ptr ptr ptr ptr ptr ptr)
+ @ stdcall -arch=win64 -syscall NtAlpcConnectPortEx(ptr ptr ptr ptr long ptr ptr ptr ptr ptr ptr)
+ @ stub -syscall=0x004c NtApphelpCacheControl
+@@ -747,6 +748,7 @@
+ @ stdcall RtlGUIDFromString(ptr ptr)
+ @ stub RtlGenerate8dot3Name
+ @ stdcall RtlGetAce(ptr long ptr)
++@ stdcall RtlGetAppContainerNamedObjectPath(ptr ptr long ptr)
+ @ stdcall RtlGetActiveActivationContext(ptr)
+ @ stdcall RtlGetCallersAddress(ptr ptr)
+ @ stdcall RtlGetCompressionWorkSpaceSize(long ptr ptr)
+@@ -791,6 +793,7 @@
+ @ stdcall RtlGetSystemPreferredUILanguages(long long ptr ptr ptr)
+ @ stdcall -ret64 RtlGetSystemTimePrecise()
+ @ stdcall RtlGetThreadErrorMode()
++@ stdcall RtlGetThreadWorkOnBehalfTicket(ptr long)
+ @ stdcall RtlGetThreadPreferredUILanguages(long ptr ptr ptr)
+ @ stdcall RtlGetUnloadEventTrace()
+ @ stdcall RtlGetUnloadEventTraceEx(ptr ptr ptr)
+@@ -1051,6 +1054,7 @@
+ @ stub RtlSetSecurityObject
+ # @ stub RtlSetSecurityObjectEx
+ @ stdcall RtlSetThreadErrorMode(long ptr)
++@ stdcall RtlSetThreadWorkOnBehalfTicket(ptr)
+ # @ stub RtlSetThreadIsCritical
+ @ stdcall RtlSetThreadPreferredUILanguages(long ptr ptr)
+ # @ stub RtlSetThreadPoolStartFunc
+--- a/dlls/ntdll/ntsyscalls.h
++++ b/dlls/ntdll/ntsyscalls.h
+@@ -388,164 +388,165 @@
+     SYSCALL_ENTRY( 0x006f, NtAlpcCreatePort, 24 ) \
+     SYSCALL_ENTRY( 0x0070, NtAlpcDisconnectPort, 16 ) \
+     SYSCALL_ENTRY( 0x0071, NtAlpcImpersonateClientOfPort, 24 ) \
+-    SYSCALL_ENTRY( 0x0072, NtAlpcSendWaitReceivePort, 64 ) \
+-    SYSCALL_ENTRY( 0x0073, NtAreMappedFilesTheSame, 16 ) \
+-    SYSCALL_ENTRY( 0x0074, NtAssignProcessToJobObject, 16 ) \
+-    SYSCALL_ENTRY( 0x0075, NtAssociateWaitCompletionPacket, 64 ) \
+-    SYSCALL_ENTRY( 0x0076, NtCancelIoFileEx, 24 ) \
+-    SYSCALL_ENTRY( 0x0077, NtCancelSynchronousIoFile, 24 ) \
+-    SYSCALL_ENTRY( 0x0078, NtCancelWaitCompletionPacket, 16 ) \
+-    SYSCALL_ENTRY( 0x0079, NtCommitTransaction, 16 ) \
+-    SYSCALL_ENTRY( 0x007a, NtCompareObjects, 16 ) \
+-    SYSCALL_ENTRY( 0x007b, NtCompareTokens, 24 ) \
+-    SYSCALL_ENTRY( 0x007c, NtCompleteConnectPort, 8 ) \
+-    SYSCALL_ENTRY( 0x007d, NtConnectPort, 64 ) \
+-    SYSCALL_ENTRY( 0x007e, NtContinueEx, 16 ) \
+-    SYSCALL_ENTRY( 0x007f, NtConvertBetweenAuxiliaryCounterAndPerformanceCounter, 32 ) \
+-    SYSCALL_ENTRY( 0x0080, NtCreateDirectoryObject, 24 ) \
+-    SYSCALL_ENTRY( 0x0081, NtCreateIoCompletion, 32 ) \
+-    SYSCALL_ENTRY( 0x0082, NtCreateJobObject, 24 ) \
+-    SYSCALL_ENTRY( 0x0083, NtCreateKeyTransacted, 64 ) \
+-    SYSCALL_ENTRY( 0x0084, NtCreateKeyedEvent, 32 ) \
+-    SYSCALL_ENTRY( 0x0085, NtCreateLowBoxToken, 72 ) \
+-    SYSCALL_ENTRY( 0x0086, NtCreateMailslotFile, 64 ) \
+-    SYSCALL_ENTRY( 0x0087, NtCreateMutant, 32 ) \
+-    SYSCALL_ENTRY( 0x0088, NtCreateNamedPipeFile, 112 ) \
+-    SYSCALL_ENTRY( 0x0089, NtCreatePagingFile, 32 ) \
+-    SYSCALL_ENTRY( 0x008a, NtCreatePort, 40 ) \
+-    SYSCALL_ENTRY( 0x008b, NtCreateSectionEx, 72 ) \
+-    SYSCALL_ENTRY( 0x008c, NtCreateSemaphore, 40 ) \
+-    SYSCALL_ENTRY( 0x008d, NtCreateSymbolicLinkObject, 32 ) \
+-    SYSCALL_ENTRY( 0x008e, NtCreateThreadEx, 88 ) \
+-    SYSCALL_ENTRY( 0x008f, NtCreateTimer, 32 ) \
+-    SYSCALL_ENTRY( 0x0090, NtCreateToken, 104 ) \
+-    SYSCALL_ENTRY( 0x0091, NtCreateTransaction, 80 ) \
+-    SYSCALL_ENTRY( 0x0092, NtCreateUserProcess, 88 ) \
+-    SYSCALL_ENTRY( 0x0093, NtCreateWaitCompletionPacket, 24 ) \
+-    SYSCALL_ENTRY( 0x0094, NtDebugActiveProcess, 16 ) \
+-    SYSCALL_ENTRY( 0x0095, NtDebugContinue, 24 ) \
+-    SYSCALL_ENTRY( 0x0096, NtDeleteAtom, 8 ) \
+-    SYSCALL_ENTRY( 0x0097, NtDeleteFile, 8 ) \
+-    SYSCALL_ENTRY( 0x0098, NtDeleteKey, 8 ) \
+-    SYSCALL_ENTRY( 0x0099, NtDeleteValueKey, 16 ) \
+-    SYSCALL_ENTRY( 0x009a, NtDisplayString, 8 ) \
+-    SYSCALL_ENTRY( 0x009b, NtFilterToken, 48 ) \
+-    SYSCALL_ENTRY( 0x009c, NtFlushBuffersFileEx, 40 ) \
+-    SYSCALL_ENTRY( 0x009d, NtFlushInstructionCache, 24 ) \
+-    SYSCALL_ENTRY( 0x009e, NtFlushKey, 8 ) \
+-    SYSCALL_ENTRY( 0x009f, NtFlushProcessWriteBuffers, 0 ) \
+-    SYSCALL_ENTRY( 0x00a0, NtFlushVirtualMemory, 32 ) \
+-    SYSCALL_ENTRY( 0x00a1, NtGetContextThread, 16 ) \
+-    SYSCALL_ENTRY( 0x00a2, NtGetCurrentProcessorNumber, 0 ) \
+-    SYSCALL_ENTRY( 0x00a3, NtGetNextProcess, 40 ) \
+-    SYSCALL_ENTRY( 0x00a4, NtGetNextThread, 48 ) \
+-    SYSCALL_ENTRY( 0x00a5, NtGetNlsSectionPtr, 40 ) \
++    SYSCALL_ENTRY( 0x0072, NtAlpcQueryInformation, 40 ) \
++    SYSCALL_ENTRY( 0x0073, NtAlpcSendWaitReceivePort, 64 ) \
++    SYSCALL_ENTRY( 0x0074, NtAreMappedFilesTheSame, 16 ) \
++    SYSCALL_ENTRY( 0x0075, NtAssignProcessToJobObject, 16 ) \
++    SYSCALL_ENTRY( 0x0076, NtAssociateWaitCompletionPacket, 64 ) \
++    SYSCALL_ENTRY( 0x0077, NtCancelIoFileEx, 24 ) \
++    SYSCALL_ENTRY( 0x0078, NtCancelSynchronousIoFile, 24 ) \
++    SYSCALL_ENTRY( 0x0079, NtCancelWaitCompletionPacket, 16 ) \
++    SYSCALL_ENTRY( 0x007a, NtCommitTransaction, 16 ) \
++    SYSCALL_ENTRY( 0x007b, NtCompareObjects, 16 ) \
++    SYSCALL_ENTRY( 0x007c, NtCompareTokens, 24 ) \
++    SYSCALL_ENTRY( 0x007d, NtCompleteConnectPort, 8 ) \
++    SYSCALL_ENTRY( 0x007e, NtConnectPort, 64 ) \
++    SYSCALL_ENTRY( 0x007f, NtContinueEx, 16 ) \
++    SYSCALL_ENTRY( 0x0080, NtConvertBetweenAuxiliaryCounterAndPerformanceCounter, 32 ) \
++    SYSCALL_ENTRY( 0x0081, NtCreateDirectoryObject, 24 ) \
++    SYSCALL_ENTRY( 0x0082, NtCreateIoCompletion, 32 ) \
++    SYSCALL_ENTRY( 0x0083, NtCreateJobObject, 24 ) \
++    SYSCALL_ENTRY( 0x0084, NtCreateKeyTransacted, 64 ) \
++    SYSCALL_ENTRY( 0x0085, NtCreateKeyedEvent, 32 ) \
++    SYSCALL_ENTRY( 0x0086, NtCreateLowBoxToken, 72 ) \
++    SYSCALL_ENTRY( 0x0087, NtCreateMailslotFile, 64 ) \
++    SYSCALL_ENTRY( 0x0088, NtCreateMutant, 32 ) \
++    SYSCALL_ENTRY( 0x0089, NtCreateNamedPipeFile, 112 ) \
++    SYSCALL_ENTRY( 0x008a, NtCreatePagingFile, 32 ) \
++    SYSCALL_ENTRY( 0x008b, NtCreatePort, 40 ) \
++    SYSCALL_ENTRY( 0x008c, NtCreateSectionEx, 72 ) \
++    SYSCALL_ENTRY( 0x008d, NtCreateSemaphore, 40 ) \
++    SYSCALL_ENTRY( 0x008e, NtCreateSymbolicLinkObject, 32 ) \
++    SYSCALL_ENTRY( 0x008f, NtCreateThreadEx, 88 ) \
++    SYSCALL_ENTRY( 0x0090, NtCreateTimer, 32 ) \
++    SYSCALL_ENTRY( 0x0091, NtCreateToken, 104 ) \
++    SYSCALL_ENTRY( 0x0092, NtCreateTransaction, 80 ) \
++    SYSCALL_ENTRY( 0x0093, NtCreateUserProcess, 88 ) \
++    SYSCALL_ENTRY( 0x0094, NtCreateWaitCompletionPacket, 24 ) \
++    SYSCALL_ENTRY( 0x0095, NtDebugActiveProcess, 16 ) \
++    SYSCALL_ENTRY( 0x0096, NtDebugContinue, 24 ) \
++    SYSCALL_ENTRY( 0x0097, NtDeleteAtom, 8 ) \
++    SYSCALL_ENTRY( 0x0098, NtDeleteFile, 8 ) \
++    SYSCALL_ENTRY( 0x0099, NtDeleteKey, 8 ) \
++    SYSCALL_ENTRY( 0x009a, NtDeleteValueKey, 16 ) \
++    SYSCALL_ENTRY( 0x009b, NtDisplayString, 8 ) \
++    SYSCALL_ENTRY( 0x009c, NtFilterToken, 48 ) \
++    SYSCALL_ENTRY( 0x009d, NtFlushBuffersFileEx, 40 ) \
++    SYSCALL_ENTRY( 0x009e, NtFlushInstructionCache, 24 ) \
++    SYSCALL_ENTRY( 0x009f, NtFlushKey, 8 ) \
++    SYSCALL_ENTRY( 0x00a0, NtFlushProcessWriteBuffers, 0 ) \
++    SYSCALL_ENTRY( 0x00a1, NtFlushVirtualMemory, 32 ) \
++    SYSCALL_ENTRY( 0x00a2, NtGetContextThread, 16 ) \
++    SYSCALL_ENTRY( 0x00a3, NtGetCurrentProcessorNumber, 0 ) \
++    SYSCALL_ENTRY( 0x00a4, NtGetNextProcess, 40 ) \
++    SYSCALL_ENTRY( 0x00a5, NtGetNextThread, 48 ) \
+     SYSCALL_ENTRY( 0x00a6, NtCreateDebugObject, 32 ) \
+-    SYSCALL_ENTRY( 0x00a7, NtGetWriteWatch, 56 ) \
+-    SYSCALL_ENTRY( 0x00a8, NtImpersonateAnonymousToken, 8 ) \
+-    SYSCALL_ENTRY( 0x00a9, NtInitializeNlsFiles, 24 ) \
+-    SYSCALL_ENTRY( 0x00aa, NtInitiatePowerAction, 32 ) \
+-    SYSCALL_ENTRY( 0x00ab, NtListenPort, 16 ) \
+-    SYSCALL_ENTRY( 0x00ac, NtLoadDriver, 8 ) \
+-    SYSCALL_ENTRY( 0x00ad, NtLoadKey, 16 ) \
+-    SYSCALL_ENTRY( 0x00ae, NtLoadKey2, 24 ) \
+-    SYSCALL_ENTRY( 0x00af, NtLoadKeyEx, 64 ) \
+-    SYSCALL_ENTRY( 0x00b0, NtLockFile, 80 ) \
+-    SYSCALL_ENTRY( 0x00b1, NtLockVirtualMemory, 32 ) \
+-    SYSCALL_ENTRY( 0x00b2, NtMakePermanentObject, 8 ) \
+-    SYSCALL_ENTRY( 0x00b3, NtMakeTemporaryObject, 8 ) \
+-    SYSCALL_ENTRY( 0x00b4, NtMapViewOfSectionEx, 72 ) \
+-    SYSCALL_ENTRY( 0x00b5, NtNotifyChangeDirectoryFile, 72 ) \
+-    SYSCALL_ENTRY( 0x00b6, NtNotifyChangeKey, 80 ) \
+-    SYSCALL_ENTRY( 0x00b7, NtNotifyChangeMultipleKeys, 96 ) \
+-    SYSCALL_ENTRY( 0x00b8, NtOpenIoCompletion, 24 ) \
+-    SYSCALL_ENTRY( 0x00b9, NtOpenJobObject, 24 ) \
+-    SYSCALL_ENTRY( 0x00ba, NtOpenKeyEx, 32 ) \
+-    SYSCALL_ENTRY( 0x00bb, NtOpenKeyTransacted, 32 ) \
+-    SYSCALL_ENTRY( 0x00bc, NtOpenKeyTransactedEx, 40 ) \
+-    SYSCALL_ENTRY( 0x00bd, NtOpenKeyedEvent, 24 ) \
+-    SYSCALL_ENTRY( 0x00be, NtOpenMutant, 24 ) \
+-    SYSCALL_ENTRY( 0x00bf, NtOpenProcessToken, 24 ) \
+-    SYSCALL_ENTRY( 0x00c0, NtOpenSemaphore, 24 ) \
+-    SYSCALL_ENTRY( 0x00c1, NtOpenSymbolicLinkObject, 24 ) \
+-    SYSCALL_ENTRY( 0x00c2, NtOpenThread, 32 ) \
+-    SYSCALL_ENTRY( 0x00c3, NtOpenTimer, 24 ) \
+-    SYSCALL_ENTRY( 0x00c4, NtPrivilegeCheck, 24 ) \
+-    SYSCALL_ENTRY( 0x00c5, NtPulseEvent, 16 ) \
+-    SYSCALL_ENTRY( 0x00c6, NtQueryDirectoryObject, 56 ) \
+-    SYSCALL_ENTRY( 0x00c7, NtQueryEaFile, 72 ) \
+-    SYSCALL_ENTRY( 0x00c8, NtQueryFullAttributesFile, 16 ) \
+-    SYSCALL_ENTRY( 0x00c9, NtQueryInformationAtom, 40 ) \
+-    SYSCALL_ENTRY( 0x00ca, NtQueryInformationJobObject, 40 ) \
+-    SYSCALL_ENTRY( 0x00cb, NtQueryInstallUILanguage, 8 ) \
+-    SYSCALL_ENTRY( 0x00cc, NtQueryIoCompletion, 40 ) \
+-    SYSCALL_ENTRY( 0x00cd, NtQueryLicenseValue, 40 ) \
+-    SYSCALL_ENTRY( 0x00ce, NtQueryMultipleValueKey, 48 ) \
+-    SYSCALL_ENTRY( 0x00cf, NtQueryMutant, 40 ) \
+-    SYSCALL_ENTRY( 0x00d0, NtQuerySecurityAttributesToken, 48 ) \
+-    SYSCALL_ENTRY( 0x00d1, NtQuerySecurityObject, 40 ) \
+-    SYSCALL_ENTRY( 0x00d2, NtQuerySemaphore, 40 ) \
+-    SYSCALL_ENTRY( 0x00d3, NtQuerySymbolicLinkObject, 24 ) \
+-    SYSCALL_ENTRY( 0x00d4, NtQuerySystemEnvironmentValue, 32 ) \
+-    SYSCALL_ENTRY( 0x00d5, NtQuerySystemEnvironmentValueEx, 40 ) \
+-    SYSCALL_ENTRY( 0x00d6, NtQuerySystemInformationEx, 48 ) \
+-    SYSCALL_ENTRY( 0x00d7, NtQueryTimerResolution, 24 ) \
+-    SYSCALL_ENTRY( 0x00d8, NtQueueApcThreadEx, 48 ) \
+-    SYSCALL_ENTRY( 0x00d9, NtQueueApcThreadEx2, 56 ) \
+-    SYSCALL_ENTRY( 0x00da, NtRaiseException, 24 ) \
+-    SYSCALL_ENTRY( 0x00db, NtRaiseHardError, 48 ) \
+-    SYSCALL_ENTRY( 0x00dc, NtRegisterThreadTerminatePort, 8 ) \
+-    SYSCALL_ENTRY( 0x00dd, NtReleaseKeyedEvent, 32 ) \
+-    SYSCALL_ENTRY( 0x00de, NtRemoveIoCompletionEx, 48 ) \
+-    SYSCALL_ENTRY( 0x00df, NtRemoveProcessDebug, 16 ) \
+-    SYSCALL_ENTRY( 0x00e0, NtRenameKey, 16 ) \
+-    SYSCALL_ENTRY( 0x00e1, NtReplaceKey, 24 ) \
+-    SYSCALL_ENTRY( 0x00e2, NtResetEvent, 16 ) \
+-    SYSCALL_ENTRY( 0x00e3, NtResetWriteWatch, 24 ) \
+-    SYSCALL_ENTRY( 0x00e4, NtRestoreKey, 24 ) \
+-    SYSCALL_ENTRY( 0x00e5, NtResumeProcess, 8 ) \
+-    SYSCALL_ENTRY( 0x00e6, NtRollbackTransaction, 16 ) \
+-    SYSCALL_ENTRY( 0x00e7, NtSaveKey, 16 ) \
+-    SYSCALL_ENTRY( 0x00e8, NtSecureConnectPort, 72 ) \
+-    SYSCALL_ENTRY( 0x00e9, NtSetContextThread, 16 ) \
+-    SYSCALL_ENTRY( 0x00ea, NtSetDebugFilterState, 24 ) \
+-    SYSCALL_ENTRY( 0x00eb, NtSetDefaultLocale, 16 ) \
+-    SYSCALL_ENTRY( 0x00ec, NtSetDefaultUILanguage, 8 ) \
+-    SYSCALL_ENTRY( 0x00ed, NtSetEaFile, 32 ) \
+-    SYSCALL_ENTRY( 0x00ee, NtSetInformationDebugObject, 40 ) \
+-    SYSCALL_ENTRY( 0x00ef, NtSetInformationJobObject, 32 ) \
+-    SYSCALL_ENTRY( 0x00f0, NtSetInformationKey, 32 ) \
+-    SYSCALL_ENTRY( 0x00f1, NtSetInformationToken, 32 ) \
+-    SYSCALL_ENTRY( 0x00f2, NtSetInformationVirtualMemory, 48 ) \
+-    SYSCALL_ENTRY( 0x00f3, NtSetIntervalProfile, 16 ) \
+-    SYSCALL_ENTRY( 0x00f4, NtSetIoCompletion, 40 ) \
+-    SYSCALL_ENTRY( 0x00f5, NtSetIoCompletionEx, 48 ) \
+-    SYSCALL_ENTRY( 0x00f6, NtSetLdtEntries, 32 ) \
+-    SYSCALL_ENTRY( 0x00f7, NtSetSecurityObject, 24 ) \
+-    SYSCALL_ENTRY( 0x00f8, NtSetSystemInformation, 24 ) \
+-    SYSCALL_ENTRY( 0x00f9, NtSetSystemTime, 16 ) \
+-    SYSCALL_ENTRY( 0x00fa, NtSetThreadExecutionState, 16 ) \
+-    SYSCALL_ENTRY( 0x00fb, NtSetTimerResolution, 24 ) \
+-    SYSCALL_ENTRY( 0x00fc, NtSetVolumeInformationFile, 40 ) \
+-    SYSCALL_ENTRY( 0x00fd, NtShutdownSystem, 8 ) \
+-    SYSCALL_ENTRY( 0x00fe, NtSignalAndWaitForSingleObject, 32 ) \
+-    SYSCALL_ENTRY( 0x00ff, NtSuspendProcess, 8 ) \
+-    SYSCALL_ENTRY( 0x0100, NtSuspendThread, 16 ) \
+-    SYSCALL_ENTRY( 0x0101, NtSystemDebugControl, 48 ) \
+-    SYSCALL_ENTRY( 0x0102, NtTerminateJobObject, 16 ) \
+-    SYSCALL_ENTRY( 0x0103, NtTestAlert, 0 ) \
+-    SYSCALL_ENTRY( 0x0104, NtTraceControl, 48 ) \
+-    SYSCALL_ENTRY( 0x0105, NtUnloadDriver, 8 ) \
+-    SYSCALL_ENTRY( 0x0106, NtUnloadKey, 8 ) \
+-    SYSCALL_ENTRY( 0x0107, NtUnlockFile, 40 ) \
+-    SYSCALL_ENTRY( 0x0108, NtUnlockVirtualMemory, 32 ) \
+-    SYSCALL_ENTRY( 0x0109, NtUnmapViewOfSectionEx, 24 ) \
+-    SYSCALL_ENTRY( 0x010a, NtWaitForAlertByThreadId, 16 ) \
+-    SYSCALL_ENTRY( 0x010b, NtWaitForDebugEvent, 32 ) \
+-    SYSCALL_ENTRY( 0x010c, NtWaitForKeyedEvent, 32 ) \
+-    SYSCALL_ENTRY( 0x010d, NtXodusActivateRegisteredPackage, 24 ) \
+-    SYSCALL_ENTRY( 0x010e, NtXodusQueryRegisteredPackage, 32 ) \
+-    SYSCALL_ENTRY( 0x010f, __wine_rpc_NtReadFile, 72 )
++    SYSCALL_ENTRY( 0x00a7, NtGetNlsSectionPtr, 40 ) \
++    SYSCALL_ENTRY( 0x00a8, NtGetWriteWatch, 56 ) \
++    SYSCALL_ENTRY( 0x00a9, NtImpersonateAnonymousToken, 8 ) \
++    SYSCALL_ENTRY( 0x00aa, NtInitializeNlsFiles, 24 ) \
++    SYSCALL_ENTRY( 0x00ab, NtInitiatePowerAction, 32 ) \
++    SYSCALL_ENTRY( 0x00ac, NtListenPort, 16 ) \
++    SYSCALL_ENTRY( 0x00ad, NtLoadDriver, 8 ) \
++    SYSCALL_ENTRY( 0x00ae, NtLoadKey, 16 ) \
++    SYSCALL_ENTRY( 0x00af, NtLoadKey2, 24 ) \
++    SYSCALL_ENTRY( 0x00b0, NtLoadKeyEx, 64 ) \
++    SYSCALL_ENTRY( 0x00b1, NtLockFile, 80 ) \
++    SYSCALL_ENTRY( 0x00b2, NtLockVirtualMemory, 32 ) \
++    SYSCALL_ENTRY( 0x00b3, NtMakePermanentObject, 8 ) \
++    SYSCALL_ENTRY( 0x00b4, NtMakeTemporaryObject, 8 ) \
++    SYSCALL_ENTRY( 0x00b5, NtMapViewOfSectionEx, 72 ) \
++    SYSCALL_ENTRY( 0x00b6, NtNotifyChangeDirectoryFile, 72 ) \
++    SYSCALL_ENTRY( 0x00b7, NtNotifyChangeKey, 80 ) \
++    SYSCALL_ENTRY( 0x00b8, NtNotifyChangeMultipleKeys, 96 ) \
++    SYSCALL_ENTRY( 0x00b9, NtOpenIoCompletion, 24 ) \
++    SYSCALL_ENTRY( 0x00ba, NtOpenJobObject, 24 ) \
++    SYSCALL_ENTRY( 0x00bb, NtOpenKeyEx, 32 ) \
++    SYSCALL_ENTRY( 0x00bc, NtOpenKeyTransacted, 32 ) \
++    SYSCALL_ENTRY( 0x00bd, NtOpenKeyTransactedEx, 40 ) \
++    SYSCALL_ENTRY( 0x00be, NtOpenKeyedEvent, 24 ) \
++    SYSCALL_ENTRY( 0x00bf, NtOpenMutant, 24 ) \
++    SYSCALL_ENTRY( 0x00c0, NtOpenProcessToken, 24 ) \
++    SYSCALL_ENTRY( 0x00c1, NtOpenSemaphore, 24 ) \
++    SYSCALL_ENTRY( 0x00c2, NtOpenSymbolicLinkObject, 24 ) \
++    SYSCALL_ENTRY( 0x00c3, NtOpenThread, 32 ) \
++    SYSCALL_ENTRY( 0x00c4, NtOpenTimer, 24 ) \
++    SYSCALL_ENTRY( 0x00c5, NtPrivilegeCheck, 24 ) \
++    SYSCALL_ENTRY( 0x00c6, NtPulseEvent, 16 ) \
++    SYSCALL_ENTRY( 0x00c7, NtQueryDirectoryObject, 56 ) \
++    SYSCALL_ENTRY( 0x00c8, NtQueryEaFile, 72 ) \
++    SYSCALL_ENTRY( 0x00c9, NtQueryFullAttributesFile, 16 ) \
++    SYSCALL_ENTRY( 0x00ca, NtQueryInformationAtom, 40 ) \
++    SYSCALL_ENTRY( 0x00cb, NtQueryInformationJobObject, 40 ) \
++    SYSCALL_ENTRY( 0x00cc, NtQueryInstallUILanguage, 8 ) \
++    SYSCALL_ENTRY( 0x00cd, NtQueryIoCompletion, 40 ) \
++    SYSCALL_ENTRY( 0x00ce, NtQueryLicenseValue, 40 ) \
++    SYSCALL_ENTRY( 0x00cf, NtQueryMultipleValueKey, 48 ) \
++    SYSCALL_ENTRY( 0x00d0, NtQueryMutant, 40 ) \
++    SYSCALL_ENTRY( 0x00d1, NtQuerySecurityAttributesToken, 48 ) \
++    SYSCALL_ENTRY( 0x00d2, NtQuerySecurityObject, 40 ) \
++    SYSCALL_ENTRY( 0x00d3, NtQuerySemaphore, 40 ) \
++    SYSCALL_ENTRY( 0x00d4, NtQuerySymbolicLinkObject, 24 ) \
++    SYSCALL_ENTRY( 0x00d5, NtQuerySystemEnvironmentValue, 32 ) \
++    SYSCALL_ENTRY( 0x00d6, NtQuerySystemEnvironmentValueEx, 40 ) \
++    SYSCALL_ENTRY( 0x00d7, NtQuerySystemInformationEx, 48 ) \
++    SYSCALL_ENTRY( 0x00d8, NtQueryTimerResolution, 24 ) \
++    SYSCALL_ENTRY( 0x00d9, NtQueueApcThreadEx, 48 ) \
++    SYSCALL_ENTRY( 0x00da, NtQueueApcThreadEx2, 56 ) \
++    SYSCALL_ENTRY( 0x00db, NtRaiseException, 24 ) \
++    SYSCALL_ENTRY( 0x00dc, NtRaiseHardError, 48 ) \
++    SYSCALL_ENTRY( 0x00dd, NtRegisterThreadTerminatePort, 8 ) \
++    SYSCALL_ENTRY( 0x00de, NtReleaseKeyedEvent, 32 ) \
++    SYSCALL_ENTRY( 0x00df, NtRemoveIoCompletionEx, 48 ) \
++    SYSCALL_ENTRY( 0x00e0, NtRemoveProcessDebug, 16 ) \
++    SYSCALL_ENTRY( 0x00e1, NtRenameKey, 16 ) \
++    SYSCALL_ENTRY( 0x00e2, NtReplaceKey, 24 ) \
++    SYSCALL_ENTRY( 0x00e3, NtResetEvent, 16 ) \
++    SYSCALL_ENTRY( 0x00e4, NtResetWriteWatch, 24 ) \
++    SYSCALL_ENTRY( 0x00e5, NtRestoreKey, 24 ) \
++    SYSCALL_ENTRY( 0x00e6, NtResumeProcess, 8 ) \
++    SYSCALL_ENTRY( 0x00e7, NtRollbackTransaction, 16 ) \
++    SYSCALL_ENTRY( 0x00e8, NtSaveKey, 16 ) \
++    SYSCALL_ENTRY( 0x00e9, NtSecureConnectPort, 72 ) \
++    SYSCALL_ENTRY( 0x00ea, NtSetContextThread, 16 ) \
++    SYSCALL_ENTRY( 0x00eb, NtSetDebugFilterState, 24 ) \
++    SYSCALL_ENTRY( 0x00ec, NtSetDefaultLocale, 16 ) \
++    SYSCALL_ENTRY( 0x00ed, NtSetDefaultUILanguage, 8 ) \
++    SYSCALL_ENTRY( 0x00ee, NtSetEaFile, 32 ) \
++    SYSCALL_ENTRY( 0x00ef, NtSetInformationDebugObject, 40 ) \
++    SYSCALL_ENTRY( 0x00f0, NtSetInformationJobObject, 32 ) \
++    SYSCALL_ENTRY( 0x00f1, NtSetInformationKey, 32 ) \
++    SYSCALL_ENTRY( 0x00f2, NtSetInformationToken, 32 ) \
++    SYSCALL_ENTRY( 0x00f3, NtSetInformationVirtualMemory, 48 ) \
++    SYSCALL_ENTRY( 0x00f4, NtSetIntervalProfile, 16 ) \
++    SYSCALL_ENTRY( 0x00f5, NtSetIoCompletion, 40 ) \
++    SYSCALL_ENTRY( 0x00f6, NtSetIoCompletionEx, 48 ) \
++    SYSCALL_ENTRY( 0x00f7, NtSetLdtEntries, 32 ) \
++    SYSCALL_ENTRY( 0x00f8, NtSetSecurityObject, 24 ) \
++    SYSCALL_ENTRY( 0x00f9, NtSetSystemInformation, 24 ) \
++    SYSCALL_ENTRY( 0x00fa, NtSetSystemTime, 16 ) \
++    SYSCALL_ENTRY( 0x00fb, NtSetThreadExecutionState, 16 ) \
++    SYSCALL_ENTRY( 0x00fc, NtSetTimerResolution, 24 ) \
++    SYSCALL_ENTRY( 0x00fd, NtSetVolumeInformationFile, 40 ) \
++    SYSCALL_ENTRY( 0x00fe, NtShutdownSystem, 8 ) \
++    SYSCALL_ENTRY( 0x00ff, NtSignalAndWaitForSingleObject, 32 ) \
++    SYSCALL_ENTRY( 0x0100, NtSuspendProcess, 8 ) \
++    SYSCALL_ENTRY( 0x0101, NtSuspendThread, 16 ) \
++    SYSCALL_ENTRY( 0x0102, NtSystemDebugControl, 48 ) \
++    SYSCALL_ENTRY( 0x0103, NtTerminateJobObject, 16 ) \
++    SYSCALL_ENTRY( 0x0104, NtTestAlert, 0 ) \
++    SYSCALL_ENTRY( 0x0105, NtTraceControl, 48 ) \
++    SYSCALL_ENTRY( 0x0106, NtUnloadDriver, 8 ) \
++    SYSCALL_ENTRY( 0x0107, NtUnloadKey, 8 ) \
++    SYSCALL_ENTRY( 0x0108, NtUnlockFile, 40 ) \
++    SYSCALL_ENTRY( 0x0109, NtUnlockVirtualMemory, 32 ) \
++    SYSCALL_ENTRY( 0x010a, NtUnmapViewOfSectionEx, 24 ) \
++    SYSCALL_ENTRY( 0x010b, NtWaitForAlertByThreadId, 16 ) \
++    SYSCALL_ENTRY( 0x010c, NtWaitForDebugEvent, 32 ) \
++    SYSCALL_ENTRY( 0x010d, NtWaitForKeyedEvent, 32 ) \
++    SYSCALL_ENTRY( 0x010e, NtXodusActivateRegisteredPackage, 24 ) \
++    SYSCALL_ENTRY( 0x010f, NtXodusQueryRegisteredPackage, 32 ) \
++    SYSCALL_ENTRY( 0x0110, __wine_rpc_NtReadFile, 72 )
+ #else
+ #define ALL_SYSCALLS ALL_SYSCALLS32
+ #endif
+--- a/dlls/ntdll/sec.c
++++ b/dlls/ntdll/sec.c
+@@ -1943,6 +1943,98 @@
+     sid->SubAuthorityCount = 1 + ARRAY_SIZE(hash);
+     sid->SubAuthority[0] = SECURITY_BUILTIN_DOMAIN_RID;
+     memcpy( sid->SubAuthority + 1, hash, sizeof(hash) );
++
++    return STATUS_SUCCESS;
++}
++
++/******************************************************************************
++ * RtlGetAppContainerNamedObjectPath   [NTDLL.@]
++ *
++ * xodus-acnop: measured native behaviour.  Without an AppContainer SID the
++ * effective (or given) token is queried; a token that is not an AppContainer
++ * yields success with an empty string.  An explicit SID must be an AppContainer
++ * (8 RIDs) or child AppContainer (12 RIDs) package SID.  The result is
++ * "[\Sessions\<id>\]AppContainerNamedObjects\<parent SID>[\<child RIDs>]",
++ * allocated from the process heap.
++ */
++NTSTATUS WINAPI RtlGetAppContainerNamedObjectPath( HANDLE token, PSID sid, BOOLEAN relative, UNICODE_STRING *path )
++{
++    static const SID_IDENTIFIER_AUTHORITY package_authority = { SECURITY_APP_PACKAGE_AUTHORITY };
++    BYTE container_buf[sizeof(TOKEN_APPCONTAINER_INFORMATION) + SECURITY_MAX_SID_SIZE];
++    BYTE parent_buf[SECURITY_MAX_SID_SIZE];
++    WCHAR prefix[40], child[48];
++    UNICODE_STRING parent;
++    SID *ac, *parent_sid = (SID *)parent_buf;
++    NTSTATUS status;
++    ULONG len;
++
++    TRACE( "%p %p %d %p\n", token, sid, relative, path );
++
++    if (!path) return STATUS_INVALID_PARAMETER;
++    if (token && sid) return STATUS_INVALID_PARAMETER_MIX;
++
++    if (!sid)
++    {
++        HANDLE query = token;
++        TOKEN_TYPE type;
++        DWORD is_container = 0;
++
++        if (!query)
++        {
++            status = NtOpenThreadTokenEx( NtCurrentThread(), TOKEN_QUERY, TRUE, 0, &query );
++            if (status == STATUS_NO_TOKEN) status = NtOpenProcessTokenEx( NtCurrentProcess(), TOKEN_QUERY, 0, &query );
++            if (status) return status;
++        }
++        if (!(status = NtQueryInformationToken( query, TokenType, &type, sizeof(type), &len ))
++            && !(status = NtQueryInformationToken( query, TokenIsAppContainer, &is_container, sizeof(is_container), &len ))
++            && is_container)
++            status = NtQueryInformationToken( query, TokenAppContainerSid, container_buf, sizeof(container_buf), &len );
++        if (query != token) NtClose( query );
++        if (status) return status;
+ 
++        path->Length = path->MaximumLength = 0;
++        path->Buffer = NULL;
++        if (!is_container) return STATUS_SUCCESS;
++        sid = ((TOKEN_APPCONTAINER_INFORMATION *)container_buf)->TokenAppContainer;
++    }
++    else
++    {
++        path->Length = path->MaximumLength = 0;
++        path->Buffer = NULL;
++    }
++
++    ac = sid;
++    if (!ac || !RtlValidSid( ac ) || memcmp( &ac->IdentifierAuthority, &package_authority, sizeof(package_authority) )
++        || ac->SubAuthority[0] != SECURITY_APP_PACKAGE_BASE_RID
++        || (ac->SubAuthorityCount != SECURITY_APP_PACKAGE_RID_COUNT
++            && ac->SubAuthorityCount != SECURITY_CHILD_PACKAGE_RID_COUNT))
++        return STATUS_NOT_APPCONTAINER;
++
++    memcpy( parent_sid, ac, RtlLengthRequiredSid( SECURITY_APP_PACKAGE_RID_COUNT ) );
++    parent_sid->SubAuthorityCount = SECURITY_APP_PACKAGE_RID_COUNT;
++    if ((status = RtlConvertSidToUnicodeString( &parent, parent_sid, TRUE ))) return status;
++
++    child[0] = 0;
++    if (ac->SubAuthorityCount == SECURITY_CHILD_PACKAGE_RID_COUNT)
++        _snwprintf( child, ARRAY_SIZE(child), L"\\%u-%u-%u-%u", ac->SubAuthority[8], ac->SubAuthority[9],
++                    ac->SubAuthority[10], ac->SubAuthority[11] );
++    prefix[0] = 0;
++    if (!relative) _snwprintf( prefix, ARRAY_SIZE(prefix), L"\\Sessions\\%u\\", NtCurrentTeb()->Peb->SessionId );
++
++    len = (wcslen( prefix ) + wcslen( L"AppContainerNamedObjects\\" ) + wcslen( child )) * sizeof(WCHAR) + parent.Length;
++    if (!(path->Buffer = RtlAllocateHeap( GetProcessHeap(), 0, len + sizeof(WCHAR) )))
++    {
++        RtlFreeUnicodeString( &parent );
++        return STATUS_NO_MEMORY;
++    }
++    path->Length = len;
++    path->MaximumLength = len + sizeof(WCHAR);
++    path->Buffer[0] = 0;
++    wcscat( path->Buffer, prefix );
++    wcscat( path->Buffer, L"AppContainerNamedObjects\\" );
++    memcpy( path->Buffer + wcslen( path->Buffer ), parent.Buffer, parent.Length );
++    path->Buffer[(len - wcslen( child ) * sizeof(WCHAR)) / sizeof(WCHAR)] = 0;
++    wcscat( path->Buffer, child );
++    RtlFreeUnicodeString( &parent );
+     return STATUS_SUCCESS;
+ }
+--- a/dlls/ntdll/thread.c
++++ b/dlls/ntdll/thread.c
+@@ -435,6 +435,40 @@
+ DWORD WINAPI RtlGetThreadErrorMode( void )
+ {
+     return NtCurrentTeb()->HardErrorMode;
++}
++
++
++/***********************************************************************
++ *              RtlGetThreadWorkOnBehalfTicket  (NTDLL.@)
++ *
++ * Returns the ticket set by RtlSetThreadWorkOnBehalfTicket, or zero.
++ */
++NTSTATUS WINAPI RtlGetThreadWorkOnBehalfTicket( void *ticket, ULONG flags )
++{
++    TRACE( "%p, %#lx\n", ticket, flags );
++
++    if (flags > 2) return STATUS_INVALID_PARAMETER_2;
++    memcpy( ticket, NtCurrentTeb()->WorkingOnBehalfOfTicket, sizeof(NtCurrentTeb()->WorkingOnBehalfOfTicket) );
++    return STATUS_SUCCESS;
++}
++
++
++/***********************************************************************
++ *              RtlSetThreadWorkOnBehalfTicket  (NTDLL.@)
++ *
++ * Makes the current thread work on behalf of the thread owning the ticket; zero clears it.
++ */
++NTSTATUS WINAPI RtlSetThreadWorkOnBehalfTicket( const void *ticket )
++{
++    UCHAR value[sizeof(NtCurrentTeb()->WorkingOnBehalfOfTicket)];
++    NTSTATUS status;
++
++    memcpy( value, ticket, sizeof(value) );
++    TRACE( "%p (%I64x)\n", ticket, *(ULONG64 *)value );
++
++    status = NtSetInformationThread( NtCurrentThread(), ThreadWorkOnBehalfTicket, value, sizeof(value) );
++    if (!status) memcpy( NtCurrentTeb()->WorkingOnBehalfOfTicket, value, sizeof(value) );
++    return status;
+ }
+ 
+ 
+--- a/dlls/ntdll/unix/alpc.c
++++ b/dlls/ntdll/unix/alpc.c
+@@ -32,18 +32,30 @@
+ WINE_DEFAULT_DEBUG_CHANNEL(alpc);
+ 
+ 
+-static NTSTATUS validate_attributes( const ALPC_MESSAGE_ATTRIBUTES *attr, BOOL sending )
++static NTSTATUS validate_attributes( const ALPC_MESSAGE_ATTRIBUTES *attr, BOOL sending, ULONG send_allowed )
+ {
++    /* any defined attribute may be allocated; only valid ones are sent, and only delivered ones become valid */
+     if (!attr) return STATUS_SUCCESS;
+     if (attr->ValidAttributes & ~attr->AllocatedAttributes) return STATUS_INVALID_PARAMETER;
+-    if (attr->AllocatedAttributes & ~(sending ? ALPC_MESSAGE_SECURITY_ATTRIBUTE :
+-        ALPC_MESSAGE_CONTEXT_ATTRIBUTE | ALPC_MESSAGE_SECURITY_ATTRIBUTE))
++    if (attr->AllocatedAttributes & ~ALPC_MESSAGE_ATTRIBUTE_ALL)
++    {
++        WARN( "unsupported allocated attributes %#x\n", (unsigned int)attr->AllocatedAttributes );
+         return STATUS_NOT_SUPPORTED;
++    }
++    if (sending && (attr->ValidAttributes & ~send_allowed))
++    {
++        WARN( "unsupported valid send attributes %#x\n", (unsigned int)attr->ValidAttributes );
++        return STATUS_NOT_SUPPORTED;
++    }
+     if (sending && (attr->ValidAttributes & ALPC_MESSAGE_SECURITY_ATTRIBUTE))
+     {
+         const ALPC_SECURITY_ATTR *security = alpc_get_message_attribute(
+             (ALPC_MESSAGE_ATTRIBUTES *)attr, ALPC_MESSAGE_SECURITY_ATTRIBUTE );
+-        if (security->Flags || security->QoS) return STATUS_NOT_SUPPORTED;
++        if (security->Flags || security->QoS)
++        {
++            WARN( "unsupported security attribute flags %#x qos %p\n", (unsigned int)security->Flags, security->QoS );
++            return STATUS_NOT_SUPPORTED;
++        }
+     }
+     return STATUS_SUCCESS;
+ }
+@@ -212,8 +224,7 @@
+     {
+         struct alpc_work_on_behalf_attr_t *dst = wine_server_alpc_get_message_attribute( *ret_msg_attr, ALPC_MESSAGE_WORK_ON_BEHALF_ATTRIBUTE );
+ 
+-        /* Should use source ALPC_MESSAGE_WORK_ON_BEHALF_ATTRIBUTE attribute and non-zero but don't
+-         * know how to use it. The receiving side always got zero somehow */
++        /* wineserver issues the ticket for the sending thread; like Windows, the caller's value is ignored */
+         dst->ticket = 0;
+     }
+ 
+@@ -390,7 +401,7 @@
+            (unsigned int)flags, obj_attr, port_attr, port_context, send_msg, send_msg_attr, accept );
+ 
+     if ((status = validate_message( send_msg )) ||
+-        (status = validate_attributes( send_msg_attr, TRUE ))) return status;
++        (status = validate_attributes( send_msg_attr, TRUE, ALPC_MESSAGE_SECURITY_ATTRIBUTE ))) return status;
+     if ((flags & ~ALPC_SYNC_CONNECTION) || (port_attr && (port_attr->Flags & ~ALPC_PORTFLG_SUPPORTED)))
+         return STATUS_NOT_SUPPORTED;
+     if (!communication_port || !send_msg)
+@@ -461,8 +472,8 @@
+            connect_msg, connect_msg_size, send_msg_attr, recv_msg_attr, timeout );
+ 
+     if ((status = validate_message( connect_msg )) ||
+-        (status = validate_attributes( send_msg_attr, TRUE )) ||
+-        (status = validate_attributes( recv_msg_attr, FALSE ))) return status;
++        (status = validate_attributes( send_msg_attr, TRUE, ALPC_MESSAGE_SECURITY_ATTRIBUTE )) ||
++        (status = validate_attributes( recv_msg_attr, FALSE, 0 ))) return status;
+     if ((flags & ~ALPC_SYNC_CONNECTION) ||
+         (port_attr && (port_attr->Flags & ~ALPC_PORTFLG_SUPPORTED)))
+         return STATUS_NOT_SUPPORTED;
+@@ -632,6 +643,47 @@
+     SERVER_END_REQ;
+     free( server_obj_attr );
+     return status;
++}
++
++/***********************************************************************
++ *             NtAlpcQueryInformation  (NTDLL.@)
++ */
++NTSTATUS WINAPI NtAlpcQueryInformation( HANDLE port_handle, ULONG info_class, void *buffer,
++                                        ULONG length, ULONG *ret_len )
++{
++    struct
++    {
++        ULONG Flags;
++        ULONG SequenceNo;
++        void *PortContext;
++    } info;
++    NTSTATUS status;
++
++    TRACE( "%p, %u, %p, %u, %p.\n", port_handle, (unsigned int)info_class, buffer, (unsigned int)length, ret_len );
++
++    if (info_class != 0 /* AlpcBasicInformation */)
++    {
++        FIXME( "unsupported information class %u\n", (unsigned int)info_class );
++        return STATUS_INVALID_INFO_CLASS;
++    }
++
++    SERVER_START_REQ( alpc_query_port )
++    {
++        req->handle = wine_server_obj_handle( port_handle );
++        if (!(status = wine_server_call( req )))
++        {
++            info.Flags       = reply->flags;
++            info.SequenceNo  = reply->seq_no;
++            info.PortContext = wine_server_get_ptr( reply->port_context );
++        }
++    }
++    SERVER_END_REQ;
++    if (status) return status;
++
++    if (ret_len) *ret_len = sizeof(info);
++    if (length < sizeof(info)) return STATUS_INFO_LENGTH_MISMATCH;
++    memcpy( buffer, &info, sizeof(info) );
++    return STATUS_SUCCESS;
+ }
+ 
+ NTSTATUS WINAPI NtAlpcDisconnectPort( HANDLE port_handle, ULONG flags )
+@@ -673,9 +725,12 @@
+     TRACE( "%p, %#x, %p, %p, %p, %p, %p, %p.\n", port_handle, (unsigned int)flags, send_msg,
+            send_msg_attr, recv_msg, recv_buffer_size, recv_msg_attr, timeout );
+ 
++    /* Windows accepts valid context and work-on-behalf attributes on send: the sender's message context
++     * is returned with the reply, and the kernel supplies the work-on-behalf ticket */
+     if ((status = validate_message( send_msg )) ||
+-        (status = validate_attributes( send_msg_attr, TRUE )) ||
+-        (status = validate_attributes( recv_msg_attr, FALSE ))) return status;
++        (status = validate_attributes( send_msg_attr, TRUE, ALPC_MESSAGE_SECURITY_ATTRIBUTE |
++                                       ALPC_MESSAGE_CONTEXT_ATTRIBUTE | ALPC_MESSAGE_WORK_ON_BEHALF_ATTRIBUTE )) ||
++        (status = validate_attributes( recv_msg_attr, FALSE, 0 ))) return status;
+     if (flags & ~(ALPC_MSGFLG_REPLY_MESSAGE | ALPC_MSGFLG_SYNC_REQUEST))
+         return STATUS_NOT_SUPPORTED;
+ 
+@@ -705,6 +760,13 @@
+             req->flags = flags;
+             req->msg_size = wine_server_add_alpc_msg(req, send_msg, &server_msg);
+             req->msg_attr_size = wine_server_add_alpc_msg_attr(req, send_msg_attr, ALPC_MESSAGE_ATTRIBUTE_ALL, &server_msg_attr);
++            if (send_msg_attr && (send_msg_attr->ValidAttributes & ALPC_MESSAGE_CONTEXT_ATTRIBUTE))
++            {
++                const ALPC_CONTEXT_ATTR *context = alpc_get_message_attribute( send_msg_attr,
++                                                                               ALPC_MESSAGE_CONTEXT_ATTRIBUTE );
++                req->msg_context_valid = 1;
++                req->msg_context = wine_server_client_ptr( context->MessageContext );
++            }
+             status = req->msg_size == ~0u || req->msg_attr_size == ~0u
+                 ? STATUS_NO_MEMORY : wine_server_call(req);
+         }
+--- a/dlls/ntdll/unix/thread.c
++++ b/dlls/ntdll/unix/thread.c
+@@ -2528,10 +2528,36 @@
+         {
+             req->handle = wine_server_obj_handle( handle );
+             req->mask   = SET_THREAD_INFO_DBG_HIDDEN;
++            status = wine_server_call( req );
++        }
++        SERVER_END_REQ;
++        return status;
++
++    case ThreadWorkOnBehalfTicket:
++    {
++        ULONG64 ticket;
++
++        if (length != sizeof(ticket))
++        {
++            THREAD_BASIC_INFORMATION info;
++
++            if (handle != NtCurrentThread() &&
++                !NtQueryInformationThread( handle, ThreadBasicInformation, &info, sizeof(info), NULL ) &&
++                info.ClientId.UniqueThread != NtCurrentTeb()->ClientId.UniqueThread)
++                return STATUS_INVALID_PARAMETER;
++            return STATUS_INFO_LENGTH_MISMATCH;
++        }
++        memcpy( &ticket, data, sizeof(ticket) );
++        SERVER_START_REQ( set_thread_info )
++        {
++            req->handle     = wine_server_obj_handle( handle );
++            req->mask       = SET_THREAD_INFO_WOB_TICKET;
++            req->wob_ticket = ticket;
+             status = wine_server_call( req );
+         }
+         SERVER_END_REQ;
+         return status;
++    }
+ 
+     case ThreadQuerySetWin32StartAddress:
+     {
+--- a/dlls/ole32/ole32.spec
++++ b/dlls/ole32/ole32.spec
+@@ -45,6 +45,7 @@
+ @ stdcall CoGetObjectContext(ptr ptr) combase.CoGetObjectContext
+ @ stdcall CoGetPSClsid(ptr ptr) combase.CoGetPSClsid
+ @ stdcall CoGetStandardMarshal(ptr ptr long ptr long ptr) combase.CoGetStandardMarshal
++@ stdcall CoGetStdMarshalEx(ptr long ptr) combase.CoGetStdMarshalEx
+ @ stdcall CoGetState(ptr)
+ @ stub CoGetTIDFromIPID
+ @ stdcall CoGetTreatAsClass(ptr ptr) combase.CoGetTreatAsClass
+--- a/dlls/rpcrt4/cproxy.c
++++ b/dlls/rpcrt4/cproxy.c
+@@ -78,7 +78,6 @@
+                            LPRPCPROXYBUFFER *ppProxy,
+                            LPVOID *ppvObj)
+ {
+-  StdProxyImpl *This;
+   PCInterfaceName name = ProxyInfo->pNamesArray[Index];
+   CInterfaceProxyVtbl *vtbl = ProxyInfo->pProxyVtblList[Index];
+ 
+@@ -91,6 +90,19 @@
+     TRACE("stubless vtbl %p: count=%ld\n", vtbl->Vtbl, count );
+     fill_stubless_table( (IUnknownVtbl *)vtbl->Vtbl, count );
+   }
++
++  return StdProxy_ConstructFromVtbl( riid, pUnkOuter, vtbl, name,
++                                     ProxyInfo->pDelegatedIIDs ? ProxyInfo->pDelegatedIIDs[Index] : NULL,
++                                     pPSFactory, ppProxy, ppvObj );
++}
++
++/* ndr3-compact: shared by the classic and the compact (synthesized vtable) table formats */
++HRESULT StdProxy_ConstructFromVtbl(REFIID riid, LPUNKNOWN pUnkOuter, CInterfaceProxyVtbl *vtbl,
++                                   PCInterfaceName name, const IID *delegated_iid,
++                                   LPPSFACTORYBUFFER pPSFactory, LPRPCPROXYBUFFER *ppProxy,
++                                   LPVOID *ppvObj)
++{
++  StdProxyImpl *This;
+ 
+   if (!IsEqualGUID(vtbl->header.piid, riid)) {
+     ERR("IID mismatch during proxy creation\n");
+@@ -113,9 +125,9 @@
+   This->pPSFactory = pPSFactory;
+   This->pChannel = NULL;
+ 
+-  if(ProxyInfo->pDelegatedIIDs && ProxyInfo->pDelegatedIIDs[Index])
++  if (delegated_iid)
+   {
+-      HRESULT r = create_proxy( ProxyInfo->pDelegatedIIDs[Index], NULL,
++      HRESULT r = create_proxy( delegated_iid, NULL,
+                                 &This->base_proxy, (void **)&This->base_object );
+       if (FAILED(r))
+       {
+--- a/dlls/rpcrt4/cpsf.c
++++ b/dlls/rpcrt4/cpsf.c
+@@ -48,10 +48,207 @@
+ 
+ }
+ 
++/* ndr3-compact: compact tables emitted by recent MIDL versions (e.g. Windows
++ * OneCoreUAPCommonProxyStub.dll).  pIIDLookupRtn is -1 and IIDs are found in the proxy
++ * entries; proxy entries are { pStublessProxyInfo, piid, tag } and stub entries are
++ * { CInterfaceStubHeader, tag }.  Native combase maps the tags to built-in vtables
++ * (NdrpSelectProxyVtbl, NdrpTryResolveBuiltInStubVtableFromTag); the entries themselves
++ * are read-only and carry no vtables, so equivalent tables are synthesized here. */
++
++struct compact_proxy_entry
++{
++    const void *stubless_info;
++    const IID *piid;
++    LONG_PTR tag;   /* -1: IInspectable methods forwarded to the base proxy, -2: all stubless */
++};
++
++struct compact_stub_entry
++{
++    CInterfaceStubHeader header;
++    LONG_PTR tag;   /* -1: standard, -2: delegating, -3/-4: async variants */
++};
++
++struct compact_stub
++{
++    struct compact_stub *next;
++    const struct compact_stub_entry *entry;
++    CInterfaceStubVtbl vtbl;
++};
++
++struct compact_proxy
++{
++    struct compact_proxy *next;
++    const struct compact_proxy_entry *entry;
++    const void *stubless_info;     /* vtbl[-2] for the stubless thunks */
++    CInterfaceProxyVtbl vtbl;      /* { piid, methods... } */
++};
++
++static const IID iid_inspectable =
++    {0xaf86e2e0, 0xb12d, 0x4c6a, {0x9c, 0x5a, 0xd7, 0xaa, 0x65, 0x10, 0x1e, 0x90}};
++
++static SRWLOCK compact_lock = SRWLOCK_INIT;
++static struct compact_stub *compact_stubs;
++static struct compact_proxy *compact_proxies;
++
++static BOOL is_compact_file( const ProxyFileInfo *info )
++{
++    return info->TableVersion >= 1 && (LONG_PTR)info->pIIDLookupRtn == -1;
++}
++
++static BOOL is_compact_stub_entry( const void *entry )
++{
++    LONG_PTR tag = ((const struct compact_stub_entry *)entry)->tag;
++    return tag >= -4 && tag <= -1;
++}
++
++static BOOL is_compact_proxy_entry( const void *entry )
++{
++    LONG_PTR tag = ((const struct compact_proxy_entry *)entry)->tag;
++    return tag == -1 || tag == -2;
++}
++
++static BOOL find_compact_iid( const ProxyFileInfo *info, REFIID riid, int *index )
++{
++    unsigned int i;
++
++    for (i = 0; i < info->TableSize; i++)
++    {
++        const struct compact_proxy_entry *entry = (const void *)info->pProxyVtblList[i];
++        if (IsEqualGUID( entry->piid, riid ))
++        {
++            *index = i;
++            return TRUE;
++        }
++    }
++    return FALSE;
++}
++
++static const IID *compact_delegated_iid( const ProxyFileInfo *info, int index )
++{
++    if (info->pDelegatedIIDs && info->pDelegatedIIDs[index]) return info->pDelegatedIIDs[index];
++    return &iid_inspectable;
++}
++
++static ULONG WINAPI compact_stub_Release( IRpcStubBuffer *iface )
++{
++    return NdrCStdStubBuffer_Release( iface, ((CStdStubBuffer *)iface)->pPSFactory );
++}
++
++static ULONG WINAPI compact_stub2_Release( IRpcStubBuffer *iface )
++{
++    return NdrCStdStubBuffer2_Release( iface, ((CStdStubBuffer *)iface)->pPSFactory );
++}
++
++static CInterfaceStubVtbl *get_compact_stub_vtbl( const struct compact_stub_entry *entry )
++{
++    struct compact_stub *stub;
++
++    AcquireSRWLockExclusive( &compact_lock );
++    for (stub = compact_stubs; stub; stub = stub->next)
++        if (stub->entry == entry) break;
++    if (!stub && (stub = calloc( 1, sizeof(*stub) )))
++    {
++        stub->entry = entry;
++        stub->vtbl.header = entry->header;
++        if (entry->tag == -2)
++        {
++            stub->vtbl.Vtbl = CStdStubBuffer_Delegating_Vtbl;
++            stub->vtbl.Vtbl.Release = compact_stub2_Release;
++        }
++        else
++        {
++            stub->vtbl.Vtbl = CStdStubBuffer_Vtbl;
++            stub->vtbl.Vtbl.Release = compact_stub_Release;
++        }
++        stub->next = compact_stubs;
++        compact_stubs = stub;
++    }
++    ReleaseSRWLockExclusive( &compact_lock );
++    return stub ? &stub->vtbl : NULL;
++}
++
++static CInterfaceProxyVtbl *get_compact_proxy_vtbl( const struct compact_proxy_entry *entry, ULONG count )
++{
++    struct compact_proxy *proxy;
++    IUnknownVtbl *methods;
++    ULONG i;
++
++    if (count < 3 || count >= NB_THUNK_ENTRIES)
++    {
++        FIXME( "%lu methods not supported\n", count );
++        return NULL;
++    }
++
++    AcquireSRWLockExclusive( &compact_lock );
++    for (proxy = compact_proxies; proxy; proxy = proxy->next)
++        if (proxy->entry == entry) break;
++    if (!proxy && (proxy = calloc( 1, offsetof( struct compact_proxy, vtbl.Vtbl[count] ) )))
++    {
++        proxy->entry = entry;
++        proxy->stubless_info = entry->stubless_info;
++        proxy->vtbl.header.piid = entry->piid;
++        methods = (IUnknownVtbl *)proxy->vtbl.Vtbl;
++        for (i = 3; i < count; i++) proxy->vtbl.Vtbl[i] = (void *)-1;
++        if (entry->tag == -1)
++        {
++            for (i = 3; i < 6 && i < count; i++) proxy->vtbl.Vtbl[i] = NULL;
++            fill_delegated_proxy_table( methods, count );
++        }
++        else
++        {
++            methods->QueryInterface = IUnknown_QueryInterface_Proxy;
++            methods->AddRef = IUnknown_AddRef_Proxy;
++            methods->Release = IUnknown_Release_Proxy;
++        }
++        fill_stubless_table( methods, count );
++        proxy->next = compact_proxies;
++        compact_proxies = proxy;
++    }
++    ReleaseSRWLockExclusive( &compact_lock );
++    return proxy ? &proxy->vtbl : NULL;
++}
++
++static HRESULT create_compact_proxy( const ProxyFileInfo *info, int index, LPUNKNOWN outer, REFIID riid,
++                                     LPPSFACTORYBUFFER factory, LPRPCPROXYBUFFER *proxy, LPVOID *obj )
++{
++    const struct compact_proxy_entry *entry = (const void *)info->pProxyVtblList[index];
++    const struct compact_stub_entry *stub = (const void *)info->pStubVtblList[index];
++    CInterfaceProxyVtbl *vtbl;
++
++    TRACE( "compact proxy %s tag %Id methods %lu\n", debugstr_guid(entry->piid), entry->tag,
++           stub->header.DispatchTableCount );
++    if (!(vtbl = get_compact_proxy_vtbl( entry, stub->header.DispatchTableCount ))) return E_OUTOFMEMORY;
++    return StdProxy_ConstructFromVtbl( riid, outer, vtbl, info->pNamesArray ? info->pNamesArray[index] : NULL,
++                                       entry->tag == -1 ? compact_delegated_iid( info, index ) : NULL,
++                                       factory, proxy, obj );
++}
++
++static HRESULT create_compact_stub( const ProxyFileInfo *info, int index, REFIID riid, LPUNKNOWN server,
++                                    LPPSFACTORYBUFFER factory, LPRPCSTUBBUFFER *ppStub )
++{
++    const struct compact_stub_entry *entry = (const void *)info->pStubVtblList[index];
++    PCInterfaceName name = info->pNamesArray ? info->pNamesArray[index] : NULL;
++    CInterfaceStubVtbl *vtbl;
++
++    TRACE( "compact stub %s tag %Id dispatch %p methods %lu\n", debugstr_guid(entry->header.piid),
++           entry->tag, entry->header.pDispatchTable, entry->header.DispatchTableCount );
++    if (entry->tag == -3 || entry->tag == -4)
++    {
++        FIXME( "async compact stub %s not supported\n", debugstr_guid(entry->header.piid) );
++        return E_NOTIMPL;
++    }
++    if (!(vtbl = get_compact_stub_vtbl( entry ))) return E_OUTOFMEMORY;
++    if (entry->tag == -2)
++        return CStdStubBuffer_Delegating_Construct( riid, server, name, vtbl,
++                                                    compact_delegated_iid( info, index ), factory, ppStub );
++    return CStdStubBuffer_Construct( riid, server, name, vtbl, factory, ppStub );
++}
++
+ static BOOL FindProxyInfo(const ProxyFileInfo **pProxyFileList, REFIID riid, const ProxyFileInfo **pProxyInfo, int *pIndex)
+ {
+   while (*pProxyFileList) {
+-    if ((*pProxyFileList)->pIIDLookupRtn(riid, pIndex)) {
++    if (is_compact_file(*pProxyFileList) ? find_compact_iid(*pProxyFileList, riid, pIndex)
++                                          : (*pProxyFileList)->pIIDLookupRtn(riid, pIndex)) {
+       *pProxyInfo = *pProxyFileList;
+       TRACE("found: ProxyInfo %p Index %d\n", *pProxyInfo, *pIndex);
+       return TRUE;
+@@ -104,6 +301,8 @@
+        debugstr_guid(riid),ppProxy,ppv);
+   if (!FindProxyInfo(This->pProxyFileList,riid,&ProxyInfo,&Index))
+     return E_NOINTERFACE;
++  if (is_compact_proxy_entry(ProxyInfo->pProxyVtblList[Index]))
++    return create_compact_proxy(ProxyInfo, Index, pUnkOuter, riid, iface, ppProxy, ppv);
+   return StdProxy_Construct(riid, pUnkOuter, ProxyInfo, Index, iface, ppProxy, ppv);
+ }
+ 
+@@ -120,6 +319,9 @@
+   if (!FindProxyInfo(This->pProxyFileList,riid,&ProxyInfo,&Index))
+     return E_NOINTERFACE;
+ 
++  if (is_compact_stub_entry(ProxyInfo->pStubVtblList[Index]))
++    return create_compact_stub(ProxyInfo, Index, riid, pUnkServer, iface, ppStub);
++
+   if(ProxyInfo->pDelegatedIIDs && ProxyInfo->pDelegatedIIDs[Index])
+     return  CStdStubBuffer_Delegating_Construct(riid, pUnkServer, ProxyInfo->pNamesArray[Index],
+                                                 ProxyInfo->pStubVtblList[Index], ProxyInfo->pDelegatedIIDs[Index],
+@@ -158,6 +360,9 @@
+             void * const *pSrcRpcStubVtbl = (void * const *)&CStdStubBuffer_Vtbl;
+             void **pRpcStubVtbl = (void **)&stubs[j]->Vtbl;
+ 
++            /* compact entries are read-only and have no vtables to fill */
++            if (is_compact_stub_entry(stubs[j]) || is_compact_proxy_entry(proxies[j])) continue;
++
+             if (file_list[i]->pDelegatedIIDs && file_list[i]->pDelegatedIIDs[j])
+             {
+                 void **vtbl = proxies[j]->Vtbl;
+--- a/dlls/rpcrt4/cpsf.h
++++ b/dlls/rpcrt4/cpsf.h
+@@ -69,6 +69,15 @@
+ HRESULT create_proxy(REFIID iid, IUnknown *pUnkOuter, IRpcProxyBuffer **pproxy, void **ppv);
+ HRESULT create_stub(REFIID iid, IUnknown *pUnk, IRpcStubBuffer **ppstub);
+ BOOL fill_stubless_table(IUnknownVtbl *vtbl, DWORD num);
++/* ndr3-compact */
++HRESULT StdProxy_ConstructFromVtbl(REFIID riid, LPUNKNOWN pUnkOuter, CInterfaceProxyVtbl *vtbl,
++                                   PCInterfaceName name, const IID *delegated_iid,
++                                   LPPSFACTORYBUFFER pPSFactory, LPRPCPROXYBUFFER *ppProxy,
++                                   LPVOID *ppvObj);
++#ifdef _WIN64
++LONG WINAPI NdrStubCall3(struct IRpcStubBuffer *This, struct IRpcChannelBuffer *channel,
++                         PRPC_MESSAGE msg, DWORD *phase);
++#endif
+ const IUnknownVtbl *get_delegating_vtbl(DWORD num_methods);
+ 
+ #define NB_THUNK_ENTRIES 1024
+--- a/dlls/rpcrt4/cstub.c
++++ b/dlls/rpcrt4/cstub.c
+@@ -115,9 +115,10 @@
+         FIXME( "%lu methods not supported\n", num );
+         return FALSE;
+     }
+-    vtbl->QueryInterface = IUnknown_QueryInterface_Proxy;
+-    vtbl->AddRef = IUnknown_AddRef_Proxy;
+-    vtbl->Release = IUnknown_Release_Proxy;
++    /* ndr3-rofill: recent MIDL pre-fills these in read-only data */
++    if (!vtbl->QueryInterface) vtbl->QueryInterface = IUnknown_QueryInterface_Proxy;
++    if (!vtbl->AddRef) vtbl->AddRef = IUnknown_AddRef_Proxy;
++    if (!vtbl->Release) vtbl->Release = IUnknown_Release_Proxy;
+     for (i = 0; i < num - 3; i++)
+         if (!entry[i]) entry[i] = delegating_vtbl.methods[i];
+     return TRUE;
+@@ -284,6 +285,8 @@
+         IUnknown_Release(old);
+ }
+ 
++static HRESULT WINAPI CStdStubBuffer_Delegating_Connect(LPRPCSTUBBUFFER iface, LPUNKNOWN lpUnkServer);
++
+ HRESULT WINAPI CStdStubBuffer_Invoke(LPRPCSTUBBUFFER iface,
+                                     PRPCOLEMESSAGE pMsg,
+                                     LPRPCCHANNELBUFFER pChannel)
+@@ -297,7 +300,26 @@
+ 
+   __TRY
+   {
+-    if (header->pDispatchTable)
++    if ((LONG_PTR)header->pDispatchTable == -1 || (LONG_PTR)header->pDispatchTable == -2)
++    {
++      /* ndr3-compact: interpreted IInspectable-derived interface; methods 3-5 belong to the
++       * delegated base stub, the rest are interpreted (-2 may carry NDR64 syntax info). */
++      if (pMsg->iMethod < 3 || pMsg->iMethod >= header->DispatchTableCount)
++        RpcRaiseException(RPC_S_PROCNUM_OUT_OF_RANGE);
++      if (pMsg->iMethod < 6)
++      {
++        if (iface->lpVtbl->Connect != CStdStubBuffer_Delegating_Connect)
++          RpcRaiseException(RPC_E_UNEXPECTED);
++        NdrStubForwardingFunction(iface, pChannel, (PRPC_MESSAGE)pMsg, &dwPhase);
++      }
++#ifdef _WIN64
++      else if ((LONG_PTR)header->pDispatchTable == -2)
++        hr = NdrStubCall3(iface, pChannel, (PRPC_MESSAGE)pMsg, &dwPhase);
++#endif
++      else
++        NdrStubCall2(iface, pChannel, (PRPC_MESSAGE)pMsg, &dwPhase);
++    }
++    else if (header->pDispatchTable)
+       header->pDispatchTable[pMsg->iMethod](iface, pChannel, (PRPC_MESSAGE)pMsg, &dwPhase);
+     else /* pure interpreted */
+       NdrStubCall2(iface, pChannel, (PRPC_MESSAGE)pMsg, &dwPhase);
+--- a/dlls/rpcrt4/ndr_stubless.c
++++ b/dlls/rpcrt4/ndr_stubless.c
+@@ -2196,7 +2196,40 @@
+     FIXME("NDR64 syntax is not supported.\n");
+     return 0;
+ }
++
++#ifdef _WIN64
++/***********************************************************************
++ *           NdrStubCall3 [RPCRT4.@]   (ndr3-compact)
++ */
++LONG WINAPI NdrStubCall3( struct IRpcStubBuffer *This, struct IRpcChannelBuffer *channel,
++                          PRPC_MESSAGE msg, DWORD *phase )
++{
++    static const GUID ndr64_syntax_guid =
++        {0x71710533, 0xbeba, 0x4937, {0x83, 0x19, 0xb5, 0xdb, 0xef, 0x9c, 0xcc, 0x36}};
++    const RPC_SYNTAX_IDENTIFIER *syntax = msg->TransferSyntax;
++    const MIDL_SERVER_INFO *info;
++    ULONG_PTR i;
+ 
++    TRACE( "This %p, channel %p, msg %p, phase %p\n", This, channel, msg, phase );
++
++    if (!syntax || IsEqualGUID( &syntax->SyntaxGUID, &ndr_syntax_id.SyntaxGUID ))
++        return NdrStubCall2( This, channel, msg, phase );
++
++    if (This) info = CStdStubBuffer_GetServerInfo( This );
++    else info = ((RPC_SERVER_INTERFACE *)msg->RpcInterfaceInformation)->InterpreterInfo;
++
++    for (i = 0; i < info->nCount; i++)
++    {
++        if (IsEqualGUID( &info->pSyntaxInfo[i].TransferSyntax.SyntaxGUID, &ndr64_syntax_guid ))
++        {
++            FIXME( "NDR64 server stubs are not supported\n" );
++            break;
++        }
++    }
++    return HRESULT_FROM_WIN32( RPC_S_UNSUPPORTED_TRANS_SYN );
++}
++#endif
++
+ #ifdef __aarch64__
+ __ASM_GLOBAL_FUNC( NdrClientCall3,
+                    "stp x29, x30, [sp, #-0x40]!\n\t"
+--- a/dlls/rpcrt4/rpcrt4.spec
++++ b/dlls/rpcrt4/rpcrt4.spec
+@@ -295,6 +295,7 @@
+ @ stdcall NdrSimpleTypeMarshall(ptr ptr long)
+ @ stdcall NdrSimpleTypeUnmarshall(ptr ptr long)
+ @ stdcall NdrStubCall2(ptr ptr ptr ptr)
++@ stdcall -arch=win64 NdrStubCall3(ptr ptr ptr ptr) # ndr3-compact
+ @ stdcall NdrStubCall(ptr ptr ptr ptr)
+ @ stdcall NdrStubForwardingFunction(ptr ptr ptr ptr)
+ @ stdcall NdrStubGetBuffer(ptr ptr ptr)
+--- a/dlls/urlmon/uri.c
++++ b/dlls/urlmon/uri.c
+@@ -6388,6 +6388,44 @@
+     }
+ 
+     return S_OK;
++}
++
++/***********************************************************************
++ *           PrivateCoInternetCombineIUri (urlmon.@)
++ *
++ * xodus-combine: upstream Wine 949c1ed5 implements this in iertutil; here the
++ * IUri implementation still lives in urlmon, so iertutil forwards to it.
++ * Unlike upstream, dwReserved is ignored, matching native (audit-combine).
++ */
++HRESULT WINAPI PrivateCoInternetCombineIUri(IUri *pBaseUri, IUri *pRelativeUri,
++                                            DWORD dwCombineFlags, IUri **ppCombinedUri,
++                                            DWORD_PTR dwReserved)
++{
++    Uri *relative, *base;
++
++    TRACE("(%p %p %lx %p %Ix)\n", pBaseUri, pRelativeUri, dwCombineFlags, ppCombinedUri, dwReserved);
++
++    if (!ppCombinedUri)
++        return E_INVALIDARG;
++
++    if (!pBaseUri || !pRelativeUri)
++    {
++        *ppCombinedUri = NULL;
++        return E_INVALIDARG;
++    }
++
++    relative = get_uri_obj(pRelativeUri);
++    base = get_uri_obj(pBaseUri);
++    if (!relative || !base)
++    {
++        *ppCombinedUri = NULL;
++        FIXME("(%p %p %lx %p %Ix) Unknown IUri types not supported yet.\n", pBaseUri, pRelativeUri,
++              dwCombineFlags, ppCombinedUri, dwReserved);
++        return E_NOTIMPL;
++    }
++
++    /* Measured native 26100: dwReserved is not used as combine extras. */
++    return combine_uri(base, relative, dwCombineFlags, ppCombinedUri, 0);
+ }
+ 
+ /***********************************************************************
+--- a/dlls/urlmon/urlmon.spec
++++ b/dlls/urlmon/urlmon.spec
+@@ -14,6 +14,7 @@
+ @ stdcall CoInternetCombineUrlEx(ptr wstr long ptr long)
+ @ stdcall CoInternetCompareUrl(wstr wstr long)
+ @ stdcall CoInternetCombineIUri(ptr ptr long ptr long)
++@ stdcall -private PrivateCoInternetCombineIUri(ptr ptr long ptr long)
+ @ stdcall CoInternetCreateSecurityManager(ptr ptr long)
+ @ stdcall CoInternetCreateZoneManager(ptr ptr long)
+ @ stub CoInternetGetProtocolFlags
+--- a/dlls/user32/misc.c
++++ b/dlls/user32/misc.c
+@@ -542,4 +542,16 @@
+ {
+     if (!imm_ime_wnd_proc) return DefWindowProcW(hwnd, msg, wParam, lParam);
+     return imm_ime_wnd_proc( hwnd, msg, wParam, lParam, FALSE );
++}
++
++/**********************************************************************
++ *              IsOneCoreTransformMode (USER32.@)
++ *
++ * xodus-onecore: native desktop processes return FALSE without touching the
++ * last error; the mode is only entered via EnableOneCoreTransformMode, which
++ * is not implemented.
++ */
++BOOL WINAPI IsOneCoreTransformMode(void)
++{
++    return FALSE;
+ }
+--- a/dlls/user32/user32.spec
++++ b/dlls/user32/user32.spec
+@@ -52,7 +52,7 @@
+ 2538 stub -noname LayoutCompleted  # NtUserLayoutCompleted
+ 2539 stub -noname HidePointerContactVisualization  # NtUserHidePointerContactVisualization
+ 2540 stub -noname SetCancelRotationDelayHintWindow  # NtUserSetCancelRotationDelayHintWindow
+-2541 stub -noname GetQueueStatusReadonly  # NtUserGetQueueStatusReadonly
++2541 stdcall -noname GetQueueStatusReadonly(long) NtUserGetQueueStatusReadonly
+ 2542 stub SetCoveredWindowStates  # NtUserSetCoveredWindowStates
+ 
+ 2544 stub -noname EnableTouchPad  # NtUserEnableTouchPad
+@@ -168,8 +168,8 @@
+ 2666 stub RegisterForTooltipDismissNotification  # NtUserRegisterForTooltipDismissNotification
+ 2667 stub RegisterForCustomDockTargets  # NtUserRegisterForCustomDockTargets
+ 2668 stub GetClipboardMetadata  # NtUserGetClipboardMetadata
+-2669 stub -noname InitThreadCoreMessagingIocp2  # NtUserInitThreadCoreMessagingIocp2
+-2670 stub -noname DrainThreadCoreMessagingCompletions2  # NtUserDrainThreadCoreMessagingCompletions2
++2669 stdcall -noname InitThreadCoreMessagingIocp2(long ptr) NtUserInitThreadCoreMessagingIocp2
++2670 stdcall -noname DrainThreadCoreMessagingCompletions2(long) NtUserDrainThreadCoreMessagingCompletions2
+ 2671 stub ShellRegisterHotKey  # NtUserShellRegisterHotKey
+ 2672 stub SetUserObjectCapability  # NtUserSetUserObjectCapability
+ 2673 stub SetWindowMessageCapability  # NtUserSetWindowMessageCapability
+@@ -790,7 +790,7 @@
+ @ stdcall IsMenu(long)
+ @ stdcall IsMouseInPointerEnabled() NtUserIsMouseInPointerEnabled
+ # @ stub SetThreadCursorCreationScaling
+-# @ stub IsOneCoreTransformMode
++@ stdcall IsOneCoreTransformMode()
+ @ stdcall IsProcessDPIAware()
+ @ stdcall IsRectEmpty(ptr)
+ # @ stub IsSETEnabled
+--- a/dlls/uxtheme/system.c
++++ b/dlls/uxtheme/system.c
+@@ -26,6 +26,7 @@
+ #include "wingdi.h"
+ #include "winuser.h"
+ #include "winreg.h"
++#include "winternl.h"
+ #include "vfwmsgs.h"
+ #include "uxtheme.h"
+ #include "vssym32.h"
+@@ -1333,4 +1334,139 @@
+ {
+     FIXME("%p: stub\n", hwnd);
+     return FALSE;
++}
++
++/***********************************************************************
++ *      GetUserColorPreference                              (UXTHEME.@)
++ *
++ * xodus-gucp: measured native behaviour.  The colours come from the real user
++ * hive (HKCU overrides are ignored) Explorer\Accent StartColorMenu and
++ * AccentColorMenu REG_DWORD values; if either is missing or not REG_DWORD both
++ * fall back to the built-in defaults.  The first call fills a process cache that
++ * non-forced calls return; forced calls re-read without updating the cache.
++ */
++typedef struct
++{
++    COLORREF start;
++    COLORREF accent;
++} USER_COLOR_PREFERENCE;
++
++static void read_user_color_preference( USER_COLOR_PREFERENCE *pref )
++{
++    DWORD start, accent, type, size;
++    HKEY user, key;
++    BOOL ok = FALSE;
++
++    if (!RtlOpenCurrentUser( KEY_READ, (HANDLE *)&user ))
++    {
++        if (!RegOpenKeyExW( user, L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Accent", 0, KEY_READ, &key ))
++        {
++            size = sizeof(start);
++            if (!RegQueryValueExW( key, L"StartColorMenu", NULL, &type, (BYTE *)&start, &size ) && type == REG_DWORD)
++            {
++                size = sizeof(accent);
++                ok = !RegQueryValueExW( key, L"AccentColorMenu", NULL, &type, (BYTE *)&accent, &size ) && type == REG_DWORD;
++            }
++            RegCloseKey( key );
++        }
++        RegCloseKey( user );
++    }
++
++    if (ok)
++    {
++        pref->start = start;
++        pref->accent = accent;
++    }
++    else
++    {
++        pref->start = 0xff9e5a00;
++        pref->accent = 0xffd77800;
++    }
++}
++
++static USER_COLOR_PREFERENCE cached_user_color_preference;
++
++static BOOL WINAPI init_user_color_preference( INIT_ONCE *once, void *param, void **context )
++{
++    read_user_color_preference( &cached_user_color_preference );
++    return TRUE;
++}
++
++HRESULT WINAPI GetUserColorPreference( USER_COLOR_PREFERENCE *pref, BOOL force_reload )
++{
++    static INIT_ONCE once = INIT_ONCE_STATIC_INIT;
++
++    TRACE( "%p %d\n", pref, force_reload );
++
++    InitOnceExecuteOnce( &once, init_user_color_preference, NULL, NULL );
++    if (force_reload) read_user_color_preference( pref );
++    else *pref = cached_user_color_preference;
++    return S_OK;
+ }
++
++/***********************************************************************
++ *      GetColorFromPreference                              (UXTHEME.@)
++ *
++ * xodus-gcfp: measured native behaviour for the preference-independent colour
++ * types only.  Types 1-7 are the system accent palette (light3 .. dark3) read
++ * once per process from the real user hive Explorer\Accent AccentPalette, which
++ * must be a 32-byte REG_BINARY of R,G,B,A entries (alpha ignored); otherwise the
++ * built-in default palette is used.  Types 0, 8 and 0xd2 are constant.  The
++ * remaining types are derived from the preference by transforms that are not
++ * implemented; they return the colour native returns for unknown types.
++ */
++static const DWORD default_accent_palette[7] =
++{
++    0xffffeb99, 0xffffc24c, 0xfff89100, 0xffd47800, 0xffc06700, 0xff923e00, 0xff681a00
++};
++
++static DWORD accent_palette[7];
++
++static BOOL WINAPI init_accent_palette( INIT_ONCE *once, void *param, void **context )
++{
++    BYTE data[32];
++    DWORD type, size = sizeof(data);
++    HKEY user, key;
++    BOOL ok = FALSE;
++    unsigned int i;
++
++    if (!RtlOpenCurrentUser( KEY_READ, (HANDLE *)&user ))
++    {
++        if (!RegOpenKeyExW( user, L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Accent", 0, KEY_READ, &key ))
++        {
++            ok = !RegQueryValueExW( key, L"AccentPalette", NULL, &type, data, &size )
++                 && type == REG_BINARY && size == sizeof(data);
++            RegCloseKey( key );
++        }
++        RegCloseKey( user );
++    }
++
++    for (i = 0; i < ARRAY_SIZE(accent_palette); i++)
++        accent_palette[i] = ok ? 0xff000000 | RGB( data[i * 4], data[i * 4 + 1], data[i * 4 + 2] )
++                               : default_accent_palette[i];
++    return TRUE;
++}
++
++DWORD WINAPI GetColorFromPreference( const USER_COLOR_PREFERENCE *pref, UINT type, BOOL ignore_high_contrast,
++                                     UINT high_contrast_cache_mode )
++{
++    static INIT_ONCE once = INIT_ONCE_STATIC_INIT;
++
++    TRACE( "%p %#x %d %u\n", pref, type, ignore_high_contrast, high_contrast_cache_mode );
++
++    switch (type)
++    {
++    case 0:
++        return 0xff000000;
++    case 1: case 2: case 3: case 4: case 5: case 6: case 7:
++        InitOnceExecuteOnce( &once, init_accent_palette, NULL, NULL );
++        return accent_palette[type - 1];
++    case 8:
++    case 0xd2:
++        return 0xffffffff;
++    default:
++        FIXME( "%p %#x %d %u: colour type not implemented\n", pref, type, ignore_high_contrast,
++               high_contrast_cache_mode );
++        return 0xffff00ff;
++    }
++}
+--- a/dlls/uxtheme/uxtheme.spec
++++ b/dlls/uxtheme/uxtheme.spec
+@@ -75,6 +75,7 @@
+ @ stdcall GetBufferedPaintDC(ptr)
+ @ stdcall GetBufferedPaintTargetDC(ptr)
+ @ stdcall GetBufferedPaintTargetRect(ptr ptr)
++@ stdcall GetColorFromPreference(ptr long long long)
+ @ stdcall GetCurrentThemeName(ptr long ptr long ptr long)
+ @ stdcall GetThemeAppProperties()
+ @ stdcall GetThemeBackgroundContentRect(ptr ptr long long ptr ptr)
+@@ -107,6 +108,7 @@
+ @ stdcall GetThemeTextExtent(ptr ptr long long wstr long long ptr ptr)
+ @ stdcall GetThemeTextMetrics(ptr ptr long long ptr)
+ @ stdcall GetThemeTransitionDuration(ptr long long long long ptr)
++@ stdcall GetUserColorPreference(ptr long)
+ @ stdcall GetWindowTheme(ptr)
+ @ stdcall HitTestThemeBackground(ptr long long long long ptr long int64 ptr)
+ @ stdcall IsAppThemed()
+--- a/dlls/win32u/input.c
++++ b/dlls/win32u/input.c
+@@ -872,6 +872,30 @@
+     return ret;
+ }
+ 
++/***********************************************************************
++ *           NtUserGetQueueStatusReadonly (win32u.@)
++ *
++ * xodus-gqsro: like NtUserGetQueueStatus, but native neither validates the
++ * flags nor clears the changed bits.
++ */
++DWORD WINAPI NtUserGetQueueStatusReadonly( UINT flags )
++{
++    UINT ret, wake_bits, changed_bits;
++
++    check_for_events( flags );
++
++    if (get_shared_queue_bits( &wake_bits, &changed_bits ))
++        ret = MAKELONG( changed_bits & flags, wake_bits & flags );
++    else SERVER_START_REQ( get_queue_status )
++    {
++        req->clear_bits = 0;
++        wine_server_call( req );
++        ret = MAKELONG( reply->changed_bits & flags, reply->wake_bits & flags );
++    }
++    SERVER_END_REQ;
++    return ret;
++}
++
+ /*******************************************************************
+  *           NtUserGetThreadInfo (win32u.@)
+  */
+@@ -2852,4 +2876,89 @@
+         return 2;
+ 
+     return 0;
++}
++
++/* A thread owns one CoreMessaging completion port, shared by at most two of
++ * its windows; a slot is released when its window is destroyed. */
++static HWND coremsg_slot_window( struct user_thread_info *info, UINT slot )
++{
++    if (info->coremsg_hwnd[slot] && !is_current_thread_window( info->coremsg_hwnd[slot] ))
++        info->coremsg_hwnd[slot] = 0;
++    return info->coremsg_hwnd[slot];
+ }
++
++/**********************************************************************
++ *       NtUserInitThreadCoreMessagingIocp2    (win32u.@)
++ */
++HANDLE WINAPI NtUserInitThreadCoreMessagingIocp2( HWND hwnd, DWORD *slot )
++{
++    struct user_thread_info *info = get_user_thread_info();
++    UINT i, free_slot = ARRAY_SIZE(info->coremsg_hwnd);
++    NTSTATUS status;
++    DWORD tid;
++
++    TRACE( "hwnd %p slot %p\n", hwnd, slot );
++
++    if (!(tid = get_window_thread( hwnd, NULL ))) return 0;
++    if (tid != GetCurrentThreadId())
++    {
++        RtlSetLastWin32Error( ERROR_ACCESS_DENIED );
++        return 0;
++    }
++    if (!slot)
++    {
++        RtlSetLastWin32Error( ERROR_INVALID_PARAMETER );
++        return 0;
++    }
++    hwnd = get_full_window_handle( hwnd );
++
++    for (i = 0; i < ARRAY_SIZE(info->coremsg_hwnd); i++)
++    {
++        HWND cur = coremsg_slot_window( info, i );
++        if (cur == hwnd)
++        {
++            RtlSetLastWin32Error( ERROR_INVALID_PARAMETER );
++            return 0;
++        }
++        if (!cur && free_slot == ARRAY_SIZE(info->coremsg_hwnd)) free_slot = i;
++    }
++    if (free_slot == ARRAY_SIZE(info->coremsg_hwnd))
++    {
++        RtlSetLastWin32Error( ERROR_ALREADY_INITIALIZED );
++        return 0;
++    }
++    if (!info->coremsg_iocp &&
++        (status = NtCreateIoCompletion( &info->coremsg_iocp, IO_COMPLETION_ALL_ACCESS, NULL, 0 )))
++    {
++        info->coremsg_iocp = 0;
++        RtlSetLastWin32Error( RtlNtStatusToDosError( status ) );
++        return 0;
++    }
++    info->coremsg_hwnd[free_slot] = hwnd;
++    *slot = free_slot;
++    return info->coremsg_iocp;
++}
++
++/**********************************************************************
++ *       NtUserDrainThreadCoreMessagingCompletions2    (win32u.@)
++ */
++BOOL WINAPI NtUserDrainThreadCoreMessagingCompletions2( HWND hwnd )
++{
++    struct user_thread_info *info = get_user_thread_info();
++    UINT i;
++
++    TRACE( "hwnd %p\n", hwnd );
++
++    if (!get_window_thread( hwnd, NULL )) return FALSE;
++    if (!info->coremsg_iocp)
++    {
++        RtlSetLastWin32Error( ERROR_ACCESS_DENIED );
++        return FALSE;
++    }
++    hwnd = get_full_window_handle( hwnd );
++    /* win32u never queues packets to the port, so a registered window has none pending */
++    for (i = 0; i < ARRAY_SIZE(info->coremsg_hwnd); i++)
++        if (coremsg_slot_window( info, i ) == hwnd) return TRUE;
++    RtlSetLastWin32Error( ERROR_INVALID_PARAMETER );
++    return FALSE;
++}
+--- a/dlls/win32u/main.c
++++ b/dlls/win32u/main.c
+@@ -1774,6 +1774,11 @@
+     SYSCALL_FUNC( NtUserGetQueueStatus );
+ }
+ 
++DWORD SYSCALL_API NtUserGetQueueStatusReadonly( UINT flags )
++{
++    SYSCALL_FUNC( NtUserGetQueueStatusReadonly );
++}
++
+ UINT SYSCALL_API NtUserGetRawInputBuffer( RAWINPUT *data, UINT *data_size, UINT header_size )
+ {
+     SYSCALL_FUNC( NtUserGetRawInputBuffer );
+@@ -2132,6 +2137,16 @@
+     SYSCALL_FUNC( NtUserScheduleDispatchNotification );
+ }
+ 
++HANDLE SYSCALL_API NtUserInitThreadCoreMessagingIocp2( HWND hwnd, DWORD *slot )
++{
++    SYSCALL_FUNC( NtUserInitThreadCoreMessagingIocp2 );
++}
++
++BOOL SYSCALL_API NtUserDrainThreadCoreMessagingCompletions2( HWND hwnd )
++{
++    SYSCALL_FUNC( NtUserDrainThreadCoreMessagingCompletions2 );
++}
++
+ BOOL SYSCALL_API NtUserScrollDC( HDC hdc, INT dx, INT dy, const RECT *scroll, const RECT *clip,
+                                  HRGN ret_update_rgn, RECT *update_rect )
+ {
+--- a/dlls/win32u/ntuser_private.h
++++ b/dlls/win32u/ntuser_private.h
+@@ -130,6 +130,8 @@
+     DWORD                         clipping_reset;         /* time when clipping was last reset */
+     struct session_thread_data   *session_data;           /* shared session thread data */
+     struct mouse_tracking_info   *mouse_tracking_info;    /* NtUserTrackMouseEvent handling */
++    HANDLE                        coremsg_iocp;           /* CoreMessaging thread completion port */
++    HWND                          coremsg_hwnd[2];        /* windows registered with coremsg_iocp */
+ };
+ 
+ C_ASSERT( sizeof(struct user_thread_info) <= sizeof(((TEB *)0)->Win32ClientInfo) );
+--- a/dlls/win32u/win32syscalls.h
++++ b/dlls/win32u/win32syscalls.h
+@@ -919,7 +919,7 @@
+     SYSCALL_ENTRY( 0x1393, NtUserDragDetect, 12 ) \
+     SYSCALL_ENTRY( 0x1394, NtUserDragObject, 20 ) \
+     SYSCALL_ENTRY( 0x1395, NtUserDrainThreadCoreMessagingCompletions, 0 ) \
+-    SYSCALL_ENTRY( 0x1396, NtUserDrainThreadCoreMessagingCompletions2, 0 ) \
++    SYSCALL_ENTRY( 0x1396, NtUserDrainThreadCoreMessagingCompletions2, 4 ) \
+     SYSCALL_ENTRY( 0x1397, NtUserDrawAnimatedRects, 0 ) \
+     SYSCALL_ENTRY( 0x1398, NtUserDrawCaption, 0 ) \
+     SYSCALL_ENTRY( 0x1399, NtUserDrawCaptionTemp, 28 ) \
+@@ -1085,7 +1085,7 @@
+     SYSCALL_ENTRY( 0x1439, NtUserGetProp2, 0 ) \
+     SYSCALL_ENTRY( 0x143a, NtUserGetQueueIocp, 0 ) \
+     SYSCALL_ENTRY( 0x143b, NtUserGetQueueStatus, 4 ) \
+-    SYSCALL_ENTRY( 0x143c, NtUserGetQueueStatusReadonly, 0 ) \
++    SYSCALL_ENTRY( 0x143c, NtUserGetQueueStatusReadonly, 4 ) \
+     SYSCALL_ENTRY( 0x143d, NtUserGetRawInputBuffer, 12 ) \
+     SYSCALL_ENTRY( 0x143e, NtUserGetRawInputData, 20 ) \
+     SYSCALL_ENTRY( 0x143f, NtUserGetRawInputDeviceInfo, 16 ) \
+@@ -1145,7 +1145,7 @@
+     SYSCALL_ENTRY( 0x1475, NtUserInitAnsiOem, 0 ) \
+     SYSCALL_ENTRY( 0x1476, NtUserInitTask, 0 ) \
+     SYSCALL_ENTRY( 0x1477, NtUserInitThreadCoreMessagingIocp, 0 ) \
+-    SYSCALL_ENTRY( 0x1478, NtUserInitThreadCoreMessagingIocp2, 0 ) \
++    SYSCALL_ENTRY( 0x1478, NtUserInitThreadCoreMessagingIocp2, 8 ) \
+     SYSCALL_ENTRY( 0x1479, NtUserInitialize, 0 ) \
+     SYSCALL_ENTRY( 0x147a, NtUserInitializeClientPfnArrays, 16 ) \
+     SYSCALL_ENTRY( 0x147b, NtUserInitializeGenericHidInjection, 0 ) \
+@@ -2463,7 +2463,7 @@
+     SYSCALL_ENTRY( 0x1393, NtUserDragDetect, 24 ) \
+     SYSCALL_ENTRY( 0x1394, NtUserDragObject, 40 ) \
+     SYSCALL_ENTRY( 0x1395, NtUserDrainThreadCoreMessagingCompletions, 0 ) \
+-    SYSCALL_ENTRY( 0x1396, NtUserDrainThreadCoreMessagingCompletions2, 0 ) \
++    SYSCALL_ENTRY( 0x1396, NtUserDrainThreadCoreMessagingCompletions2, 8 ) \
+     SYSCALL_ENTRY( 0x1397, NtUserDrawAnimatedRects, 0 ) \
+     SYSCALL_ENTRY( 0x1398, NtUserDrawCaption, 0 ) \
+     SYSCALL_ENTRY( 0x1399, NtUserDrawCaptionTemp, 56 ) \
+@@ -2629,7 +2629,7 @@
+     SYSCALL_ENTRY( 0x1439, NtUserGetProp2, 0 ) \
+     SYSCALL_ENTRY( 0x143a, NtUserGetQueueIocp, 0 ) \
+     SYSCALL_ENTRY( 0x143b, NtUserGetQueueStatus, 8 ) \
+-    SYSCALL_ENTRY( 0x143c, NtUserGetQueueStatusReadonly, 0 ) \
++    SYSCALL_ENTRY( 0x143c, NtUserGetQueueStatusReadonly, 8 ) \
+     SYSCALL_ENTRY( 0x143d, NtUserGetRawInputBuffer, 24 ) \
+     SYSCALL_ENTRY( 0x143e, NtUserGetRawInputData, 40 ) \
+     SYSCALL_ENTRY( 0x143f, NtUserGetRawInputDeviceInfo, 32 ) \
+@@ -2689,7 +2689,7 @@
+     SYSCALL_ENTRY( 0x1475, NtUserInitAnsiOem, 0 ) \
+     SYSCALL_ENTRY( 0x1476, NtUserInitTask, 0 ) \
+     SYSCALL_ENTRY( 0x1477, NtUserInitThreadCoreMessagingIocp, 0 ) \
+-    SYSCALL_ENTRY( 0x1478, NtUserInitThreadCoreMessagingIocp2, 0 ) \
++    SYSCALL_ENTRY( 0x1478, NtUserInitThreadCoreMessagingIocp2, 16 ) \
+     SYSCALL_ENTRY( 0x1479, NtUserInitialize, 0 ) \
+     SYSCALL_ENTRY( 0x147a, NtUserInitializeClientPfnArrays, 32 ) \
+     SYSCALL_ENTRY( 0x147b, NtUserInitializeGenericHidInjection, 0 ) \
+@@ -3749,7 +3749,6 @@
+     SYSCALL_STUB( NtUserDoUninitMessagePumpHook ) \
+     SYSCALL_STUB( NtUserDownlevelTouchpad ) \
+     SYSCALL_STUB( NtUserDrainThreadCoreMessagingCompletions ) \
+-    SYSCALL_STUB( NtUserDrainThreadCoreMessagingCompletions2 ) \
+     SYSCALL_STUB( NtUserDrawAnimatedRects ) \
+     SYSCALL_STUB( NtUserDrawCaption ) \
+     SYSCALL_STUB( NtUserDwmGetRemoteSessionOcclusionEvent ) \
+@@ -3846,7 +3845,6 @@
+     SYSCALL_STUB( NtUserGetProcessUIContextInformation ) \
+     SYSCALL_STUB( NtUserGetProp2 ) \
+     SYSCALL_STUB( NtUserGetQueueIocp ) \
+-    SYSCALL_STUB( NtUserGetQueueStatusReadonly ) \
+     SYSCALL_STUB( NtUserGetRawPointerDeviceData ) \
+     SYSCALL_STUB( NtUserGetRequiredCursorSizes ) \
+     SYSCALL_STUB( NtUserGetResizeDCompositionSynchronizationObject ) \
+@@ -3885,7 +3883,6 @@
+     SYSCALL_STUB( NtUserInitAnsiOem ) \
+     SYSCALL_STUB( NtUserInitTask ) \
+     SYSCALL_STUB( NtUserInitThreadCoreMessagingIocp ) \
+-    SYSCALL_STUB( NtUserInitThreadCoreMessagingIocp2 ) \
+     SYSCALL_STUB( NtUserInitialize ) \
+     SYSCALL_STUB( NtUserInitializeGenericHidInjection ) \
+     SYSCALL_STUB( NtUserInitializeInputDeviceInjection ) \
+--- a/dlls/win32u/win32u.spec
++++ b/dlls/win32u/win32u.spec
+@@ -917,7 +917,7 @@
+ @ stdcall -syscall NtUserDragDetect(long long long)
+ @ stdcall -syscall NtUserDragObject(long long long long long)
+ @ stub -syscall NtUserDrainThreadCoreMessagingCompletions
+-@ stub -syscall NtUserDrainThreadCoreMessagingCompletions2
++@ stdcall -syscall NtUserDrainThreadCoreMessagingCompletions2(long)
+ @ stub -syscall NtUserDrawAnimatedRects
+ @ stub -syscall NtUserDrawCaption
+ @ stdcall -syscall NtUserDrawCaptionTemp(long long ptr long long wstr long)
+@@ -1083,7 +1083,7 @@
+ @ stub -syscall NtUserGetProp2
+ @ stub -syscall NtUserGetQueueIocp
+ @ stdcall -syscall NtUserGetQueueStatus(long)
+-@ stub -syscall NtUserGetQueueStatusReadonly
++@ stdcall -syscall NtUserGetQueueStatusReadonly(long)
+ @ stdcall -syscall NtUserGetRawInputBuffer(ptr ptr long)
+ @ stdcall -syscall NtUserGetRawInputData(ptr long ptr ptr long)
+ @ stdcall -syscall NtUserGetRawInputDeviceInfo(ptr long ptr ptr)
+@@ -1143,7 +1143,7 @@
+ @ stub -syscall NtUserInitAnsiOem
+ @ stub -syscall NtUserInitTask
+ @ stub -syscall NtUserInitThreadCoreMessagingIocp
+-@ stub -syscall NtUserInitThreadCoreMessagingIocp2
++@ stdcall -syscall NtUserInitThreadCoreMessagingIocp2(long ptr)
+ @ stub -syscall NtUserInitialize
+ @ stdcall -syscall NtUserInitializeClientPfnArrays(ptr ptr ptr ptr)
+ @ stub -syscall NtUserInitializeGenericHidInjection
+--- a/dlls/wow64win/user.c
++++ b/dlls/wow64win/user.c
+@@ -2896,6 +2896,13 @@
+     return NtUserGetQueueStatus( flags );
+ }
+ 
++NTSTATUS WINAPI wow64_NtUserGetQueueStatusReadonly( UINT *args )
++{
++    UINT flags = get_ulong( &args );
++
++    return NtUserGetQueueStatusReadonly( flags );
++}
++
+ NTSTATUS WINAPI wow64_NtUserGetRawInputBuffer( UINT *args )
+ {
+     RAWINPUT *data = get_ptr( &args );
+@@ -4129,6 +4136,21 @@
+     HWND hwnd = get_handle( &args );
+ 
+     return NtUserScheduleDispatchNotification( hwnd );
++}
++
++NTSTATUS WINAPI wow64_NtUserInitThreadCoreMessagingIocp2( UINT *args )
++{
++    HWND hwnd = get_handle( &args );
++    DWORD *slot = get_ptr( &args );
++
++    return HandleToUlong( NtUserInitThreadCoreMessagingIocp2( hwnd, slot ));
++}
++
++NTSTATUS WINAPI wow64_NtUserDrainThreadCoreMessagingCompletions2( UINT *args )
++{
++    HWND hwnd = get_handle( &args );
++
++    return NtUserDrainThreadCoreMessagingCompletions2( hwnd );
+ }
+ 
+ NTSTATUS WINAPI wow64_NtUserScrollDC( UINT *args )
+--- a/include/ntuser.h
++++ b/include/ntuser.h
+@@ -910,6 +910,7 @@
+ W32KAPI HWINSTA WINAPI NtUserGetProcessWindowStation(void);
+ W32KAPI HANDLE  WINAPI NtUserGetProp( HWND hwnd, const WCHAR *str );
+ W32KAPI DWORD   WINAPI NtUserGetQueueStatus( UINT flags );
++W32KAPI DWORD   WINAPI NtUserGetQueueStatusReadonly( UINT flags );
+ W32KAPI UINT    WINAPI NtUserGetRawInputBuffer( RAWINPUT *data, UINT *data_size, UINT header_size );
+ W32KAPI UINT    WINAPI NtUserGetRawInputData( HRAWINPUT rawinput, UINT command, void *data, UINT *data_size, UINT header_size );
+ W32KAPI UINT    WINAPI NtUserGetRawInputDeviceInfo( HANDLE handle, UINT command, void *data, UINT *data_size );
+@@ -988,6 +989,8 @@
+ W32KAPI HANDLE  WINAPI NtUserRemoveProp( HWND hwnd, const WCHAR *str );
+ W32KAPI BOOL    WINAPI NtUserReplyMessage( LRESULT result );
+ W32KAPI INT     WINAPI NtUserScheduleDispatchNotification( HWND hwnd );
++W32KAPI HANDLE  WINAPI NtUserInitThreadCoreMessagingIocp2( HWND hwnd, DWORD *slot );
++W32KAPI BOOL    WINAPI NtUserDrainThreadCoreMessagingCompletions2( HWND hwnd );
+ W32KAPI BOOL    WINAPI NtUserScrollDC( HDC hdc, INT dx, INT dy, const RECT *scroll, const RECT *clip,
+                                        HRGN ret_update_rgn, RECT *update_rect );
+ W32KAPI INT     WINAPI NtUserScrollWindowEx( HWND hwnd, INT dx, INT dy, const RECT *rect,
+--- a/include/objbase.h
++++ b/include/objbase.h
+@@ -363,6 +363,12 @@
+ WINOLE32API HRESULT WINAPI CoGetInterfaceAndReleaseStream(LPSTREAM pStm, REFIID iid, LPVOID* ppv);
+ WINOLE32API HRESULT WINAPI CoGetMarshalSizeMax(ULONG* pulSize, REFIID riid, LPUNKNOWN pUnk, DWORD dwDestContext, LPVOID pvDestContext, DWORD mshlflags);
+ WINOLE32API HRESULT WINAPI CoGetStandardMarshal(REFIID riid, LPUNKNOWN pUnk, DWORD dwDestContext, LPVOID pvDestContext, DWORD mshlflags, LPMARSHAL* ppMarshal);
++typedef enum tagSTDMSHLFLAGS
++{
++    SMEXF_SERVER  = 0x01,
++    SMEXF_HANDLER = 0x02
++} STDMSHLFLAGS;
++WINOLE32API HRESULT WINAPI CoGetStdMarshalEx(LPUNKNOWN pUnkOuter, DWORD smexflags, LPUNKNOWN *ppUnkInner);
+ WINOLE32API HRESULT WINAPI CoMarshalHresult(LPSTREAM pstm, HRESULT hresult);
+ WINOLE32API HRESULT WINAPI CoMarshalInterface(LPSTREAM pStm, REFIID riid, LPUNKNOWN pUnk, DWORD dwDestContext, LPVOID pvDestContext, DWORD mshlflags);
+ WINOLE32API HRESULT WINAPI CoMarshalInterThreadInterfaceInStream(REFIID riid, LPUNKNOWN pUnk, LPSTREAM* ppStm);
+--- a/include/winternl.h
++++ b/include/winternl.h
+@@ -4726,6 +4726,7 @@
+ NTSYSAPI NTSTATUS  WINAPI NtAlpcCreatePort(HANDLE*,OBJECT_ATTRIBUTES*,ALPC_PORT_ATTRIBUTES*);
+ NTSYSAPI NTSTATUS  WINAPI NtAlpcDisconnectPort(HANDLE,ULONG);
+ NTSYSAPI NTSTATUS  WINAPI NtAlpcImpersonateClientOfPort(HANDLE,ALPC_PORT_MESSAGE*,void*);
++NTSYSAPI NTSTATUS  WINAPI NtAlpcQueryInformation(HANDLE,ULONG,void*,ULONG,ULONG*);
+ NTSYSAPI NTSTATUS  WINAPI NtAlpcSendWaitReceivePort(HANDLE,DWORD,ALPC_PORT_MESSAGE*,ALPC_MESSAGE_ATTRIBUTES*,ALPC_PORT_MESSAGE*, SIZE_T*,ALPC_MESSAGE_ATTRIBUTES*,LARGE_INTEGER*);
+ NTSYSAPI NTSTATUS  WINAPI NtAcceptConnectPort(PHANDLE,ULONG,PLPC_MESSAGE,BOOLEAN,PLPC_SECTION_WRITE,PLPC_SECTION_READ);
+ NTSYSAPI NTSTATUS  WINAPI NtAccessCheck(PSECURITY_DESCRIPTOR,HANDLE,ACCESS_MASK,PGENERIC_MAPPING,PPRIVILEGE_SET,PULONG,PULONG,NTSTATUS*);
+@@ -5224,6 +5225,7 @@
+ NTSYSAPI NTSTATUS  WINAPI RtlGetSystemPreferredUILanguages(DWORD,ULONG,ULONG*,WCHAR*,ULONG*);
+ NTSYSAPI LONGLONG  WINAPI RtlGetSystemTimePrecise(void);
+ NTSYSAPI DWORD     WINAPI RtlGetThreadErrorMode(void);
++NTSYSAPI NTSTATUS  WINAPI RtlGetThreadWorkOnBehalfTicket(void*,ULONG);
+ NTSYSAPI NTSTATUS  WINAPI RtlGetThreadPreferredUILanguages(DWORD,ULONG*,WCHAR*,ULONG*);
+ NTSYSAPI BOOLEAN   WINAPI RtlGetUserInfoHeap(HANDLE,ULONG,void*,void**,ULONG*);
+ NTSYSAPI NTSTATUS  WINAPI RtlGetUserPreferredUILanguages(DWORD,ULONG,ULONG*,WCHAR*,ULONG*);
+@@ -5369,6 +5371,7 @@
+ NTSYSAPI NTSTATUS  WINAPI RtlSetSaclSecurityDescriptor(PSECURITY_DESCRIPTOR,BOOLEAN,PACL,BOOLEAN);
+ NTSYSAPI NTSTATUS  WINAPI RtlSetSearchPathMode(ULONG);
+ NTSYSAPI NTSTATUS  WINAPI RtlSetThreadErrorMode(DWORD,LPDWORD);
++NTSYSAPI NTSTATUS  WINAPI RtlSetThreadWorkOnBehalfTicket(const void*);
+ NTSYSAPI NTSTATUS  WINAPI RtlSetThreadPreferredUILanguages(DWORD,PCZZWSTR,ULONG*);
+ NTSYSAPI NTSTATUS  WINAPI RtlSetTimeZoneInformation(const RTL_TIME_ZONE_INFORMATION*);
+ NTSYSAPI void      WINAPI RtlSetUnhandledExceptionFilter(PRTL_EXCEPTION_FILTER);
+--- a/server/alpc.c
++++ b/server/alpc.c
+@@ -78,6 +78,10 @@
+     struct alpc_port        *peer_port;    /* weak paired endpoint; cleared before either disconnects */
+     client_ptr_t             port_context; /* opaque port context set by NtAlpcAcceptConnectPort() */
+     struct alpc_port_attr_t  port_attr;    /* port attributes */
++    unsigned int             seq_no;       /* messages delivered for this endpoint */
++    int                      server_side;  /* communication port created by NtAlpcAcceptConnectPort() */
++    client_ptr_t             accept_context; /* context passed to NtAlpcAcceptConnectPort() */
++    obj_handle_t             client_handle;  /* handle returned by NtAlpcConnectPort() */
+ };
+ 
+ struct alpc_msg_entry
+@@ -104,6 +108,8 @@
+     int delivered;
+     struct token *security_token;
+     struct alpc_port *completed_receiver;
++    client_ptr_t msg_context;                    /* sender message context returned with the reply */
++    int msg_context_valid;
+     unsigned int next;                           /* next free entry */
+ };
+ 
+@@ -253,6 +259,8 @@
+     entry->delivered = 0;
+     entry->security_token = NULL;
+     entry->completed_receiver = NULL;
++    entry->msg_context = 0;
++    entry->msg_context_valid = 0;
+     return id;
+ }
+ 
+@@ -271,6 +279,8 @@
+     entry->src_port = NULL;
+     entry->dst_port = NULL;
+     entry->delivered = 0;
++    entry->msg_context = 0;
++    entry->msg_context_valid = 0;
+     entry->next = 0;
+ 
+     /* append to end of free list so that we don't reuse it too early */
+@@ -349,7 +359,7 @@
+ 
+ static int add_msg_attr_to_record( struct alpc_msg_entry *record, const struct alpc_port *port,
+                                    const struct alpc_msg_attr_t *msg_attr, unsigned int id,
+-                                   int add_port_context, client_ptr_t port_context )
++                                   int add_port_context, client_ptr_t port_context, client_ptr_t msg_context )
+ {
+     record->msg_attr.attributes = 0;
+ 
+@@ -359,6 +369,7 @@
+         if (!(record->context_attr = calloc( 1, sizeof(*record->context_attr) ))) goto failed;
+ 
+         record->context_attr->port_context = port_context;
++        record->context_attr->msg_context = msg_context;
+         record->context_attr->msg_id = id;
+         record->msg_attr.attributes |= ALPC_MESSAGE_CONTEXT_ATTRIBUTE;
+     }
+@@ -416,12 +427,12 @@
+ 
+     if (msg_attr->attributes & ALPC_MESSAGE_WORK_ON_BEHALF_ATTRIBUTE)
+     {
+-        const struct alpc_work_on_behalf_attr_t *src_attr = wine_server_alpc_get_message_attribute( msg_attr, ALPC_MESSAGE_WORK_ON_BEHALF_ATTRIBUTE );
+-
+         if (!(record->work_on_behalf_attr = malloc( sizeof(*record->work_on_behalf_attr))) )
+             goto failed;
+ 
+-        memcpy( record->work_on_behalf_attr, src_attr, sizeof(*record->work_on_behalf_attr) );
++        /* Windows replaces the sender's value with the sending thread's kernel ticket,
++         * or with the ticket the thread is currently working on behalf of */
++        record->work_on_behalf_attr->ticket = get_thread_wob_ticket( current );
+     }
+ 
+     return 1;
+@@ -442,12 +453,24 @@
+     free( record->direct_attr );
+     free( record->work_on_behalf_attr );
+     return 0;
++}
++
++/* Windows counts a delivered message against the endpoint it is meant for; client requests
++ * are queued on the connection port but counted on the server communication port */
++static struct alpc_port *get_seq_owner( struct alpc_port *dst_port, struct alpc_port *src_port,
++                                        unsigned short msg_type )
++{
++    if (dst_port->type == CONNECTION_PORT && msg_type != ALPC_MESSAGE_TYPE_CONNECTION_REQUEST &&
++        src_port && src_port != dst_port && src_port->type == COMMUNICATION_PORT && src_port->peer_port)
++        return src_port->peer_port;
++    return dst_port;
+ }
+ 
+ static int add_msg_record( struct alpc_port *dst_port, struct alpc_port *src_port,
+                            unsigned short msg_type, const struct alpc_msg_t *msg,
+                            data_size_t msg_size, const struct alpc_msg_attr_t *msg_attr,
+-                           int add_port_context, client_ptr_t port_context )
++                           int add_port_context, client_ptr_t port_context, client_ptr_t msg_context,
++                           const client_ptr_t *sender_msg_context )
+ {
+     struct alpc_msg_entry *entry = NULL;
+     unsigned int id = 0;
+@@ -458,6 +481,11 @@
+     if (!(dst_port->status == REFUSED || dst_port->status == DISCONNECTED) &&
+         !(id = alloc_msg_id( src_port, dst_port, msg_type )))
+         return 0;
++    if (id && sender_msg_context)
++    {
++        msg_id_entries[id - ALPC_MSG_ID_OFFSET].msg_context = *sender_msg_context;
++        msg_id_entries[id - ALPC_MSG_ID_OFFSET].msg_context_valid = 1;
++    }
+     if (id && msg_attr && (msg_attr->attributes & ALPC_MESSAGE_SECURITY_ATTRIBUTE))
+     {
+         int level = src_port->port_attr.qos.impersonation_level == SecurityIdentification
+@@ -488,7 +516,7 @@
+     }
+ 
+     memcpy( entry->msg, msg, msg_size );
+-    if (!add_msg_attr_to_record( entry, dst_port, msg_attr, id, add_port_context, port_context ))
++    if (!add_msg_attr_to_record( entry, dst_port, msg_attr, id, add_port_context, port_context, msg_context ))
+     {
+         set_error( STATUS_NO_MEMORY );
+         goto failed;
+@@ -502,6 +530,7 @@
+     entry->msg->client_pid = current->process->id;
+     entry->msg->client_tid = current->id;
+     list_add_tail( &dst_port->msg_list, &entry->entry );
++    get_seq_owner( dst_port, src_port, msg_type )->seq_no++;
+     wake_up( &dst_port->obj, 1 );
+     return 1;
+ 
+@@ -553,9 +582,15 @@
+             port->peer_port = NULL;
+             port->port_context = 0;
+             port->port_attr = *port_attr;
++            port->seq_no = 0;
++            port->server_side = 0;
++            port->accept_context = 0;
++            port->client_handle = 0;
+         }
+         else
+         {
++            /* existing ports are never opened through create; Windows rejects OBJ_OPENIF */
++            set_error( STATUS_INVALID_PARAMETER );
+             release_object( port );
+             return NULL;
+         }
+@@ -570,7 +605,8 @@
+ }
+ 
+ 
+-static int validate_request( data_size_t prefix, data_size_t msg_size, data_size_t attr_size )
++static int validate_request( data_size_t prefix, data_size_t msg_size, data_size_t attr_size,
++                             unsigned int allowed )
+ {
+     const struct alpc_msg_t *msg;
+     const struct alpc_msg_attr_t *attr;
+@@ -585,7 +621,7 @@
+     {
+         if (attr_size < sizeof(*attr)) goto invalid;
+         attr = (const struct alpc_msg_attr_t *)((const char *)msg + msg_size);
+-        if (attr->attributes & ~ALPC_MESSAGE_SECURITY_ATTRIBUTE)
++        if (attr->attributes & ~allowed)
+         { set_error( STATUS_NOT_SUPPORTED ); return 0; }
+         if (attr_size != wine_server_alpc_get_header_size( attr->attributes )) goto invalid;
+         if (attr->attributes & ALPC_MESSAGE_SECURITY_ATTRIBUTE)
+@@ -682,7 +718,7 @@
+     data_ptr += req->connection_attr_size + req->server_sd_size;
+     if (!validate_request( req->connection_attr_size + req->server_sd_size + req->name_size +
+                            req->obj_attr_size + sizeof(struct alpc_port_attr_t) + req->sid_size,
+-                           req->msg_size, req->msg_attr_size )) return;
++                           req->msg_size, req->msg_attr_size, ALPC_MESSAGE_SECURITY_ATTRIBUTE )) return;
+     name.str = (const WCHAR *)data_ptr;
+     name.len = (req->name_size / sizeof(WCHAR)) * sizeof(WCHAR);
+     data_ptr += req->name_size;
+@@ -789,8 +825,9 @@
+     }
+ 
+     reply->handle = alloc_handle( current->process, communication_port, ALPC_PORT_ALL_ACCESS, objattr->attributes );
++    communication_port->client_handle = reply->handle;
+     if (reply->handle && !add_msg_record( connection_port, communication_port, ALPC_MESSAGE_TYPE_CONNECTION_REQUEST,
+-                                        send_msg, req->msg_size, send_msg_attr, 0, 0 ))
++                                        send_msg, req->msg_size, send_msg_attr, 0, 0, 0, NULL ))
+     {
+         close_handle( current->process, reply->handle );
+         reply->handle = 0;
+@@ -820,7 +857,7 @@
+     if ((layout_status = alpc_validate_accept_layout( req, get_req_data_size() )))
+     { set_error( layout_status ); return; }
+     if (!validate_request( req->obj_attr_size + sizeof(struct alpc_port_attr_t),
+-                           req->msg_size, req->msg_attr_size )) return;
++                           req->msg_size, req->msg_attr_size, ALPC_MESSAGE_SECURITY_ATTRIBUTE )) return;
+     objattr = get_req_object_attributes_data( data_ptr, req->obj_attr_size, &sd, &objattr_name, &root );
+     if (!objattr) return;
+     data_ptr += req->obj_attr_size;
+@@ -866,7 +903,7 @@
+ 
+     if (req->accept == 0)
+     {
+-        if (add_msg_record(dst_port, connection_port, ALPC_MESSAGE_TYPE_CONNECTION_REPLY, msg, req->msg_size, msg_attr, 0, 0))
++        if (add_msg_record(dst_port, connection_port, ALPC_MESSAGE_TYPE_CONNECTION_REPLY, msg, req->msg_size, msg_attr, 0, 0, 0, NULL))
+         {
+             dst_port->status = REFUSED;
+             msg_id_entries[msg->id - ALPC_MSG_ID_OFFSET].completed_receiver = connection_port;
+@@ -886,7 +923,7 @@
+         }
+         reply->handle = alloc_handle( current->process, communication_port, ALPC_PORT_ALL_ACCESS, objattr->attributes );
+         if (reply->handle && add_msg_record( dst_port, connection_port, ALPC_MESSAGE_TYPE_CONNECTION_REPLY, msg,
+-                            req->msg_size, msg_attr, 1, req->port_context ))
++                            req->msg_size, msg_attr, 1, req->port_context, 0, NULL ))
+         {
+             communication_port->dst_port = (struct alpc_port *)grab_object(dst_port);
+             communication_port->peer_port = dst_port;
+@@ -895,6 +932,8 @@
+             dst_port->dst_port = (struct alpc_port *)grab_object(connection_port);
+             dst_port->status = CONNECTED;
+             dst_port->port_context = req->port_context;
++            communication_port->server_side = 1;
++            communication_port->accept_context = req->port_context;
+             msg_id_entries[msg->id - ALPC_MSG_ID_OFFSET].completed_receiver = connection_port;
+             free_msg_id( msg->id );
+         }
+@@ -909,6 +948,27 @@
+     if (root) release_object( root );
+     release_object( dst_port );
+     release_object( connection_port );
++}
++
++/* Query basic information about an ALPC port */
++DECL_HANDLER(alpc_query_port)
++{
++    struct alpc_port *port = get_alpc_port_obj( current->process, req->handle, ALPC_PORT_QUERY_STATE );
++
++    if (!port) return;
++    reply->seq_no = port->seq_no;
++    if (port->type == CONNECTION_PORT)
++    {
++        /* Windows always reports connection ports as accepting LPC requests */
++        reply->flags = port->port_attr.flags | ALPC_PORTFLG_ALLOW_LPC_REQUESTS;
++        reply->port_context = 0;
++    }
++    else
++    {
++        reply->flags = 0;
++        reply->port_context = port->server_side ? port->accept_context : port->client_handle;
++    }
++    release_object( port );
+ }
+ 
+ /* Send a message and attributes to an ALPC object */
+@@ -918,11 +978,13 @@
+     const struct alpc_msg_t *msg = NULL;
+     const struct alpc_msg_attr_t *msg_attr = NULL;
+     const unsigned char *data_ptr = get_req_data();
++    client_ptr_t reply_msg_context = 0;
+     unsigned short msg_type;
+ 
+     if (req->flags & ~(ALPC_MSGFLG_REPLY_MESSAGE | ALPC_MSGFLG_SYNC_REQUEST))
+     { set_error( STATUS_NOT_SUPPORTED ); return; }
+-    if (!validate_request( 0, req->msg_size, req->msg_attr_size )) return;
++    if (!validate_request( 0, req->msg_size, req->msg_attr_size,
++                           ALPC_MESSAGE_SECURITY_ATTRIBUTE | ALPC_MESSAGE_WORK_ON_BEHALF_ATTRIBUTE )) return;
+     port = get_alpc_port_obj( current->process, req->handle, ALPC_PORT_QUERY_STATE);
+     if (!port) return;
+ 
+@@ -994,7 +1056,12 @@
+     else
+         msg_type = ALPC_MESSAGE_TYPE_REQUEST;
+ 
+-    if (add_msg_record(dst_port, port, msg_type, msg, req->msg_size, msg_attr, 1, port->port_context))
++    if (msg->id >= ALPC_MSG_ID_OFFSET && msg->id - ALPC_MSG_ID_OFFSET < used_msg_id_entries &&
++        msg_id_entries[msg->id - ALPC_MSG_ID_OFFSET].msg_context_valid)
++        reply_msg_context = msg_id_entries[msg->id - ALPC_MSG_ID_OFFSET].msg_context;
++
++    if (add_msg_record(dst_port, port, msg_type, msg, req->msg_size, msg_attr, 1, port->port_context,
++                       reply_msg_context, req->msg_context_valid ? &req->msg_context : NULL))
+         free_msg_id(msg->id);
+ 
+ failed:
+@@ -1012,7 +1079,8 @@
+ 
+     if (req->flags & ~(ALPC_MSGFLG_REPLY_MESSAGE | ALPC_MSGFLG_SYNC_REQUEST))
+     { set_error( STATUS_NOT_SUPPORTED ); return; }
+-    if (req->msg_attributes & ~(ALPC_MESSAGE_CONTEXT_ATTRIBUTE | ALPC_MESSAGE_SECURITY_ATTRIBUTE))
++    /* receivers may allocate any attribute; only those carried by the message are returned */
++    if (req->msg_attributes & ~ALPC_MESSAGE_ATTRIBUTE_ALL)
+     { set_error( STATUS_NOT_SUPPORTED ); return; }
+     port = get_alpc_port_obj( current->process, req->handle, ALPC_PORT_QUERY_STATE );
+     if (!port) return;
+--- a/server/protocol.def
++++ b/server/protocol.def
+@@ -1405,6 +1405,7 @@
+     client_ptr_t entry_point;  /* thread entry point */
+     obj_handle_t token;        /* impersonation token */
+     int          disable_boost;/* disable thread priority boost */
++    client_ptr_t wob_ticket;   /* work-on-behalf ticket override */
+     unsigned int mask;         /* setting mask (see below) */
+     VARARG(desc,unicode_str);  /* description string */
+ @END
+@@ -1416,6 +1417,7 @@
+ #define SET_THREAD_INFO_DESCRIPTION     0x20
+ #define SET_THREAD_INFO_DBG_HIDDEN      0x40
+ #define SET_THREAD_INFO_DISABLE_BOOST   0x80
++#define SET_THREAD_INFO_WOB_TICKET      0x100
+ 
+ 
+ /* Suspend a thread */
+@@ -4482,6 +4484,16 @@
+ @REQ(alpc_impersonate_client)
+     obj_handle_t handle;                      /* actual receiving port */
+     unsigned int id;                         /* delivered message identity */
++@END
++
++
++/* Query basic information about an ALPC port */
++@REQ(alpc_query_port)
++    obj_handle_t  handle;                     /* ALPC port handle */
++@REPLY
++    unsigned int  flags;                      /* port flags */
++    unsigned int  seq_no;                     /* messages delivered for this endpoint */
++    client_ptr_t  port_context;               /* port context */
+ @END
+ 
+ 
+@@ -4498,6 +4510,8 @@
+     unsigned int  flags;                      /* flags */
+     unsigned int  msg_size;                   /* size of the message to be sent, including message data */
+     unsigned int  msg_attr_size;              /* size of the message attributes to be sent */
++    unsigned int  msg_context_valid;          /* sender supplied a context attribute */
++    client_ptr_t  msg_context;                /* sender message context, returned with the reply */
+     /* VARARG(msg,alpc_msg_t); */                   /* message to be sent */
+     /* VARARG(msg_attr,alpc_msg_attr_t); */   /* optional, message attributes to be sent */
+ @END
+--- a/server/thread.c
++++ b/server/thread.c
+@@ -431,6 +431,7 @@
+     thread->desc_len        = 0;
+ 
+     thread->creation_time = current_time;
++    thread->wob_ticket    = 0;
+     thread->exit_time     = 0;
+     thread->completion_wait = NULL;
+ 
+@@ -757,6 +758,37 @@
+     return NULL;
+ }
+ 
++/* Windows issues an opaque per-thread work-on-behalf ticket; wineserver derives it from
++ * the thread id and the low part of the creation time */
++client_ptr_t get_thread_wob_identity( const struct thread *thread )
++{
++    return thread->id | ((client_ptr_t)(unsigned int)thread->creation_time << 32);
++}
++
++/* ticket carried by work-on-behalf ALPC attributes: the override if set, else the identity */
++client_ptr_t get_thread_wob_ticket( const struct thread *thread )
++{
++    return thread->wob_ticket ? thread->wob_ticket : get_thread_wob_identity( thread );
++}
++
++/* only tickets of live threads are accepted; zero clears the override */
++static unsigned int set_thread_wob_ticket( struct thread *thread, client_ptr_t ticket )
++{
++    thread_id_t id = (thread_id_t)ticket;
++    struct object *obj;
++    struct thread *owner;
++
++    if (ticket)
++    {
++        if (!id || (id & 3)) return STATUS_INVALID_CID;
++        if (!(obj = get_ptid_entry( id )) || obj->ops != &thread_ops) return STATUS_NOT_FOUND;
++        owner = (struct thread *)obj;
++        if (owner->state == TERMINATED || get_thread_wob_identity( owner ) != ticket) return STATUS_NOT_FOUND;
++    }
++    thread->wob_ticket = ticket;
++    return STATUS_SUCCESS;
++}
++
+ /* get a thread from a handle (and increment the refcount) */
+ struct thread *get_thread_from_handle( obj_handle_t handle, unsigned int access )
+ {
+@@ -928,6 +960,13 @@
+         thread->dbg_hidden = 1;
+     if (req->mask & SET_THREAD_INFO_DISABLE_BOOST)
+         set_thread_disable_boost( thread, req->disable_boost );
++    if (req->mask & SET_THREAD_INFO_WOB_TICKET)
++    {
++        unsigned int status;
++
++        if (thread != current) set_error( STATUS_INVALID_PARAMETER );
++        else if ((status = set_thread_wob_ticket( thread, req->wob_ticket ))) set_error( status );
++    }
+     if (req->mask & SET_THREAD_INFO_DESCRIPTION)
+     {
+         WCHAR *desc;
+--- a/server/thread.h
++++ b/server/thread.h
+@@ -93,6 +93,7 @@
+     obj_handle_t           desktop;       /* desktop handle */
+     int                    desktop_users; /* number of objects using the thread desktop */
+     timeout_t              creation_time; /* Thread creation time */
++    client_ptr_t           wob_ticket;    /* work-on-behalf ticket override, 0 when unset */
+     timeout_t              exit_time;     /* Thread exit time */
+     struct token          *token;         /* security token associated with this thread */
+     struct list            kernel_object; /* list of kernel object pointers */
+@@ -108,6 +109,8 @@
+ extern struct thread *create_thread( int fd, struct process *process,
+                                      const struct security_descriptor *sd );
+ extern struct thread *get_thread_from_id( thread_id_t id );
++extern client_ptr_t get_thread_wob_identity( const struct thread *thread );
++extern client_ptr_t get_thread_wob_ticket( const struct thread *thread );
+ extern struct thread *get_thread_from_handle( obj_handle_t handle, unsigned int access );
+ extern struct thread *get_thread_from_tid( int tid );
+ extern struct thread *get_thread_from_pid( int pid );
+--- a/server/token.c
++++ b/server/token.c
+@@ -1155,7 +1155,9 @@
+                                  unsigned int *status )
+ {
+     unsigned int ret, restricting_access, restricting_status, restricted_desired = desired_access;
+-    unsigned int write_access = mapping->write | DELETE | WRITE_DAC | WRITE_OWNER;
++    /* write-restricted tokens check restricting SIDs only for rights that are write-only in the
++     * mapping; bits also in the read or execute mapping are not restricted (measured on Windows) */
++    unsigned int write_access = (mapping->write & ~(mapping->read | mapping->exec)) | DELETE | WRITE_DAC | WRITE_OWNER;
+ 
+     ret = token_access_check_pass( token, FALSE, sd, desired_access, privs, priv_count,
+                                   mapping, granted_access, status );

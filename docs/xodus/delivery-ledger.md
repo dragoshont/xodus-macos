@@ -57,13 +57,13 @@ manufacture that registration.
 | --- | --- |
 | Microsoft session persistence | Reference app `1759a61` / engine `397dd02` saved a real login and read it after restart. No raw credentials were exported. |
 | Authenticated Xbox package service | App `f30f1b18` / engine `d00a8b97` returned `credentialPresent` and one Halo `auth.verify` returned exact `verified:true`. This was not a license, ownership or gameplay check. |
-| Current updated-engine saved access | Installed app `0a6dca17` retains the exact signed `c1073100` engine bytes and loads recent activity using the saved sign-in. No new Microsoft login, engine re-signing or credential reset was used. |
+| Verified updated-engine saved access | Earlier installed app `0a6dca17` loaded recent activity using the saved sign-in. Current app `2d741a7` preserves those exact signed `c1073100` engine bytes; no new saved-status/history read was performed to qualify the presentation correction. |
 | Actual personal Xbox service | One `library.recent` read on the corrected pair returned **20 real titles**, live/partial, with reported platforms and no guessed Store product mapping. |
 | Real personal artwork | All 20 titles now have available artwork; zero references were rejected. One preload batch succeeded for 20 references, with zero failures. References can share the cache; this is not a claim of 20 distinct HTTP requests. |
 | Qualified artwork correction | Engine `c1073100` safely converts exact Store HTTP image metadata to HTTPS; nine focused native checks passed. Its exact sealed Release/provenance and 205 Git-LF inputs were checked. Matching app CI passed; package and installed inventories/signatures matched. The one actual changed Library PNG was retrieved and visually reviewed, with real tile artwork and a tile-based feature, not an invented marketing hero. |
 | Real public artwork | Installed artwork code loaded Halo Infinite and Gears 5 covers plus Halo hero artwork from actual Store metadata: three successful loads, zero failures. Discover/Product own-view PNGs were visually reviewed. |
-| Current working package | App `0a6dca1751576e2484b1f7606c174ae1cc5970c4`, engine `c1073100ce8936a751b962b1401ddb641c8be38a`; unchanged CLI SHA256 `c8fe69a3bc2b6a84c5bad5ef0c1ae041f36466a87419c0f17d9567c6df3ed14d`. Exact CI passed; all 21 installed files and signatures match admission. The same populated shipping process remains running with one owned engine and no login helper. Full `7aa9` rollback and saved profile are preserved. |
-| Actual shipping Library startup | Ordinary foreground startup published one real recently played list with 20 titles. That same shipping process produced 12 successful image-decode events. The coordinator independently read its fixed native OSLog events and checked its live ownership/bytes; this was not a private renderer, fixture injection or reopen-to-empty result. Decode count is not a unique-HTTP-request count. |
+| Current working package | App `2d741a745217f52330ad79208eb2e8374a708a0d`, engine `c1073100ce8936a751b962b1401ddb641c8be38a`; unchanged CLI SHA256 `c8fe69a3bc2b6a84c5bad5ef0c1ae041f36466a87419c0f17d9567c6df3ed14d`. Exact CI passed; all 21 installed files and signatures match admission. Main Library honestly reports unavailable owned-PC inventory. Full working `0a` rollback and saved profile are preserved. |
+| Historical shipping activity startup | Earlier `7aa9` and `0a` ordinary foreground startup published one real recently played list with 20 titles and produced 12 successful image-decode events. The coordinator independently read fixed native OSLog events and checked live process ownership/bytes; this was not a private renderer or fixture injection. Current main Library does not autoload this activity. Decode count is not a unique-HTTP-request count. |
 | Recent-title navigation | Native Find in Store actions are installed. Explicit user action passes only the title name to existing Discover search; the user selects a catalog candidate. Source/neutral routing, empty/error and selection checks passed; no live title query was automated and no edition or ownership mapping was inferred. |
 | Native read correction | Foreground reads explicitly enable native interaction under the existing mutex, then restore the prior setting. Background/verification reads remain deliberately noninteractive. Fixed failed-read diagnostics contain no credentials or account identifiers. |
 | Signing limit | The local signer works, but identical self-signed designated requirements do not stabilize macOS's independent per-binary partition. A future engine can need native permission again. No prompt-free rebuild guarantee is claimed. |
@@ -71,12 +71,12 @@ manufacture that registration.
 | Historical CrossOver controls | Existing No Man's Sky/Hogwarts user confirmations and a Hollow Knight menu result are preserved references, not proof this launcher installs or launches them. |
 
 Personal history is intentionally memory-only; no development render session
-injects data into shipping. Foreground Library startup/entry now checks saved
-status only when needed, then loads real recent activity automatically. One
-owned attempt per connection prevents navigation/view-rebuild polling; failures
-offer explicit retry. Account checks and connection changes still clear personal
-history. The verified populated shipping process was left running, not reopened
-into a fresh empty session.
+injects data into shipping. Explicit Recent activity entry checks saved status
+only when needed, then loads real activity. One owned attempt per connection
+prevents navigation/view-rebuild polling; failures offer explicit retry.
+Account checks and connection changes still clear personal history. Main
+Library does not initiate a personal read. Existing anonymous catalog bootstrap
+remains; this is not a claim of zero network activity.
 
 **Superseding installed correction:** app `2d741a7` now keeps main PC Library
 unavailable rather than presenting those activity rows as owned games. Recent
@@ -86,6 +86,14 @@ checks passed, the unchanged signed C8 engine and full working rollback were
 preserved, and the corrected main process remains open. This establishes the
 presentation correction, not an authoritative PC collection. A bounded absence
 of publication/decode events is not a visual or API-traffic proof.
+
+**Owned-PC reference investigation is parked:** explicit approval allowed
+activation of the installed Windows Xbox client, but bounded inspection reached
+a pre-install feature-selection popup, not Library. No collection contract or
+authoritative ownership result was obtained. The popup was left untouched; no
+further navigation/static-inspection loop or install progression is scheduled.
+Account binding, paging, entitlement semantics and same-SKU PC applicability
+remain blockers described in the API inventory.
 
 Private results remain in ignored session/Mac evidence locations:
 

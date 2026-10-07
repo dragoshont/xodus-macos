@@ -28,7 +28,9 @@ experimental Mac. Each run was the genuine `Microsoft.GamingApp`
 - `built-dll-sha256.txt`: hashes of the built PE DLLs and `.so` files, the
   genuine `Windows.UI.Xaml.dll`, `CoreMessaging.dll`, `MrmCoreR.dll`,
   `bcp47mrm.dll` and `threadpoolwinrt.dll` that were exercised, and the patch
-  (last line). Paths are relative to the stage.
+  (last line). Paths are relative to the stage. The `evidence-sp46/`
+  directory name is historical: the patch and hashes in it were regenerated
+  after the sp47 roapi fix and the wineboot comment change.
 - `patch-*.py`, `combase-ordinals.py`: patch scripts for the slices that
   were scripted. Each keeps `.pre-<slice>` backups. Other slices
   (recvattr, wob server side, ndr3 headers, gitw, pkgid, json, avs, hdi,

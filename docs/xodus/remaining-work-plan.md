@@ -260,7 +260,20 @@ and `.status` (last) atomically with mode 0600:
   Play check after the app slice ships.
 
 App UI (S3 sign-in state, S5 Install/progress/cancel, S6 update/uninstall) is
-being implemented by the app owner against this contract.
+installed: app `1463cdb` (CI 37640727574, C8 preserved, rollback
+`Xodus-rollback-working-7ec1-before-game-operations-10b3cdda4a4e.app`).
+
+Live acceptance (7 October 2026, partial): accessibility identifiers fixed;
+Installed row menu offers Check for update / Repair, Remove from list,
+Uninstall…; Repair consent shows destination, real free space and correct copy;
+Repair ran the backend and showed the sign-in error (code 11) without changing
+the registry. **Blocked on human Keychain approval:** the new app build asks
+for "Xodus Library" (PC games stay at "Loading your PC games"), and the game
+service's "Xodus Service" read waits behind it because the service sign-in test
+re-saved the credentials through `xodus-cli`. The user must enter the login
+password and choose Always Allow on both prompts. Then: Install + Uninstall
+Minecraft Launcher, Repair + Play Lara. Follow-up: service sign-in must not
+re-save credentials through a different binary (it causes this prompt).
 
 ## S6 — Update, repair, remove
 

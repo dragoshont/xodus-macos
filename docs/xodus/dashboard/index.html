@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xodus — delivery map</title>
+<style>
+  :root {
+    --bg: #0f1012;
+    --raise: #16171a;
+    --line: #26282d;
+    --line-soft: #1d1f23;
+    --ink: #ecebe6;
+    --ink-2: #a9a8a2;
+    --ink-3: #74736e;
+    --done: #7fd18b;
+    --done-dim: #2a4a30;
+    --now: #f2b84b;
+    --now-dim: #4a3a1a;
+    --plan: #3a3c42;
+    --risk: #e8846a;
+    --font: -apple-system, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    --display: -apple-system, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); color: var(--ink); }
+  body { margin: 0; font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+  main { max-width: 1180px; margin: 0 auto; padding: 56px 40px 96px; }
+  h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; }
+  h1 { font-size: clamp(2rem, 1.2rem + 2.6vw, 3.25rem); line-height: 1.05; letter-spacing: -0.03em; font-weight: 650; max-width: 22ch; }
+  h2 { font-size: 1.375rem; letter-spacing: -0.015em; font-weight: 620; margin: 88px 0 6px; }
+  .sub { color: var(--ink-2); max-width: 68ch; margin: 0 0 28px; }
+  .mono { font-family: var(--mono); font-size: 0.82em; color: var(--ink-2); }
+
+  header { display: grid; grid-template-columns: 1fr auto; gap: 32px; align-items: end; padding-bottom: 36px; border-bottom: 1px solid var(--line); }
+  .lede { color: var(--ink-2); font-size: 1.0625rem; margin-top: 18px; max-width: 60ch; }
+  .live { text-align: right; color: var(--ink-3); font-size: 0.8125rem; white-space: nowrap; }
+  .live b { color: var(--ink-2); font-weight: 500; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--done); margin-right: 8px; vertical-align: 1px; box-shadow: 0 0 0 0 rgba(127,209,139,.5); }
+  .dot.pulse { animation: pulse 1.6s cubic-bezier(.16,1,.3,1) 1; }
+  @keyframes pulse { from { box-shadow: 0 0 0 0 rgba(127,209,139,.55); } to { box-shadow: 0 0 0 12px rgba(127,209,139,0); } }
+
+  /* Budget rail */
+  .rail { margin-top: 40px; }
+  .rail-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .rail-head strong { font-family: var(--display); font-size: 1.75rem; letter-spacing: -0.02em; font-weight: 600; }
+  .rail-head span { color: var(--ink-2); }
+  .bar { display: flex; gap: 3px; height: 44px; }
+  .seg { position: relative; border-radius: 6px; background: var(--plan); min-width: 0; overflow: hidden; transition: background .6s cubic-bezier(.16,1,.3,1); }
+  .seg.done { background: var(--done); }
+  .seg.now { background: var(--now); }
+  .seg.blocked { background: var(--risk); }
+  .seg label { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; font-weight: 600; color: #101113; white-space: nowrap; }
+  .seg.planned label { color: var(--ink-2); }
+  .seg.changed { animation: flash 1.4s cubic-bezier(.16,1,.3,1) 1; }
+  @keyframes flash { 0% { filter: brightness(1.8); } 100% { filter: none; } }
+  .legend { display: flex; gap: 22px; margin-top: 14px; color: var(--ink-3); font-size: 0.8125rem; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; vertical-align: -1px; }
+
+  /* Backlog */
+  .backlog { display: grid; grid-template-columns: 56px 1fr 72px 120px; border-top: 1px solid var(--line); }
+  .backlog > div { padding: 14px 0; border-bottom: 1px solid var(--line-soft); }
+  .backlog .id { font-family: var(--mono); color: var(--ink-3); font-size: 0.8125rem; padding-top: 16px; }
+  .backlog .t { font-weight: 560; }
+  .backlog .d { color: var(--ink-3); font-size: 0.875rem; margin-top: 2px; }
+  .backlog .h { color: var(--ink-2); text-align: right; padding-right: 20px; padding-top: 15px; }
+  .state { font-size: 0.8125rem; padding-top: 15px; }
+  .state::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: 0; background: var(--plan); }
+  .state.done { color: var(--done); } .state.done::before { background: var(--done); }
+  .state.now, .state.next { color: var(--now); } .state.now::before, .state.next::before { background: var(--now); }
+  .state.blocked { color: var(--risk); } .state.blocked::before { background: var(--risk); }
+  .state.planned { color: var(--ink-3); }
+
+  /* Shipped history: a single ruled timeline */
+  .history { position: relative; margin-top: 8px; }
+  .history::before { content: ""; position: absolute; left: 112px; top: 6px; bottom: 6px; width: 1px; background: var(--line); }
+  .ev { display: grid; grid-template-columns: 96px 32px 1fr auto; align-items: start; padding: 11px 0; }
+  .ev .when { color: var(--ink-3); font-size: 0.8125rem; text-align: right; padding-right: 16px; padding-top: 2px; }
+  .ev .node { width: 9px; height: 9px; border-radius: 50%; background: var(--done); margin: 7px 0 0 12px; box-shadow: 0 0 0 4px var(--bg); }
+  .ev .what b { font-weight: 580; }
+  .ev .what p { margin: 2px 0 0; color: var(--ink-2); font-size: 0.9rem; max-width: 70ch; }
+  .ev .proof { font-family: var(--mono); font-size: 0.78rem; color: var(--ink-3); padding-top: 3px; padding-left: 20px; white-space: nowrap; }
+
+  /* Lineage */
+  .lineage { border-top: 1px solid var(--line); }
+  .row { display: grid; grid-template-columns: 220px 1fr 1fr 200px; gap: 28px; padding: 22px 0; border-bottom: 1px solid var(--line-soft); }
+  .row .src b { display: block; font-weight: 600; }
+  .row .src span { color: var(--ink-3); font-size: 0.8125rem; }
+  .kind { display: inline-block; margin-top: 10px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); }
+  .kind.built { color: var(--done); border-color: var(--done-dim); }
+  .kind.extended { color: var(--now); border-color: var(--now-dim); }
+  .kind.rejected { color: var(--ink-3); text-decoration: line-through; }
+  .row h3 { font-size: 0.75rem; font-weight: 600; color: var(--ink-3); margin-bottom: 6px; letter-spacing: 0.01em; }
+  .row p { margin: 0; color: var(--ink-2); font-size: 0.9rem; }
+  .row .powers p { color: var(--ink); }
+  .lineage-head { display: grid; grid-template-columns: 220px 1fr 1fr 200px; gap: 28px; padding: 0 0 10px; color: var(--ink-3); font-size: 0.8125rem; }
+
+  /* Parity */
+  .parity { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); column-gap: 48px; border-top: 1px solid var(--line); }
+  .p { display: grid; grid-template-columns: 1fr auto; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+  .p small { display: block; color: var(--ink-3); font-size: 0.8125rem; }
+  .ps { font-size: 0.8125rem; font-weight: 560; white-space: nowrap; padding-top: 1px; }
+  .ps.matched { color: var(--done); } .ps.planned { color: var(--now); } .ps.unproven { color: var(--risk); }
+  .ps.deferred, .ps.out { color: var(--ink-3); }
+
+  /* Activity */
+  .feed { border-top: 1px solid var(--line); }
+  .f { display: grid; grid-template-columns: 140px 1fr; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+  .f time { color: var(--ink-3); font-size: 0.8125rem; padding-top: 2px; }
+  .f.fresh span { color: var(--ink); }
+  .f span { color: var(--ink-2); }
+
+  footer { margin-top: 72px; color: var(--ink-3); font-size: 0.8125rem; }
+  footer code { font-family: var(--mono); color: var(--ink-2); }
+
+  @media (max-width: 860px) {
+    main { padding: 32px 20px 64px; }
+    header { grid-template-columns: 1fr; }
+    .live { text-align: left; }
+    .row, .lineage-head { grid-template-columns: 1fr; gap: 10px; }
+    .lineage-head { display: none; }
+    .backlog { grid-template-columns: 44px 1fr 56px; }
+    .backlog .state { grid-column: 2 / 4; padding-top: 0; }
+    .seg label { display: none; }
+    .history::before { left: 84px; }
+    .ev { grid-template-columns: 68px 32px 1fr; }
+    .ev .proof { grid-column: 3; padding-left: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1 id="headline">Xodus delivery map</h1>
+      <p class="lede" id="lede"></p>
+    </div>
+    <div class="live"><span class="dot" id="dot"></span>Live from <b>status.js</b><br><span id="updated"></span></div>
+  </header>
+
+  <section class="rail" aria-label="Phase 2 budget">
+    <div class="rail-head"><strong id="budget"></strong><span id="phase"></span></div>
+    <div class="bar" id="bar"></div>
+    <div class="legend">
+      <span><i style="background:var(--done)"></i>Done</span>
+      <span><i style="background:var(--now)"></i>In progress or next</span>
+      <span><i style="background:var(--plan)"></i>Planned</span>
+      <span><i style="background:var(--risk)"></i>Blocked</span>
+    </div>
+  </section>
+
+  <h2>Phase 2 backlog</h2>
+  <p class="sub">Each item closes only after a real run in the installed app. Width in the bar above is proportional to its estimate.</p>
+  <div class="backlog" id="backlog"></div>
+
+  <h2>What already shipped</h2>
+  <p class="sub">From the first feasibility call to the in-app install, repair and uninstall accepted tonight.</p>
+  <div class="history" id="history"></div>
+
+  <h2>Where it came from</h2>
+  <p class="sub">What we brought in, what we changed in it, and what we built from scratch.</p>
+  <div class="lineage-head"><span>Source</span><span>Taken</span><span>Changed or built</span><span>Powers</span></div>
+  <div class="lineage" id="lineage"></div>
+
+  <h2>Against the Xbox app</h2>
+  <p class="sub">Parity means the Xbox app's launcher features for games Xodus marks "Plays on Mac". Not every Xbox PC game will run.</p>
+  <div class="parity" id="parity"></div>
+
+  <h2>Activity</h2>
+  <p class="sub">Most recent first.</p>
+  <div class="feed" id="feed"></div>
+
+  <footer>Data: <code>docs/xodus/dashboard/status.js</code> · Plan: <code>docs/xodus/remaining-work-plan.md</code></footer>
+</main>
+
+<script>
+const STATE_LABEL = { done: "Done", now: "In progress", next: "Next", planned: "Planned", blocked: "Blocked" };
+const PARITY_LABEL = { matched: "Matched", planned: "Planned", unproven: "Unproven", deferred: "Deferred", out: "Out of scope" };
+const KIND_LABEL = { built: "Built new", extended: "Extended", configured: "Configured", used: "Used as a service", rejected: "Researched, not adopted", process: "Process" };
+let previous = {};
+let lastStamp = null;
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmtTime = iso => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
+const ago = iso => { const m = Math.round((Date.now() - new Date(iso)) / 60000); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago`; };
+
+function render(s) {
+  const items = s.backlog;
+  const done = items.filter(i => i.status === "done").length;
+  const total = s.budget.totalHours, spent = s.budget.spentHours;
+  const shippedCount = s.shipped.length;
+  document.getElementById("headline").textContent =
+    done === items.length ? "Phase 2 complete." : `${shippedCount} slices shipped. ${items.length - done} to go.`;
+  const current = items.find(i => i.status === "now") || items.find(i => i.status === "next");
+  document.getElementById("lede").textContent =
+    `${s.phase}. ${current ? `Now: ${current.id} ${current.title.toLowerCase()}.` : ""}`;
+  document.getElementById("updated").textContent = `Updated ${fmtTime(s.updatedAt)} · ${ago(s.updatedAt)}`;
+  document.getElementById("budget").textContent = `${spent} of ${total} h`;
+  document.getElementById("phase").textContent = `${done} of ${items.length} items done`;
+
+  document.getElementById("bar").innerHTML = items.map(i => {
+    const changed = previous[i.id] && previous[i.id] !== i.status ? " changed" : "";
+    return `<div class="seg ${i.status === "next" ? "now" : esc(i.status)}${changed}" style="flex:${i.hours}" title="${esc(i.id)} ${esc(i.title)} · ${i.hours} h · ${STATE_LABEL[i.status] || i.status}"><label>${esc(i.id)}</label></div>`;
+  }).join("");
+
+  document.getElementById("backlog").innerHTML = items.map(i => `
+    <div class="id">${esc(i.id)}</div>
+    <div><div class="t">${esc(i.title)}</div><div class="d">${esc(i.evidence || i.done)}</div></div>
+    <div class="h">${i.hours} h</div>
+    <div class="state ${esc(i.status)}">${STATE_LABEL[i.status] || esc(i.status)}</div>`).join("");
+
+  document.getElementById("history").innerHTML = s.shipped.slice().reverse().map(e => `
+    <div class="ev"><div class="when">${esc(e.date)}</div><div class="node"></div>
+    <div class="what"><b>${esc(e.title)}</b><p>${esc(e.detail)}</p></div>
+    <div class="proof">${esc(e.proof)}</div></div>`).join("");
+
+  document.getElementById("lineage").innerHTML = s.lineage.map(l => `
+    <div class="row">
+      <div class="src"><b>${esc(l.source)}</b><span>${esc(l.origin)}</span><br><span class="kind ${esc(l.kind)}">${KIND_LABEL[l.kind] || esc(l.kind)}</span></div>
+      <div><h3>Taken</h3><p>${esc(l.took)}</p></div>
+      <div><h3>${l.kind === "built" ? "Built" : "Changed"}</h3><p>${esc(l.changed)}</p></div>
+      <div class="powers"><h3>Powers</h3><p>${esc(l.powers)}</p></div>
+    </div>`).join("");
+
+  document.getElementById("parity").innerHTML = s.parity.map(p => `
+    <div class="p"><div>${esc(p.feature)}${p.note ? `<small>${esc(p.note)}</small>` : ""}</div>
+    <div class="ps ${esc(p.state)}">${PARITY_LABEL[p.state] || esc(p.state)}</div></div>`).join("");
+
+  const newest = s.events.slice().sort((a, b) => new Date(b.at) - new Date(a.at));
+  document.getElementById("feed").innerHTML = newest.map(e => `
+    <div class="f${Date.now() - new Date(e.at) < 15 * 60000 ? " fresh" : ""}"><time>${fmtTime(e.at)}</time><span>${esc(e.text)}</span></div>`).join("");
+
+  previous = Object.fromEntries(items.map(i => [i.id, i.status]));
+}
+
+function load() {
+  const old = document.getElementById("status-data");
+  if (old) old.remove();
+  const tag = document.createElement("script");
+  tag.id = "status-data";
+  tag.src = `status.js?t=${Date.now()}`;
+  tag.onload = () => {
+    const s = window.XODUS_STATUS;
+    if (!s) return;
+    const stamp = JSON.stringify(s);
+    if (stamp !== lastStamp) {
+      render(s);
+      if (lastStamp !== null) { const d = document.getElementById("dot"); d.classList.remove("pulse"); void d.offsetWidth; d.classList.add("pulse"); }
+      lastStamp = stamp;
+    } else {
+      document.getElementById("updated").textContent = `Updated ${fmtTime(s.updatedAt)} · ${ago(s.updatedAt)}`;
+    }
+  };
+  document.head.appendChild(tag);
+}
+load();
+setInterval(load, 5000);
+</script>
+</body>
+</html>

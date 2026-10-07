@@ -14,8 +14,8 @@ game session to test.
 
 | # | Slice | Depends on | Status |
 |---|---|---|---|
-| S1 | Installed games look and behave like a launcher library | — | **Next (in progress)** |
-| S2 | Launch polish: clean quit, no driver-warning stop | S1 not required | **AC2.1, AC2.2 passed**; AC2.3 in S1 batch |
+| S1 | Installed games look and behave like a launcher library | — | **Done** (installed `e401464`, live evidence below) |
+| S2 | Launch polish: clean quit, no driver-warning stop | S1 not required | **Done** (AC2.1–AC2.3 passed) |
 | S3 | One sign-in for launcher and games | — | **Decided: game service owns credentials**; app integration next |
 | S4 | Owned PC library | S3 (credential owner) | **Blocked: query accepted but empty for this identity; decision needed** |
 | S5 | Install from the app | S3, S4 or explicit product ID | Planned |
@@ -51,6 +51,16 @@ approved Figma Library composition.
   shows Hogwarts tile art; after one real Play session (user or root, never
   interrupting a live game) Continue Playing shows Hogwarts with its splash.
 
+Result (7 October 2026, installed app `e401464`, CI 37610002150, signed engine
+unchanged): a capture of the installed app showed the real Hogwarts 480×480
+tile in Installed. After one Play session (game window in about 20 seconds, no
+driver warning; ended by a test stop after about 55 seconds) the Library showed
+**Continue Playing** with the real 1920×1080 splash, title, publisher
+"Warner Bros. Interactive", "Last played 1 min ago", and the shared button. The
+test stop's nonzero exit showed the message and **Show log** (AC2.3). The
+private registry recorded `lastPlayedAt` and `lastSessionSeconds` and kept
+mode 0600. **S1 accepted.**
+
 ## S2 — Launch polish
 
 - AC2.1 Quitting from the game menu returns the app to **Play** with no error.
@@ -61,6 +71,7 @@ approved Figma Library composition.
   if a real launch reaches the game window without the dialog; otherwise keep
   the dialog and document it.
 - AC2.3 Failure messages offer the launch log location written by the script.
+  **Passed** — shipped in S1; verified live (Show log after a nonzero exit).
 
 Results (7 October 2026):
 

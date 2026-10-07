@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-07T21:22:13+03:00",
+  updatedAt: "2026-10-07T21:39:40+03:00",
   phase: "Phase 2 â€” functionally complete, user-serviceable",
-  budget: { totalHours: 24, spentHours: 10.5, note: "8 h delivered (S0–S6) + 16 h Phase 2" },
+  budget: { totalHours: 24, spentHours: 12, note: "8 h delivered (S0–S6) + 16 h Phase 2" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -25,7 +25,7 @@ window.XODUS_STATUS = {
     { id: "B2", title: "Store-wide search with ownership badges", hours: 1.5, status: "now", done: "Lara, Hogwarts, Celeste found with correct badges; install from a result" },
     { id: "B3", title: "Plays-on-Mac check before download", hours: 1.5, status: "now", done: "Unsupported packages flagged with zero bytes downloaded", evidence: "Backend live: Lara supported (3.2 GB), Celeste and Subnautica flagged in 4–10 s, zero download. App UI in the B1–B3 package." },
     { id: "B4", title: "Game Pass licence spike", hours: 1.0, status: "done", done: "Yes/no evidence for subscription status and one Game Pass licence", evidence: "YES: 3 unowned Game Pass titles licensed; 2 unowned non-Game Pass titles refused. Status command live (active)." },
-    { id: "B5", title: "Game Pass status and shelf", hours: 2.0, status: "now", done: "Subscription state correct; Install only when active and supported" },
+    { id: "B5", title: "Game Pass status and shelf", hours: 2.0, status: "now", done: "Subscription state correct; Install only when active and supported", evidence: "Backend proven: Game Pass title Abiotic Factor (not owned) installed 5.3 GB and reached its menu at 59 FPS. App UI is the next package." },
     { id: "B6", title: "One sign-in, no Keychain prompts", hours: 2.0, status: "planned", done: "Sign in once; restarts cause zero prompts" },
     { id: "B7", title: "Self-contained app", hours: 2.5, status: "planned", done: "Developer folders moved aside; Lara still installs and plays" },
     { id: "B8", title: "First-run setup and Repair Xodus", hours: 2.0, status: "planned", done: "Missing template rebuilt from the app; Lara plays" },
@@ -87,6 +87,8 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-07T21:39:40+03:00", text: "App B1–B3 source frozen (7c3c1f0) and approved; CI and packaging next" },
+    { at: "2026-10-07T21:39:40+03:00", text: "Game Pass title Abiotic Factor installed and running on Mac (D3D12, 59 FPS); online sign-in still fails" },
     { at: "2026-10-07T21:22:13+03:00", text: "B4 done: Game Pass licences issue through the service; non-entitled titles are refused" },
     { at: "2026-10-07T21:16:49+03:00", text: "B3 backend: pre-download check live; unsupported installs stop before any download" },
     { at: "2026-10-07T21:12:36+03:00", text: "B1 root cause found: one non-PC flag fails the whole Discover page. B1+B2 handed to the app owner." },

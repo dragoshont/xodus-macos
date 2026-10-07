@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-07T22:22:13+03:00",
+  updatedAt: "2026-10-07T22:52:47+03:00",
   phase: "Phase 2 â€” functionally complete, user-serviceable",
-  budget: { totalHours: 24, spentHours: 17, note: "8 h delivered (S0–S6) + 16 h Phase 2" },
+  budget: { totalHours: 24, spentHours: 19, note: "8 h delivered (S0–S6) + 16 h Phase 2" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -87,6 +87,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-07T22:52:47+03:00", text: "App package for B5, B7, B8, B9 frozen (fee7f5f), CI green, source approved; packaging" },
     { at: "2026-10-07T22:22:13+03:00", text: "B6 scoped: Keychain ACL policy plus migration as its own package after B5/B7/B8/B9" },
     { at: "2026-10-07T22:11:10+03:00", text: "B1, B2, B3 accepted live in the installed app" },
     { at: "2026-10-07T22:00:43+03:00", text: "B1–B3 package admitted (CI green, C8 preserved); installing" },

@@ -133,17 +133,32 @@ activated and routed to the package's legitimate legacy `XboxPcApp.exe`.
 Bounded accessibility inspection identified a pre-install content/feature
 selection popup, not the owned-PC Library. Its required base game, optional
 features, storage requirement and Next button do not establish ownership or a
-completed install. Next was not invoked during that inspection; the popup was
-left untouched when the observation lane was parked.
+completed install. Next was not invoked during that inspection. After the
+user directed autonomous continuation, one exact observed `CloseButton` Invoke
+dismissed the popup without changing features or advancing installation.
 
-Permission and session access are no longer the observation blocker. The popup
-obscures Library, and no operation-correlated collection method/body, purchasing
-account binding, paging, acquisition/status semantics or same-SKU PC coverage
-was established. HTTPS socket observations establish none of those facts.
+The actual My Library / My games view was then reached. Its Access filter
+separates **Owned** and **In Game Pass** from the independent Play state filters
+**Installed** and **Installable**. Owned with Installed selected showed
+No Results Found; removing that play-state restriction showed eight visible
+Owned rows. The Platform selector defaults to All Games and separately offers
+XBOX Games and Added from device. Selecting XBOX Games plus Owned and Installable
+retained those eight visible rows. This is reference UI evidence, not a paged
+total, a technical product/SKU join, license issuance or Mac playability proof.
+
+Permission, session access and the popup are no longer the observation blocker.
+No operation-correlated collection method/body, purchasing-account binding,
+paging, acquisition/status semantics or same-SKU PC coverage was established.
+HTTPS socket observations establish none of those facts.
 No authenticated collection query, private-cache read, binary/source export,
 TLS interception, certificate/policy change or credential dump was performed.
-Do not repeat navigation or static inspection without new evidence that changes
-the hypothesis; this lane remains blocked, not a qualified ownership source.
+The next implementation is a bounded development-only diagnostic for the
+source-backed consumer v7 collection query: one page with the existing readonly
+saved-profile fences and exact token audience. It must not default status to
+Active, turn item presence into purchase/subscription ownership, publish a
+shipping capability or claim complete coverage. Source qualification and actual
+transport acceptance are separate gates. The UI observations do not prove the
+installed Xbox client uses that v7 route.
 
 No credential/token dump, root-certificate installation, TLS weakening,
 security-policy change, package modification or undocumented endpoint probing

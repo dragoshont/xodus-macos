@@ -87,13 +87,16 @@ preserved, and the corrected main process remains open. This establishes the
 presentation correction, not an authoritative PC collection. A bounded absence
 of publication/decode events is not a visual or API-traffic proof.
 
-**Owned-PC reference investigation is parked:** explicit approval allowed
-activation of the installed Windows Xbox client, but bounded inspection reached
-a pre-install feature-selection popup, not Library. No collection contract or
-authoritative ownership result was obtained. The popup was left untouched; no
-further navigation/static-inspection loop or install progression is scheduled.
-Account binding, paging, entitlement semantics and same-SKU PC applicability
-remain blockers described in the API inventory.
+**Owned-PC reference is now accessible:** after the user directed continuation,
+one exact Close control dismissed the pre-install popup without advancing it.
+Actual My Library / My games separates Owned/In Game Pass access from
+Installed/Installable state and XBOX Games/device-added sources. Owned plus
+Installed returned no results; XBOX Games plus Owned and Installable showed
+eight visible rows, not a paged total or technical SKU proof. No game install,
+license issuance or Play action was invoked. A bounded source-backed collection
+transport diagnostic is being implemented separately; it does not activate a
+shipping ownership capability. Purchasing-account binding, paging, acquisition
+semantics and same-SKU PC applicability remain gates in the API inventory.
 
 Private results remain in ignored session/Mac evidence locations:
 

@@ -15,9 +15,9 @@ game session to test.
 | # | Slice | Depends on | Status |
 |---|---|---|---|
 | S1 | Installed games look and behave like a launcher library | — | **Next (in progress)** |
-| S2 | Launch polish: clean quit, no driver-warning stop | S1 not required | Ready once the game is closed |
-| S3 | One sign-in for launcher and games | design decision | Design |
-| S4 | Owned PC library | S3 (credential owner) | Blocked on S3 |
+| S2 | Launch polish: clean quit, no driver-warning stop | S1 not required | **AC2.1, AC2.2 passed**; AC2.3 in S1 batch |
+| S3 | One sign-in for launcher and games | — | **Decided: game service owns credentials**; app integration next |
+| S4 | Owned PC library | S3 (credential owner) | **Blocked: query accepted but empty for this identity; decision needed** |
 | S5 | Install from the app | S3, S4 or explicit product ID | Planned |
 | S6 | Update, repair and remove | S5 | Planned |
 
@@ -62,16 +62,33 @@ approved Figma Library composition.
   the dialog and document it.
 - AC2.3 Failure messages offer the launch log location written by the script.
 
+Results (7 October 2026):
+
+- AC2.1 **passed** — the user quit Hogwarts from the game; the launch script
+  exited 0 and Xodus returned to **Play** with no error.
+- AC2.2 **passed** — the launch-argument override reached the game but had no
+  effect. Adding the standard Unreal Engine setting `r.WarnOfBadDrivers=0`
+  under `[SystemSettings]` in the game's own
+  `AppData/Local/Hogwarts Legacy/Saved/Config/WinGDK/Engine.ini` (inside the
+  HogwartsPrivateStock bottle; original backed up) removed the dialog. Verified
+  by a direct launch and then by **Play** in the installed app: full-screen
+  game window in about 20 seconds, no warning.
+
 ## S3 — One sign-in for launcher and games
 
 Today two separate credential stores exist: the launcher's management account
 (app engine) and the Xodus game service's account (used for licensing at
 Play). The game service lost its sign-in once already; the user had to sign in
-again. Decision needed: make one stable, consistently signed credential owner
-(the game service is the strongest candidate because it already licenses
-games) and have the app read account state from it. Spec deliverable: a short
-decision record, then implementation with one human Keychain approval. No
-credential reset, export or ACL editing without approval.
+again.
+
+Decision (7 October 2026): **the Xodus game service is the single credential
+owner.** Evidence: it already licenses games at Play, it runs as one stable
+binary with an approved Keychain grant, and it issued Xbox user tokens to a
+local client over its owner-only socket without any Keychain prompt (S4
+probe). Next implementation: the app shows the game service's sign-in state
+and a "Sign in for games" action that runs the existing Xodus sign-in, and new
+account-scoped reads go through the service socket instead of a second
+Keychain reader. No credential reset, export or ACL editing.
 
 ## S4 — Owned PC library
 
@@ -79,6 +96,24 @@ Source-backed lead: consumer Collections v7 query. Execute one bounded,
 read-only query through the S3 credential owner; keep ownership, subscription,
 installed and PC-edition facts separate (see `xbox-api-inventory.md`).
 Accept only real, paged, account-correct results joined to exact PC SKUs.
+
+Result (7 October 2026, four bounded read-only queries, aggregates only): the
+game service issued a user token without any Keychain prompt (`MSA_TOKEN_REQUEST`,
+legacy client `000000004424da1f`, full trust). Xbox user auth and XSTS for
+`http://xboxlive.com` and `http://mp.microsoft.com/` succeeded with matching
+identity. The v7 query was **accepted (HTTP 200) but returned zero items** for
+US and GB markets, without beneficiary, and when targeted at Hogwarts
+(`9MT5NJ5W7B8Z`) — a product this account demonstrably licensed and played.
+Conclusion: this token identity is not authorized to see the consumer
+collection. The pinned community implementation states the Store returns the
+full library only to Microsoft's first-party web sign-in client
+(`1f907974-…`, device-code OAuth). **Stopped per the two-attempt rule.**
+
+Decision needed before more S4 work: allow one additional Microsoft sign-in
+through that first-party web client (user approves on microsoft.com/link), used
+only for read-only library queries, with the token kept in the existing
+Keychain-backed store — or defer the owned list and keep Installed as the
+library. No further variants without that decision.
 
 ## S5 — Install from the app
 

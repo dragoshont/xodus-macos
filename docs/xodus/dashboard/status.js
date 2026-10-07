@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-07T22:00:43+03:00",
+  updatedAt: "2026-10-07T22:11:10+03:00",
   phase: "Phase 2 â€” functionally complete, user-serviceable",
-  budget: { totalHours: 24, spentHours: 16, note: "8 h delivered (S0–S6) + 16 h Phase 2" },
+  budget: { totalHours: 24, spentHours: 17, note: "8 h delivered (S0–S6) + 16 h Phase 2" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -21,9 +21,9 @@ window.XODUS_STATUS = {
   ],
 
   backlog: [
-    { id: "B1", title: "Fix Discover", hours: 1.0, status: "now", done: "Live PC Game Pass titles listed in the app", evidence: "Root cause: app rejects the whole page when any Game Pass title is not flagged PC (A Way Out, AoE II/III). Fix with app owner." },
-    { id: "B2", title: "Store-wide search with ownership badges", hours: 1.5, status: "now", done: "Lara, Hogwarts, Celeste found with correct badges; install from a result" },
-    { id: "B3", title: "Plays-on-Mac check before download", hours: 1.5, status: "now", done: "Unsupported packages flagged with zero bytes downloaded", evidence: "Backend live: Lara supported (3.2 GB), Celeste and Subnautica flagged in 4–10 s, zero download. App UI in the B1–B3 package." },
+    { id: "B1", title: "Fix Discover", hours: 1.0, status: "done", done: "Live PC Game Pass titles listed in the app", evidence: "Live in app 7c3c1f0: 16 Game Pass titles with art and badges." },
+    { id: "B2", title: "Store-wide search with ownership badges", hours: 1.5, status: "done", evidence: "Live: Lara and Hogwarts Owned + Play; Celeste Owned + Install.", done: "Lara, Hogwarts, Celeste found with correct badges; install from a result" },
+    { id: "B3", title: "Plays-on-Mac check before download", hours: 1.5, status: "done", done: "Unsupported packages flagged with zero bytes downloaded", evidence: "Live: Celeste install checks first and is blocked with the reason; zero download." },
     { id: "B4", title: "Game Pass licence spike", hours: 1.0, status: "done", done: "Yes/no evidence for subscription status and one Game Pass licence", evidence: "YES: 3 unowned Game Pass titles licensed; 2 unowned non-Game Pass titles refused. Status command live (active)." },
     { id: "B5", title: "Game Pass status and shelf", hours: 2.0, status: "now", done: "Subscription state correct; Install only when active and supported", evidence: "Backend proven: Game Pass title Abiotic Factor (not owned) installed 5.3 GB and reached its menu at 59 FPS. App UI is the next package." },
     { id: "B6", title: "One sign-in, no Keychain prompts", hours: 2.0, status: "planned", done: "Sign in once; restarts cause zero prompts" },
@@ -87,6 +87,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-07T22:11:10+03:00", text: "B1, B2, B3 accepted live in the installed app" },
     { at: "2026-10-07T22:00:43+03:00", text: "B1–B3 package admitted (CI green, C8 preserved); installing" },
     { at: "2026-10-07T22:00:43+03:00", text: "B7/B8 backend: self-contained runtime and Repair Xodus rebuild the game environment from scratch" },
     { at: "2026-10-07T21:43:59+03:00", text: "B10 done: cloud saves deferred (local-only); online works for some titles, SISU sign-in fails for others" },

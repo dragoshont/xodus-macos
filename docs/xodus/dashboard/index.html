@@ -198,7 +198,7 @@ function render(s) {
   const shippedCount = budgetShipped.length;
   const remaining = items.filter(i => i.status !== "done").reduce((a, i) => a + i.hours, 0);
   document.getElementById("headline").textContent =
-    done === items.length ? "All 24 hours delivered." : `${spent} of ${total} hours delivered. ${remaining} to go.`;
+    done === items.length ? "All 24 hours delivered." : `${spent} of ${total} hours used. ${Math.max(total - spent, 0)} left · ${remaining} h of planned work open.`;
   const current = items.find(i => i.status === "now") || items.find(i => i.status === "next");
   document.getElementById("lede").textContent =
     `${shippedCount} slices shipped in this budget, ${done} of ${items.length} Phase 2 items done. ${current ? `Now: ${current.id} — ${current.title}.` : ""}`;

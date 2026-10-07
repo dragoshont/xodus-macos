@@ -16,10 +16,10 @@ game session to test.
 |---|---|---|---|
 | S1 | Installed games look and behave like a launcher library | — | **Done** (installed `e401464`, live evidence below) |
 | S2 | Launch polish: clean quit, no driver-warning stop | S1 not required | **Done** (AC2.1–AC2.3 passed) |
-| S3 | One sign-in for launcher and games | — | **Decided: game service owns credentials**; app integration next |
+| S3 | One sign-in for launcher and games | — | **Decided: game service owns credentials**; backend done, app UI in progress |
 | S4 | Owned PC library | — | **Done** (13 owned PC games live; follow-ups noted) |
-| S5 | Install from the app | S3, S4 or explicit product ID | Investigated: second title installs and plays; installer not built |
-| S6 | Update, repair and remove | S5 | Planned |
+| S5 | Install from the app | S3, S4 or explicit product ID | Backend done and verified; app UI in progress |
+| S6 | Update, repair and remove | S5 | Backend done and verified; app UI in progress |
 
 ## S1 — Installed games look and behave like a launcher library
 
@@ -230,6 +230,37 @@ shared generic launcher (replace per-title scripts), bottle provisioning
 without host symlinks, the runtime fix promoted to all bottles after a
 Hogwarts regression run, and an installer that streams with service
 licensing, reports real bytes and registers into Installed.
+
+### S3/S5/S6 backend (7 October 2026, private commit `043045d`)
+
+App-facing entry points in `~/src/xodus-macos-private-ai/scripts/macos/`, all
+taking a run ID and writing `processed/<run>.progress.json`, `.result.json`
+and `.status` (last) atomically with mode 0600:
+
+- `private-xodus-service-status.sh` → `{serviceRunning, signedIn}` from the
+  game service socket (no Keychain read). Verified: signed in.
+- `private-xodus-service-signin.sh` → runs the existing Xodus sign-in window,
+  restarts the game service, confirms a token.
+- `private-xodus-install.sh <run> <productId> <~/Games/Xodus/Name>` →
+  service-licensed incremental stream with real byte progress (new
+  `XODUS_PROGRESS_FILE` in `xodus-cli streaming`), manifest/StoreId +
+  inventory + residency verification, a fresh per-title CrossOver environment
+  copied from the host-link-free `XodusGameTemplate`, and a generated launcher
+  for the generic `private-xodus-launch.sh`. Codes: 10 space, 11 sign-in, 12
+  unsupported package, 13 verification, 14 cancelled. Verified: bad product and
+  outside destination (2), cancel (14, no orphaned download), Lara full run
+  (0, result written; re-run is the S6 update/repair path).
+- `private-xodus-uninstall.sh <run> <storeId> <folder>` → refuses foreign or
+  running folders (21/22), copies saves to `XodusRemote/saves/<StoreId>/<time>`
+  and verifies them before deleting (20 on failure). Verified on a synthetic
+  title: saves kept, folder and environment removed, mismatch refused.
+- Generic launch of Lara in the new environment reached D3DMetal rendering
+  (first-run Nixxes launcher appears without `-nolauncher`, now a per-title
+  argument). Main-menu proof in the fresh environment is pending the in-app
+  Play check after the app slice ships.
+
+App UI (S3 sign-in state, S5 Install/progress/cancel, S6 update/uninstall) is
+being implemented by the app owner against this contract.
 
 ## S6 — Update, repair, remove
 

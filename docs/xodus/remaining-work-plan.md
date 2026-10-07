@@ -16,10 +16,10 @@ game session to test.
 |---|---|---|---|
 | S1 | Installed games look and behave like a launcher library | — | **Done** (installed `e401464`, live evidence below) |
 | S2 | Launch polish: clean quit, no driver-warning stop | S1 not required | **Done** (AC2.1–AC2.3 passed) |
-| S3 | One sign-in for launcher and games | — | **Decided: game service owns credentials**; backend done, app UI in progress |
+| S3 | One sign-in for launcher and games | — | **Done** (game-service sign-in/status live) |
 | S4 | Owned PC library | — | **Done** (13 owned PC games live; follow-ups noted) |
-| S5 | Install from the app | S3, S4 or explicit product ID | Backend done and verified; app UI in progress |
-| S6 | Update, repair and remove | S5 | Backend done and verified; app UI in progress |
+| S5 | Install from the app | S3, S4 or explicit product ID | **Done** (fresh in-app install of Lara played) |
+| S6 | Update, repair and remove | S5 | **Done** (in-app Repair and Uninstall live) |
 
 ## S1 — Installed games look and behave like a launcher library
 
@@ -274,6 +274,31 @@ re-saved the credentials through `xodus-cli`. The user must enter the login
 password and choose Always Allow on both prompts. Then: Install + Uninstall
 Minecraft Launcher, Repair + Play Lara. Follow-up: service sign-in must not
 re-save credentials through a different binary (it causes this prompt).
+
+**Live acceptance completed (7 October 2026, after the user approved both
+Keychain prompts).** In the installed app: PC games show Install; Install
+consent shows destination, free space and copy; Downloads showed real progress
+("1,14 GB of 3,25 GB (34%)") with Cancel installation; a fresh 3.25 GB install
+of Lara finished in about 2 minutes, registered with its generated launcher and
+reached the game from Play (main menu, gamertag, ~200–350 FPS; session
+recorded). Repair re-ran incrementally (15 s) and migrated Lara to the generic
+launcher; Uninstall showed "Deletes the game files. Your saves are kept.",
+removed files and environment, kept saves under `XodusRemote/saves`, and
+updated the list. Errors surfaced correctly: sign-in needed (11) and
+"package isn't supported on Mac yet" (12, Celeste/EAppx). **S3, S5, S6
+accepted.**
+
+Backend fixes found during acceptance (private, through `8d5613f`…HEAD): skip
+CLI re-sign-in when the service already has an account; licence refusal while
+signed in is unsupported (12), not sign-in; empty/aborted install folders are
+removed; unknown products are 12; readiness handles `.` destinations, Windows
+`*.*` semantics and block-padded encrypted entries; packages without
+`MSAAppId` are unsupported (Subnautica, an older Game Preview manifest, reaches
+its menu but fails Xbox user creation — tested, then uninstalled with its
+saves kept); generated launchers pass the verified product ID.
+
+Known limits: Minecraft Launcher's licence is refused for this account on Mac
+(code 12); online/multiplayer banners remain in Lara; in-game ⌘Q is ignored.
 
 ## S6 — Update, repair, remove
 

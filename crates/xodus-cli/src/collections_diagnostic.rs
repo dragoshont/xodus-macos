@@ -2,8 +2,9 @@ use std::future::Future;
 use std::process::ExitCode;
 use std::time::Duration;
 
+#[cfg(unix)]
+use nix::libc;
 use serde_json::{Value, json};
-use tokio::io::{AsyncWrite, AsyncWriteExt};
 use xodus::api::response::{PACKAGE_RESPONSE_LIMIT, ProviderResponseError, request_json};
 use xodus::api::xbox::{XboxAuthError, get_xsts_auth_header};
 use xodus::models::xbox::XstsResponse;
@@ -30,6 +31,8 @@ enum Failure {
     ProfileChanged,
     Deadline,
     Output,
+    UnsupportedSink,
+    Runtime,
 }
 
 impl std::fmt::Display for Failure {
@@ -53,6 +56,10 @@ impl std::fmt::Display for Failure {
             Self::Deadline => output
                 .write_str("The complete collections diagnostic exceeded its 30-second deadline"),
             Self::Output => output.write_str("Collections diagnostic output is unavailable"),
+            Self::UnsupportedSink => {
+                output.write_str("Collections diagnostic requires a nonblocking atomic pipe sink")
+            }
+            Self::Runtime => output.write_str("Collections diagnostic runtime is unavailable"),
         }
     }
 }
@@ -283,32 +290,136 @@ where
     parse(response)
 }
 
-async fn publish<W: AsyncWrite + Unpin>(
+#[cfg(unix)]
+struct Pipe {
+    fd: std::os::fd::RawFd,
+    original_flags: Option<i32>,
+    atomic_limit: usize,
+}
+
+#[cfg(unix)]
+impl Pipe {
+    fn open(fd: std::os::fd::RawFd) -> Result<Self, Failure> {
+        let mut metadata = std::mem::MaybeUninit::<libc::stat>::uninit();
+        // fstat initializes this buffer only on success; the caller keeps fd open.
+        if unsafe { libc::fstat(fd, metadata.as_mut_ptr()) } != 0 {
+            return Err(Failure::UnsupportedSink);
+        }
+        let metadata = unsafe { metadata.assume_init() };
+        if metadata.st_mode & libc::S_IFMT != libc::S_IFIFO {
+            return Err(Failure::UnsupportedSink);
+        }
+        let atomic_limit = unsafe { libc::fpathconf(fd, libc::_PC_PIPE_BUF) };
+        let original_flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+        if atomic_limit <= 0
+            || original_flags < 0
+            || original_flags & libc::O_ACCMODE == libc::O_RDONLY
+            || unsafe { libc::fcntl(fd, libc::F_SETFL, original_flags | libc::O_NONBLOCK) } < 0
+        {
+            return Err(Failure::UnsupportedSink);
+        }
+        Ok(Self {
+            fd,
+            original_flags: Some(original_flags),
+            atomic_limit: usize::try_from(atomic_limit)
+                .map_err(|_| Failure::UnsupportedSink)?
+                .min(4096),
+        })
+    }
+
+    fn restore(&mut self) -> Result<(), Failure> {
+        if let Some(flags) = self.original_flags {
+            if unsafe { libc::fcntl(self.fd, libc::F_SETFL, flags) } < 0 {
+                return Err(Failure::Output);
+            }
+            self.original_flags = None;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(unix)]
+impl Drop for Pipe {
+    fn drop(&mut self) {
+        if self.restore().is_err() {
+            eprintln!("Collections diagnostic could not restore stdout flags.");
+        }
+    }
+}
+
+#[cfg(unix)]
+async fn publish(
     tokens: &TokenManager,
     credentials: &ProviderCredentials,
     summary: Value,
-    writer: &mut W,
+    sink: &Pipe,
+    deadline: tokio::time::Instant,
 ) -> Result<(), Failure> {
     let mut bytes = serde_json::to_vec(&summary).map_err(|_| Failure::Output)?;
     bytes.push(b'\n');
-    credentials
-        .verify_current(tokens)
-        .await
-        .map_err(Failure::Credentials)?;
+    if bytes.len() > sink.atomic_limit {
+        return Err(Failure::UnsupportedSink);
+    }
     let witness = credentials
         .publication_witness()
         .ok_or(Failure::ProfileChanged)?;
-    if !tokens.management_publication_current(&witness) {
-        return Err(Failure::ProfileChanged);
+    loop {
+        if tokio::time::Instant::now() >= deadline {
+            return Err(Failure::Deadline);
+        }
+        let mut readiness = libc::pollfd {
+            fd: sink.fd,
+            events: libc::POLLOUT,
+            revents: 0,
+        };
+        let ready = unsafe { libc::poll(&mut readiness, 1, 0) };
+        if ready < 0 {
+            if std::io::Error::last_os_error().kind() == std::io::ErrorKind::Interrupted {
+                continue;
+            }
+            return Err(Failure::Output);
+        }
+        if readiness.revents & (libc::POLLERR | libc::POLLHUP | libc::POLLNVAL) != 0 {
+            return Err(Failure::Output);
+        }
+        if readiness.revents & libc::POLLOUT == 0 {
+            tokio::time::sleep_until(
+                deadline.min(tokio::time::Instant::now() + Duration::from_millis(10)),
+            )
+            .await;
+            continue;
+        }
+        credentials
+            .verify_current(tokens)
+            .await
+            .map_err(Failure::Credentials)?;
+        if tokio::time::Instant::now() >= deadline {
+            return Err(Failure::Deadline);
+        }
+        if !tokens.management_publication_current(&witness) {
+            return Err(Failure::ProfileChanged);
+        }
+        // One <= PIPE_BUF nonblocking write: no partial line or blocking-worker queue.
+        let written = unsafe { libc::write(sink.fd, bytes.as_ptr().cast(), bytes.len()) };
+        if written == bytes.len() as isize {
+            return Ok(());
+        }
+        if written < 0 {
+            match std::io::Error::last_os_error().kind() {
+                std::io::ErrorKind::WouldBlock | std::io::ErrorKind::Interrupted => continue,
+                _ => {}
+            }
+        }
+        return Err(Failure::Output);
     }
-    writer
-        .write_all(&bytes)
-        .await
-        .map_err(|_| Failure::Output)?;
-    writer.flush().await.map_err(|_| Failure::Output)
 }
 
-async fn diagnostic(market: &str) -> Result<(), Failure> {
+#[cfg(unix)]
+async fn diagnostic(
+    market: &str,
+    sink: &Pipe,
+    deadline: tokio::time::Instant,
+) -> Result<(), Failure> {
     if market != "US" {
         return Err(Failure::Market);
     }
@@ -356,11 +467,32 @@ async fn diagnostic(market: &str) -> Result<(), Failure> {
         },
     )
     .await?;
-    publish(&tokens, &credentials, summary, &mut tokio::io::stdout()).await
+    publish(&tokens, &credentials, summary, sink, deadline).await
 }
 
-pub async fn run(market: &str) -> ExitCode {
-    let result = within_deadline(diagnostic(market), DEADLINE).await;
+pub fn run(market: &str) -> ExitCode {
+    #[cfg(unix)]
+    let result = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(runtime) => {
+            let result = runtime.block_on(async {
+                let deadline = tokio::time::Instant::now() + DEADLINE;
+                let mut sink = Pipe::open(libc::STDOUT_FILENO)?;
+                let result = within_deadline(diagnostic(market, &sink, deadline), deadline).await;
+                let restored = sink.restore();
+                result.and(restored)
+            });
+            // Native credential reads keep their permit until real completion, but
+            // this private process must not wait for uninterruptible IO on teardown.
+            runtime.shutdown_timeout(Duration::ZERO);
+            result
+        }
+        Err(_) => Err(Failure::Runtime),
+    };
+    #[cfg(not(unix))]
+    let result: Result<(), Failure> = Err(Failure::UnsupportedSink);
     xodus::secrets::destroy_secrets();
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -373,16 +505,18 @@ pub async fn run(market: &str) -> ExitCode {
 
 async fn within_deadline(
     work: impl Future<Output = Result<(), Failure>>,
-    deadline: Duration,
+    deadline: tokio::time::Instant,
 ) -> Result<(), Failure> {
-    tokio::time::timeout(deadline, work)
+    tokio::time::timeout_at(deadline, work)
         .await
         .unwrap_or(Err(Failure::Deadline))
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
+    use std::io::Read;
+    use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
     use xodus::tokens::store::TokenBackend;
@@ -416,6 +550,28 @@ mod tests {
 
     fn bound() -> Result<BoundToken, Failure> {
         bind(auth(Some("123")), auth(None))
+    }
+
+    fn pipe_pair() -> (OwnedFd, OwnedFd) {
+        let mut descriptors = [-1; 2];
+        assert_eq!(unsafe { libc::pipe(descriptors.as_mut_ptr()) }, 0);
+        let reader = unsafe { OwnedFd::from_raw_fd(descriptors[0]) };
+        let writer = unsafe { OwnedFd::from_raw_fd(descriptors[1]) };
+        for fd in [&reader, &writer] {
+            assert_eq!(
+                unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFD, libc::FD_CLOEXEC) },
+                0
+            );
+        }
+        (reader, writer)
+    }
+
+    fn collect(reader: OwnedFd, writer: OwnedFd, sink: Pipe) -> Vec<u8> {
+        drop(sink);
+        drop(writer);
+        let mut bytes = Vec::new();
+        std::fs::File::from(reader).read_to_end(&mut bytes).unwrap();
+        bytes
     }
 
     #[test]
@@ -517,6 +673,33 @@ mod tests {
                 bind(auth(Some("123")), serde_json::from_value(token).unwrap()),
                 Err(Failure::Authentication(_))
             ));
+        }
+    }
+
+    #[test]
+    fn explicit_null_store_xid_is_present_and_rejected_without_changing_single_rp_identity() {
+        let token: XstsResponse = serde_json::from_value(json!({
+            "NotAfter": "2099-01-01T00:00:00Z", "Token": "PRIVATE_SENTINEL",
+            "DisplayClaims": {"xui": [{"uhs": "12345", "xid": null}]}
+        }))
+        .unwrap();
+        assert!(token.has_user_id_claim());
+        assert_eq!(token.user_id(), None);
+        assert!(get_xsts_auth_header(token.clone()).is_ok());
+        assert!(!auth(None).has_user_id_claim());
+        assert!(bind(auth(Some("123")), auth(None)).is_ok());
+        assert!(matches!(
+            bind(auth(Some("123")), token),
+            Err(Failure::IdentityMismatch)
+        ));
+        for xid in [json!(12), json!({}), json!([]), json!(false)] {
+            assert!(
+                serde_json::from_value::<XstsResponse>(json!({
+                    "NotAfter": "2099-01-01T00:00:00Z", "Token": "PRIVATE_SENTINEL",
+                    "DisplayClaims": {"xui": [{"uhs": "12345", "xid": xid}]}
+                }))
+                .is_err()
+            );
         }
     }
 
@@ -690,16 +873,19 @@ mod tests {
                 },
             )
             .await;
-            let mut output = Vec::new();
+            let (reader, writer) = pipe_pair();
+            let sink = Pipe::open(writer.as_raw_fd()).unwrap();
+            let deadline = tokio::time::Instant::now() + Duration::from_secs(1);
             let result = match result {
                 Ok(summary) => {
                     if boundary == "publication" {
                         change();
                     }
-                    publish(&tokens, &credentials, summary, &mut output).await
+                    publish(&tokens, &credentials, summary, &sink, deadline).await
                 }
                 Err(error) => Err(error),
             };
+            let output = collect(reader, writer, sink);
             if boundary == "unchanged" {
                 assert!(result.is_ok());
                 assert_eq!(
@@ -744,40 +930,275 @@ mod tests {
                 status: 403
             }))
         ));
-        let (mut writer, reader) = tokio::io::duplex(64);
+        let (reader, writer) = pipe_pair();
+        let sink = Pipe::open(writer.as_raw_fd()).unwrap();
         drop(reader);
         assert!(matches!(
-            publish(&tokens, &credentials, parse(page()).unwrap(), &mut writer).await,
+            publish(
+                &tokens,
+                &credentials,
+                parse(page()).unwrap(),
+                &sink,
+                tokio::time::Instant::now() + Duration::from_secs(1)
+            )
+            .await,
             Err(Failure::Output)
         ));
     }
 
     #[tokio::test]
-    async fn total_deadline_covers_auth_and_publication_not_only_collection_http() {
-        for boundary in ["auth", "publication"] {
-            let (manager, _) = crate::package::tests::management_profile();
+    async fn total_absolute_deadline_covers_auth_and_expired_commit_is_never_written() {
+        let (manager, _) = crate::package::tests::management_profile();
+        let tokens = manager.readonly_management_profile().unwrap();
+        let credentials = ProviderCredentials::read_neutral(&tokens).unwrap();
+        let deadline = tokio::time::Instant::now() + Duration::from_millis(25);
+        let work = async {
+            read_using(
+                &tokens,
+                &credentials,
+                || async {
+                    std::future::pending::<()>().await;
+                    bound()
+                },
+                |_| async { Ok(page()) },
+            )
+            .await?;
+            Ok(())
+        };
+        assert!(matches!(
+            within_deadline(work, deadline).await,
+            Err(Failure::Deadline)
+        ));
+        let (reader, writer) = pipe_pair();
+        let sink = Pipe::open(writer.as_raw_fd()).unwrap();
+        assert!(matches!(
+            publish(
+                &tokens,
+                &credentials,
+                parse(page()).unwrap(),
+                &sink,
+                deadline
+            )
+            .await,
+            Err(Failure::Deadline)
+        ));
+        assert!(collect(reader, writer, sink).is_empty());
+    }
+
+    #[tokio::test]
+    async fn atomic_pipe_rejects_nonpipe_sinks_and_oversized_lines_without_output() {
+        let file = tempfile::tempfile().unwrap();
+        assert!(matches!(
+            Pipe::open(file.as_raw_fd()),
+            Err(Failure::UnsupportedSink)
+        ));
+        let (reader, writer) = pipe_pair();
+        assert!(matches!(
+            Pipe::open(reader.as_raw_fd()),
+            Err(Failure::UnsupportedSink)
+        ));
+        let sink = Pipe::open(writer.as_raw_fd()).unwrap();
+        let (manager, _) = crate::package::tests::management_profile();
+        let tokens = manager.readonly_management_profile().unwrap();
+        let credentials = ProviderCredentials::read_neutral(&tokens).unwrap();
+        assert!(matches!(
+            publish(
+                &tokens,
+                &credentials,
+                json!({"padding": "x".repeat(sink.atomic_limit)}),
+                &sink,
+                tokio::time::Instant::now() + Duration::from_secs(1)
+            )
+            .await,
+            Err(Failure::UnsupportedSink)
+        ));
+        assert!(collect(reader, writer, sink).is_empty());
+    }
+
+    fn nonblocking(fd: std::os::fd::RawFd) {
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+        assert!(flags >= 0);
+        assert_eq!(
+            unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) },
+            0
+        );
+    }
+
+    fn fill_pipe(fd: std::os::fd::RawFd) {
+        nonblocking(fd);
+        for bytes in [vec![b'P'; 4096], vec![b'P']] {
+            loop {
+                let count = unsafe { libc::write(fd, bytes.as_ptr().cast(), bytes.len()) };
+                if count < 0 {
+                    assert_eq!(
+                        std::io::Error::last_os_error().kind(),
+                        std::io::ErrorKind::WouldBlock
+                    );
+                    break;
+                }
+                assert!(count > 0 && count as usize <= bytes.len());
+            }
+        }
+    }
+
+    fn drain_pipe(fd: std::os::fd::RawFd, output: &mut Vec<u8>) {
+        nonblocking(fd);
+        loop {
+            let mut bytes = [0; 8192];
+            let count = unsafe { libc::read(fd, bytes.as_mut_ptr().cast(), bytes.len()) };
+            if count < 0 {
+                assert_eq!(
+                    std::io::Error::last_os_error().kind(),
+                    std::io::ErrorKind::WouldBlock
+                );
+                break;
+            }
+            if count == 0 {
+                break;
+            }
+            output.extend_from_slice(&bytes[..count as usize]);
+        }
+    }
+
+    #[test]
+    fn publication_subprocess_fixture() {
+        let Ok(mode) = std::env::var("XODUS_COLLECTIONS_PUBLICATION_FIXTURE") else {
+            return;
+        };
+        assert!(["deadline", "abort", "profile"].contains(&mode.as_str()));
+        eprintln!("fixture-ready");
+        let mut signal = [0; 1];
+        std::io::stdin().read_exact(&mut signal).unwrap();
+        assert_eq!(signal, [b'G']);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let permits = std::sync::Arc::new(tokio::sync::Semaphore::new(1));
+        runtime.block_on(async {
+            let permit = permits.clone().try_acquire_owned().unwrap();
+            let (started, ready) = tokio::sync::oneshot::channel();
+            tokio::task::spawn_blocking(move || {
+                let _permit = permit;
+                started.send(()).unwrap();
+                loop {
+                    std::thread::park();
+                }
+            });
+            ready.await.unwrap();
+            let (manager, memory) = crate::package::tests::management_profile();
             let tokens = manager.readonly_management_profile().unwrap();
             let credentials = ProviderCredentials::read_neutral(&tokens).unwrap();
-            let work = async {
-                let summary = read_using(
-                    &tokens,
-                    &credentials,
-                    || async {
-                        if boundary == "auth" {
-                            std::future::pending::<()>().await;
-                        }
-                        bound()
-                    },
-                    |_| async { Ok(page()) },
-                )
-                .await?;
-                let (mut writer, _reader) = tokio::io::duplex(1);
-                publish(&tokens, &credentials, summary, &mut writer).await
-            };
-            assert!(matches!(
-                within_deadline(work, Duration::from_millis(25)).await,
-                Err(Failure::Deadline)
-            ));
+            let sink = Pipe::open(libc::STDOUT_FILENO).unwrap();
+            let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+            let summary = parse(page()).unwrap();
+            if mode == "abort" {
+                let task = tokio::spawn(async move {
+                    publish(&tokens, &credentials, summary, &sink, deadline).await
+                });
+                tokio::time::sleep(Duration::from_millis(25)).await;
+                task.abort();
+                assert!(task.await.unwrap_err().is_cancelled());
+                eprintln!("fixture-cancelled");
+            } else if mode == "deadline" {
+                let deadline = tokio::time::Instant::now() + Duration::from_millis(50);
+                assert!(matches!(
+                    within_deadline(
+                        publish(&tokens, &credentials, summary, &sink, deadline),
+                        deadline
+                    )
+                    .await,
+                    Err(Failure::Deadline)
+                ));
+                eprintln!("fixture-cancelled");
+            } else {
+                let publication = publish(&tokens, &credentials, summary, &sink, deadline);
+                let change = async {
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                    let (mut session, _) = manager.management_store_snapshot().unwrap();
+                    session.user.username = "changed@example.invalid".to_owned();
+                    TokenManager::with_management_backend(memory)
+                        .save_management_store_session(session)
+                        .unwrap();
+                    eprintln!("fixture-profile-changed");
+                };
+                let (result, ()) = tokio::join!(publication, change);
+                assert!(matches!(
+                    result,
+                    Err(Failure::Credentials(CredentialError::ProfileChanged))
+                ));
+                eprintln!("fixture-profile-rejected");
+            }
+        });
+        assert_eq!(permits.available_permits(), 0);
+        let teardown = std::time::Instant::now();
+        runtime.shutdown_timeout(Duration::ZERO);
+        assert!(teardown.elapsed() < Duration::from_secs(1));
+        eprintln!("fixture-runtime-stopped");
+        std::io::stdin().read_exact(&mut signal).unwrap();
+        assert_eq!(signal, [b'R']);
+        // Keep the process alive after reader release so any queued writer would leak.
+        std::thread::sleep(Duration::from_millis(25));
+        std::process::exit(0);
+    }
+
+    #[tokio::test]
+    async fn blocked_real_stdout_cancellation_or_profile_change_has_no_late_line_and_bounded_exit()
+    {
+        use std::process::Stdio;
+        use tokio::io::{AsyncBufReadExt, BufReader};
+        async fn marker(reader: &mut BufReader<tokio::process::ChildStderr>, expected: &str) {
+            let mut line = String::new();
+            tokio::time::timeout(Duration::from_secs(3), reader.read_line(&mut line))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(line.trim(), expected);
+        }
+        for mode in ["deadline", "abort", "profile"] {
+            let (reader, writer) = pipe_pair();
+            let mut child = tokio::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "collections_diagnostic::tests::publication_subprocess_fixture",
+                    "--nocapture",
+                ])
+                .env("XODUS_COLLECTIONS_PUBLICATION_FIXTURE", mode)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::from(writer.try_clone().unwrap()))
+                .stderr(Stdio::piped())
+                .kill_on_drop(true)
+                .spawn()
+                .unwrap();
+            let mut events = BufReader::new(child.stderr.take().unwrap());
+            marker(&mut events, "fixture-ready").await;
+            fill_pipe(writer.as_raw_fd());
+            let mut input = child.stdin.take().unwrap();
+            input.write_all(b"G").await.unwrap();
+            let mut output = Vec::new();
+            if mode == "profile" {
+                marker(&mut events, "fixture-profile-changed").await;
+                drain_pipe(reader.as_raw_fd(), &mut output);
+                marker(&mut events, "fixture-profile-rejected").await;
+            } else {
+                marker(&mut events, "fixture-cancelled").await;
+                // Release the actual OS pipe only after cancellation has completed.
+                drain_pipe(reader.as_raw_fd(), &mut output);
+            }
+            marker(&mut events, "fixture-runtime-stopped").await;
+            input.write_all(b"R").await.unwrap();
+            let exit = tokio::time::timeout(Duration::from_secs(2), child.wait())
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(exit.success());
+            drop(writer);
+            drain_pipe(reader.as_raw_fd(), &mut output);
+            assert!(
+                !String::from_utf8(output)
+                    .unwrap()
+                    .contains("collectionsDiagnostic")
+            );
         }
     }
 

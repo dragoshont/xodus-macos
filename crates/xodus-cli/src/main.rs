@@ -251,13 +251,17 @@ mod argument_tests {
     }
 }
 
-#[tokio::main]
-async fn main() -> ExitCode {
+fn main() -> ExitCode {
     let args = CliArgs::parse();
     #[cfg(debug_assertions)]
     if let SubCommand::CollectionsDiagnostic { market } = &args.command {
-        return collections_diagnostic::run(market).await;
+        return collections_diagnostic::run(market);
     }
+    run_command(args)
+}
+
+#[tokio::main]
+async fn run_command(args: CliArgs) -> ExitCode {
     if matches!(args.command, SubCommand::RuntimePlan) {
         return runtime_plan::run().await;
     }

@@ -38,7 +38,8 @@ struct DisplayClaims {
 struct XuiClaim {
     uhs: String,
     gtg: Option<String>,
-    xid: Option<String>,
+    #[serde(default, deserialize_with = "present_xid")]
+    xid: Option<Option<String>>,
     mgt: Option<String>,
     agg: Option<String>,
 }
@@ -46,6 +47,12 @@ struct XuiClaim {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct XtiClaim {
     tid: Option<String>,
+}
+
+fn present_xid<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Option<String>>, D::Error> {
+    Option::<String>::deserialize(deserializer).map(Some)
 }
 
 impl XstsResponse {
@@ -60,7 +67,7 @@ impl XstsResponse {
         let [claim] = self.display_claims.xui.as_slice() else {
             return None;
         };
-        let id = claim.xid.as_deref()?;
+        let id = claim.xid.as_ref()?.as_deref()?;
         let number = id.parse::<u64>().ok()?;
         (number != 0 && number.to_string() == id).then_some(id)
     }

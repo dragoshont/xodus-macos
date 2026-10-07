@@ -37,6 +37,15 @@ The diagnostic performs at most one page (100 items), bounded by the existing
 streamed 4 MiB response reader and a total 30-second deadline including silent
 authentication and publication. Redirects and HTTP retries are disabled. Test
 market US is explicit and is not the account's purchasing-country assertion.
+Stdout must be a writable OS pipe. Regular files, terminals and unsupported
+sinks fail before credential/provider work. The single aggregate line is
+bounded by that pipe's `PIPE_BUF` and committed with one nonblocking write,
+after the absolute deadline and full profile/publication fences are checked.
+Waiting for pipe capacity queues no blocking writer; cancellation discards the
+uncommitted line, and an expired deadline cannot emit a later success. Only this
+private diagnostic owns a dedicated runtime with non-waiting teardown for
+outstanding uninterruptible credential IO. Credential permits remain held until
+actual IO completion; normal commands retain their existing runtime lifecycle.
 The existing native management Keychain clone is noninteractive first and
 read-only last, with full current-profile fingerprint/expiry checks before and
 after provider work and immediately before publication. The upfront dual-audience
@@ -44,8 +53,9 @@ path obtains `http://xboxlive.com` and `http://mp.microsoft.com/` XSTS from the
 same fresh in-memory XBL user token, without a second login or audience fallback.
 A canonical nonzero beneficiary XUID must come from that Live response, with
 validated matching unique user hashes; a present malformed/conflicting Store
-XUID is rejected. This binds the same attempt, not the Windows purchasing
-account. Missing identity stops rather than substituting history, username or
+XUID (including explicit null, distinguished from absent) is rejected. This binds
+the same attempt, not the Windows purchasing account. Missing identity stops
+rather than substituting history, username or
 user hash.
 
 Only aggregate partial-page counts, unresolved identity counts, fixed status

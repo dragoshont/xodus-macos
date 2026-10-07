@@ -93,10 +93,16 @@ Actual My Library / My games separates Owned/In Game Pass access from
 Installed/Installable state and XBOX Games/device-added sources. Owned plus
 Installed returned no results; XBOX Games plus Owned and Installable showed
 eight visible rows, not a paged total or technical SKU proof. No game install,
-license issuance or Play action was invoked. A bounded source-backed collection
-transport diagnostic is being implemented separately; it does not activate a
-shipping ownership capability. Purchasing-account binding, paging, acquisition
-semantics and same-SKU PC applicability remain gates in the API inventory.
+license issuance or Play action was invoked. The bounded source-backed
+development collection diagnostic is now implemented and pushed at `be80855`;
+its review corrections passed the independent gate and coordinator-run native
+regressions. The attempted personal read failed at native saved-store access
+(`secretRead`, `accessDenied`, OSStatus `-25293`, noninteractive), producing no
+collection aggregate. Signing one isolated diagnostic copy requires the pending
+scoped checkpoint; no signing or Keychain permission change was performed.
+Shipping remains unchanged and no owned-PC capability is enabled.
+Purchasing-account binding, paging, acquisition semantics and same-SKU PC
+applicability remain gates in the API inventory.
 
 Private results remain in ignored session/Mac evidence locations:
 

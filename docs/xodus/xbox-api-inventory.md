@@ -152,13 +152,31 @@ paging, acquisition/status semantics or same-SKU PC coverage was established.
 HTTPS socket observations establish none of those facts.
 No authenticated collection query, private-cache read, binary/source export,
 TLS interception, certificate/policy change or credential dump was performed.
-The next implementation is a bounded development-only diagnostic for the
-source-backed consumer v7 collection query: one page with the existing readonly
-saved-profile fences and exact token audience. It must not default status to
-Active, turn item presence into purchase/subscription ownership, publish a
-shipping capability or claim complete coverage. Source qualification and actual
-transport acceptance are separate gates. The UI observations do not prove the
-installed Xbox client uses that v7 route.
+The bounded development-only diagnostic is implemented and published at
+`be80855285f1c74d15e8d3216afa9db0062ee245`: one page with readonly saved-profile
+fences and exact token audiences. Independent review found and then verified
+corrections for late stdout publication and explicit-null identity claims.
+The coordinator independently matched all 208 native source inputs to Git and
+reran 18 diagnostic tests, including actual blocked-pipe subprocess checks.
+This is source qualification, not transport acceptance or shipping admission.
+The diagnostic does not default status to Active, infer ownership/subscription,
+publish a shipping capability or claim complete coverage.
+
+The attempted personal read produced no collection aggregate. Its initial
+capture did not recognize the existing multiline native failure; a separately
+bounded attempt with a neutral-tested closed-field decoder identified
+`savedStore` / `secretRead` / `accessDenied`, OSStatus `-25293`, with interaction
+disabled. The current blocker is native saved-credential access, not an observed
+collection rejection or evidence of an expired Microsoft login. The diagnostic
+is ad-hoc signed while the preserved shipping engine uses the existing Xodus
+signer; that difference is a hypothesis, not a proven cause.
+
+Signing an isolated diagnostic copy remains behind the canonical
+`collection-private-signing-required` checkpoint. A permission question returned
+no user decision; autonomous execution mode does not resolve that checkpoint.
+No signing, Keychain permission change, credential reset or further personal
+retry follows without the exact grant. The installed app and saved profile are
+unchanged. The UI observations still do not prove the Xbox client uses v7.
 
 No credential/token dump, root-certificate installation, TLS weakening,
 security-policy change, package modification or undocumented endpoint probing

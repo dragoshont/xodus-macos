@@ -10,8 +10,8 @@ authentication flow.
 |---|---|---|
 | 1. Installer UI | Verified original installer rendering | Preserve evidence; installation is a separate requirement |
 | 2. Registered identity | Verified local DeveloperUnsigned catalog/token identity | Do not claim Store installation, licensing or private capabilities |
-| 3. Process alive >10 seconds | Historical child waited 11.002 seconds; latest retry exits after 7.349 seconds despite genuine registrar RUNNING | Lifetime waiting was not responsive startup; latest retry does not pass this milestone |
-| 4. Original window | Not observed; no screenshot | Original visible window and meaningful frame, associated with the genuine child |
+| 3. Process alive >10 seconds | Sprint 2026-10-07 (gui4/sp46/sp47): original child stays alive about 70 s with no missing API, then its launcher ends it (exit 92). Historical 11.002 s and 7.349 s results are superseded | Lifetime alone is not responsive startup; it is **not** counted as passed while no window exists |
+| 4. Original window | **FAIL/UNTESTED**: no CoreWindow; XAML renders only into the hidden DXGI device window. Documented activation route is a NO-GO boundary (Phase 3 below) | Original visible window and meaningful frame, associated with the genuine child |
 | 5. Microsoft sign-in page | Not observed | Original app opens its genuine Microsoft authentication surface |
 | 6. Signed in | Not observed | Human completes authentication; original app accepts the genuine session |
 | 7. Library | Not observed | Original authenticated library finishes loading with real account-backed data |
@@ -20,11 +20,19 @@ The canonical Run remains `xbox-pc-app-crossover-20261005`; its primary criterio
 is `XBOX-APP-LIBRARY`. The Run's broader play/download criterion is not silently
 completed or removed by this plan.
 
-The current blocker is **the registrar server's restricted service principal**.
+**Current blocker (2026-10-07 ~21:00): launch activation and the original window.**
+The `STATUS_SERVER_SID_MISMATCH` blocker described in the next paragraph was
+resolved in sprint Phase 1. The original app now gets through the headless
+startup chain and stays alive without a window. The documented
+`ActivateApplication` route requires the Shell Infrastructure Host's
+activation manager (see the Phase 3 activation experiment below).
+
+*Superseded (kept for history):* the blocker was **the registrar server's
+restricted service principal**.
 The measured `QueryTransientObjectSecurityDescriptor` implementation reads the
 authentic installed `WM_RegistrarServer` default successfully. The port-flags
 candidate permits the genuine service to report RUNNING, but the original
-client's unchanged server requirement rejects its actual process token with
+client's unchanged server requirement rejected its actual process token with
 `STATUS_SERVER_SID_MISMATCH (0xc00002a0)`. Neither service RUNNING nor standalone
 controls establish original-app startup.
 
@@ -222,8 +230,9 @@ route.
 ### Sprint progress: Phase 1 checkpoint (2026-10-07 ~14:10, before h8)
 
 **Result: Phase 1 passed.** The original app is past
-`STATUS_SERVER_SID_MISMATCH`. The registrar runs as a genuine LocalService
-service principal. The app's ALPC connect to
+`STATUS_SERVER_SID_MISMATCH`. The registrar runs with a LocalService token
+that matches native except for the gaps recorded below. The app's ALPC
+connect to
 `\BaseNamedObjects\CoreMessagingRegistrar` now returns success; before, it
 returned `0xc00002a0`.
 
@@ -377,6 +386,35 @@ with genuine package identity.
   ApplicationFrameHost RPC, window bands, a private shell protocol or a
   success factory.
 - No 6 h shell-recreation lane.
+
+### Sprint progress: activation experiment and R4 fixes (2026-10-07 ~21:00)
+
+**Activation experiment: NO-GO (stop S1).** Observations and stops were
+declared before it ran. Details are in the README section "Activation
+boundary".
+- `ActivateApplication` → in-proc `twinui.appcore`
+  `ApplicationActivationManagerProxy` →
+  `CoCreateInstanceEx({6C3EE638…}, CLSCTX_LOCAL_SERVER)`.
+- That class has no `LocalServer32`. On native it is provided at runtime by
+  `activationmanager.dll` inside `sihost.exe`.
+- Native creates both objects. Wine returns `REGDB_E_CLASSNOTREG` for both,
+  and with the genuine x64 proxy registered temporarily, the DLL can't load
+  (`Windows.Storage.dll`).
+- Going further would mean recreating a shell host, which is out of scope for
+  this sprint. The missing-activation hypothesis remains **unproven**.
+- Owner decision needed: stop, or approve a separate shell-host
+  activation-manager lane.
+
+**R4 REVISE fixes:**
+- `patch-cmiocp.py` now matches the patch. Every patch script was re-run
+  twice on a copy of the final source; the `patch-sendattr.py` ordering
+  limit is recorded.
+- Psm was measured natively: 6/6 calls match.
+- Build labels corrected: the VM is 26300.9457; the genuine DLLs are
+  26100.9278.
+- roapi design-mode size check fixed; sp47 regression retry unchanged.
+- The remaining LOW items are recorded as deviations.
+- These stale ground-truth lines were updated.
 
 ## Xodus-backed substitutes for Windows dependencies (owner question, 2026-10-07)
 

@@ -9,8 +9,13 @@ experimental Mac. Each run was the genuine `Microsoft.GamingApp`
 2. Search upstream Wine, wine-staging (`2395d933`, 2026-10-06), Proton
    `experimental_10.0` and ReactOS.
 3. If upstream had the code, reuse it. Otherwise measure native Windows 11
-   ARM 26100 (x64 emulation) with the `audit-*.c` probe and implement against
-   those measurements.
+   with the `audit-*.c` probe and implement against those measurements. The
+   native machine is a Parallels Windows 11 ARM64 VM, build 10.0.26300.9457,
+   running the x64 probes under emulation. The genuine x64 DLLs that were
+   read statically or exercised (`kernel.appcore`, `twinui.appcore`,
+   `Windows.UI.Xaml` and others) are the 10.0.26100.9278 builds from the
+   Microsoft symbol server. Code comments that say "26100" refer to those
+   binaries. Behaviour was measured on the 26300 VM.
 4. Run the same probe under Wine and compare the output.
 5. Retry the original app immediately.
 
@@ -24,25 +29,20 @@ experimental Mac. Each run was the genuine `Microsoft.GamingApp`
   genuine `Windows.UI.Xaml.dll`, `CoreMessaging.dll`, `MrmCoreR.dll`,
   `bcp47mrm.dll` and `threadpoolwinrt.dll` that were exercised, and the patch
   (last line). Paths are relative to the stage.
-- `patch-*.py`, `combase-ordinals.py`: idempotent patch scripts for the
-  slices that were scripted. Each keeps `.pre-<slice>` backups. Other slices
+- `patch-*.py`, `combase-ordinals.py`: patch scripts for the slices that
+  were scripted. Each keeps `.pre-<slice>` backups. Other slices
   (recvattr, wob server side, ndr3 headers, gitw, pkgid, json, avs, hdi,
   ctm, gspo, state, resctx, mss, psm, tpwex) were direct source edits with
   `.pre-<slice>` backups. **The cumulative patch is the authoritative
-  record.**
-
-  The backup timestamps give the order:
-  1. Phase 1 `.base` (principal and service token);
-  2. `overlap` (`patch-write-mask.py`, `server/token.c`), then `openif`
-     (`patch-openif.py`). Both scripts reproduce the original direct edits.
-  3. `recvattr`, `sendattr`, `wob`, `cmiocp`;
-  4. the later slices, in the order of the tables below.
+  record.** See "Patch application order" for the order and for how far
+  re-running the scripts is safe.
 - `probe-manifest.txt`, `run-probes-native.ps1`, `run-probes-wine.sh`,
   `compare-probe-pairs.py`: run the same 71 probe invocations on native
   Windows and on the stage, then diff them (see "Paired parity").
 - `probe-outputs/`: native and Wine probe outputs for each slice.
   `probe-outputs/paired-20261007/` holds the paired rerun and
-  `parity-report.md`.
+  `parity-report.md`. `probe-outputs/activation-20261007/` holds the
+  activation experiment (see "Activation boundary").
 - `audit-*.c`: parity probes. Run the same binary on native Windows and on
   Wine.
 - `framework-view-activation.reg`: mirrors the native WinRT registration of
@@ -50,6 +50,25 @@ experimental Mac. Each run was the genuine `Microsoft.GamingApp`
 - `delayimp.py`, `callers.py`, `iatcalls.py`: read-only PE helpers. They find
   delay-import and IAT call sites in the genuine callers, so arguments can be
   read from the real call.
+
+## Patch application order
+
+The backup timestamps give the order:
+
+1. Phase 1 `.base` (principal and service token);
+2. `overlap` (`patch-write-mask.py`, `server/token.c`), then `openif`
+   (`patch-openif.py`). Both scripts reproduce the original direct edits.
+3. `recvattr`, `sendattr` (`patch-sendattr.py`), `wob` (`patch-wob-a.py`),
+   `cmiocp` (`patch-cmiocp.py`);
+4. the later slices, in the order of the tables below.
+
+Re-running the scripts was checked on 2026-10-07. Every `patch-*.py` was run
+twice against a copy of the final stage source (`dlls`, `server`, `include`,
+`programs`). Fourteen scripts recognised their edits as already applied and
+changed no file. `patch-sendattr.py` is the exception: it is idempotent
+only before `patch-wob-a.py`. On the final tree it stops with "expected 1
+got 0" for a work-on-behalf anchor that wob-a later rewrote. It exits
+before writing anything, and the copy was left unchanged.
 
 ## Reached APIs, in original-app order
 
@@ -93,7 +112,7 @@ WARP. The sprint then used a headless D3D11 device through MoltenVK
 | sp41 | package state APIs | implemented | `native-state` |
 | sp42 / gui3 | `GetCurrentPackageApplicationResourcesContext` | implemented | `native-resctx*` |
 | sp43 | `RtlIsMultiSessionSku` | implemented | `native-mss` |
-| sp44 | `PsmQueryBackgroundActivationType` | implemented | — |
+| sp44 | `PsmQueryBackgroundActivationType` | implemented | 6/6 calls, `native-psm` (export DLL differs) |
 | sp45 | CLSIDs `{02844640}` PlmSuspendControl, `{96c7a5ef}` CSignalableNotifier | registered; genuine threadpoolwinrt | — |
 | sp46 | `TpSetWaitEx` | implemented | 8/8, `native-tpwaitex` |
 | sp46 / gui4 | **no missing API**: the app stays alive about 70 s, then the launcher ends it (exit 92) | — | — |
@@ -210,6 +229,74 @@ therefore covers only the subset of each API that the app reached; it is
     `0x001f0001`).
 - **`OBJ_OPENIF` and the write mask**: follow `native-tokensd-openif` and
   `native-write-overlap`.
+- **`PsmQueryBackgroundActivationType`**
+  - Written from a static reading of genuine `kernel.appcore`
+    10.0.26100.9278, then measured on 2026-10-07 with `audit-psm.c`.
+  - All six calls match native: the pseudo process token twice, a real
+    process token, a token without `TOKEN_QUERY` (`c0000022`), NULL
+    (`c0000008`), and an invalid handle (`c0000008`). With no `WIN://BGKD`
+    attribute, both return type 1.
+  - The case where the attribute is present was not measured. Neither
+    token carries it, and no test creates one.
+  - Native exports the function only from `kernel.appcore.dll`. Wine has no
+    builtin kernel.appcore, so it is exported from `kernelbase.dll`.
+- **`RtlIsMultiSessionSku`**: wineboot sets `DbgMultiSessionSku` for every
+  workstation product type. This rests on one measured edition: the VM's
+  Windows 11 client reports `SharedDataFlags 0x98e`. Other client editions
+  were not measured.
+- **Design-mode token query** (`roapi.c`): if the size query fails with
+  anything other than `STATUS_NOT_FOUND` or `STATUS_BUFFER_TOO_SMALL`, that
+  error is now returned as an HRESULT; a reported size smaller than the
+  header gives `E_UNEXPECTED`. Fixed after R4 review. combase was rebuilt,
+  and `audit-designmode`, `audit-process-events` and the original app (sp47)
+  gave the same output as before the fix.
+- **`CoBeginProcessEvents`**: zeroes 0x60 bytes of the context
+  unconditionally, as measured on native's non-ASTA path. No NULL check
+  was added, because native behaviour for NULL was not measured.
+- **ALPC reply-context lookup**: the message-context lookup uses the
+  caller's `msg->id` for every send, not only for
+  `ALPC_MSGFLG_REPLY_MESSAGE`. This is a recorded deviation (R4 LOW); it was
+  not narrowed without a native measurement.
+- **Work-on-behalf ticket**: a ticket is the thread ID plus its creation
+  time, so a thread can adopt the ticket of any live thread, including
+  another process's. Native validates tickets in the kernel. This is a
+  recorded deviation (R4 LOW).
+
+## Activation boundary (2026-10-07, bounded experiment)
+
+The experiment's observations and stops were declared before it ran (see
+`probe-outputs/activation-20261007/predeclare.txt`). It tests the documented
+route only: `IApplicationActivationManager::ActivateApplication`.
+
+- **Upstream:** Wine master `59416cf` has only the `shobjidl.idl` interface.
+  wine-staging, Proton and ReactOS have no implementation.
+- **Native registration** (VM 26300.9457):
+  - `CLSID_ApplicationActivationManager {45BA127D…}` is in-proc
+    `twinui.appcore.dll`.
+  - Genuine x64 `twinui.appcore` 26100.9278 (sha256 `5cb48ef8…`, with
+    public PDB) implements it as `ApplicationActivationManagerProxy`.
+  - `ActivateApplication` calls
+    `CoCreateInstanceEx({6C3EE638…}, CLSCTX_LOCAL_SERVER)`, the
+    "Activation Manager Shim".
+  - That class has no `LocalServer32`. Its implementation,
+    `activationmanager.dll`, is loaded by `sihost.exe`, the Shell
+    Infrastructure Host, which registers the class at runtime.
+- **`audit-aam.c` create mode:**
+  - Native: both objects are created (`hr=0`).
+  - Wine: both return `REGDB_E_CLASSNOTREG`.
+  - With the genuine `twinui.appcore` registered temporarily (removed
+    afterwards), the proxy still can't load: its import `Windows.Storage.dll`
+    fails. The inner class remains unregistered, and there is no server,
+    service or surrogate for it.
+- **Result:** stop S1 hit. The documented route needs a shell-host component
+  (`sihost`/activation manager). The missing-DLL rungs were not chased (S2).
+  Processes peaked at about 850 (S3), and the experiment stayed within its
+  2-hour budget (S4).
+- **Decision: NO-GO for the documented-interface route in this sprint.**
+  The hypothesis that launch activation is missing is still **unproven**: no
+  activation input reached the app.
+- **Options for the owner:** stop here, or approve a separate lane for a
+  shell-host activation manager that uses genuine package identity.
 
 ## Status
 

@@ -1037,17 +1037,16 @@ diff -u a/dlls/combase/roapi.c b/dlls/combase/roapi.c
  #include "initguid.h"
  #include "roapi.h"
  #include "roparameterizediid.h"
-@@ -447,9 +448,101 @@
- {
+@@ -448,8 +449,102 @@
      FIXME("%#lx, %lu, %p stub.\n", error, exception_count, information);
      RaiseFailFastException(NULL, NULL, 0);
-+}
+ }
 +
 +/* xodus-designmode: native combase derives the XAML design-mode state from the
 + * WIN://DESIGN_MODE[_V2] token security attributes (process token, then the
 + * thread token while impersonating). */
 +static LONG design_mode_state; /* 0 unknown, 1 design mode, 2 design mode v2, 3 none */
-+
+ 
 +static HRESULT token_has_security_attribute(HANDLE token, const WCHAR *name, BOOL *present)
 +{
 +    struct { USHORT version, reserved; ULONG count; } *info;
@@ -1060,6 +1059,8 @@ diff -u a/dlls/combase/roapi.c b/dlls/combase/roapi.c
 +    RtlInitUnicodeString(&str, name);
 +    status = NtQuerySecurityAttributesToken(token, &str, 1, NULL, 0, &len);
 +    if (status == STATUS_NOT_FOUND) return S_OK;
++    if (status != STATUS_BUFFER_TOO_SMALL) return HRESULT_FROM_WIN32(RtlNtStatusToDosError(status));
++    if (len < sizeof(*info)) return E_UNEXPECTED;
 +    if (!(info = HeapAlloc(GetProcessHeap(), 0, len))) return E_OUTOFMEMORY;
 +    status = NtQuerySecurityAttributesToken(token, &str, 1, info, len, &len);
 +    if (status) hr = HRESULT_FROM_WIN32(RtlNtStatusToDosError(status));
@@ -1085,8 +1086,8 @@ diff -u a/dlls/combase/roapi.c b/dlls/combase/roapi.c
 +    }
 +    WriteNoFence(&design_mode_state, *state);
 +    return S_OK;
- }
- 
++}
++
  /***********************************************************************
 + *      RoGetDesignMode (combase.90)
 + */
@@ -1139,7 +1140,7 @@ diff -u a/dlls/combase/roapi.c b/dlls/combase/roapi.c
   *      RoGetApartmentIdentifier (combase.@)
   */
  HRESULT WINAPI RoGetApartmentIdentifier(UINT64 *identifier)
-@@ -598,3 +691,51 @@
+@@ -598,3 +693,51 @@
  
      return REGDB_E_CLASSNOTREG;
  }
@@ -8008,7 +8009,7 @@ diff -u a/programs/wineboot/wineboot.c b/programs/wineboot/wineboot.c
      data->NtMajorVersion              = version.dwMajorVersion;
      data->NtMinorVersion              = version.dwMinorVersion;
      data->SuiteMask                   = version.wSuiteMask;
-+    /* Windows 11 26100 client (Pro) reports SharedDataFlags 0x98e, including DbgMultiSessionSku. */
++    /* Windows 11 client (Pro, measured on 26300.9457) reports SharedDataFlags 0x98e, including DbgMultiSessionSku. */
 +    if (version.wProductType == VER_NT_WORKSTATION) data->DbgMultiSessionSku = 1;
      wcscpy( data->NtSystemRoot, L"C:\\windows" );
  

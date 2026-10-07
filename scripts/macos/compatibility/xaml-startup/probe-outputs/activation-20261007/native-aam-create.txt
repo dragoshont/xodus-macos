@@ -1,0 +1,7 @@
+# native: Parallels Windows 11 ARM64 VM, build 10.0.26300.9457, interactive user (prlctl --current-user)
+CoInitializeEx hr=00000000
+aam inproc hr=00000000 obj=1
+inner local_server hr=00000000 qi.hr=00000000 obj=1
+EXIT=0
+inner_ls32=False
+sihost pid=5076 session=2 am=True

@@ -1,0 +1,4 @@
+CoInitializeEx hr=00000000
+aam inproc hr=80070005 obj=0
+inner local_server hr=80040154 qi.hr=80004002 obj=0
+EXIT=0

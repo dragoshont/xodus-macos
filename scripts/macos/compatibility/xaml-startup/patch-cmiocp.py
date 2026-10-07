@@ -109,6 +109,7 @@ HANDLE WINAPI NtUserInitThreadCoreMessagingIocp2( HWND hwnd, DWORD *slot )
  */
 BOOL WINAPI NtUserDrainThreadCoreMessagingCompletions2( HWND hwnd )
 {
+    static LONG once;
     struct user_thread_info *info = get_user_thread_info();
     UINT i;
 
@@ -123,7 +124,11 @@ BOOL WINAPI NtUserDrainThreadCoreMessagingCompletions2( HWND hwnd )
     hwnd = get_full_window_handle( hwnd );
     /* win32u never queues packets to the port, so a registered window has none pending */
     for (i = 0; i < ARRAY_SIZE(info->coremsg_hwnd); i++)
-        if (coremsg_slot_window( info, i ) == hwnd) return TRUE;
+    {
+        if (coremsg_slot_window( info, i ) != hwnd) continue;
+        if (!once++) FIXME( "hwnd %p: message-arrival packets are not queued to the port\\n", hwnd );
+        return TRUE;
+    }
     RtlSetLastWin32Error( ERROR_INVALID_PARAMETER );
     return FALSE;
 }

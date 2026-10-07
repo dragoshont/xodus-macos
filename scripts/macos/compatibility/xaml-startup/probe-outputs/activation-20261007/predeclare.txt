@@ -1,0 +1,48 @@
+Activation experiment (predeclared 2026-10-07 ~20:45 +03:00, before any run)
+
+Question: is the 70 s window-less run caused by missing launch activation?
+The alternative is that activation exists and only rendering is missing.
+
+Interface: documented IApplicationActivationManager::ActivateApplication.
+- CLSID {45BA127D-10A8-46EA-8AB7-56EA9078943C}, AppUserModelId
+  Microsoft.GamingApp_8wekyb3d8bbwe!Microsoft.Xbox.AppL, AO_NONE.
+- Upstream: Wine master 59416cf has only the IDL. Staging, Proton and ReactOS
+  have no implementation.
+- Native: InProcServer32 twinui.appcore.dll, ThreadingModel Both.
+  AppID DllSurrogate, RunAs Interactive User.
+
+Step 0 (read-only, native PE). List the twinui.appcore.dll imports and the
+delay imports reached by ActivateApplication.
+
+Run: probe aam-activate.exe under guard.sh, with genuine twinui.appcore.dll
+(hashed) and only its direct non-shell dependencies.
+
+Observations:
+- O1: CoCreateInstance HRESULT.
+- O2: ActivateApplication HRESULT and pid.
+- O3: does the app process start with package identity, and is it the
+  process that receives activation? Look for a call into the app's
+  activation path: the -ServerName class factory or IFrameworkView
+  Initialize/SetWindow.
+- O4: does CoreWindow creation start (window class
+  Windows.UI.Core.CoreWindow, or CreateWindow from twinapi.appcore), and is a
+  visible top-level window present?
+
+Discriminating result:
+- If activation arrives and a CoreWindow is created, missing activation was
+  the cause.
+- If activation arrives and no CoreWindow appears, rendering or window-host
+  is next.
+- If activation cannot be delivered, report the boundary.
+
+Stops, giving NO-GO or a pivot with the boundary reported:
+- S1: twinui.appcore needs explorer, ApplicationFrameHost RPC, window bands,
+  a private shell protocol, or a success factory or stub to proceed.
+- S2: more than 3 consecutive missing-DLL or missing-export rungs before O2.
+- S3: any crash loop, or a process count above 1200 (abort immediately via
+  guard).
+- S4: budget of 2 h wall clock (ends ~22:45), well inside the 2026-10-08 13:39
+  deadline.
+
+Exclusions: no new workers, no 6 h lane, no forged identity, no product
+PASS, no GUI input unless the foreground has been released.

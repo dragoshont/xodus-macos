@@ -1,0 +1,201 @@
+0110:trace:loaddll:build_module Loaded L"C:\\paired\\audit-aam.exe" at 0000000140000000: native
+0110:trace:loaddll:build_ntdll_module Loaded L"C:\\windows\\system32\\ntdll.dll" at 00006FFFFFBC0000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\kernelbase.dll" at 00006FFFFF350000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\kernel32.dll" at 00006FFFFF9E0000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\ucrtbase.dll" at 00006FFFFE940000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\msvcrt.dll" at 00006FFFFEE50000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\sechost.dll" at 00006FFFFEDA0000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\advapi32.dll" at 00006FFFFF210000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\win32u.dll" at 00006FFFFD770000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\user32.dll" at 00006FFFFDAA0000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\gdi32.dll" at 00006FFFFD7D0000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\cryptbase.dll" at 00006FFFFE530000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\rpcrt4.dll" at 00006FFFFE570000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\combase.dll" at 00006FFFFC620000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\coml2.dll" at 00006FFFFC5B0000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\ole32.dll" at 00006FFFFC820000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\imm32.dll" at 00006FFFFD6D0000: builtin
+0110:trace:ole:DllMain 00006FFFFC620000, 0x1, 000000000031FB00
+0110:trace:ole:DllMain 00006FFFFC820000, 0x1, 000000000031FB00.
+0110:trace:ole:CoInitializeEx 0000000000000000, 0
+0110:trace:ole:CoInitializeEx Initializing the COM libraries
+0110:trace:ole:apartment_construct creating new apartment, model 0
+0110:trace:ole:apartment_construct Created apartment on OXID 10c0000cafe
+0110:trace:ole:CoCreateInstance {45ba127d-10a8-46ea-8ab7-56ea9078943c}, 0000000000000000, 0x1, {2e941141-7f97-4756-ba1d-9decde894a3d}, 000000000031FE98.
+0110:trace:ole:CoCreateInstanceEx {45ba127d-10a8-46ea-8ab7-56ea9078943c}, 0000000000000000, 0x1, 0000000000000000, 1, 000000000031FDF0
+0110:trace:ole:CoGetTreatAsClass {45ba127d-10a8-46ea-8ab7-56ea9078943c}, 000000000031FD30.
+0110:trace:ole:create_classes_root_hkey L"\\Registry\\Machine\\Software\\Classes" -> 0000000000000050
+0110:trace:ole:apartment_addref 10c0000cafe: before = 1
+0110:trace:ole:apartment_add_dll L"C:\\aam\\twinui.appcore.dll"
+0110:err:module:import_dll Loading library Windows.Storage.dll (which is needed by L"C:\\aam\\twinui.appcore.dll") failed (error c00000ba).
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\msvcp_win.dll" at 00006FFFFD500000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\vcruntime140.dll" at 00006FFFFD0C0000: builtin
+0110:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\msvcp140.dll" at 00006FFFFD0F0000: builtin
+0110:err:ole:apartment_add_dll couldn't load in-process dll L"C:\\aam\\twinui.appcore.dll"
+0110:trace:ole:apartment_release 10c0000cafe: after = 1
+0110:err:ole:com_get_class_object no class object {45ba127d-10a8-46ea-8ab7-56ea9078943c} could be created for context 0x1
+0110:trace:ole:CoCreateInstanceEx {6c3ee638-b588-4d7d-b30a-e7e36759305d}, 0000000000000000, 0x4, 0000000000000000, 1, 000000000031FE80
+0110:trace:ole:CoGetTreatAsClass {6c3ee638-b588-4d7d-b30a-e7e36759305d}, 000000000031FDF0.
+0110:trace:ole:apartment_addref 10c0000cafe: before = 1
+0110:trace:ole:apartment_release 10c0000cafe: after = 1
+0110:trace:ole:rpc_get_local_class_object clsid {6c3ee638-b588-4d7d-b30a-e7e36759305d}, riid {00000001-0000-0000-c000-000000000046}
+0110:trace:ole:NdrCorrelationInitialize (000000000031F170, 000000000031E630, 2048, 0x0)
+0110:trace:ole:NdrSimpleStructBufferSize (000000000031F170,000000000031FDF0,00006FFFFC659B18)
+0110:warn:seh:dispatch_exception RPC_S_SERVER_UNAVAILABLE exception (code=6ba) raised
+0110:trace:ole:start_rpcss 
+0110:trace:ole:NdrCorrelationInitialize (000000000031EF10, 000000000031E3D0, 2048, 0x0)
+0110:trace:ole:NdrPointerBufferSize (000000000031EF10,0000000000000000,00006FFFFEDB6EDC)
+0110:trace:ole:PointerBufferSize (000000000031EF10,0000000000000000,00006FFFFEDB6EDC)
+0110:trace:ole:PointerBufferSize type=0x12, attr= FC_SIMPLE_POINTER
+0110:trace:ole:NdrPointerBufferSize (000000000031EF10,0000000000000000,00006FFFFEDB6EE0)
+0110:trace:ole:PointerBufferSize (000000000031EF10,0000000000000000,00006FFFFEDB6EE0)
+0110:trace:ole:PointerBufferSize type=0x12, attr= FC_SIMPLE_POINTER
+0110:trace:ole:NdrBaseTypeBufferSize pStubMsg 000000000031EF10, pMemory 000000000031F700, type 0x08
+0110:trace:ole:NdrPointerMarshall (000000000031EF10,0000000000000000,00006FFFFEDB6EDC)
+0110:trace:ole:PointerMarshall (000000000031EF10,0000000000AD11C0,0000000000000000,00006FFFFEDB6EDC)
+0110:trace:ole:PointerMarshall type=0x12, attr= FC_SIMPLE_POINTER
+0110:trace:ole:PointerMarshall writing 0x00000000 to buffer
+0110:trace:ole:PointerMarshall calling marshaller for type 0x25
+0110:trace:ole:PointerMarshall buffer=4/12
+0110:trace:ole:NdrPointerMarshall (000000000031EF10,0000000000000000,00006FFFFEDB6EE0)
+0110:trace:ole:PointerMarshall (000000000031EF10,0000000000AD11C4,0000000000000000,00006FFFFEDB6EE0)
+0110:trace:ole:PointerMarshall type=0x12, attr= FC_SIMPLE_POINTER
+0110:trace:ole:PointerMarshall writing 0x00000000 to buffer
+0110:trace:ole:PointerMarshall calling marshaller for type 0x25
+0110:trace:ole:PointerMarshall buffer=8/12
+0110:trace:ole:NdrBaseTypeMarshall pStubMsg 000000000031EF10, pMemory 000000000031F700, type 0x08
+0110:trace:ole:NdrBaseTypeMarshall value: 0x00000000
+0110:trace:ole:NdrContextHandleUnmarshall pStubMsg 000000000031EF10, ppMemory 000000000031F708, pFormat 00006FFFFEDB6EE8, fMustAlloc FALSE
+0110:trace:ole:NdrContextHandleUnmarshall flags: 0xa0
+0110:trace:ole:NdrClientContextUnmarshall (000000000031EF10, 000000000031F778, 0000000000AD1640)
+0110:trace:ole:NDRCContextUnmarshall *000000000031F778=(0000000000000000) 0000000000AD1640 0000000000AD14F0 00000010
+0110:trace:ole:NdrBaseTypeUnmarshall pStubMsg: 000000000031EF10, ppMemory: 000000000031E178, type: 0x08, fMustAlloc: false
+0110:trace:ole:NdrBaseTypeUnmarshall *ppMemory: 000000000031E218
+0110:trace:ole:NdrBaseTypeUnmarshall value: 0x00000000
+0110:trace:ole:NDRCContextBinding 0000000000AD17C0
+0110:trace:ole:NdrCorrelationInitialize (000000000031EF10, 000000000031E3D0, 2048, 0x0)
+0110:trace:ole:NdrContextHandleBufferSize pStubMsg 000000000031EF10, pMemory 0000000000AD17C0, type 0x30
+0110:trace:ole:NdrConformantStringBufferSize (pStubMsg == ^000000000031EF10, pMemory == ^00006FFFFC657690, pFormat == ^00006FFFFEDB6EF2)
+0110:trace:ole:array_compute_and_size_conformance string=L"RpcSs"
+0110:trace:ole:NdrBaseTypeBufferSize pStubMsg 000000000031EF10, pMemory 000000000031F700, type 0x08
+0110:trace:ole:NdrContextHandleMarshall pStubMsg 000000000031EF10, pMemory 0000000000AD17C0, type 0x30
+0110:trace:ole:NdrContextHandleMarshall flags: 0x41
+0110:trace:ole:NdrClientContextMarshall (000000000031EF10, 0000000000AD17C0, 0)
+0110:trace:ole:NDRCContextMarshall 0000000000AD17C0 000000000003E400
+0110:trace:ole:NdrConformantStringMarshall (pStubMsg == ^000000000031EF10, pszMessage == ^00006FFFFC657690, pFormat == ^00006FFFFEDB6EF2)
+0110:trace:ole:array_compute_and_write_conformance string=L"RpcSs"
+0110:trace:ole:NdrBaseTypeMarshall pStubMsg 000000000031EF10, pMemory 000000000031F700, type 0x08
+0110:trace:ole:NdrBaseTypeMarshall value: 0x00000014
+0110:trace:ole:NdrContextHandleUnmarshall pStubMsg 000000000031EF10, ppMemory 000000000031F708, pFormat 00006FFFFEDB6EF8, fMustAlloc FALSE
+0110:trace:ole:NdrContextHandleUnmarshall flags: 0xa0
+0110:trace:ole:NdrClientContextUnmarshall (000000000031EF10, 000000000031F778, 000000000003E370)
+0110:trace:ole:NDRCContextUnmarshall *000000000031F778=(0000000000000000) 000000000003E370 0000000000AD1550 00000010
+0110:trace:ole:NdrBaseTypeUnmarshall pStubMsg: 000000000031EF10, ppMemory: 000000000031E178, type: 0x08, fMustAlloc: false
+0110:trace:ole:NdrBaseTypeUnmarshall *ppMemory: 000000000031E218
+0110:trace:ole:NdrBaseTypeUnmarshall value: 0x00000000
+0110:trace:ole:NDRCContextBinding 000000000003E400
+0110:trace:ole:NdrCorrelationInitialize (000000000031EF20, 000000000031E3E0, 2048, 0x0)
+0110:trace:ole:NdrContextHandleBufferSize pStubMsg 000000000031EF20, pMemory 000000000003E400, type 0x30
+0110:trace:ole:NdrBaseTypeBufferSize pStubMsg 000000000031EF20, pMemory 000000000031F708, type 0x08
+0110:trace:ole:NdrPointerBufferSize (000000000031EF20,0000000000000000,00006FFFFEDB6F80)
+0110:trace:ole:PointerBufferSize (000000000031EF20,0000000000000000,00006FFFFEDB6F80)
+0110:trace:ole:PointerBufferSize type=0x12, attr=
+0110:trace:ole:NdrContextHandleMarshall pStubMsg 000000000031EF20, pMemory 000000000003E400, type 0x30
+0110:trace:ole:NdrContextHandleMarshall flags: 0x41
+0110:trace:ole:NdrClientContextMarshall (000000000031EF20, 000000000003E400, 0)
+0110:trace:ole:NDRCContextMarshall 000000000003E400 0000000000AD1550
+0110:trace:ole:NdrBaseTypeMarshall pStubMsg 000000000031EF20, pMemory 000000000031F708, type 0x08
+0110:trace:ole:NdrBaseTypeMarshall value: 0x00000000
+0110:trace:ole:NdrPointerMarshall (000000000031EF20,0000000000000000,00006FFFFEDB6F80)
+0110:trace:ole:PointerMarshall (000000000031EF20,0000000000AD1568,0000000000000000,00006FFFFEDB6F80)
+0110:trace:ole:PointerMarshall type=0x12, attr=
+0110:trace:ole:PointerMarshall writing 0x00000000 to buffer
+0110:trace:ole:PointerMarshall calling marshaller for type 0x21
+0110:trace:ole:PointerMarshall buffer=28/28
+0110:trace:ole:NdrBaseTypeUnmarshall pStubMsg: 000000000031EF20, ppMemory: 000000000031E188, type: 0x08, fMustAlloc: false
+0110:trace:ole:NdrBaseTypeUnmarshall *ppMemory: 000000000031E228
+0110:trace:ole:NdrBaseTypeUnmarshall value: 0x00000000
+0110:trace:ole:NDRCContextBinding 000000000003E400
+0110:trace:ole:NdrCorrelationInitialize (000000000031EF00, 000000000031E3C0, 2048, 0x0)
+0110:trace:ole:NdrContextHandleBufferSize pStubMsg 000000000031EF00, pMemory 000000000003E400, type 0x30
+0110:trace:ole:NdrBaseTypeBufferSize pStubMsg 000000000031EF00, pMemory 000000000031F6E8, type 0x0d
+0110:trace:ole:NdrBaseTypeBufferSize pStubMsg 000000000031EF00, pMemory 000000000031F6F8, type 0x08
+0110:trace:ole:NdrContextHandleMarshall pStubMsg 000000000031EF00, pMemory 000000000003E400, type 0x30
+0110:trace:ole:NdrContextHandleMarshall flags: 0x41
+0110:trace:ole:NdrClientContextMarshall (000000000031EF00, 000000000003E400, 0)
+0110:trace:ole:NDRCContextMarshall 000000000003E400 0000000000AD5920
+0110:trace:ole:NdrBaseTypeMarshall pStubMsg 000000000031EF00, pMemory 000000000031F6E8, type 0x0d
+0110:trace:ole:NdrBaseTypeMarshall value: 0x0000
+0110:trace:ole:NdrBaseTypeMarshall pStubMsg 000000000031EF00, pMemory 000000000031F6F8, type 0x08
+0110:trace:ole:NdrBaseTypeMarshall value: 0x00000024
+0110:trace:ole:NdrConformantArrayUnmarshall (000000000031EF00,000000000031F6F0,00006FFFFEDB7334,0)
+0110:trace:ole:ReadConformance unmarshalled conformance is 36
+0110:trace:ole:EmbeddedPointerUnmarshall (000000000031EF00,0000000000AD5F54,000000000031F900,00006FFFFEDB733E,0)
+0110:trace:ole:array_read_variance_and_unmarshall copying 0000000000AD5F54 to 000000000031F900
+0110:trace:ole:NdrBaseTypeUnmarshall pStubMsg: 000000000031EF00, ppMemory: 000000000031F700, type: 0x09, fMustAlloc: false
+0110:trace:ole:NdrBaseTypeUnmarshall *ppMemory: 000000000031F8FC
+0110:trace:ole:NdrBaseTypeUnmarshall value: 0x00000000
+0110:trace:ole:NdrBaseTypeUnmarshall pStubMsg: 000000000031EF00, ppMemory: 000000000031E168, type: 0x08, fMustAlloc: false
+0110:trace:ole:NdrBaseTypeUnmarshall *ppMemory: 000000000031E208
+0110:trace:ole:NdrBaseTypeUnmarshall value: 0x00000000
+0110:trace:ole:NDRCContextBinding 000000000003E400
+0110:trace:ole:NdrCorrelationInitialize (000000000031EF40, 000000000031E400, 2048, 0x0)
+0110:trace:ole:NdrContextHandleBufferSize pStubMsg 000000000031EF40, pMemory 000000000031F8C0, type 0x30
+0110:trace:ole:NdrContextHandleMarshall pStubMsg 000000000031EF40, pMemory 000000000031F8C0, type 0x30
+0110:trace:ole:NdrContextHandleMarshall flags: 0xe0
+0110:trace:ole:NdrClientContextMarshall (000000000031EF40, 000000000003E400, 0)
+0110:trace:ole:NDRCContextMarshall 000000000003E400 0000000000AD5920
+0110:trace:ole:NdrContextHandleUnmarshall pStubMsg 000000000031EF40, ppMemory 000000000031F720, pFormat 00006FFFFEDB6DA8, fMustAlloc FALSE
+0110:trace:ole:NdrContextHandleUnmarshall flags: 0xe0
+0110:trace:ole:NdrClientContextUnmarshall (000000000031EF40, 000000000031F8C0, 000000000003E440)
+0110:trace:ole:NDRCContextUnmarshall *000000000031F8C0=(000000000003E400) 000000000003E440 0000000000AD59B0 00000010
+0110:trace:ole:NdrBaseTypeUnmarshall pStubMsg: 000000000031EF40, ppMemory: 000000000031E1A8, type: 0x08, fMustAlloc: false
+0110:trace:ole:NdrBaseTypeUnmarshall *ppMemory: 000000000031E248
+0110:trace:ole:NdrBaseTypeUnmarshall value: 0x00000000
+0110:trace:ole:NDRCContextBinding 0000000000AD17C0
+0110:trace:ole:NdrCorrelationInitialize (000000000031EF40, 000000000031E400, 2048, 0x0)
+0110:trace:ole:NdrContextHandleBufferSize pStubMsg 000000000031EF40, pMemory 000000000031F8C0, type 0x30
+0110:trace:ole:NdrContextHandleMarshall pStubMsg 000000000031EF40, pMemory 000000000031F8C0, type 0x30
+0110:trace:ole:NdrContextHandleMarshall flags: 0xe0
+0110:trace:ole:NdrClientContextMarshall (000000000031EF40, 0000000000AD17C0, 0)
+0110:trace:ole:NDRCContextMarshall 0000000000AD17C0 0000000000AD5920
+0110:trace:ole:NdrContextHandleUnmarshall pStubMsg 000000000031EF40, ppMemory 000000000031F720, pFormat 00006FFFFEDB6DA8, fMustAlloc FALSE
+0110:trace:ole:NdrContextHandleUnmarshall flags: 0xe0
+0110:trace:ole:NdrClientContextUnmarshall (000000000031EF40, 000000000031F8C0, 000000000003E370)
+0110:trace:ole:NDRCContextUnmarshall *000000000031F8C0=(0000000000AD17C0) 000000000003E370 0000000000AD59B0 00000010
+0110:trace:ole:NdrBaseTypeUnmarshall pStubMsg: 000000000031EF40, ppMemory: 000000000031E1A8, type: 0x08, fMustAlloc: false
+0110:trace:ole:NdrBaseTypeUnmarshall *ppMemory: 000000000031E248
+0110:trace:ole:NdrBaseTypeUnmarshall value: 0x00000000
+0110:trace:ole:NdrCorrelationInitialize (000000000031F170, 000000000031E630, 2048, 0x0)
+0110:trace:ole:NdrSimpleStructBufferSize (000000000031F170,000000000031FDF0,00006FFFFC659B18)
+0110:trace:ole:NdrSimpleStructMarshall (000000000031F170,000000000031FDF0,00006FFFFC659B18)
+0110:trace:ole:NdrPointerUnmarshall (000000000031F170,000000000031F960,00006FFFFC659B4C,0)
+0110:trace:ole:PointerUnmarshall (000000000031F170,0000000000AD5A10,000000000031F960,000000000031FB78,00006FFFFC659B4C,0)
+0110:trace:ole:PointerUnmarshall type=0x11, attr= FC_ALLOCED_ON_STACK FC_POINTER_DEREF
+0110:trace:ole:PointerUnmarshall client
+0110:trace:ole:PointerUnmarshall setting *pPointer to 000000000031FB78
+0110:trace:ole:PointerUnmarshall deref => 000000000031FB78
+0110:trace:ole:NdrPointerUnmarshall (000000000031F170,000000000031FB78,00006FFFFC659B48,0)
+0110:trace:ole:PointerUnmarshall (000000000031F170,0000000000AD5A10,000000000031FB78,0000000000000000,00006FFFFC659B48,0)
+0110:trace:ole:PointerUnmarshall type=0x12, attr=
+0110:trace:ole:PointerUnmarshall pointer_id is 0x00000000
+0110:trace:ole:PointerUnmarshall pointer=0000000000000000
+0110:trace:ole:PointerUnmarshall pointer=000000000031FB78
+0110:trace:ole:NdrBaseTypeUnmarshall pStubMsg: 000000000031F170, ppMemory: 000000000031E3D8, type: 0x08, fMustAlloc: false
+0110:trace:ole:NdrBaseTypeUnmarshall *ppMemory: 000000000031E478
+0110:trace:ole:NdrBaseTypeUnmarshall value: 0x80004002
+0110:trace:ole:create_local_service Attempting to start Local service for {6c3ee638-b588-4d7d-b30a-e7e36759305d}
+0110:trace:ole:create_server Attempting to start server for {6c3ee638-b588-4d7d-b30a-e7e36759305d}
+0110:err:ole:create_server class {6c3ee638-b588-4d7d-b30a-e7e36759305d} not registered
+0110:trace:ole:create_surrogate_server Attempting to start surrogate server for {6c3ee638-b588-4d7d-b30a-e7e36759305d}
+0110:err:ole:com_get_class_object no class object {6c3ee638-b588-4d7d-b30a-e7e36759305d} could be created for context 0x4
+0110:trace:ole:CoUninitialize 
+0110:trace:ole:apartment_release 10c0000cafe: after = 0
+0110:trace:ole:apartment_release destroying apartment 000000000003E160, oxid 10c0000cafe
+0110:trace:ole:CoUninitialize Releasing the COM libraries
+0110:trace:ole:DestroyRunningObjectTable 
+CoInitializeEx hr=00000000
+aam inproc hr=80070005 obj=0
+inner local_server hr=80040154 qi.hr=80004002 obj=0
+0110:trace:ole:DllMain 00006FFFFC820000, 0, 0000000000000001.
+0110:trace:ole:DllMain 00006FFFFC620000, 0, 0000000000000001

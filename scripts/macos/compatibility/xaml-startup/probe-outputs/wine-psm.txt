@@ -1,0 +1,10 @@
+[kernel.appcore.dll] loaded=0 export=0
+[kernelbase.dll] loaded=1 export=1
+  pseudo-process-token status=00000000 type=00000001
+  pseudo-process-token-again status=00000000 type=00000001
+  real-process-token status=00000000 type=00000001
+  token-without-query status=c0000022 type=deadbeef
+  null-token status=c0000008 type=deadbeef
+  invalid-handle status=c0000008 type=deadbeef
+EXIT=0
+EXIT=0

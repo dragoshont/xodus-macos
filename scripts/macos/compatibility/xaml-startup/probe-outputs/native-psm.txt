@@ -1,0 +1,10 @@
+# native: Parallels Windows 11 ARM64 VM 10.0.26300.9457, interactive user, x64 emulation
+[kernel.appcore.dll] loaded=1 export=1
+  pseudo-process-token status=00000000 type=00000001
+  pseudo-process-token-again status=00000000 type=00000001
+  real-process-token status=00000000 type=00000001
+  token-without-query status=c0000022 type=deadbeef
+  null-token status=c0000008 type=deadbeef
+  invalid-handle status=c0000008 type=deadbeef
+[kernelbase.dll] loaded=1 export=0
+EXIT=0

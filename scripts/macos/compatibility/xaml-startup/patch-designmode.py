@@ -35,6 +35,8 @@ static HRESULT token_has_security_attribute(HANDLE token, const WCHAR *name, BOO
     RtlInitUnicodeString(&str, name);
     status = NtQuerySecurityAttributesToken(token, &str, 1, NULL, 0, &len);
     if (status == STATUS_NOT_FOUND) return S_OK;
+    if (status != STATUS_BUFFER_TOO_SMALL) return HRESULT_FROM_WIN32(RtlNtStatusToDosError(status));
+    if (len < sizeof(*info)) return E_UNEXPECTED;
     if (!(info = HeapAlloc(GetProcessHeap(), 0, len))) return E_OUTOFMEMORY;
     status = NtQuerySecurityAttributesToken(token, &str, 1, info, len, &len);
     if (status) hr = HRESULT_FROM_WIN32(RtlNtStatusToDosError(status));

@@ -424,8 +424,11 @@ Open (needs the user at the Mac):
 - **B6** One-time Keychain migration approval; macOS refuses ACL changes
   without it (proven with synthetic items). Then repackage.
 - **Package `208939c`** (B5 probe-order and setup-refresh fixes, CI green)
-  stopped at certificate signing in a non-graphical session; rerun with the
-  user present.
+  stopped at fixed-certificate signing with an opaque policy rejection in a
+  non-graphical session. Cause not established (hypothesis: locked or
+  non-interactive keychain); diagnose first, then rerun with the user present.
+  User approval of the B6 migration is a consent step, not a guaranteed fix
+  for either issue.
 - Not done: fresh macOS account run, game service inside the app bundle,
   first-launch GPU dialog in new environments for Nixxes titles, cloud saves,
   Xbox sign-in (SISU) for some titles.

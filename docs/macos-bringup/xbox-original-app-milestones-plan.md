@@ -1,0 +1,557 @@
+# Original Xbox PC app: remaining-milestone plan
+
+Updated: 2026-10-07. Target: the original `XboxPcApp.exe`, application
+`Microsoft.Xbox.AppL`, not the Xodus UI, CE sidecar, installer or a replacement
+authentication flow.
+
+## Ground truth
+
+| Milestone | Current evidence | Remaining acceptance |
+|---|---|---|
+| 1. Installer UI | Verified original installer rendering | Preserve evidence; installation is a separate requirement |
+| 2. Registered identity | Verified local DeveloperUnsigned catalog/token identity | Do not claim Store installation, licensing or private capabilities |
+| 3. Process alive >10 seconds | Historical child waited 11.002 seconds; latest retry exits after 7.349 seconds despite genuine registrar RUNNING | Lifetime waiting was not responsive startup; latest retry does not pass this milestone |
+| 4. Original window | Not observed; no screenshot | Original visible window and meaningful frame, associated with the genuine child |
+| 5. Microsoft sign-in page | Not observed | Original app opens its genuine Microsoft authentication surface |
+| 6. Signed in | Not observed | Human completes authentication; original app accepts the genuine session |
+| 7. Library | Not observed | Original authenticated library finishes loading with real account-backed data |
+
+The canonical Run remains `xbox-pc-app-crossover-20261005`; its primary criterion
+is `XBOX-APP-LIBRARY`. The Run's broader play/download criterion is not silently
+completed or removed by this plan.
+
+The current blocker is **the registrar server's restricted service principal**.
+The measured `QueryTransientObjectSecurityDescriptor` implementation reads the
+authentic installed `WM_RegistrarServer` default successfully. The port-flags
+candidate permits the genuine service to report RUNNING, but the original
+client's unchanged server requirement rejects its actual process token with
+`STATUS_SERVER_SID_MISMATCH (0xc00002a0)`. Neither service RUNNING nor standalone
+controls establish original-app startup.
+
+## User-directed feasibility audit: 2026-10-07
+
+Normal implementation is paused. Independent adversarial assessment is
+**REVISE**. The last day produced real prerequisite progress on the original
+path, including genuine registrar RUNNING, but no newly accepted original
+window, sign-in, account or library milestone. The latest original child exits
+after 7.349 seconds with the unchanged `STATUS_SERVER_SID_MISMATCH` blocker.
+
+The audit extended the restriction POC to 32 native/Wine cases and found four
+access-mask differences in the experimental candidate. A one-line correction
+in a separate audit-only COW stage matches all 32 native cases; it is not
+integrated or a service-principal fix. Another POC launched an actual child
+under a caller-owned primary token and preserved its identifier and zero
+privileges, without constructing a service identity. The existing builtin
+account route instead returns logon success with an invalid token (error 6);
+SCM SID-type query fails with error 124. Those placeholders cannot be reused
+as a truthful issuer.
+
+**Decision:** NO-GO for open-ended original-app delivery on Wine;
+BOUNDED_GO only for one faithful SCM principal/startup experiment with an
+explicit exit criterion. Do not resume perpetual helper work, fabricate a
+LocalService identity, relax the descriptor or count helper success as a
+window/library result. The next proof must be the real configured principal
+accepted by the unchanged original client and observable startup progress.
+
+A materially different delivery route is a genuine Windows 11 ARM VM or the
+existing native Windows reference, not a custom Xbox UI. Microsoft announced
+[native ARM Xbox/Game Pass support on January 21, 2026](https://blogs.windows.com/windowsexperience/2026/01/21/play-more-xbox-app-is-now-available-on-arm-based-windows-11-pcs/);
+historical ARM installation failures are not current universal evidence.
+[Parallels requirements](https://kb.parallels.com/en/124223) cover Apple
+silicon and macOS 27. App/sign-in/library must still be tested in the actual VM;
+native ARM game compatibility is not a guarantee of VM graphics or anti-cheat
+support. No VM was installed or account authenticated during this audit.
+
+Detailed audit evidence is preserved privately as
+`xbox-feasibility-audit-20261007.json` and `audit-*.log` in the parent session's
+files directory. Normal product automation stays off pending the owner's
+decision. The original Xbox outcome remains unfinished.
+
+## Windows 11 ARM VM result: 2026-10-07
+
+Parallels Desktop 27.0.2 on the M5 Max (macOS 27.0.1) created a Windows 11
+ARM VM from Microsoft's official 26H2 ARM64 image (build 26300.9457). The
+genuine Store-signed Xbox app `Microsoft.GamingApp 2609.1001.16.0 Arm64` was
+installed from the Store with `winget`. Gaming Services 38.116.6003.0
+installed after the owner approved its UAC prompt. The owner then completed
+the genuine Microsoft sign-in.
+
+The original Xbox app now shows the signed-in profile with Game Pass Ultimate,
+Home, Game Pass, My Library, Cloud Gaming, Store, Most Recent and Play history.
+The owner handled all credentials; nothing was imported or faked. Screenshot:
+`win11-xbox3.png` in the parent session's private files.
+
+This proves milestones 4–6 and account-backed app data in a VM. It does not
+prove any game runs in the VM. Each title still depends on graphics,
+anti-cheat and ARM compatibility.
+
+Game test: the Parallels GPU exposes DirectX feature level 11_1 maximum
+(WDDM 2.0); there is no DirectX 12. That rules out DX12-only titles such as
+Hogwarts Legacy in this VM. Balatro (Game Pass, x64 under Prism) installed
+through the Xbox app. Its first launch failed with `gamingservicesui.exe`
+`0xc000007b`. Installing Microsoft's signed Visual C++ 2015+ runtimes (ARM64,
+x64, x86) fixed it. On relaunch, `love.exe` ran with window title `Balatro`,
+stayed responsive for 82 seconds and used CPU. The host screen capture of the
+fullscreen game is black, so in-game rendering was not verified from the
+host. The owner then visually confirmed on the Mac that Balatro is running
+and rendering in the Parallels window.
+
+## Owner preference and route decision: 2026-10-07
+
+The owner prefers running the original Xbox app natively on macOS, with no VM.
+That remains the target, but evidence supports only a time-boxed native step:
+
+1. **Native (preferred, uncertain):** one bounded experiment that issues a
+   real, configured, restricted service principal through SCM. It reuses the
+   audit-only access-mask correction only once the reached code path needs it.
+   - **Pass:** the unchanged original app gets past the 7.3 s
+     `STATUS_SERVER_SID_MISMATCH` exit and makes observable new startup
+     progress.
+   - **Stop:** the same exit persists, or reaching it requires a fabricated
+     identity or a weakened descriptor.
+   - **Time-box:** about one working day.
+   - **Scope after a pass:** only the original window, sign-in and library
+     milestones are in scope. Installing titles *through the original app*
+     depends on Gaming Services kernel drivers, which Wine cannot host.
+2. **Game Pass play on macOS (already proven, independent of the Xbox app):**
+   the Xodus runtime acquires each package directly from Microsoft and uses
+   the account's genuine licence. Two results, each per title:
+   - Xbox-PC Hogwarts Legacy reached shader preparation, the character
+     creator, the carriage cinematic and the opening world on GPTK 4.
+   - Xbox-PC No Man's Sky reached gameplay with genuine account sign-in.
+
+   This is the primary macOS route for Game Pass titles.
+3. **Windows reference only:** keep the Parallels Windows 11 ARM VM to
+   measure native behaviour. It is not a player route, because Xodus already
+   covers the owner's games on macOS.
+
+Open-ended Wine helper work stays cut.
+
+## 24-hour intensive sprint plan (owner-requested 2026-10-07)
+
+**Goal:** move the unchanged original Xbox app as far up the milestone ladder
+as possible in 24 hours of focused work, without faking anything.
+
+**Starting point:**
+- The genuine `CoreMessagingRegistrar` service reaches RUNNING.
+- The original app exits after 6.5–7.3 s, because `NtAlpcConnectPortEx`
+  returns `STATUS_SERVER_SID_MISMATCH`.
+- Wine SCM launches every service with the launcher's token. It does not
+  create the `NT SERVICE\CoreMessagingRegistrar` restricted principal.
+
+**What is new:** the Parallels Windows 11 ARM VM is a native reference we
+control, with administrator rights. That allows measuring the *actual* service
+token (user, groups, restricting SIDs, flags), plus ALPC and service behaviour.
+Earlier attempts to inspect the real service token were denied (error 5).
+
+**Two lanes only:**
+- **Lane A (Mac, implementation):** the matched experimental runtime in an
+  owned copy-on-write stage. Other games' bottles and prefixes are untouched.
+- **Lane B (VM, native reference + upstream check):** read-only measurements
+  and source search that feed Lane A. Lane B never ships code.
+
+### Phase 0 — baseline (h0–h1)
+- Snapshot the current runtime, prefix and port-flags candidate (rollback
+  point).
+- Reproduce the exit with a focused trace (ALPC, token, SCM channels only).
+- Lane B: dump the real `CoreMessagingRegistrar` host token in the VM:
+  user, groups and attributes, restricting SIDs, write-restricted flag,
+  integrity level, privileges, and its logon SID.
+
+### Phase 1 — faithful restricted service principal (h1–h8)
+- **wineserver token:** store restricting SIDs, return them from
+  `TokenRestrictedSids`, and apply native's second access-check pass. Integrate
+  the audit's corrected access mask, which matched all 32 native cases.
+- **SCM:** read the configured account and `ServiceSidType`. Build the primary
+  token measured in Phase 0 (LocalService user, deterministic service SID,
+  restricting SIDs). Start the service host through the existing owned
+  primary-token launch path, which the audit already proved.
+- **Controls:** a native/Wine token-comparison test plus the 32-case access
+  matrix.
+- **Retry the original app immediately.**
+- **Checkpoint h8:**
+  - **Pass:** the app gets past `STATUS_SERVER_SID_MISMATCH`.
+  - **Fail:** the same exit persists, or getting past it needs a faked SID or a
+    weakened descriptor. Stop the sprint and report.
+
+### Phase 2 — follow the next real failures (h8–h16)
+- Take only the first failing call on the original path.
+- For each failure, follow the upstream-first rule: Wine master, author
+  branches, staging, Proton, CodeWeavers, then ReactOS. Reuse if found,
+  otherwise implement against VM-measured behaviour.
+- **Time-box:** 3 hours per blocker. Over the limit, record it and stop that
+  blocker.
+- Likely areas, until observed: more CoreMessaging/ALPC, then XAML/WinUI
+  composition, DirectComposition and DWM-like APIs.
+- **Checkpoint h12:** report. If foreground is needed, ask the owner to free
+  the Mac screen.
+
+### Phase 3 — window attempt (h16–h22)
+- Enable the matched `winemac.drv` and relaunch the genuine app.
+- Capture the window of the original child process only.
+- **Pass:** a real Xbox window with a meaningful frame (milestone 4).
+- If the window appears early, try the Sign in action once and identify the
+  host (WebView2 or WAM). Credentials are entered only by the owner.
+
+### Phase 4 — wrap-up (h22–h24)
+- Report the milestone ladder, APIs fixed with their upstream sources,
+  evidence paths, and a remaining-blocker estimate.
+- Give a GO/NO-GO for continuing.
+- Freeze candidates. Integration and PRs happen only if the owner continues.
+
+**Honest odds (estimates, not measurements):**
+
+| Outcome within 24 h | Odds |
+|---|---|
+| Past `SERVER_SID_MISMATCH` | likely, about 60–70% |
+| Original window visible | about 20–30% |
+| Sign-in page | under 10% |
+| Signed-in library | very unlikely |
+
+Installing or playing games through the original app needs Gaming Services
+kernel drivers. That is out of scope for this sprint; Xodus remains the play
+route.
+
+**Hard rules for the sprint:**
+- No fake service, account, licence or security results.
+- No descriptor relaxation and no SID spoofing.
+- Other games' bottles and prefixes are untouched.
+- Every slice gets a focused control plus an immediate original retry.
+- Helper-test success never counts as an app milestone.
+
+### Sprint progress: Phase 1 checkpoint (2026-10-07 ~14:10, before h8)
+
+**Result: Phase 1 passed.** The original app is past
+`STATUS_SERVER_SID_MISMATCH`. The registrar runs as a genuine LocalService
+service principal. The app's ALPC connect to
+`\BaseNamedObjects\CoreMessagingRegistrar` now returns success; before, it
+returned `0xc00002a0`.
+
+**Upstream decision.** Wine, wine-staging, Proton and ReactOS do not issue
+per-service LocalService tokens with service SIDs or write restriction.
+- Upstream has only the primitives: `RtlCreateServiceSid` (Wine 8148f4e4),
+  `NtCreateToken`, and `NtFilterToken`/`CreateRestrictedToken`.
+- `SERVICE_CONFIG_SERVICE_SID_INFO` is a FIXME that returns success (Wine
+  95295dcf, WineHQ bug 42792). ReactOS launches services with
+  `LogonUserW`/`CreateProcessAsUserW`, without service SIDs.
+
+Implemented against native VM measurements instead, reusing those primitives.
+
+**Changes (stage `xbox-service-principal-20261007-001`):**
+- `programs/services/service_token.c` (new): the SCM issues the primary token
+  for LocalService services with `ServiceSidType` 1 or 3.
+  - Native group set and order, with the service SIDs of the svchost group
+    members (attribute `0xe` for the started service), the logon SID, and
+    `S-1-5-33`.
+  - LocalService privileges by well-known LUID, filtered by the group's
+    `RequiredPrivileges` union.
+  - Default DACL: SYSTEM, OWNER RIGHTS and the member service SIDs.
+  - Type 3 adds `WRITE_RESTRICTED` with restricting SIDs {member service SIDs,
+    Everyone, logon SID, `S-1-5-33`}.
+  - Services with type 0 or another account keep the previous behaviour.
+- `server/token.c`: write mask = `mapping->write | DELETE | WRITE_DAC |
+  WRITE_OWNER`. This is the audit-stage correction that matched 32/32 native
+  cases.
+- `server/alpc.c`: the creator of a new ALPC connection port gets
+  `PORT_ALL_ACCESS` without a check against the port's own DACL.
+  - Native measurement: `0x001f0001` with an empty DACL, a read-only DACL, and
+    the exact registrar DACL, including under a write-restricted token.
+  - Write restriction is enforced by the parent `\BaseNamedObjects` create
+    check, which native satisfies through the Everyone restricting SID.
+
+**Token parity against native.** The following match native:
+- User, owner and primary group.
+- Core groups and their order.
+- Registrar service SID, logon SID attributes, and write restriction.
+- Default DACL shape.
+- The 11 privileges.
+
+Recorded gaps:
+- The DPS, pla and NcdAutoSetup SIDs are absent because those services aren't
+  registered in the prefix.
+- The 8 `S-1-5-32-<hash>` capability SIDs are missing.
+- Session is 1, not 0.
+- Reported integrity is 12288, not 16384.
+- AuthId is assigned by the server, not `0:3e5`.
+- `NtCreateToken` doesn't check privilege (pre-existing).
+- Wine does not check the parent directory's create access (pre-existing, more
+  permissive than native).
+
+**Original-app ladder after Phase 1:**
+
+| Rung | Before | Now |
+|---|---|---|
+| Packaged activation and claims | pass | pass |
+| Registrar service running | running as admin token | running as LocalService principal |
+| ALPC connect to registrar | `0xc00002a0` | success |
+| Process lifetime | exits at ~7.5 s with `0xE0464645` | alive for 60 s (harness timeout) |
+| Original window (milestone 4) | — | **untested**: headless run, no display driver |
+
+The 60 s lifetime is not evidence of UI startup. The next rung needs Phase 3
+(`winemac.drv` on the Mac foreground), which needs the owner's release of the
+screen.
+
+## Xodus-backed substitutes for Windows dependencies (owner question, 2026-10-07)
+
+Xodus already reimplements several Windows pieces, using genuine Microsoft
+services and the owner's real account and licence:
+
+- `xodus-cli/src/webview.rs` stands in for `CloudExperienceHost` during
+  sign-in.
+- `xodus/src/api/xbox/auth.rs` and `tokens/` perform the RST2/XSTS token
+  exchange.
+- `licensing/` and `clep/` handle licences.
+- `msixvc` and `streaming` handle MSIXVC download and decryption.
+- `xodus-service` and xgameruntime let games launch.
+
+The original app's dependencies can therefore be backed by Xodus instead of
+Windows components:
+
+| Original-app dependency | Windows component | Xodus capability | Assessment |
+|---|---|---|---|
+| Account sign-in / tokens | WAM + TokenBroker MSA provider, Xbox Identity Provider | Login webview, RST2, XSTS, token store | **Good candidate:** a WAM/TokenBroker-compatible provider backed by Xodus tokens. The real user signs in; tokens are genuine. |
+| Licence check | ClipSVC / LicenseManager | `licensing`, CLEP, SP licence | Plausible; interface still to be measured |
+| Download / install / mount | Gaming Services + `xvdd`/`gameflt` kernel drivers | `streaming`, `msixvc` extract and decrypt | **Removes the kernel-driver wall:** a user-mode Gaming Services-compatible service backed by Xodus. Its private interface is undocumented and must be measured in the VM. |
+| Launch | Gaming Services package activation | `xodus run`, xgameruntime | Plausible once install is modelled |
+| Library / catalog data | Xbox web services over HTTPS | Not needed | Works once sign-in works |
+
+Rules for any substitute:
+- It must really perform the operation: real download, real licence, real
+  account.
+- It must return Windows' true error for anything it cannot do.
+- No fabricated entitlements and no bypassed licence checks.
+- Interface shapes come from VM measurement plus public sources. The
+  clean-room limit for GDK/xgameruntime semantics still applies.
+
+This replaces the earlier "custom sign-in not accepted" stance only for a
+provider the original app genuinely calls through its own WAM route. The app's
+own UI and flow stay unchanged.
+
+**Order:** none of this helps until the app itself runs (sprint Phases 1–3).
+The sign-in provider is first, because it is needed for milestones 5–7. The
+Gaming Services substitute comes later, as a separate multi-week project.
+
+## Execution order
+
+### A. Publish the authentic registrar installation default
+
+**Completed scoped operation; preserve its receipt.**
+
+- Resolve the existing `registrar-default-write-target`
+  `SAFE_WRITE_TARGET_REQUIRED` checkpoint through the trusted observer.
+  Broad installation permission does not fabricate a verified target or a
+  human checkpoint resolution.
+- Bind only the owned experimental prefix
+  `~/xodus-runs/xbox-transient-query-20261007-001/prefix`, matching
+  CoreMessaging `10.0.26100.9444`, and the single
+  `WM_RegistrarServer/SecurityDescriptor` binary value.
+- Use `provision-coremessaging-install-default.py`: pinned asset/component,
+  exclusive prefix ownership, quiescence before publication, no overwrite,
+  exact read-back, intent/result receipt, matching-value-only rollback.
+- Retry the genuine service and original app immediately. Record actual
+  `QueryServiceStatusEx` state, process exit/lifetime and first invoked failure.
+
+**Acceptance:** the lookup succeeds from authentic installed data, the genuine
+service progresses beyond its current fail-fast, and its real status is recorded.
+Do not substitute a descriptor or report RUNNING from a helper's success.
+
+The asset is 264 bytes, matches the installed Microsoft component and has no
+machine/domain-account SID. Existing tests cover exact selection, duplicate and
+version rejection, malformed ACE/SID rejection, native-write refusal and
+exclusive-publication refusal. Independent review permits this one-shot
+operation. Publication has occurred with exact read-back; do not repeat it
+blindly or overwrite the installed value.
+
+### B. Finish actual service/application startup
+
+**Reached prerequisite: faithful restricted service-token construction.**
+
+The matching, hash-verified installation manifest declares
+`CoreMessagingRegistrar`, `NT AUTHORITY\LocalService`, shared-process hosting
+and `sidType="restricted"`. Native read-only service configuration independently
+reports SID type 3. The original component's static required descriptor names
+the deterministic service SID; native `RtlCreateServiceSid` produces that exact
+SID. This is installation metadata, not imported live policy or credentials.
+
+Wine SCM currently inherits its launching process token. Faithful provisioning
+requires the configured account, service/logon identity, normal and restricted
+SID lists, restriction-aware access checks and primary-token process launch.
+Adding one service SID to an inherited token, downgrading SID type, or relaxing
+the client descriptor is not an acceptable implementation.
+
+`restricted-token-access-control.c` uses only owned current-process token
+handles and synthetic descriptors. Before the new candidate, native Windows passed 11 assertions for
+the two independent SID checks, duplicate-token preservation and write-only
+restrictions. The matched Wine runtime fails at `TokenRestrictedSids` query;
+its successful `CreateRestrictedToken` return alone does not prove restriction
+support. Native inspection of the actual service process was denied with
+access error 5; no elevation was attempted. These fixtures are not observations
+of the actual protected service token.
+
+Commit-pinned Wine and Proton token bodies lack restricting-SID storage; the
+inspected staging tree contains no matching token-restriction patch. A bounded
+independent comparison recommends a faithful SCM/token dependency closure,
+but has not verified a reusable complete implementation. Do not describe this
+limited search as proof that none exists. Before runtime adoption, close the
+native restriction/account contract and independent security/policy review.
+
+The frozen port-flags delta received an independent source/control review:
+the reached `0x70000` and Identification slice passes scoped semantic/security
+assessment without an identified delta regression. Overall integration
+qualification remains REVISE because applicable candidate-bound canonical
+gates and operation/target evidence are unfinished. Anonymous port QoS,
+EffectiveOnly privilege filtering and full negative-status parity remain
+unqualified; no future service-principal gate or app success was fabricated.
+
+Follow only the first failing call on the original path. For every failure:
+resolve the API/ordinal and ABI; check pinned Wine master, author branches,
+staging, relevant bugs, Proton, public CodeWeavers source and ReactOS; reuse
+working behavior before implementing a measured gap.
+
+Keep the matched loader, wineserver, Unix/PE NTDLL and COM providers coherent.
+Preserve real access checks, service identity, message ownership and
+timeouts/cancellation. A trust or capability denial is not permission to
+promote DeveloperUnsigned identity or rewrite permissions.
+
+**Acceptance:** genuine service state and original process behavior establish
+startup progress, not merely a longer wait. Each implementation slice is bounded
+to one reached prerequisite with focused controls and an immediate original
+retry. No whole-engine replacement or broad Windows-service framework.
+
+### C. Prove milestone 4: original visible window
+
+**External foreground resource checkpoint plus runtime test.**
+
+Foreground allocation has not been released. Do not contact the excluded
+Exodus UI session or its children; do not infer release from an idle snapshot.
+
+Once startup progresses and foreground permission is explicit:
+
+- Enable the existing matched `winemac.drv` rather than the current disabled
+  driver override. Both its PE driver and Unix module are already built.
+- Launch the same registered original executable, package/application identity
+  and observed bare server-name argument.
+- Associate Win32/native window ownership with the actual original child.
+  Capture only its window into private evidence.
+- Verify a meaningful first frame and repaint; qualify harmless focus/input
+  only within the allowed foreground operation.
+
+**Acceptance:** an actual original Xbox window on the Mac with screenshot path.
+Installer pixels, debugger windows, a headless HWND, blank frames and controller
+exit zero do not count.
+
+If a graphics call actually fails, reuse the matched backend first. The pinned
+staging DirectComposition series is a conditional candidate, not an approved
+bulk backport. Select only the behavior required by the measured API/IID and
+run real rendering controls before adoption.
+
+### D. Prove milestone 5: genuine sign-in surface
+
+**Hosting/provider requirements are currently unobserved.**
+
+Use the original Sign in action once. Identify the actual host and reached
+API/class/HRESULT without collecting auth headers, cookies, request bodies or
+redirect tokens.
+
+| Observed route | Reuse-first action | Important limitation |
+|---|---|---|
+| WebView2 | Use the genuine runtime/loader and original hosting contract | Edge Stable is not a production WebView2 replacement; no sandbox bypass |
+| WAM / WinRT account provider | Reuse the original provider plus existing COM/proxy transport | Interface creation is not token issuance or account authentication |
+| WebAuthenticationBroker | Preserve the original request/callback identity and real async outcomes | Documentation/samples describe a contract, not a working Wine broker |
+| External browser | Preserve original destination and callback delivery into the original app | Browser-only login is not app sign-in |
+
+**Acceptance:** a genuine Microsoft authentication page belonging to the
+original app's flow. Do not replace it with custom device-code login or a Xodus
+account page.
+
+### E. Prove milestone 6: genuine account acceptance
+
+**Mandatory human AUTH/MFA/consent checkpoint.**
+
+The human supplies credentials, account selection and MFA through the genuine
+flow. No token/account-cache import, synthetic identity or replay. After
+completion, observe the original app's actual account state and successful use
+of its session for an account-backed operation. A displayed profile alone is
+insufficient if the service rejects the session.
+
+**Acceptance:** the original Xbox app genuinely accepts the intended Microsoft/
+Xbox account. Preserve account consistency and original scopes/callbacks.
+
+### F. Prove milestone 7: real library
+
+Open the original Library after E. Verify loading completes and uses its
+authenticated account data. For a nonempty account, check a human-selected
+known entitled title. For an actually empty account, require a successful
+authoritative empty result, truthful empty UI and human confirmation.
+
+**Acceptance:** visible original library with real service-backed content or a
+verified genuine empty state. Installed-package enumeration, a public Game Pass
+catalog, a Store queue, cached data for another account and errors rendered as
+empty do not count. No purchase, download or game launch is necessary merely to
+prove this milestone.
+
+## Source-backed reuse inventory
+
+Current Wine master was refreshed to
+`59416cf58482d97371d17207ddbfd4d6cc22b347`. Its sechost exports still stub
+`QueryTransientObjectSecurityDescriptor` and `WaitServiceState`; OnlineId
+`GetTicketAsync` and DirectComposition device creation still return E_NOTIMPL.
+These are inspected bodies/exports, not release-version assumptions.
+
+| Resource | Established value | Boundary |
+|---|---|---|
+| [Wine author ALPC branch, c415dc73](https://gitlab.winehq.org/zhiyi/wine/-/tree/c415dc732ce0a79b91391ba353251c00efc56dc8) | Real connection/message transport reused in the qualified experimental runtime | Author WIP required measured ownership/security corrections; not full ALPC parity |
+| [Wine author WaitCompletionPacket branch, 8809cc80](https://gitlab.winehq.org/zhiyi/wine/-/tree/8809cc80f11196616bf2ff7d19aa50eee09dfc68) | Real wait/completion object implementation and focused native/Wine controls | Preserve matched server protocol and lifetime/OOM behavior |
+| [CBS manifest decoder procedure](https://github.com/martinosani/Win-CBS-Manifest-Decoder) | Identifies required servicing dictionary for DCM/PA30 installation metadata | Our extractor uses native APIs; do not copy live machine policy |
+| [Wine Mac window driver, eba89375](https://github.com/wine-mirror/wine/blob/eba89375a0515957701928faac0f5007ef638b04/dlls/winemac.drv/window.c) | Existing real window/Cocoa path | Source presence does not prove Xbox rendering |
+| [Staging DirectComposition, 2395d933](https://github.com/wine-staging/wine-staging/tree/2395d93338d6b75d44c4c68fec38213f2398a5a9/patches/dcomp-DCompositionCreateDevice2) | Selected real texture/surface/composition behavior; linked MR !9839 | Partial/WIP, same-process limitations and unsupported methods; only adopt after a reached call |
+| [Microsoft WebView2 distribution](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution) | Genuine runtime acquisition/hosting contract | Not Wine support or permission to weaken the sandbox |
+| [Microsoft WAM contract](https://learn.microsoft.com/en-us/windows/uwp/security/web-account-manager) | Provider discovery and real token-request lifecycle | Not a replacement auth implementation |
+| [Microsoft WebAuthenticationBroker contract](https://learn.microsoft.com/en-us/windows/uwp/security/web-authentication-broker) | Request/callback and async success/cancel/error contract | Preserve original application identity |
+| [Wine OnlineId, 59416cf5](https://github.com/wine-mirror/wine/blob/59416cf58482d97371d17207ddbfd4d6cc22b347/dlls/windows.security.authentication.onlineid/authenticator.c) | The refreshed source proves `GetTicketAsync` is E_NOTIMPL | Reject it as working authentication despite nonnull factory/interface |
+
+ALPC/WCP source retains Wine LGPL-2.1-or-later attribution. No full
+source-backed authentication/library provider has been verified in the bounded
+research; this is uncertainty, not proof of universal absence.
+
+## Focus and stops
+
+- KEEP: authentic registrar data, immediate original retry, then original window.
+- DEFER: unrelated installer/CE branches unless the chosen app invokes them;
+  hypothetical auth/graphics APIs; consolidation, commits and PRs.
+- CUT: custom UI substitution, fake service/account/entitlement success,
+  permissive descriptor fallback and fabricated target attestations.
+- At most two active lanes: the reached implementation and a bounded independent
+  review/reuse question. No worker swarm or repeated unchanged status polling.
+- R3/R4 slices receive focused deterministic controls and independent semantic
+  review; R4 also requires security/policy review. Compilation and standalone
+  controls never pass the library criterion.
+- Stop only at an actual policy/target, resource, human-authentication or measured
+  unsupported-contract boundary. Preserve exact evidence and the next bounded
+  action rather than claiming completion.
+
+The owner explicitly confirmed the isolated target on 2026-10-07. The installed
+trusted enrollment tool enrolled only that identity, and `target-attest`
+independently verified the actual remote asset and prefix. Publication then
+completed under the exclusive wrapper with exact read-back and a receipt.
+The genuine service's `WM_RegistrarServer` descriptor lookup now succeeds.
+
+The subsequent observed failure was genuine CoreMessaging's `NtAlpcCreatePort` request:
+port flags `0x70000`, maximum message `0x20f0` and identification-level QoS.
+The earlier scoped transport rejected these flags. The frozen three-file
+candidate now qualifies the reached `0x70000` behavior and identification-level
+sender-token capture against native controls, and its isolated runtime reports
+the genuine registrar `STATE 4 RUNNING` with zero service exit codes. Three
+unreached public-wait discrepancies and a wrong-listener negative-status
+difference remain disclosed; legacy LPC and complete EffectiveOnly privilege
+filtering are not claimed. The original Xbox child then exits `0xe0464645`
+after 6.559 seconds following the actual server-SID mismatch. This is real
+service progress, not a GUI/auth/library success.
+The earlier greater-than-ten-second observation was a blocked wait, not proof
+of stable application startup.
+
+The newly recorded dependent native tasks reserve **read-only preflight**
+work. They do not grant launch, installer input, screenshot capture or account
+actions. Before any such execution, the lead must issue an operation-bound,
+target-verified WorkPacket and enforce its actual runtime prerequisites.
+Finishing a preflight cannot pass a window, sign-in or library criterion.

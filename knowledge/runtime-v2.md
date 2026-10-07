@@ -74,6 +74,45 @@ manufacture PASS.
 
 ## Focus and correction controls
 
+### 0.14 factual visibility and owner correction
+
+`status` distinguishes executing module fingerprint, copied kit stamp and
+session-loaded instructions (UNKNOWN without supported host provenance).
+`activeWorkers` is canonical-only. The joined extension observes this session's
+tasks; it does not certify every app/chat idle. Unknown visibility does not block
+cheap direct work or imply zero budget. Source drift labels the stall projection
+stale rather than declaring a current product failure.
+
+`milestone-advance RUN TASK --criterion ID --milestone "observed slice"
+--gate gate:ID` consumes an existing product legibility observation bound to the
+exact current task/criterion/objective/source. Control tests, coordinator files,
+chat claims, wrong producer, stale source and duplicate substantive observations
+cannot advance it. It does not set criterion PASS. Path/commit activity stays a
+separate proxy; milestone-free churn requests bounded feasibility review, not an
+automatic time-based halt. An unexpired bound lease suppresses idle/stall advice
+while real scoped work is in flight. Intermediate exploratory milestones must
+describe verified observable behavior, not each compatibility patch.
+
+For outdated primary paths, the owning coordinator uses
+`focus-correction-request RUN TASK --path PATH --principal OWNER --actor
+human:OWNER --id CHECKPOINT`, then `focus-correction-apply RUN CHECKPOINT
+--challenge VALUE --actor human:OWNER`. The one-use owner challenge binds
+revision/task/objective/source and existing repository paths. Only primary paths
+change. Budgets, attempts, side effects, baseline, candidates, acceptance and
+auth/consent/product holds are preserved. Source/revision drift rejects it.
+Objective strategy changes still use `objective-replace`; explicit accepted
+baseline reconciliation uses `resume --accept-commit`, never a silent status fix.
+Closed-resource observation uses trusted `reconcile-attest`. No cross-repository
+path correction certifies another application's outcome.
+
+At a safe boundary run the published installer `adoption-status TARGET`, then
+`update --agents TARGET` only for authorized consumers. It preserves product
+code/config/custom agents and ignored Run state; verify matching hashes and load
+the updated skill in a new supported turn/session. A file update alone is not a
+loaded-context receipt. Do not interrupt gameplay, authentication prompts or
+user-paused work for harness adoption; report inactive/deferred/UNCONFIRMED
+honestly and give a concrete safe handoff.
+
 The current objective is versioned and singular. An explicit correction or
 priority change replaces it, emits `objective.replaced`, marks prior nonterminal
 tasks `DEFERRED`, releases their leases, fails their active workers, resets
@@ -95,7 +134,7 @@ flow, before any hardening. `objective-replace` requires a `HUMAN_JUDGMENT_REQUI
 `target-resolve` requires a `SAFE_WRITE_TARGET_REQUIRED` challenge bound to the
 provider/principal. Neither flow accepts a repository-authored self-attestation.
 
-At most two execution lanes are active by default. The product lane cannot be
+At most two execution lanes are active by default (lanes are not children). The product lane cannot be
 displaced by communications, unrelated research, or infrastructure; those
 become deferred lanes until explicitly promoted.
 
@@ -138,6 +177,56 @@ artifact or executable, version/build, SHA-256, environment, workspace/prefix,
 and acceptance target. Any mismatch pauses the Run and blocks task start.
 
 ## TaskGraph and WorkPackets
+
+### On-demand feasibility reset
+
+The CTO skill is the canonical reasoning procedure; the conductor only links
+to it. Use `feasibility-record` after settling the actual host owner of the
+implicated lane. It never cancels a host, starts a worker, closes human holds,
+resets attempts or grants policy. Active lane leases require supported host
+pause/cancellation and truthful candidate/recovery handling first.
+
+The agent, not a hard-coded estimator, selects a finite window from uncertainty,
+risk, dependency depth, known evidence, the next discriminating test's cost and
+remaining task/parent/global budgets. Explicit owner ceiling/deadline wins.
+Record CONTINUE/BOUNDED_GO/PIVOT/PARK, reported delta, failed hypotheses, blocker,
+next step, uncertainty and revisit condition in the existing task. Native/shell
+dispatch consumes the selected WorkPacket bounds; no extra report files.
+
+```bash
+python harness/architrave_runtime.py feasibility-record <run> <task> \
+  --trigger user --decision BOUNDED_GO --seconds 120 --turns 8 --output-bytes 2000 \
+  --rationale "One cheap test can distinguish the current mechanism." \
+  --product-delta "Outcome not yet observed." --blocker "Cause remains unproven." \
+  --next-step "Run the focused real-flow test." --revisit "New discriminating evidence." \
+  --uncertainty "External dependency may still block." --owner-seconds 60
+```
+
+Time spent since initial task start is deducted. Actual reported child turns
+and retained result/diagnostic bytes are deducted cumulatively across the reset
+lane; admission binds the reduced output limit, including late cancelled results.
+The reset lane admits one discriminating owner at a time, so parallel owners
+cannot each spend the entire shared ceiling. Other lanes remain independent.
+If a finished owner does not report turns, another dispatch is blocked with
+unknown-budget diagnostics rather than assuming zero spend. The global turn
+limit remains a separate Run-transition proxy, not model turns. Unsupported
+host credit/generated-output/turn telemetry stays unknown. Explicit parent constraints
+should be passed through the same owner-ceiling flags. The original deadline,
+clock and authorized ceiling cannot be extended by a repeat decision. Only
+substantive source/acceptance/dependency/hold/failure evidence permits re-estimation
+inside that original window. Expiry projects a partial/PARK result with retained
+evidence and blocks further dispatch; no daemon or automatic paid reviewer runs.
+PIVOT/PARK pause the lane. New tasks/objective corrections still require their
+usual authorization, policy, loop and evidence checks. Direct host work follows
+the skill's identical finite-window contract without inventing a durable Run.
+
+Tested agent-chosen examples (not automatic duration presets): a small known-path
+check at 120 seconds / 8 turns / 2,000 retained bytes; an uncertain independent
+dependency at 900 seconds / 20 turns / 6,000 bytes inside a larger task grant;
+and a request narrowed by its owner to 45 seconds / 3 turns / 1,000 bytes.
+An absolute owner deadline or smaller global remainder further narrows any
+example. Atomic admission captures the effective grant before dispatch, so an
+intervening completed owner cannot leave a ticket with stale larger headroom.
 
 Tasks have explicit dependencies, mutable paths, worker profile, workspace,
 risk, criterion references, artifacts, gate, retry/checkpoint policy, attempts,

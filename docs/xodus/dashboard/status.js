@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-07T21:12:36+03:00",
+  updatedAt: "2026-10-07T21:16:49+03:00",
   phase: "Phase 2 â€” functionally complete, user-serviceable",
-  budget: { totalHours: 24, spentHours: 8.5, note: "8 h delivered (S0–S6) + 16 h Phase 2" },
+  budget: { totalHours: 24, spentHours: 9.5, note: "8 h delivered (S0–S6) + 16 h Phase 2" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -23,7 +23,7 @@ window.XODUS_STATUS = {
   backlog: [
     { id: "B1", title: "Fix Discover", hours: 1.0, status: "now", done: "Live PC Game Pass titles listed in the app", evidence: "Root cause: app rejects the whole page when any Game Pass title is not flagged PC (A Way Out, AoE II/III). Fix with app owner." },
     { id: "B2", title: "Store-wide search with ownership badges", hours: 1.5, status: "now", done: "Lara, Hogwarts, Celeste found with correct badges; install from a result" },
-    { id: "B3", title: "Plays-on-Mac check before download", hours: 1.5, status: "planned", done: "Unsupported packages flagged with zero bytes downloaded" },
+    { id: "B3", title: "Plays-on-Mac check before download", hours: 1.5, status: "now", done: "Unsupported packages flagged with zero bytes downloaded", evidence: "Backend live: Lara supported (3.2 GB), Celeste and Subnautica flagged in 4–10 s, zero download. App UI in the B1–B3 package." },
     { id: "B4", title: "Game Pass licence spike", hours: 1.0, status: "planned", done: "Yes/no evidence for subscription status and one Game Pass licence" },
     { id: "B5", title: "Game Pass status and shelf", hours: 2.0, status: "planned", done: "Subscription state correct; Install only when active and supported" },
     { id: "B6", title: "One sign-in, no Keychain prompts", hours: 2.0, status: "planned", done: "Sign in once; restarts cause zero prompts" },
@@ -87,6 +87,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-07T21:16:49+03:00", text: "B3 backend: pre-download check live; unsupported installs stop before any download" },
     { at: "2026-10-07T21:12:36+03:00", text: "B1 root cause found: one non-PC flag fails the whole Discover page. B1+B2 handed to the app owner." },
     { at: "2026-10-07T21:00:00+03:00", text: "Phase 2 backlog and Xbox app parity matrix published" },
     { at: "2026-10-07T19:25:00+03:00", text: "S3, S5, S6 accepted live: fresh install, play, repair, uninstall" },

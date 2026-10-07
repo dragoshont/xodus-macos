@@ -1,0 +1,8 @@
+stopping exact pid 4228
++2s XboxPcApp.exe pid=11044 parent=564 created=21:06:43 cmd="C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe\XboxPcApp.exe" -ServerName:Microsoft.Xbox.AppL.AppXhg7mrtrf7ayze6gb4syw3zwjgyr2xv4r.mca
+created pid=9128
+child GetPackageFullName=15700 
+self GetPackageFullName=15700 
+alive after 30s; windows:
+terminated exact child pid=9128
+left running pid=11044 mainwnd=0 title=

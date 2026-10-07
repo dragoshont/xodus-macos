@@ -416,6 +416,30 @@ boundary".
 - The remaining LOW items are recorded as deviations.
 - These stale ground-truth lines were updated.
 
+### Sprint progress: owner-approved A → B → C (2026-10-07 ~21:50)
+
+- **A: supported, not proven.**
+  - On native, normal activation runs `XboxPcApp -ServerName:…mca`. Its
+    parent is svchost 564, which hosts DcomLaunch among other services. That
+    instance (PID 11772) owns the CoreWindow inside AFH.
+  - A plain native launch from an unpackaged caller stays alive with 0
+    windows. A plain launch with package identity produced no process. Wine's
+    outcome is the same, but the context differs.
+- **B: stop at the shell-host boundary set by the CTO directive.**
+  - On the stage, the app publishes its factories through the Xodus combase
+    registration patch. Upstream is a stub.
+  - The native caller, `ActivatableApplicationRegistrar {DEA794E0}`, is
+    measured as sihost-only. The window-factory source,
+    `ShellServiceHostBrokerProvider {3480A401}`, is embedded in the shell
+    (sihost and twinui*); its registering process was not measured.
+  - Upstream Wine `59416cf` has stubs only.
+  - Not built.
+- **C: not reachable.**
+- Evidence and details are in the README section "Owner-approved
+  continuation".
+- Next step requires an owner decision: a separate shell-host lane
+  (registrar + window broker) or stop.
+
 ## Xodus-backed substitutes for Windows dependencies (owner question, 2026-10-07)
 
 Xodus already reimplements several Windows pieces, using genuine Microsoft

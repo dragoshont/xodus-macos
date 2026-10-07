@@ -1,0 +1,17 @@
+desktop session=2
+stopping pre-existing exact pid 6628
+== Control 1: plain process creation with package identity (no activation) ==
+Invoke-CommandInDesktopPackage returned
+[plain] after 25s: XboxPcApp processes: 0
+  ApplicationFrameHost pid=12112 windows:
+== Control 2: normal activation (shell:AppsFolder) ==
+[activated] after 25s: XboxPcApp processes: 1
+  pid=10260 session=2 started=20:58:47 mainwnd=0 responding=True
+  hwnd=30352 visible=False class=MSCTFIME UI title=MSCTFIME UI
+  hwnd=30350 visible=False class=IME title=Default IME
+  ApplicationFrameHost pid=12112 windows:
+
+  hwnd=52040e visible=True class=ApplicationFrameWindow title=XBOX
+(control 2 left running; restores the pre-test state)
+
+

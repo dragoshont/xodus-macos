@@ -1,0 +1,42 @@
+# Re-run 2026-10-07 21:30 (VM build 26300.9457, arm64). audit-plainlaunch.exe sha256 99f130a2708b3ecdd0b0746b805aad086f20c9e074bad2098812546de415af5e, driven by phaseA-native-plainlaunch.ps1 (unpackaged caller).
+probe start 21:30:09.075
+probe exit=0 end 21:30:48.284
+created pid=11224
+child GetPackageFullName=15700
+self GetPackageFullName=15700
+t=1s child alive top-level-windows=0
+t=2s child alive top-level-windows=0
+t=3s child alive top-level-windows=0
+t=4s child alive top-level-windows=0
+t=5s child alive top-level-windows=0
+t=6s child alive top-level-windows=0
+t=7s child alive top-level-windows=0
+t=8s child alive top-level-windows=0
+t=9s child alive top-level-windows=0
+t=10s child alive top-level-windows=0
+t=11s child alive top-level-windows=0
+t=12s child alive top-level-windows=0
+t=13s child alive top-level-windows=0
+t=14s child alive top-level-windows=0
+t=15s child alive top-level-windows=0
+t=16s child alive top-level-windows=0
+t=17s child alive top-level-windows=0
+t=18s child alive top-level-windows=0
+t=19s child alive top-level-windows=0
+t=20s child alive top-level-windows=0
+t=21s child alive top-level-windows=0
+t=22s child alive top-level-windows=0
+t=23s child alive top-level-windows=0
+t=24s child alive top-level-windows=0
+t=25s child alive top-level-windows=0
+t=26s child alive top-level-windows=0
+t=27s child alive top-level-windows=0
+t=28s child alive top-level-windows=0
+t=29s child alive top-level-windows=0
+t=30s child alive top-level-windows=0
+alive after 30s; windows:
+terminated exact child pid=11224
+[after] pid=13956 created=21:30:17.572 parent=564 parentServices=BrokerInfrastructure,DcomLaunch,Power,SystemEventsBroker cmd="C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe\XboxPcApp.exe" -ServerName:Microsoft.Xbox.AppL.AppXhg7mrtrf7ayze6gb4syw3zwjgyr2xv4r.mca
+stopping exact pid 13956
+restored normal activation
+# Note: [before] snapshot was empty (no XboxPcApp after stopping exact PIDs). PID 13956 appeared 8.5 s after probe start; it was not created by the probe (parent svchost 564). Cause not established.

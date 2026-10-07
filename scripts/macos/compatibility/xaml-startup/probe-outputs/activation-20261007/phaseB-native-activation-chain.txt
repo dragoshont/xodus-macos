@@ -1,0 +1,34 @@
+Phase B measurements (2026-10-07 ~21:20-21:50 +03:00)
+
+Native VM (26300.9457, arm64; package Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe)
+HKCR\CLSID\{DEA794E0-1C1D-4363-B171-98D0B1703586}  (default)=ActivatableApplicationRegistrar  AppID={f59bbec1-0907-4464-b04d-1da329585370}
+  AppID {f59bbec1-...}: RunAs=Interactive User; no InprocServer32/LocalServer32 subkeys
+HKCR\Interface\{036C57FC-E73D-4F3A-B095-8B813FA2F764} = IActivatableApplicationRegistrar  ProxyStubClsid32={b03c2205-f02e-4d77-80df-e1747afdd39c}
+HKCR\CLSID\{3480A401-BDE9-4407-BC02-798A866AC051}  (default)=ShellServiceHostBrokerProvider  AppID={30AD8C8E-AE85-42FA-B9E8-7E99E3DFBFC5}
+  AppID {30AD8C8E-...}: RunAs=Interactive User; no server subkeys
+HKCR\Interface\{0F4ACCB1-D8F9-4011-BA37-2557925A78CF} = IServiceHostBrokerProvider   ProxyStubClsid32={1A66AEDC-93C3-4ACC-BA96-08F5716429F7}
+HKCR\Interface\{D98FD14A-522A-4D59-B875-811E83919A9E} = IApplicationActivationBroker ProxyStubClsid32={b03c2205-f02e-4d77-80df-e1747afdd39c}
+Binary GUID scan (16-byte little-endian CLSID):
+  {DEA794E0} present: ActivationManager.dll; absent: sihost.exe, explorer.exe, twinui*.dll, Windows.Immersiveshell.ServiceProvider.dll
+  {3480A401} present: sihost.exe, twinui.dll, twinui.appcore.dll, twinui.pcshell.dll, Windows.Immersiveshell.ServiceProvider.dll, twinapi.appcore.dll (client)
+  {3480A401} absent: explorer.exe, ApplicationFrameHost.exe, shell32.dll, ActivationManager.dll
+Processes with ActivationManager.dll loaded: sihost (5076) only.
+
+Genuine x64 twinapi.appcore.dll 26100.9278 + public PDB (Wine prefix copy)
+  CoreApplication::RegisterActivatableApplication (rva 0xc7b80):
+    CoCreateInstance(CLSID_ActivatableApplicationRegistrar {DEA794E0}, IID {036C57FC})
+  ApplicationActivationFactory implements IActivatableApplication {92696C00-7578-48E1-AC1A-2CA909E2C8CF};
+    Activate (rva 0x5f0e0) -> CoreApplication::ActivateApplication (0x45b20) -> ActivateForeground (0x272c0) / ActivateBackground
+  CoreApplication::GetWindowFactory (rva 0x9a990):
+    CoCreateInstance({3480A401}, IID IServiceHostBrokerProvider {0F4ACCB1}) -> IApplicationActivationBroker {D98FD14A} -> ICoreWindowFactory
+
+Wine stage (sp47/gui4 logs): the app publishes 4 factories via RoRegisterActivationFactories
+  (Microsoft.Xbox.AppL and three .mca classes); Wine prefix has no registration for {DEA794E0} or {3480A401}.
+
+Upstream Wine 59416cf58482d97371d17207ddbfd4d6cc22b347 (2026-10-06):
+  dlls/combase/roapi.c RoRegisterActivationFactories: FIXME stub returning S_OK
+  dlls/twinapi.appcore/core_application.c: CoreApplication factory, ActivateInstance FIXME; no IActivatableApplication
+  include/shobjidl.idl: IApplicationActivationManager declared only; no implementation in dlls/shell32
+  No match for DEA794E0 / 3480A401 / 92696C00 in include/ or dlls/
+
+Decision: stop at the shell-host boundary set by the CTO directive (no separate Phase B predeclaration file). Registrar: measured sihost-only (ActivationManager.dll). Window broker: CLSID embedded in sihost/twinui* shell binaries; registering process not measured. 'Registrar calls IActivatableApplication::Activate' is inferred from the PDB, not traced. Not built.

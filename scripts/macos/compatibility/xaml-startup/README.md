@@ -300,6 +300,72 @@ route only: `IApplicationActivationManager::ActivateApplication`.
 - **Options for the owner:** stop here, or approve a separate lane for a
   shell-host activation manager that uses genuine package identity.
 
+## Owner-approved continuation: phases A and B (2026-10-07 ~21:00–21:50)
+
+**Phase A: does no activation mean no window?** Result: **supported, not
+proven.** The probe is `audit-plainlaunch.c`. Outputs are in
+`probe-outputs/activation-20261007/phaseA-*`.
+
+All rows were measured on the native arm64 VM (build 26300.9457). Each launch
+started from a state with no `XboxPcApp` process. Only exact PIDs were stopped.
+
+| Native launch | Process | Windows |
+|---|---|---|
+| Normal activation (`shell:AppsFolder\…!Microsoft.Xbox.AppL`, 21:28) | PID 11772, `XboxPcApp -ServerName:Microsoft.Xbox.AppL.AppXhg7…mca`. Its parent is svchost 564, which hosts BrokerInfrastructure, DcomLaunch, Power and SystemEventsBroker. | Owns a visible `Windows.UI.Core.CoreWindow` inside `ApplicationFrameWindow "XBOX"` (`phaseA-native-activation-owner.txt`) |
+| Plain `CreateProcess` from an unpackaged caller (21:30) | Child PID 11224, `GetPackageFullName` 15700 (no package). Alive for 30 s, then terminated by exact PID. | 0 top-level windows at every 1 s sample (`phaseA-native-plainlaunch-rerun.txt`) |
+| Plain launch with package identity (control 1) | No `XboxPcApp` process after 25 s | None (`phaseA-native-launch-control.txt`) |
+
+During the plain run, a separate `-ServerName` instance (PID 13956) appeared
+8.5 s after the probe started. Its parent was svchost 564, not the probe. That
+instance is **observed only**; what started it was not established.
+
+On Wine, the launcher starts the same `-ServerName` server with package
+identity. It is alive and has no window. This matches the native no-activation
+rows in outcome only; the two contexts differ.
+
+**Phase B: minimal activation manager.** Result: **predeclared stop (shell
+host). Not built.** Details are in
+`probe-outputs/activation-20261007/phaseB-native-activation-chain.txt`.
+
+- The stop conditions (explorer, ApplicationFrameHost RPC, window band) came
+  from the CTO directive. No separate Phase B predeclaration file exists.
+- On the Xodus stage, the app publishes its activation factories through
+  `RoRegisterActivationFactories`, including `Microsoft.Xbox.AppL`, the
+  `Windows.Launch` class. That works only because the stage combase carries the
+  Xodus `wine-winrt-registration.c` implementation; the logs show "Registered 4
+  owning Wine-local WinRT factories". Upstream's version is a stub. Nothing
+  calls these factories.
+- The native chain, measured on the VM and read from the genuine
+  `twinapi.appcore` 26100.9278 public PDB:
+  1. `CoreApplication::RegisterActivatableApplication` creates
+     `ActivatableApplicationRegistrar {DEA794E0…}`.
+  2. Inferred, not traced: the registrar calls back
+     `IActivatableApplication {92696C00…}::Activate`.
+  3. `ActivateForeground` calls `GetWindowFactory`, which creates
+     `ShellServiceHostBrokerProvider {3480A401…}` and from it
+     `IApplicationActivationBroker`, then `ICoreWindowFactory`.
+- Both classes are `RunAs Interactive User`, with no server binary. They are
+  registered at runtime by the shell:
+  - Registrar: only `sihost.exe` loads `ActivationManager.dll`, the one
+    binary that holds the registrar CLSID. This is measured.
+  - Broker: the CLSID is embedded in `sihost.exe`, `twinui.dll`,
+    `twinui.appcore.dll`, `twinui.pcshell.dll` (explorer) and
+    `Windows.Immersiveshell.ServiceProvider.dll`. Which process registers
+    it was not measured.
+- **Upstream:** Wine `59416cf` has `RoRegisterActivationFactories` as a
+  FIXME stub and a stub `CoreApplication` factory. It has no
+  `IActivatableApplication`, registrar or broker. There is nothing to
+  backport.
+- Calling the app's factory directly would skip the registrar. It would still
+need the shell-hosted window broker to produce a window, which is the stop
+  condition, so it was not built.
+- **Phase C (first frame) is not reachable.** No GUI test ran, and the shared
+  foreground was not used.
+- The missing-activation explanation is still **unproven**: no activation
+  input changed the Wine outcome. Going further needs an owner-approved
+  shell-host lane, implementing both the registrar and the window broker
+  against the measured contract.
+
 ## Status
 
 These are candidates for an experimental runtime. Nothing is upstreamed,

@@ -1,0 +1,8 @@
+﻿stopping exact pid 11044
+remaining XboxPcApp: 0
+activate at 21:28:37: shell:AppsFolder\Microsoft.GamingApp_8wekyb3d8bbwe!Microsoft.Xbox.AppL
+pid=11772 created=21:28:37 new=True cmd="C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe\XboxPcApp.exe" -ServerName:Microsoft.Xbox.AppL.AppXhg7mrtrf7ayze6gb4syw3zwjgyr2xv4r.mca
+  parent pid=564 name=svchost.exe services=BrokerInfrastructure,DcomLaunch,Power,SystemEventsBroker
+frame=c053e title=XBOX corewindow=10035e ownerpid=11772 visible=True
+frame=70458 title=Settings corewindow=40474 ownerpid=9544 visible=True
+(activated instance left running; restores the pre-test state)

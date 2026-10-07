@@ -1,0 +1,4 @@
+pid=564 name=svchost.exe cmd=
+pid=11044 name=XboxPcApp.exe cmd="C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe\XboxPcApp.exe" -ServerName:Microsoft.Xbox.AppL.AppXhg7mrtrf7ayze6gb4syw3zwjgyr2xv4r.mca
+frame 4719668 child 656480 class=Windows.UI.Core.CoreWindow ownerpid=11044 visible=True
+frame 459864 child 263284 class=Windows.UI.Core.CoreWindow ownerpid=9544 visible=True

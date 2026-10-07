@@ -18,7 +18,7 @@ game session to test.
 | S2 | Launch polish: clean quit, no driver-warning stop | S1 not required | **Done** (AC2.1–AC2.3 passed) |
 | S3 | One sign-in for launcher and games | — | **Decided: game service owns credentials**; app integration next |
 | S4 | Owned PC library | — | **Done** (13 owned PC games live; follow-ups noted) |
-| S5 | Install from the app | S3, S4 or explicit product ID | Planned |
+| S5 | Install from the app | S3, S4 or explicit product ID | Investigated: second title installs and plays; installer not built |
 | S6 | Update, repair and remove | S5 | Planned |
 
 ## S1 — Installed games look and behave like a launcher library
@@ -177,6 +177,59 @@ Reuse Xodus's existing streaming download/extract and package readiness
 checks. Spec: explicit product + destination + space check + consent, progress
 from real bytes, cancel, and registration into Installed on success. Disk space
 is limited; real-test only with explicit approval.
+
+### S5 investigation — second title end to end (2026-10-07, user-approved)
+
+Title: Lara Croft and the Temple of Osiris (`C3553MB4P5TT`, MSIXVC, 3.07 GB
+resident, GDK, D3D11, Nixxes port). Result: **downloaded, imported in the app,
+launched from the app's Play, reached the main menu with the user's Xbox
+gamertag signed in, and played in-level at ~119 FPS** (D3D11 → D3DMetal, GPTK
+3.0). Continue Playing and the PC games tile ("Not installed" → Play) update.
+
+Install mechanism that worked (no Keychain prompt):
+`XODUS_LICENSE_VIA_SERVICE=1 xodus-cli streaming …` — service-brokered package
+metadata and keys. Direct CLI Keychain reads can block on a macOS prompt after
+the service rotates tokens, so S5 must always use the service path.
+
+Blockers found and fixed, in launch order (each is a per-title or platform
+lesson for a generic installer):
+
+1. **Readiness verifier** rejected GDK layouts: named `Registration` chunk and a
+   `Movies\PC\*.bik` wildcard. Fixed: skip `Registration`; accept wildcards only
+   when every matching file in the authoritative package inventory is resident
+   with the exact size (the existing "wildcard cannot certify completeness"
+   rule still holds without an inventory). Tests: 8/8.
+2. **`xblInitalize is failed.`** modal — our runtime's
+   `XSystemGetXboxLiveSandboxId` returned `E_POINTER` when the optional
+   `sandboxIdUsed` was NULL. Fixed in `xgameruntime` (`xsystem.c`); deployed
+   only to the Lara bottle (Hogwarts keeps its admitted DLL `73a15743`).
+3. **`Launcher_NoGpuInstalled`** modal — D3DMetal reports "AMD Compatibility
+   Mode" (1002:66AF) while SetupAPI lists the real Apple GPU, so Nixxes could not
+   match the active adapter. Fixed per launch with `D3DM_VENDOR_ID`,
+   `D3DM_DEVICE_ID` and `D3DM_DEVICE_DESCRIPTION` read from the bottle's active
+   PCI display device. D3D11 titles also need
+   `CX_GRAPHICS_BACKEND=d3dmetal` in `CX_ENV`; the Hogwarts STA COM flag is not
+   needed.
+4. **macOS privacy prompts block the game invisibly**: winmm probes the
+   microphone ("Allow xodus-cli to access your microphone?") and the bottle's
+   Windows Documents symlink to `~/Documents` triggers "Xodus would like to
+   access files in your Documents folder". Both were answered Don't Allow.
+   Fixed for Lara by giving the bottle a private `Documents` folder. A
+   productised installer must create bottles without host-folder symlinks and
+   avoid capture-device probes (or explain the prompt) before first launch.
+
+Known limits: the game's online banner ("connection to the network has been
+lost") remains — single-player works, multiplayer/leaderboards unverified;
+in-game ⌘Q is ignored (SIGTERM ends the session, recorded as code 1).
+
+Implications for S5: per-title data a generic installer must derive (not
+hard-code) — executable from `MicrosoftGame.config`, content ID from the
+package inventory, D3D level/backend, GPU identity, a fresh per-title bottle,
+and the runtime build. Work remaining before an in-app Install button: one
+shared generic launcher (replace per-title scripts), bottle provisioning
+without host symlinks, the runtime fix promoted to all bottles after a
+Hogwarts regression run, and an installer that streams with service
+licensing, reports real bytes and registers into Installed.
 
 ## S6 — Update, repair, remove
 

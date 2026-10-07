@@ -308,6 +308,12 @@ app stays alive about 70 s, but no window of its own appears.
 Sprint budget: started 2026-10-07 13:39 +03:00, hard deadline 2026-10-08
 13:39 +03:00.
 
+Deterministic gates: `gates/checks.sh` was run on a clean clone of commit
+`e19290e` on the Mac (cargo 1.98.0). Result: **PASS**. `cargo build
+--workspace` succeeded and `cargo test --workspace` passed 42 tests with
+0 failures. This gate covers the Rust workspace only. The Wine candidate is
+checked with the hash manifest and the paired probes above, not by this gate.
+
 A crash-loop incident happened on 2026-10-07: about 770 `winedbg --auto`
 processes in 4 minutes reached the per-user process limit. Since then:
 

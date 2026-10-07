@@ -2,7 +2,7 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-07T22:11:10+03:00",
+  updatedAt: "2026-10-07T22:22:13+03:00",
   phase: "Phase 2 â€” functionally complete, user-serviceable",
   budget: { totalHours: 24, spentHours: 17, note: "8 h delivered (S0–S6) + 16 h Phase 2" },
 
@@ -26,7 +26,7 @@ window.XODUS_STATUS = {
     { id: "B3", title: "Plays-on-Mac check before download", hours: 1.5, status: "done", done: "Unsupported packages flagged with zero bytes downloaded", evidence: "Live: Celeste install checks first and is blocked with the reason; zero download." },
     { id: "B4", title: "Game Pass licence spike", hours: 1.0, status: "done", done: "Yes/no evidence for subscription status and one Game Pass licence", evidence: "YES: 3 unowned Game Pass titles licensed; 2 unowned non-Game Pass titles refused. Status command live (active)." },
     { id: "B5", title: "Game Pass status and shelf", hours: 2.0, status: "now", done: "Subscription state correct; Install only when active and supported", evidence: "Backend proven: Game Pass title Abiotic Factor (not owned) installed 5.3 GB and reached its menu at 59 FPS. App UI is the next package." },
-    { id: "B6", title: "One sign-in, no Keychain prompts", hours: 2.0, status: "planned", done: "Sign in once; restarts cause zero prompts" },
+    { id: "B6", title: "One sign-in, no Keychain prompts", hours: 2.0, status: "next", done: "Sign in once; restarts cause zero prompts", evidence: "Root cause: app Keychain items use default ACLs. Fix scoped as its own package (2.5 h timebox); one-time approval during migration." },
     { id: "B7", title: "Self-contained app", hours: 2.5, status: "now", evidence: "Runtime assembled at ~/Library/Application Support/Xodus/Runtime (50 MB); setup and check run from it. Game service move deferred (Keychain risk).", done: "Developer folders moved aside; Lara still installs and plays" },
     { id: "B8", title: "First-run setup and Repair Xodus", hours: 2.0, status: "now", evidence: "Repair rebuilt the environment from scratch in 11 s; Lara renders in it. Known: Nixxes titles show a GPU dialog on the very first launch in a new environment.", done: "Missing template rebuilt from the app; Lara plays" },
     { id: "B9", title: "Stop game", hours: 1.0, status: "now", done: "Stop ends the game; app returns to Play cleanly", evidence: "Backend live: Lara stopped in 4 s, no leftover processes. App button in the B5 package." },
@@ -87,6 +87,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-07T22:22:13+03:00", text: "B6 scoped: Keychain ACL policy plus migration as its own package after B5/B7/B8/B9" },
     { at: "2026-10-07T22:11:10+03:00", text: "B1, B2, B3 accepted live in the installed app" },
     { at: "2026-10-07T22:00:43+03:00", text: "B1–B3 package admitted (CI green, C8 preserved); installing" },
     { at: "2026-10-07T22:00:43+03:00", text: "B7/B8 backend: self-contained runtime and Repair Xodus rebuild the game environment from scratch" },

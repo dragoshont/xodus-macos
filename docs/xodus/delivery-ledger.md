@@ -87,6 +87,19 @@ preserved, and the corrected main process remains open. This establishes the
 presentation correction, not an authoritative PC collection. A bounded absence
 of publication/decode events is not a visual or API-traffic proof.
 
+**Installed Play delivered (7 October 2026):** installed app `0926414`
+(preserving the signed `c8fe69a3` engine) adds **Installed**, **Import installed
+Xbox game** and **Play**. Play runs the game's existing working Xodus launch
+script. Root imported the acquired Xbox-PC Hogwarts Legacy 1.0.16.0 through the
+real panels and pressed Play twice in the installed app. Each time the app-owned
+script licensed the game through the local Xodus service, Hogwarts showed its
+known graphics-driver warning, and after OK opened a full-screen rendering
+window. After a forced test stop the app re-enabled Play and showed the
+exit code. Before this, the separate game-service sign-in had been missing; the
+user signed in again and the service was restarted. Installed games are
+imported, not proven owned; download/install/update and an owned-games list
+remain separate work.
+
 **Owned-PC reference is now accessible:** after the user directed continuation,
 one exact Close control dismissed the pre-install popup without advancing it.
 Actual My Library / My games separates Owned/In Game Pass access from

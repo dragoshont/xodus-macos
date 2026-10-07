@@ -305,6 +305,56 @@ Known limits: Minecraft Launcher's licence is refused for this account on Mac
 Remove from Xodus already keeps files. Full uninstall must preserve saves
 (`XodusPrivateLocalSaves`) and require confirmation. Update/repair reuse S5.
 
+## Phase 2 — functionally complete and user-serviceable
+
+Status check (7 October 2026, installed app `1463cdb`):
+
+| Capability | Today |
+|---|---|
+| Import an installed game | Works |
+| Download + install from the app | Works for MSIXVC titles with an MSA app identity (Lara proven); other packages are refused with a clear message |
+| Repair / update / uninstall (saves kept) / remove from list | Works |
+| Play, Continue Playing, logs | Works; in-game ⌘Q ignored, no Stop button |
+| See owned games | Works for PC titles only (13), needs a separate PC-library sign-in |
+| Search / Discover | **Broken**: "Games couldn't be loaded" although the Game Pass catalog endpoint answers from this Mac (519 items); engine search covers checked products only, not the Store |
+| Game Pass | **Missing**: no subscription detection, no Game Pass shelf, Game Pass installs unproven |
+
+"User-serviceable" means a person with only the app can set up, sign in once,
+find, install, play, update, fix and remove games, with no Terminal, scripts,
+source checkout, Keychain password prompts or developer help. Today the
+backend lives in `~/src/xodus-macos-private-ai` (private branch, no remote),
+needs a hand-made `XodusGameTemplate` CrossOver environment and a private game
+runtime DLL, runs the game service from `~/.local`, and asks for Keychain
+passwords when credentials are re-saved by another binary. Those are product
+gaps, not polish.
+
+Decisions taken (change only with evidence or user direction): CrossOver stays
+a declared prerequisite the app checks for, not something Xodus ships; the game
+service remains the single credential owner (S3 decision); Game Pass support
+only covers titles the existing MSIXVC install path can play, labelled as such.
+
+Slices, in order. Each closes only with a real in-app run on the Mac by a user
+path (no automation shortcuts for the acceptance step).
+
+| # | Slice | Outcome | Acceptance |
+|---|---|---|---|
+| P1 | Search and Discover | Discover lists live PC Game Pass titles; search finds any Store PC game by name; every result shows Owned / Game Pass / Not owned and Plays on Mac / Not supported / Unknown | Root cause of the current failure fixed; searching "Lara", "Hogwarts", "Celeste" returns them with correct badges; Install works from a result for an owned title |
+| P2 | Compatibility before download | Install is offered only with an honest pre-check (package type MSIXVC, MSA app identity, licence obtainable) from package metadata, before bytes are downloaded | Celeste/EAppx and Subnautica-style packages are labelled Not supported without downloading; Lara is Plays on Mac |
+| P3 | Game Pass | App detects an active PC Game Pass (or Ultimate) subscription and its end date; Game Pass titles show Install when active and "Subscription needed" otherwise; installed Game Pass games are blocked with a clear message when the subscription lapses | With an active subscription, one supported Game Pass title (not owned) installs and plays from the app; with none, Install is not offered. Spike first: prove a subscription licence is issued through the game service for one title |
+| P4 | One sign-in, no password prompts | One "Sign in with Xbox" in the app covers PC library, Game Pass status and game licensing; credentials are only written by the game service, which is signed with a stable identity so the Keychain never asks again | Fresh macOS user: sign in once, see owned + Game Pass, install and play, reboot, still signed in, zero Keychain prompts; Sign out clears everything |
+| P5 | Self-contained app | Backend (manage tool, launcher, readiness, inventory, streaming engine, game service) ships inside the signed app; the app installs and updates its own LaunchAgent; nothing under `~/src` or `~/.local` is used | Remove `~/src/xodus-macos-private-ai` and `~/.local/libexec/xodus-private`, reinstall the app, install + play Lara |
+| P6 | First-run setup and self-repair | Setup screen checks CrossOver, creates the game environment template from scratch with the Xodus runtime, starts the game service, and shows each item as Ready / Fix; "Repair Xodus" reruns it | On a Mac without `XodusGameTemplate`, setup completes from the app and Lara installs and plays; deleting the template then Repair Xodus restores it |
+| P7 | Game session control | Stop game button (graceful, then forced), no orphaned processes, macOS privacy prompts avoided or explained up front, crash shows log and "Report problem" bundle | Stop from the app ends Lara and the app returns to Play with no error and no leftover processes |
+| P8 | Updates | Installed games show "Update available" by comparing the installed package with the Store's current one; app updates itself; runtime/engine updates ride with the app | A game with a newer package shows Update and updates in place keeping saves; app update installs without losing the library |
+| P9 | Runtime consolidation | One runtime build with the Lara fixes is used by every environment; Hogwarts moves to the generic launcher after a regression run; per-title arguments live in a data file the app updates | Hogwarts and Lara both play from the generic launcher on the consolidated runtime |
+| P10 | Release acceptance | A non-developer does the full journey on a clean Mac user account using only the app | Checklist: setup, sign in, search, install owned + Game Pass title, play, stop, update, repair, uninstall, re-install restores saves |
+
+Risks to settle early: Game Pass licence issuance through the service (P3
+spike); stable code-signing identity for the service so Keychain ACLs stay
+valid (P4); CrossOver licensing/version drift (P6 checks the version);
+packages without an MSA app identity stay unsupported until the runtime can
+create an Xbox user for them.
+
 ## Stop rules
 
 - A slice is done only with its real-product evidence, not CI alone.

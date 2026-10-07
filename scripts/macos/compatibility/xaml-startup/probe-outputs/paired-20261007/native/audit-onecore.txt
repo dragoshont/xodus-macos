@@ -1,0 +1,9 @@
+user32.dll byname=1
+user32.dll ret=0 gle=57005
+api-ms-win-rtcore-ntuser-private-l1-1-7.dll byname=1
+api-ms-win-rtcore-ntuser-private-l1-1-7.dll ret=0 gle=57005
+en byname=1
+thread ret=0
+user32.dll byname=1
+user32.dll ret=0 gle=57005
+EXIT=0x00000000

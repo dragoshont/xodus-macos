@@ -1,0 +1,31 @@
+[nocom] present=111111
+  begin zeroed=96 after=cc
+  wait count=0x39 r=ffffffff gle=87
+  wait waitall r=ffffffff gle=87
+  wait signaled r=00000000 gle=57005
+  wait timeout r=00000102
+  wait zero r=00000102
+  wait message r=00000001
+  sched0=0 sched1=0 sched2=0
+  after end first=00
+[sta] present=111111
+  begin zeroed=96 after=cc
+  wait count=0x39 r=ffffffff gle=87
+  wait waitall r=ffffffff gle=87
+  wait signaled r=00000000 gle=57005
+  wait timeout r=00000102
+  wait zero r=00000102
+  wait message r=00000001
+  sched0=0 sched1=0 sched2=0
+  after end first=00
+[mta] present=111111
+  begin zeroed=96 after=cc
+  wait count=0x39 r=ffffffff gle=87
+  wait waitall r=ffffffff gle=87
+  wait signaled r=00000000 gle=57005
+  wait timeout r=00000102
+  wait zero r=00000102
+  wait message r=00000001
+  sched0=0 sched1=0 sched2=0
+  after end first=00
+EXIT=0

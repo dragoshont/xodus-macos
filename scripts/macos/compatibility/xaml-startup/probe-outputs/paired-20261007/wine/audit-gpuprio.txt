@@ -1,0 +1,43 @@
+create type 1 hr=0
+hw QI(dev->X) hr=0
+hw identity IUnknown same=1
+hw QI(X->IDXGIDevice) hr=0
+hw QI(IDXGIDevice->X) hr=0 same=1
+hw refcount after AddRef/Release=2
+hw Get initial hr=0 v=0
+hw Set(1) hr=0 -> Get hr=0 v=1
+hw Set(0) hr=0 -> Get hr=0 v=0
+hw Set(-1) hr=0x80070057 -> Get hr=0 v=0
+hw Set(7) hr=0x80070057 -> Get hr=0 v=0
+hw Set(-7) hr=0x80070057 -> Get hr=0 v=0
+hw Set(8) hr=0x80070057 -> Get hr=0 v=0
+hw Set(-8) hr=0x80070057 -> Get hr=0 v=0
+hw Set(100) hr=0x80070057 -> Get hr=0 v=0
+hw Set(2147483647) hr=0x80070057 -> Get hr=0 v=0
+hw Set(-2147483648) hr=0x80070057 -> Get hr=0 v=0
+hw Set(2) hr=0x80070057 -> Get hr=0 v=0
+hw Set(0) hr=0 -> Get hr=0 v=0
+create type 1 hr=0
+hw new device after Set(3) on old: Get hr=0 v=0
+create type 5 hr=0
+warp QI(dev->X) hr=0
+warp identity IUnknown same=1
+warp QI(X->IDXGIDevice) hr=0
+warp QI(IDXGIDevice->X) hr=0 same=1
+warp refcount after AddRef/Release=2
+warp Get initial hr=0 v=0
+warp Set(1) hr=0 -> Get hr=0 v=1
+warp Set(0) hr=0 -> Get hr=0 v=0
+warp Set(-1) hr=0x80070057 -> Get hr=0 v=0
+warp Set(7) hr=0x80070057 -> Get hr=0 v=0
+warp Set(-7) hr=0x80070057 -> Get hr=0 v=0
+warp Set(8) hr=0x80070057 -> Get hr=0 v=0
+warp Set(-8) hr=0x80070057 -> Get hr=0 v=0
+warp Set(100) hr=0x80070057 -> Get hr=0 v=0
+warp Set(2147483647) hr=0x80070057 -> Get hr=0 v=0
+warp Set(-2147483648) hr=0x80070057 -> Get hr=0 v=0
+warp Set(2) hr=0x80070057 -> Get hr=0 v=0
+warp Set(0) hr=0 -> Get hr=0 v=0
+create type 5 hr=0
+warp new device after Set(3) on old: Get hr=0 v=0
+EXIT=0

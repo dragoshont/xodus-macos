@@ -1,0 +1,13 @@
+CoGetPSClsid hr=00000000 clsid=95e15d0a-66e6
+CoGetClassObject hr=00000000
+CreateStub(target,NULL) hr=00000000 stub=1
+  IsIIDSupported(target)=0 (unconnected)
+  CountRefs=2
+  Release=0
+CreateStub(IInspectable) hr=80004002
+CreateProxy(target) hr=00000000 proxy=1 obj=1
+  vtbl[3] in rpcrt4.dll
+  vtbl[6] in rpcrt4.dll
+  proxy Release=0
+factory Release=0
+EXIT=0

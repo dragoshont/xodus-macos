@@ -1,0 +1,73 @@
+# <probe exe> [args...]  -- one paired run per line, native (run-probes-native.ps1)
+# and Wine (run-probes-wine.sh) write probe-outputs/<side>/<exe>[_<args>].txt
+audit-alpc-openif.exe
+audit-alpc-send-attrs.exe
+audit-filter-token-sd.exe
+audit-write-overlap.exe
+audit-wob-teb.exe
+audit-wob-ticket.exe
+audit-wob-ticket2.exe
+audit-wob-ticket3.exe
+audit-stdmex.exe
+audit-stdmex2.exe
+audit-stdmex2.exe nullout
+audit-ndr3.exe
+audit-cmiocp.exe
+audit-cmiocp.exe nullhwnd
+audit-cmiocp.exe badhwnd
+audit-cmiocp.exe nullout
+audit-cmiocp.exe drainnull
+audit-cmiocp.exe drainbad
+audit-cmiocp.exe drainhwnd
+audit-cmiocp.exe drainpre
+audit-cmiocp.exe otherhwnd
+audit-cmiocp.exe closethenre
+audit-cmiocp.exe destroywin
+audit-cmiocp2.exe
+audit-cmiocp2.exe count
+audit-cmiocp2.exe drainx
+audit-cmiocp2.exe drainother
+audit-cmiocp2.exe nulloutbad
+audit-cmiocp2.exe schedpre
+audit-cmiocp2.exe sched
+audit-cmiocp2.exe rearm
+audit-cmiocp2.exe msgwait
+audit-designmode.exe
+audit-process-events.exe
+audit-gqsro.exe
+audit-onecore.exe
+audit-combine.exe
+audit-combine.exe 0
+audit-combine.exe 1
+audit-combine.exe 2
+audit-combine.exe 3
+audit-combine.exe 4
+audit-combine.exe 5
+audit-combine.exe 6
+audit-combine.exe 7
+audit-combine.exe 8
+audit-combine.exe 9
+audit-combine.exe 10
+audit-combine.exe 11
+audit-combine.exe 12
+audit-combine.exe 13
+audit-gucp.exe 0
+audit-gucp.exe 1
+audit-gucp.exe 2
+audit-gucp.exe 3
+audit-gucp.exe 4
+audit-gucp.exe 5
+audit-gucp.exe 6
+audit-gucp.exe 7
+audit-gucp.exe 8
+audit-gcfp.exe 0
+audit-gcfp.exe 1
+audit-gcfp.exe 2
+audit-gcfp.exe 3
+audit-gcfp.exe 4
+audit-acnop.exe 0
+audit-acnop.exe 1
+audit-acnop.exe 2
+audit-acnop.exe 3
+audit-gpuprio.exe
+audit-uisettings6.exe

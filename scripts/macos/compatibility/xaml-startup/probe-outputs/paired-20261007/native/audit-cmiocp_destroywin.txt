@@ -1,0 +1,15 @@
+init2=00007FF922DA8B90 drain2=00007FF922DA8640 isgui=1
+mode destroywin
+W1 init2(hwnd=00000000002B0436) ret=0000000000000120 out=00000000 gle=3735928559
+W1 basic status=c0000004
+W1 type=IoCompletion
+W1 iocdepth status=00000000 depth=0
+W1 remove status=00000102 n=0
+W1d remove status=00000102 n=0
+W1p remove status=00000102 n=0
+W1p queuestatus=00080008 peek=1 msg=0400
+W2 init2(hwnd=00000000002C0436) ret=0000000000000120 out=00000000 gle=3735928559
+W2 basic status=c0000004
+W2 type=IoCompletion
+W2 iocdepth status=00000000 depth=0
+EXIT=0x00000000

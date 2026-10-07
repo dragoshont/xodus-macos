@@ -1,0 +1,18 @@
+mode count init2=00007FF922DA8B90 drain2=00007FF922DA8640 sched=00007FF922C64800
+K1 init2(hwnd=00000000002E0436) ret=0000000000000138 out=00000000 gle=3735928559
+K1 basic access=001f0003 handles=2 pointers=65537 attr=1
+K1 type=IoCompletion
+K1 iocdepth status=00000000 depth=0
+K2 init2(hwnd=00000000001A049A) ret=0000000000000138 out=00000001 gle=3735928559
+K2 basic access=001f0003 handles=2 pointers=65534 attr=1
+K2 type=IoCompletion
+K2 iocdepth status=00000000 depth=0
+K3 init2(hwnd=000000000039050E) ret=0000000000000000 out=cccccccc gle=1247
+K4 init2(hwnd=00000000001B049A) ret=0000000000000138 out=00000001 gle=3735928559
+K4 basic access=001f0003 handles=2 pointers=65531 attr=1
+K4 type=IoCompletion
+K4 iocdepth status=00000000 depth=0
+K closing
+K5 init2(hwnd=00000000002F045E) ret=0000000000000000 out=cccccccc gle=1247
+done
+EXIT=0x00000000

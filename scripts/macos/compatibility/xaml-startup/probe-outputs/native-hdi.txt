@@ -1,0 +1,34 @@
+== desktop
+msctf=1
+export=1
+apiset=1 same=1
+main-nocom ret=0 gle=0x0
+worker-nocom ret=0 gle=0x0
+coinit=0x0
+main-sta ret=0 gle=0x0
+createtm=0x0
+main-tm-created ret=0 gle=0x0
+activate=0x0
+main-tm-active ret=0 gle=0x0
+main-tm-keyqueued ret=0 gle=0x0
+main-tm-drained ret=0 gle=0x0
+main-tm-deactivated ret=0 gle=0x0
+main-uninit ret=0 gle=0x0
+done
+== pkg
+msctf=1
+export=1
+apiset=1 same=1
+main-nocom ret=0 gle=0x0
+worker-nocom ret=0 gle=0x0
+coinit=0x0
+main-sta ret=0 gle=0x0
+createtm=0x0
+main-tm-created ret=0 gle=0x0
+activate=0x0
+main-tm-active ret=0 gle=0x0
+main-tm-keyqueued ret=0 gle=0x0
+main-tm-drained ret=0 gle=0x0
+main-tm-deactivated ret=0 gle=0x0
+main-uninit ret=0 gle=0x0
+done

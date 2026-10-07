@@ -1,0 +1,18 @@
+SERVER create status=00000000
+SERVER recv status=00000000 type=10 len=0
+SERVER_CONN case=-1 valid=00000000
+SERVER accept status=00000000
+CLIENT connect status=00000000
+00f0:warn:alpc:validate_attributes unsupported valid send attributes 0x22000000
+CLIENT case=0 send_valid=22000000 status=c00000bb reply_type=0 reply_len=0
+00f0:warn:alpc:validate_attributes unsupported valid send attributes 0x20000000
+CLIENT case=1 send_valid=20000000 status=c00000bb reply_type=0 reply_len=0
+00f0:warn:alpc:validate_attributes unsupported valid send attributes 0x2000000
+CLIENT case=2 send_valid=02000000 status=c00000bb reply_type=0 reply_len=0
+00f0:warn:alpc:validate_attributes unsupported valid send attributes 0x2000000
+CLIENT case=3 send_valid=02000000 status=c00000bb reply_type=0 reply_len=0
+SERVER recv status=00000000 type=1 len=16
+SERVER_REQ case=4 valid=20000000 ctx_port=0000000000005150 ctx_msg=0000000000000000 seq_nonzero=0 msgid_nonzero=1 cb=0
+SERVER reply case=4 status=c00000bb
+CLIENT case=4 send_valid=00000000 status=00000102 reply_type=0 reply_len=0
+SENDATTR_DONE

@@ -1,0 +1,11 @@
+mode msgwait init2=00006FFFFDAABEB0 drain2=00006FFFFDAAB900 sched=00006FFFFDAAC1A0
+MW init2(hwnd=0000000000090052) ret=0000000000000074 out=00000000 gle=3735928559
+MW basic access=001f0003 handles=1 pointers=2 attr=0
+MW type=IoCompletion
+MW iocdepth status=00000000 depth=0
+MW sched(0000000000090052) ret=2 gle=3735928559
+MW msgwait=0
+MW remove status=00000102 n=0
+MW queuestatus=00080008 peek=1 msg=0420
+done
+EXIT=0

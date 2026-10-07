@@ -1,0 +1,50 @@
+== desktop
+resolved=1
+isappcontainer ret=1 val=0
+mrm_null_svc flags=0x1 ret=1 member=0x0 gle=3735928559
+null_everyone flags=0x0 ret=1 member=0x1 gle=3735928559
+null_everyone flags=0x1 ret=1 member=0x1 gle=3735928559
+null_everyone flags=0x2 ret=1 member=0x1 gle=3735928559
+null_everyone flags=0x3 ret=1 member=0x1 gle=3735928559
+null_everyone flags=0x4 ret=0 member=0x0 gle=87
+null_everyone flags=0x80000000 ret=0 member=0x0 gle=87
+null_admins flags=0x0 ret=1 member=0x0 gle=3735928559
+null_users flags=0x1 ret=1 member=0x1 gle=3735928559
+null_system flags=0x1 ret=1 member=0x0 gle=3735928559
+prim_everyone flags=0x0 ret=0 member=0x0 gle=1309
+prim_everyone_f1 flags=0x1 ret=0 member=0x0 gle=1309
+imp_everyone flags=0x0 ret=1 member=0x1 gle=3735928559
+imp_svc_f1 flags=0x1 ret=1 member=0x0 gle=3735928559
+imp_noquery flags=0x0 ret=0 member=0x0 gle=5
+badhandle flags=0x0 ret=0 member=0x0 gle=6
+imp_ident_explicit flags=0x0 ret=1 member=0x1 gle=3735928559
+imp_anon_explicit flags=0x0 ret=0 member=0x0 gle=1346
+imp_deleg_explicit flags=0x0 ret=1 member=0x1 gle=3735928559
+plain_ident ret=1 member=0x1 gle=3735928559
+selfident_null_everyone flags=0x1 ret=0 member=0x0 gle=1346
+selfimp_null_everyone flags=0x1 ret=1 member=0x1 gle=3735928559
+== package
+resolved=1
+isappcontainer ret=1 val=0
+mrm_null_svc flags=0x1 ret=1 member=0x0 gle=3735928559
+null_everyone flags=0x0 ret=1 member=0x1 gle=3735928559
+null_everyone flags=0x1 ret=1 member=0x1 gle=3735928559
+null_everyone flags=0x2 ret=1 member=0x1 gle=3735928559
+null_everyone flags=0x3 ret=1 member=0x1 gle=3735928559
+null_everyone flags=0x4 ret=0 member=0x0 gle=87
+null_everyone flags=0x80000000 ret=0 member=0x0 gle=87
+null_admins flags=0x0 ret=1 member=0x0 gle=3735928559
+null_users flags=0x1 ret=1 member=0x1 gle=3735928559
+null_system flags=0x1 ret=1 member=0x0 gle=3735928559
+prim_everyone flags=0x0 ret=0 member=0x0 gle=1309
+prim_everyone_f1 flags=0x1 ret=0 member=0x0 gle=1309
+imp_everyone flags=0x0 ret=1 member=0x1 gle=3735928559
+imp_svc_f1 flags=0x1 ret=1 member=0x0 gle=3735928559
+imp_noquery flags=0x0 ret=0 member=0x0 gle=5
+badhandle flags=0x0 ret=0 member=0x0 gle=6
+imp_ident_explicit flags=0x0 ret=1 member=0x1 gle=3735928559
+imp_anon_explicit flags=0x0 ret=0 member=0x0 gle=1346
+imp_deleg_explicit flags=0x0 ret=1 member=0x1 gle=3735928559
+plain_ident ret=1 member=0x1 gle=3735928559
+selfident_null_everyone flags=0x1 ret=0 member=0x0 gle=1346
+selfimp_null_everyone flags=0x1 ret=1 member=0x1 gle=3735928559

@@ -1,0 +1,5 @@
+version 6
+ext-ms-win-mrmcorer-resmanager-l1-1-0 = mrmcorer.dll
+ext-ms-win-resources-deployment-l1-1-0 = mrmdeploy.dll
+ext-ms-win-resources-languageoverlay-l1-1-7 = languageoverlayutil.dll
+ext-ms-win-tsf-msctf-l1-1-4 = msctf.dll

@@ -1,0 +1,5 @@
+OPENIF first status=00000000 handle_nonnull=1
+OPENIF second_openif status=c000000d handle_nonnull=0
+OPENIF third_plain status=c0000035 handle_nonnull=0
+OPENIF_DONE
+EXIT=0x00000000

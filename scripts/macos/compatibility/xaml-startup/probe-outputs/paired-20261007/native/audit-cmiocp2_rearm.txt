@@ -1,0 +1,14 @@
+mode rearm init2=00007FF922DA8B90 drain2=00007FF922DA8640 sched=00007FF922C64800
+RA init2(hwnd=000000000035045E) ret=00000000000000FC out=00000000 gle=3735928559
+RA basic access=001f0003 handles=2 pointers=65537 attr=1
+RA type=IoCompletion
+RA iocdepth status=00000000 depth=0
+RA drain2(35045e) ret=1 gle=3735928559
+RA0 remove status=00000102 n=0
+RA1 remove status=00000102 n=0
+RA1 queuestatus=00080008 peek=1 msg=0400
+RA1 drain2(35045e) ret=1 gle=3735928559
+RA1d remove status=00000102 n=0
+RA1d queuestatus=00080000 peek=1 msg=0400
+done
+EXIT=0x00000000

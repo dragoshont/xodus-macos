@@ -1,0 +1,12 @@
+mode drainx init2=00007FF922DA8B90 drain2=00007FF922DA8640 sched=00007FF922C64800
+DX-unreg-pre drain2(2f0436) ret=0 gle=5
+DX init2(hwnd=00000000002F0436) ret=0000000000000138 out=00000000 gle=3735928559
+DX basic access=001f0003 handles=2 pointers=65537 attr=1
+DX type=IoCompletion
+DX iocdepth status=00000000 depth=0
+DX-unreg drain2(30045e) ret=0 gle=87
+DX-reg drain2(2f0436) ret=1 gle=3735928559
+DX-reg2 drain2(2f0436) ret=1 gle=3735928559
+DX-destroyed drain2(2f0436) ret=0 gle=1400
+done
+EXIT=0x00000000

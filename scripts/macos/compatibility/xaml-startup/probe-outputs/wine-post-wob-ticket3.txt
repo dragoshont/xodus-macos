@@ -1,0 +1,50 @@
+CONNFLAGS attr=00000000 status=00000000 flags=00020000 seq=0 ctx=0000000000000000
+CONNFLAGS attr=00010000 status=00000000 flags=00030000 seq=0 ctx=0000000000000000
+CONNFLAGS attr=00070000 status=00000000 flags=00070000 seq=0 ctx=0000000000000000
+CONNFLAGS attr=00080000 status=c000000d flags=cccccccc seq=3435973836 ctx=CCCCCCCCCCCCCCCC
+CREATE status=00000000
+SEQ srv1_initial=0
+ACCEPT status=00000000
+CONNECT status=00000000
+SEQ after_accept_a srv1=1 comm_a=0
+RECV_A status=00000000 srv1=1 comm_a=1
+ACCEPT status=00000000
+CONNECT status=00000000
+SEQ after_accept_b srv1=2 comm_a=1 comm_b=0
+RECV_B status=00000000 srv1=2 comm_a=1 comm_b=1
+INITIAL QIT44 status=c0000002 cccccccc cccccccc cccccccc cccccccc
+INITIAL GET1 status=00000000 00000000 00000000
+SIT44 received_ticket8 len=8 status=00000000
+SIT44 received_ticket8 len=8 status=00000000 QIT44 status=c0000002 cccccccc cccccccc cccccccc cccccccc
+SIT44 received_ticket8 len=8 status=00000000 GET1 status=00000000 00000000 00000000
+SIT44 zero8 len=8 status=00000000
+SIT44 zero8 len=8 status=00000000 QIT44 status=c0000002 cccccccc cccccccc cccccccc cccccccc
+SIT44 zero8 len=8 status=00000000 GET1 status=00000000 00000000 00000000
+SIT44 received_ticket16_flags0 len=16 status=c0000004
+SIT44 received_ticket16_flags0 len=16 status=c0000004 QIT44 status=c0000002 cccccccc cccccccc cccccccc cccccccc
+SIT44 received_ticket16_flags0 len=16 status=c0000004 GET1 status=00000000 00000000 00000000
+SIT44 zero16 len=16 status=c0000004
+SIT44 zero16 len=16 status=c0000004 QIT44 status=c0000002 cccccccc cccccccc cccccccc cccccccc
+SIT44 zero16 len=16 status=c0000004 GET1 status=00000000 00000000 00000000
+SIT44 received_ticket16_flags1 len=16 status=c0000004
+SIT44 received_ticket16_flags1 len=16 status=c0000004 QIT44 status=c0000002 cccccccc cccccccc cccccccc cccccccc
+SIT44 received_ticket16_flags1 len=16 status=c0000004 GET1 status=00000000 00000000 00000000
+SIT44 zero16b len=16 status=c0000004
+SIT44 zero16b len=16 status=c0000004 QIT44 status=c0000002 cccccccc cccccccc cccccccc cccccccc
+SIT44 zero16b len=16 status=c0000004 GET1 status=00000000 00000000 00000000
+SIT44 fab16 len=16 status=c0000004
+SIT44 fab16 len=16 status=c0000004 QIT44 status=c0000002 cccccccc cccccccc cccccccc cccccccc
+SIT44 fab16 len=16 status=c0000004 GET1 status=00000000 00000000 00000000
+SIT44 received_ticket32 len=32 status=c0000004
+SIT44 received_ticket32 len=32 status=c0000004 QIT44 status=c0000002 cccccccc cccccccc cccccccc cccccccc
+SIT44 received_ticket32 len=32 status=c0000004 GET1 status=00000000 00000000 00000000
+SIT44 received_ticket16_otherthread len=16 status=c000000d
+SIT44 received_ticket16_otherthread len=16 status=c000000d QIT44 status=c0000002 cccccccc cccccccc cccccccc cccccccc
+SIT44 received_ticket16_otherthread len=16 status=c000000d GET1 status=00000000 00000000 00000000
+SIT44 zero16c len=16 status=c0000004
+SIT44 zero16c len=16 status=c0000004 QIT44 status=c0000002 cccccccc cccccccc cccccccc cccccccc
+SIT44 zero16c len=16 status=c0000004 GET1 status=00000000 00000000 00000000
+C SEND status=00000000
+C SEND status=00000000
+WOB3_DONE
+EXIT=0

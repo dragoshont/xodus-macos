@@ -1,0 +1,3 @@
+byname=1 apiset=1
+pref ff9e5a00/ffd77800: 0=ff000000 1=ffffeb99 2=ffffc24c 3=fff89100 4=ffd47800 5=ffc06700 6=ff923e00 7=ff681a00 8=ffffffff 9=ffff00ff a=ffff00ff 20=ffff00ff d2=ffffffff
+EXIT=0

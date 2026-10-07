@@ -1,0 +1,64 @@
+=== audit-stdmex.exe
+combase=00006FFFFC640000 CoGetStdMarshalEx=00006FFFFC64A960 ole32=00006FFFFC64A960
+T0 no-COM flags=1 hr=800401f0 inner=NULL ref=1
+CoInit STA hr=00000000
+T1 flags=0 hr=80070057 inner=untouched outerref=1
+T1 flags=1 hr=00000000 inner=set outerref=1
+   inner Release->0 outerref=1
+T1 flags=2 hr=80004001 inner=NULL outerref=1
+T1 flags=3 hr=80070057 inner=untouched outerref=1
+T1 flags=4 hr=80070057 inner=untouched outerref=1
+T1 flags=8 hr=80070057 inner=untouched outerref=1
+T1 flags=80000000 hr=80070057 inner=untouched outerref=1
+T2 NULL outer f=1 hr=80070057 inner=untouched
+T2 NULL outer f=2 hr=80070057 inner=untouched
+T3 flags=1 hr=00000000 outerref=1
+  inner QI IUnknown             hr=00000000 ==inner outer 1->1
+  inner QI IMarshal             hr=00000000 other outer 1->2
+    IMarshal->QI(IUnknown)=outer outerref=3
+    [outer QI {0000001b-0000-0000-c000-000000000046}]
+    IMarshal->QI(IStdIdentity) hr=80004002
+    GetUnmarshalClass inproc hr=00000000 {00000017-0000-0000-c000-000000000046}
+    GetUnmarshalClass local hr=00000000 {00000017-0000-0000-c000-000000000046}
+    GetMarshalSizeMax hr=00000000 size=68
+  inner QI IMarshal2            hr=00000000 other outer 1->2
+  inner QI IStdMarshalInfo      hr=80004002 NULL outer 1->1
+  inner QI IExternalConnection  hr=80004002 NULL outer 1->1
+  inner QI IStdIdentity         hr=80004002 NULL outer 1->1
+  inner QI IProxyManager        hr=80004002 NULL outer 1->1
+  inner QI IClientSecurity      hr=80004002 NULL outer 1->1
+  inner QI IMultiQI             hr=80004002 NULL outer 1->1
+  inner QI IRpcOptions          hr=80004002 NULL outer 1->1
+  inner QI INoMarshal           hr=80004002 NULL outer 1->1
+  inner QI IAgileObject         hr=80004002 NULL outer 1->1
+  inner QI IMarshalOptions      hr=80004002 NULL outer 1->1
+T4 refs before marshal outer=1
+    [outer QI {00000003-0000-0000-c000-000000000046}]
+    [outer QI {00000019-0000-0000-c000-000000000046}]
+T4 CoMarshalInterface hr=00000000 outerref=3
+T4 MTA unmarshal hr=00000000 proxy=distinct
+T4 proxy QI IMarshal hr=00000000
+T4 after MTA outerref=1
+T5 second call same outer hr=80010119 inner=NULL same=0
+    [outer QI {00000003-0000-0000-c000-000000000046}]
+T4 CoDisconnectObject hr=00000000 outerref=1
+T3 final inner Release->0 outerref=1
+T3 flags=2 hr=80004001 outerref=1
+done
+=== audit-stdmex2.exe
+T6 after plain marshal(hr=00000000): hr=80010119 inner=NULL ref=3
+T6 ReleaseMarshalData hr=00000000
+T6 Disconnect hr=00000000 ref=1
+T6b after disconnect: hr=00000000 inner=set
+T8 create hr=00000000
+T8 after inner released (never marshaled): hr=00000000 inner=set
+T9 IMarshal2==IMarshal 1
+T9 DisconnectObject unmarshaled hr=00000000
+T9 direct MarshalInterface hr=00000000 bytes=68 ref=4
+T9 objref sig=574f454d flags=1
+T9 ReleaseMarshalData via IMarshal hr=00000000 ref=4
+T9 DisconnectObject hr=00000000 ref=2
+T9 inner release->0 ref=1
+done
+=== audit-stdmex2.exe nullout
+T7 NULL ppInner hr=80070057

@@ -1,0 +1,4 @@
+init2=00006FFFFDAABEB0 drain2=00006FFFFDAAB900 isgui=1
+mode otherhwnd
+X init2(hwnd=000000000007004C) ret=0000000000000000 out=cccccccc gle=5
+EXIT=0

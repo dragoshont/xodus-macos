@@ -1,0 +1,19 @@
+export=1 session=1
+sid0 n=1 rel=0 st=c000a200 len=0000 max=0000 buf=null 
+sid0 n=1 rel=1 st=c000a200 len=0000 max=0000 buf=null 
+sid1 n=2 rel=0 st=c000a200 len=0000 max=0000 buf=null 
+sid1 n=2 rel=1 st=c000a200 len=0000 max=0000 buf=null 
+sid2 n=7 rel=0 st=c000a200 len=0000 max=0000 buf=null 
+sid2 n=7 rel=1 st=c000a200 len=0000 max=0000 buf=null 
+sid3 n=8 rel=0 st=00000000 len=0076 max=0078 buf=set \Sessions\1\AppContainerNamedObjects\S-1-15-2-1-2-3-4-5-6-7
+sid3 n=8 rel=1 st=00000000 len=005e max=0060 buf=set AppContainerNamedObjects\S-1-15-2-1-2-3-4-5-6-7
+sid4 n=9 rel=0 st=c000a200 len=0000 max=0000 buf=null 
+sid4 n=9 rel=1 st=c000a200 len=0000 max=0000 buf=null 
+sid5 n=12 rel=0 st=00000000 len=008a max=008c buf=set \Sessions\1\AppContainerNamedObjects\S-1-15-2-1-2-3-4-5-6-7\8-9-10-11
+sid5 n=12 rel=1 st=00000000 len=0072 max=0074 buf=set AppContainerNamedObjects\S-1-15-2-1-2-3-4-5-6-7\8-9-10-11
+sid6 n=8 rel=0 st=c000a200 len=0000 max=0000 buf=null 
+sid6 n=8 rel=1 st=c000a200 len=0000 max=0000 buf=null 
+sid7 n=8 rel=0 st=c000a200 len=0000 max=0000 buf=null 
+sid7 n=8 rel=1 st=c000a200 len=0000 max=0000 buf=null 
+empty st=00000000 len=52428 max=52428 buf=CCCCCCCCCCCCCCCC
+EXIT=0

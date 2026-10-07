@@ -1,0 +1,3 @@
+byname=1 apiset=1
+wine: Unhandled page fault on write access to 0000000000000000 at address 00006FFFFC4CB3D9 (thread 032c), starting debugger...
+EXIT=5

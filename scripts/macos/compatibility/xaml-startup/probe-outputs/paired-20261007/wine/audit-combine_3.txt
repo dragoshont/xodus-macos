@@ -1,0 +1,2 @@
+ms-appx:///Views/Main.xaml + /Assets/logo.png f=0 x=0 -> 00000000 ms-appx:///Assets/logo.png
+EXIT=0

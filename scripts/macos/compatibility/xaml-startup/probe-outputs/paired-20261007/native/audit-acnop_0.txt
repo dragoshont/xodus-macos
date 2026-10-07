@@ -1,0 +1,15 @@
+export=1 session=2
+null/null rel=0: st=00000000 gle=dead len=0 max=0 heap=1 str=
+null/null rel=1: st=00000000 gle=dead len=0 max=0 heap=1 str=
+proctok/null rel=0: st=00000000 gle=dead len=0 max=0 heap=1 str=
+proctok/null rel=1: st=00000000 gle=dead len=0 max=0 heap=1 str=
+pseudo-4/null rel=0: st=00000000 gle=dead len=0 max=0 heap=1 str=
+null/ac rel=0: st=00000000 gle=dead len=240 max=242 heap=1 str=\Sessions\2\AppContainerNamedObjects\S-1-15-2-3164343934-1015664905-1319052806-1987533619-971592377-1388095234-307128736
+null/ac rel=1: st=00000000 gle=dead len=216 max=218 heap=1 str=AppContainerNamedObjects\S-1-15-2-3164343934-1015664905-1319052806-1987533619-971592377-1388095234-307128736
+proctok/ac rel=0: st=c0000030 gle=dead len=cccc max=cccc buf=CCCCCCCCCCCCCCCC
+closedtok/null rel=0: st=c0000008 gle=dead len=cccc max=cccc buf=CCCCCCCCCCCCCCCC
+badtok/null rel=0: st=c0000008 gle=dead len=cccc max=cccc buf=CCCCCCCCCCCCCCCC
+eventhandle/null rel=0: st=c0000024 gle=dead len=cccc max=cccc buf=CCCCCCCCCCCCCCCC
+noquery-tok/null rel=0: st=c0000022 gle=dead len=cccc max=cccc buf=CCCCCCCCCCCCCCCC
+null/world rel=0: st=c000a200 gle=dead len=0000 max=0000 buf=0000000000000000
+EXIT=0x00000000

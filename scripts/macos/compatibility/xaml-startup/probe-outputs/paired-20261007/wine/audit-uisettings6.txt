@@ -1,0 +1,27 @@
+activate hr=0
+QI IUISettings6 hr=0
+identity same=0
+AnimationsEnabled hr=0 value=1
+MessageDuration hr=0x80004001 value=12345
+anim add(NULL) hr=0x80070057 token=0
+anim add(h) #1 hr=0 token_nonzero=1 handler_ref=2
+anim add(h) #2 hr=0 tokens_distinct=1 handler_ref=3
+anim remove(t1) hr=0 handler_ref=2
+anim remove(t1 again) hr=0 handler_ref=2
+anim remove(0) hr=0
+anim remove(bogus) hr=0
+anim remove(t2) via other event hr=0 handler_ref=2
+anim remove(t2) hr=0 handler_ref=1
+anim add(h) #3 hr=0 handler_ref=2 (left registered)
+msg add(NULL) hr=0x80070057 token=0
+msg add(h) #1 hr=0 token_nonzero=1 handler_ref=2
+msg add(h) #2 hr=0 tokens_distinct=1 handler_ref=3
+msg remove(t1) hr=0 handler_ref=2
+msg remove(t1 again) hr=0 handler_ref=2
+msg remove(0) hr=0
+msg remove(bogus) hr=0
+msg remove(t2) via other event hr=0 handler_ref=2
+msg remove(t2) hr=0 handler_ref=1
+msg add(h) #3 hr=0 handler_ref=2 (left registered)
+final instance release=0 anim_ref=1 msg_ref=1
+EXIT=0

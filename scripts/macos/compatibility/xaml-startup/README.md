@@ -17,11 +17,32 @@ experimental Mac. Each run was the genuine `Microsoft.GamingApp`
 ## Files
 
 - `wine-xbox-original-app-sprint.patch`: the cumulative source delta for the
-  stage, 37 files. Each file is diffed from its earliest `.pre-*` backup.
-- `built-dll-sha256.txt`: hashes of the built PE DLLs, the patch, and the
-  genuine `Windows.UI.Xaml.dll` and `CoreMessaging.dll` that were exercised.
-- `patch-*.py`, `combase-ordinals.py`: idempotent patch scripts, one per
-  slice. Each keeps `.pre-<slice>` backups.
+  stage, 71 files. `make-sprint-patch.py` generates it: each file is diffed
+  from its earliest `.pre-*` (or `.base`) backup, and new files are diffed
+  against `/dev/null`.
+- `built-dll-sha256.txt`: hashes of the built PE DLLs and `.so` files, the
+  genuine `Windows.UI.Xaml.dll`, `CoreMessaging.dll`, `MrmCoreR.dll`,
+  `bcp47mrm.dll` and `threadpoolwinrt.dll` that were exercised, and the patch
+  (last line). Paths are relative to the stage.
+- `patch-*.py`, `combase-ordinals.py`: idempotent patch scripts for the
+  slices that were scripted. Each keeps `.pre-<slice>` backups. Other slices
+  (recvattr, wob server side, ndr3 headers, gitw, pkgid, json, avs, hdi,
+  ctm, gspo, state, resctx, mss, psm, tpwex) were direct source edits with
+  `.pre-<slice>` backups. **The cumulative patch is the authoritative
+  record.**
+
+  The backup timestamps give the order:
+  1. Phase 1 `.base` (principal and service token);
+  2. `overlap` (`patch-write-mask.py`, `server/token.c`), then `openif`
+     (`patch-openif.py`). Both scripts reproduce the original direct edits.
+  3. `recvattr`, `sendattr`, `wob`, `cmiocp`;
+  4. the later slices, in the order of the tables below.
+- `probe-manifest.txt`, `run-probes-native.ps1`, `run-probes-wine.sh`,
+  `compare-probe-pairs.py`: run the same 71 probe invocations on native
+  Windows and on the stage, then diff them (see "Paired parity").
+- `probe-outputs/`: native and Wine probe outputs for each slice.
+  `probe-outputs/paired-20261007/` holds the paired rerun and
+  `parity-report.md`.
 - `audit-*.c`: parity probes. Run the same binary on native Windows and on
   Wine.
 - `framework-view-activation.reg`: mirrors the native WinRT registration of
@@ -48,8 +69,87 @@ experimental Mac. Each run was the genuine `Microsoft.GamingApp`
 sp23 hits no unimplemented API. The only failure is wined3d/DXGI. It can't
 create a GL context because the harness disables `winemac.drv`, so the run is
 headless. On native, a DXGI factory always exists, and Xaml can fall back to
-WARP. The next rung needs Phase 3 (`winemac.drv` on the Mac foreground), which
-needs the owner's permission.
+WARP. The sprint then used a headless D3D11 device through MoltenVK
+(`Graphics=null` set for the run, then deleted). The GUI runs (`gui*`) needed
+`winemac.drv` and waited until the Exodus lane released the foreground.
+
+| Run | Reached failure | Resolution | Parity |
+|---|---|---|---|
+| sp24 | dxgi private IID `{f898b024…}` (`Set/GetInProcessGPUPriority`) | implemented in dxgi | 45/45 lines, `native-gpuprio` |
+| sp25 | UISettings QI | upstream `3e86631f` backport | `native-uisettings6` (subset) |
+| sp27 | marshal IID `49a07732` | proxy/stub registered | `native-iid-49a07732` |
+| sp28 / gui2 | alive about 60 s | — | — |
+| sp29 | SRW self-deadlock | GuidHelper registered | — |
+| sp30–31 | `Package.Current.Id` | implemented | `native-state-ident*` |
+| sp32 | `JsonObject` | `windows.web` backport at master `59416cf5` | `native-json-parity` |
+| sp33 | `ApplicationViewScaling` | implemented | `native-avs` |
+| sp34 | msctf `HasDeferredInputForCoreDispatcher` | implemented | `native-hdi` |
+| sp35 | combase #95 `CoSignalPendingGitRegistrationWaits` | implemented | `native-gitw` |
+| sp36 | IID proxy/stub and DispatcherQueue registry | registered | `native-reglook-sp36` |
+| sp37 | `GetStringValueForManifestField` | genuine MrmCoreR | `native-mrmreg` |
+| sp38 | `CheckTokenMembershipEx` | implemented | `native-ctm` |
+| sp39 | `GetStagedPackageOrigin` | implemented | `native-gspo` |
+| sp40 | bcp47mrm | genuine bcp47mrm | `native-apiset-mrm` |
+| sp41 | package state APIs | implemented | `native-state` |
+| sp42 / gui3 | `GetCurrentPackageApplicationResourcesContext` | implemented | `native-resctx*` |
+| sp43 | `RtlIsMultiSessionSku` | implemented | `native-mss` |
+| sp44 | `PsmQueryBackgroundActivationType` | implemented | — |
+| sp45 | CLSIDs `{02844640}` PlmSuspendControl, `{96c7a5ef}` CSignalableNotifier | registered; genuine threadpoolwinrt | — |
+| sp46 | `TpSetWaitEx` | implemented | 8/8, `native-tpwaitex` |
+| sp46 / gui4 | **no missing API**: the app stays alive about 70 s, then the launcher ends it (exit 92) | — | — |
+
+In gui4 no CoreWindow exists and no app window is visible. XAML renders only
+into the hidden wined3d DXGI device window. The earlier sp36 "window
+rendered" claim is **withdrawn**. Original-app symbols are consistent with
+this hypothesis: the app never receives a launch activation, so it never
+creates its CoreWindow. That is **unproven** until a change to activation
+input changes the observed outcome. `NdrDllGetClassObject {dbce7e40}` still
+warns and is unresolved.
+
+## Paired parity (2026-10-07)
+
+The 71 invocations in `probe-manifest.txt` were run on the same day:
+
+- native: the Parallels Windows 11 VM, in the interactive user session
+  (`prlctl exec --current-user`);
+- Wine: the stage, through `run-probes-wine.sh`.
+
+`compare-probe-pairs.py` normalises pointer values and exit codes. **28/71
+outputs match.** The Wine outputs equal the earlier committed `wine-post-*`
+outputs, so the rerun shows no regression. The per-slice parity column above
+therefore covers only the subset of each API that the app reached; it is
+**not** full parity. The diffs fall into three groups:
+
+- **Environment or identity:**
+  - session 2 vs 1;
+  - user accent colours;
+  - thread and handle values;
+  - Wine's placeholder user SID `S-1-5-21-0-0-0-513` and `GA` access in
+    `filter-token-sd`;
+  - `gucp_1/2`: both sides fault on NULL;
+  - `gcfp_2`: Wine timed out enumerating the colour-name table (native: 1227
+    names).
+- **Wine semantic gaps on paths the app did not reach:**
+  - WOB: thread information class 44 returns `STATUS_NOT_IMPLEMENTED`;
+    native returns a 16-byte ticket.
+  - ALPC:
+    - connect attribute `0x80000` returns `c000000d`;
+    - message attribute sequence and size are zero;
+    - context port on `CLIENT_REPLY` differs.
+    - Port basic information: native handle 2 / pointer ~65537 / attr 1;
+      Wine 1 / 2 / 0.
+  - CoreMessaging queue status: native `0x00400040`, Wine 0.
+  - `CoGetStdMarshalEx`: `SMEXF_HANDLER` returns `E_NOTIMPL`; the outer-QI
+    order and refcounts (+1 on Wine) differ.
+  - NDR3 proxy: native has `vtbl[3]/[6]` in combase with `CountRefs` 0; Wine
+    has them in rpcrt4.
+  - UISettings6: `MessageDuration` returns `E_NOTIMPL` (native returns 5);
+    the identity comparison differs.
+  - `CoInternetCombineIUri`: an `ms-appx` relative URI, or `res://`, returns
+    `8007000e` on native but succeeds on Wine.
+  - onecore: native `byname=0`, Wine 1.
+- **Matched:** gpuprio and the other 26 invocations listed in
+  `parity-report.md`.
 
 ## Measured semantics and recorded deviations
 
@@ -90,10 +190,40 @@ needs the owner's permission.
 - **`EnableOneCoreTransformMode`**: not implemented and never reached.
 - **No ASTA in Wine**: the process-events and design-mode slices implement
   native's non-ASTA paths only.
+- **CoreMessaging drain**: `NtUserDrainThreadCoreMessagingCompletions2` does
+  not queue message-arrival packets to the port for registered windows. It
+  logs a one-time FIXME.
+- **Per-thread CoreMessaging IOCP**: not closed at thread exit.
+- **ALPC `msg->id` validation**:
+  - a sender on a connection port needs a valid connection-message entry,
+    otherwise it gets `STATUS_ACCESS_DENIED`;
+  - a sender on a communication port needs a source that matches the
+    destination port, otherwise it gets `STATUS_REPLY_MESSAGE_MISMATCH`.
+- **Phase 1 principal**:
+  - Only LocalService services with `ServiceSidType` 1 or 3 get the new
+    token. Other services keep Wine's existing token; this is pre-existing
+    behaviour.
+  - If token creation fails, the service start fails; there is no silent
+    fallback.
+  - The token object carries a security descriptor set by the SCM.
+  - The port creator receives `ALPC_PORT_ALL_ACCESS` (native measured
+    `0x001f0001`).
+- **`OBJ_OPENIF` and the write mask**: follow `native-tokensd-openif` and
+  `native-write-overlap`.
 
 ## Status
 
 These are candidates for an experimental runtime. Nothing is upstreamed,
 pushed or signed. Passing probes and getting further along the headless chain
-are **not** app milestones: XBOX-APP-STARTUP remains UNTESTED until a real
-original window renders.
+are **not** app milestones. XBOX-APP-STARTUP remains UNTESTED: the original
+app stays alive about 70 s, but no window of its own appears.
+
+Sprint budget: started 2026-10-07 13:39 +03:00, hard deadline 2026-10-08
+13:39 +03:00.
+
+A crash-loop incident happened on 2026-10-07: about 770 `winedbg --auto`
+processes in 4 minutes reached the per-user process limit. Since then:
+
+- every run goes through `guard.sh`;
+- AeDebug is empty;
+- process counts are checked before and after each run.

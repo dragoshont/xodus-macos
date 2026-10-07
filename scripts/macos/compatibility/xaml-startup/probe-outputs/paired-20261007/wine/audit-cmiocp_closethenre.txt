@@ -1,0 +1,9 @@
+init2=00006FFFFDAABEB0 drain2=00006FFFFDAAB900 isgui=1
+mode closethenre
+C1 init2(hwnd=000000000008004E) ret=0000000000000074 out=00000000 gle=3735928559
+C1 basic access=001f0003 handles=1 pointers=2 attr=0
+C1 type=IoCompletion
+C1 iocdepth status=00000000 depth=0
+C2 init2(hwnd=000000000008004E) ret=0000000000000000 out=cccccccc gle=87
+C2 remove status=c0000008 n=0
+EXIT=0

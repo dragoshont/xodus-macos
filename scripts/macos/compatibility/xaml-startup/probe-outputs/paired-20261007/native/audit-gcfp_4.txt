@@ -1,0 +1,6 @@
+byname=1 apiset=1
+before=ffffeb99
+after-write=ffffeb99
+after-force-gucp=ffffeb99
+mode0=ffffeb99 mode2=ffffeb99
+EXIT=0x00000000

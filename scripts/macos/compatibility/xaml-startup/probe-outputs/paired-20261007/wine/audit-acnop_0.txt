@@ -1,0 +1,15 @@
+export=1 session=1
+null/null rel=0: st=00000000 gle=dead len=0 max=0 heap=1 str=
+null/null rel=1: st=00000000 gle=dead len=0 max=0 heap=1 str=
+proctok/null rel=0: st=00000000 gle=dead len=0 max=0 heap=1 str=
+proctok/null rel=1: st=00000000 gle=dead len=0 max=0 heap=1 str=
+pseudo-4/null rel=0: st=00000000 gle=dead len=0 max=0 heap=1 str=
+null/ac rel=0: st=00000000 gle=dead len=0 max=0 heap=1 str=
+null/ac rel=1: st=00000000 gle=dead len=0 max=0 heap=1 str=
+proctok/ac rel=0: st=00000000 gle=dead len=0 max=0 heap=1 str=
+closedtok/null rel=0: st=c0000008 gle=dead len=cccc max=cccc buf=CCCCCCCCCCCCCCCC
+badtok/null rel=0: st=c0000008 gle=dead len=cccc max=cccc buf=CCCCCCCCCCCCCCCC
+eventhandle/null rel=0: st=c0000024 gle=dead len=cccc max=cccc buf=CCCCCCCCCCCCCCCC
+noquery-tok/null rel=0: st=c0000022 gle=dead len=cccc max=cccc buf=CCCCCCCCCCCCCCCC
+null/world rel=0: st=c000a200 gle=dead len=0000 max=0000 buf=0000000000000000
+EXIT=0

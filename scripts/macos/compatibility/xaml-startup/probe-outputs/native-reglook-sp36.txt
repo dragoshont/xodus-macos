@@ -1,0 +1,56 @@
+== HKLM:\SOFTWARE\Classes\CLSID\{96c7a5ef-0e2c-46d7-9bc1-6445c2444d7a}
+HKEY_LOCAL_MACHINE\SOFTWARE\Classes\CLSID\{96c7a5ef-0e2c-46d7-9bc1-6445c2444d7a}\InProcServer32
+(default)      : C:\Windows\System32\threadpoolwinrt.dll
+ThreadingModel : Both
+PSPath         : Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Classes\CLSID\{96c7a5ef-0e2c-46d7-9bc1
+                 -6445c2444d7a}\InProcServer32
+                 -6445c2444d7a}
+== HKLM:\SOFTWARE\Classes\WOW6432Node\CLSID\{96c7a5ef-0e2c-46d7-9bc1-6445c2444d7a}
+HKEY_LOCAL_MACHINE\SOFTWARE\Classes\WOW6432Node\CLSID\{96c7a5ef-0e2c-46d7-9bc1-6445c2444d7a}\InProcServer32
+(default)      : C:\Windows\SysWOW64\threadpoolwinrt.dll
+ThreadingModel : Both
+PSPath         : Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Classes\WOW6432Node\CLSID\{96c7a5ef-0e
+                 2c-46d7-9bc1-6445c2444d7a}\InProcServer32
+                 2c-46d7-9bc1-6445c2444d7a}
+== HKLM:\SOFTWARE\Classes\CLSID\{dbce7e40-7345-439d-b12c-114a11819a09}
+(default)    : MrtResourceManager Class
+PSPath       : Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Classes\CLSID\{dbce7e40-7345-439d-b12c-1
+               14a11819a09}
+HKEY_LOCAL_MACHINE\SOFTWARE\Classes\CLSID\{dbce7e40-7345-439d-b12c-114a11819a09}\InProcServer32
+(default)      : C:\Windows\System32\MrmCoreR.dll
+ThreadingModel : Both
+PSPath         : Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Classes\CLSID\{dbce7e40-7345-439d-b12c
+                 -114a11819a09}\InProcServer32
+                 -114a11819a09}
+== HKLM:\SOFTWARE\Classes\WOW6432Node\CLSID\{dbce7e40-7345-439d-b12c-114a11819a09}
+(default)    : MrtResourceManager Class
+PSPath       : Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Classes\WOW6432Node\CLSID\{dbce7e40-7345
+               -439d-b12c-114a11819a09}
+HKEY_LOCAL_MACHINE\SOFTWARE\Classes\WOW6432Node\CLSID\{dbce7e40-7345-439d-b12c-114a11819a09}\InProcServer32
+(default)      : C:\Windows\SysWOW64\MrmCoreR.dll
+ThreadingModel : Both
+PSPath         : Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Classes\WOW6432Node\CLSID\{dbce7e40-73
+                 45-439d-b12c-114a11819a09}\InProcServer32
+                 45-439d-b12c-114a11819a09}
+== HKLM:\SOFTWARE\Classes\Interface\{2e5500b6-66ad-467f-abb5-022a64283d88}
+HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{2e5500b6-66ad-467f-abb5-022a64283d88}\ProxyStubClsid32
+(default)    : {95E15D0A-66E6-93D9-C53C-76E6219D3341}
+PSPath       : Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{2e5500b6-66ad-467f-ab
+               b5-022a64283d88}\ProxyStubClsid32
+               b5-022a64283d88}
+== DQ
+ActivationType : 0
+CLSID          : {A2BCF28F-2C7C-4785-8B25-B269115E6937}
+DllPath        : C:\Windows\System32\CoreMessaging.dll
+Threading      : 0
+TrustLevel     : 0
+PSPath         : Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WindowsRuntime\ActivatableCl
+                 assId\Windows.System.DispatcherQueue
+                 assId
+PSFactoryBuffer
+HKEY_LOCAL_MACHINE\SOFTWARE\Classes\CLSID\{95E15D0A-66E6-93D9-C53C-76E6219D3341}\InProcServer32 = C:\Windows\System32\OneCoreUAPCommonProxyStub.dll TM=Both
+IFNAME=
+HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{2e5500b6-66ad-467f-abb5-022a64283d88}\ProxyStubClsid32 = {95E15D0A-66E6-93D9-C53C-76E6219D3341}
+Windows.System.DispatcherQueue DllPath=C:\Windows\System32\CoreMessaging.dll CLSID={A2BCF28F-2C7C-4785-8B25-B269115E6937} AT=0 Th=0 TL=0
+Windows.System.DispatcherQueueController DllPath=C:\Windows\System32\CoreMessaging.dll CLSID={622D8E54-C715-45F4-B26B-000A8A7CBF03} AT=0 Th=0 TL=0
+MrmCoreR TM=Both

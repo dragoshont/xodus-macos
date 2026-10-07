@@ -1,17 +1,27 @@
+"""Work-on-behalf ticket / context slice. Usage: patch-wob-a.py <wine source dir>
+
+Edits the current file, so later slices are preserved. An edit whose
+replacement is already present is skipped; every other anchor must match
+exactly once. A `.pre-wob` backup is kept the first time a file is changed.
+Apply after patch-sendattr.py (see README, "Patch application order")."""
 import os, shutil, sys
-S = os.path.expanduser("~/xodus-runs/xbox-service-principal-20261007-001/source/wine")
+S = sys.argv[1]
 
 def patch(rel, pairs):
     p = os.path.join(S, rel)
-    if not os.path.exists(p + ".pre-wob"):
-        shutil.copy2(p, p + ".pre-wob")
-    src = open(p + ".pre-wob").read()
+    src = open(p).read()
+    orig = src
     for old, new in pairs:
+        if src.count(new) == 1 and new != old:
+            continue
         if src.count(old) != 1:
             sys.exit("anchor count %d in %s: %r" % (src.count(old), rel, old[:70]))
         src = src.replace(old, new)
-    open(p, "w").write(src)
-    print("patched", rel)
+    if src != orig:
+        if not os.path.exists(p + ".pre-wob"):
+            shutil.copy2(p, p + ".pre-wob")
+        open(p, "w").write(src)
+    print("patched" if src != orig else "already applied", rel)
 
 patch("server/protocol.def", [
 ("""    obj_handle_t token;        /* impersonation token */

@@ -1,0 +1,42 @@
+Remove-Item : Cannot find path 'C:\Users\dragoshont\AppData\Local\Packages\Xodus.StateProbe_h8zyh85gsaq8w\TempState' 
+because it does not exist.
+At C:\Users\Public\statepkg2.ps1:4 char:1
++ Remove-Item "$r\TempState" -Recurse -Force; "TempState exists before: ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\dragos...saq8w\TempState:String) [Remove-Item], ItemNotFoundEx 
+   ception
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.RemoveItemCommand
+ 
+TempState exists before: False
+identity rc=0 [Xodus.StateProbe_1.0.0.0_x64__h8zyh85gsaq8w]
+procs 00007FF91DFA6AB0 00007FF91DFA6930 00007FF91DFA6260
+  in C:\WINDOWS\SYSTEM32\kernel.appcore.dll
+OpenState -> 000002715F10EAA0 le=0
+OpenState2 -> 000002715F10FE90 le=0
+GSF t=-1 r=0 le=87 len=260 path=[] attr=00000000
+GSF t=0 r=0 le=87 len=260 path=[] attr=00000000
+GSF t=1 r=1 le=0 len=85 path=[C:\Users\dragoshont\AppData\Local\Packages\Xodus.StateProbe_h8zyh85gsaq8w\LocalState] attr=00000010
+GSF t=2 r=1 le=0 len=87 path=[C:\Users\dragoshont\AppData\Local\Packages\Xodus.StateProbe_h8zyh85gsaq8w\RoamingState] attr=00000010
+GSF t=3 r=1 le=2 len=84 path=[C:\Users\dragoshont\AppData\Local\Packages\Xodus.StateProbe_h8zyh85gsaq8w\TempState] attr=ffffffff
+GSF t=4 r=1 le=0 len=85 path=[C:\Users\dragoshont\AppData\Local\Packages\Xodus.StateProbe_h8zyh85gsaq8w\LocalCache] attr=00000010
+GSF t=5 r=0 le=87 len=260 path=[] attr=00000000
+GSF t=6 r=0 le=87 len=260 path=[] attr=00000000
+GSF t=7 r=0 le=87 len=260 path=[] attr=00000000
+GSF t=8 r=0 le=87 len=260 path=[] attr=00000000
+GSF t=9 r=0 le=87 len=260 path=[] attr=00000000
+GSF t=10 r=0 le=87 len=260 path=[] attr=00000000
+GSF t=11 r=0 le=87 len=260 path=[] attr=00000000
+GSF t=12 r=0 le=87 len=260 path=[] attr=00000000
+GSF small r=0 le=122 len=85
+GSF nullbuf r=0 le=122 len=85
+GSF exact-check r=1 le=0 len=85 strlen=84
+GSF len=strlen r=0 le=122 len=85
+GSF len=strlen+1 r=1 le=0 len=85
+CloseState -> 1 le=0
+GSF nullstate r=0 le=6 len=260
+kernelbase!OpenState 00007FF9203C6420
+  in C:\WINDOWS\System32\KERNELBASE.dll
+envchg GSF r=1 len=85 path=[C:\Users\dragoshont\AppData\Local\Packages\Xodus.StateProbe_h8zyh85gsaq8w\LocalState]
+envchg GSF3 r=1 le=0 path=[C:\Users\dragoshont\AppData\Local\Packages\Xodus.StateProbe_h8zyh85gsaq8w\TempState]
+CloseState(NULL) -> 0 le=6
+TempState exists after: False

@@ -1,0 +1,9 @@
+resolved=1
+case=1 ret=4400 origin=0x55 gle=0 name=Microsoft.GamingApp_2609.1001.16.0_x64__8wekyb3d8bbwe
+case=2 ret=4400 origin=0x55 gle=0 name=Contoso.App_1.0.0.0_x64__8wekyb3d8bbwe
+case=3 ret=4400 origin=0x55 gle=0 name=foo
+case=4 ret=4400 origin=0x55 gle=0 name=Microsoft.GamingApp_8wekyb3d8bbwe
+case=5 ret=234 origin=0x55 gle=0 name=
+case=6 ret=87 origin=0x55 gle=3735928559 name=(null)
+resolved=1
+case=1 ret=87 origin=0x55 gle=3735928559 name=Microsoft.GamingApp_2609.1001.16.0_x64__8wekyb3d8bbwe

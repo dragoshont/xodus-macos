@@ -1,0 +1,72 @@
+== desktop-sta
+package=<none>
+RoInitialize(sta) hr=00000000
+factory hr=00000000
+trust hr=00000000 level=0
+QI agile hr=00000000
+QI instance-iface on factory hr=80004002
+ActivateInstance hr=80004001 obj=0
+QI statics hr=00000000
+initial get hr=00000000 value=0
+tryset(1) hr=00000000 success=0
+after-true get hr=00000000 value=0
+tryset(0) hr=00000000 success=0
+after-false get hr=00000000 value=0
+tryset(1) hr=00000000 success=0
+tryset(1) hr=00000000 success=0
+after-true-twice get hr=00000000 value=0
+done
+== desktop-mta
+package=<none>
+RoInitialize(mta) hr=00000000
+factory hr=00000000
+trust hr=00000000 level=0
+QI agile hr=00000000
+QI instance-iface on factory hr=80004002
+ActivateInstance hr=80004001 obj=0
+QI statics hr=00000000
+initial get hr=00000000 value=0
+tryset(1) hr=00000000 success=0
+after-true get hr=00000000 value=0
+tryset(0) hr=00000000 success=0
+after-false get hr=00000000 value=0
+tryset(1) hr=00000000 success=0
+tryset(1) hr=00000000 success=0
+after-true-twice get hr=00000000 value=0
+done
+== pkg-sta
+package=Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+RoInitialize(sta) hr=00000000
+factory hr=00000000
+trust hr=00000000 level=0
+QI agile hr=00000000
+QI instance-iface on factory hr=80004002
+ActivateInstance hr=80004001 obj=0
+QI statics hr=00000000
+initial get hr=00000000 value=0
+tryset(1) hr=00000000 success=0
+after-true get hr=00000000 value=0
+tryset(0) hr=00000000 success=0
+after-false get hr=00000000 value=0
+tryset(1) hr=00000000 success=0
+tryset(1) hr=00000000 success=0
+after-true-twice get hr=00000000 value=0
+done
+== pkg-mta
+package=Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+RoInitialize(mta) hr=00000000
+factory hr=00000000
+trust hr=00000000 level=0
+QI agile hr=00000000
+QI instance-iface on factory hr=80004002
+ActivateInstance hr=80004001 obj=0
+QI statics hr=00000000
+initial get hr=00000000 value=0
+tryset(1) hr=00000000 success=0
+after-true get hr=00000000 value=0
+tryset(0) hr=00000000 success=0
+after-false get hr=00000000 value=0
+tryset(1) hr=00000000 success=0
+tryset(1) hr=00000000 success=0
+after-true-twice get hr=00000000 value=0
+done

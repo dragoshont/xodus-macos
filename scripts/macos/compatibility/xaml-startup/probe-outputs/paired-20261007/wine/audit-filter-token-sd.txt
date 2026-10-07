@@ -1,0 +1,6 @@
+TOKSD dup-default O:S-1-5-21-0-0-0-513G:S-1-5-21-0-0-0-513D:(A;;GA;;;SY)(A;;GA;;;S-1-5-21-0-0-0-513)
+TOKSD dup-custom O:S-1-5-21-0-0-0-513G:S-1-5-21-0-0-0-513D:(A;;GA;;;SY)(A;;RC;;;OW)(A;;SW;;;BA)(A;;GA;;;WD)
+TOKSD filtered-write-restricted O:S-1-5-21-0-0-0-513G:S-1-5-21-0-0-0-513D:(A;;GA;;;SY)(A;;GA;;;S-1-5-21-0-0-0-513)
+TOKSD filtered-plain O:S-1-5-21-0-0-0-513G:S-1-5-21-0-0-0-513D:(A;;GA;;;SY)(A;;GA;;;S-1-5-21-0-0-0-513)
+TOKSD_DONE
+EXIT=0

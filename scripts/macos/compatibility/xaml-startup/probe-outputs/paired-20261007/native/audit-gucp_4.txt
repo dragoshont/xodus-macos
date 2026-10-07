@@ -1,0 +1,8 @@
+byname=1 apiset=1
+pre force=0 hr=00000000 start=ffc06700 accent=ffd47800 gle=0
+changed force=0 hr=00000000 start=ffc06700 accent=ffd47800 gle=57005
+changed force=1 hr=00000000 start=ffc06700 accent=ff112233 gle=57005
+changed-later force=0 hr=00000000 start=ffc06700 accent=ff112233 gle=57005
+deleted force=1 hr=00000000 start=ff9e5a00 accent=ffd77800 gle=57005
+restored force=1 hr=00000000 start=ffc06700 accent=ffd77800 gle=57005
+EXIT=0x00000000

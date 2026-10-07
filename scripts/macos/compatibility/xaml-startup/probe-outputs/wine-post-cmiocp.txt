@@ -1,0 +1,148 @@
+init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 isgui=1
+hwnd=000000000002003E tid=36 isgui=1
+pre queuestatus=00000000 peek=0 msg=0000
+A init2(hwnd=000000000002003E) ret=0000000000000078 out=00000000 gle=3735928559
+A basic access=001f0003 handles=1 pointers=2 attr=0
+A type=IoCompletion
+A iocdepth status=00000000 depth=0
+A0 remove status=00000102 n=0
+A0 queuestatus=00000000 peek=0 msg=0000
+A1-post remove status=00000102 n=0
+A1 queuestatus=00080008 peek=1 msg=0400
+A2-post2 remove status=00000102 n=0
+A2 queuestatus=00080008 peek=1 msg=0400
+A2-pumped queuestatus=00000000 peek=0 msg=0000
+A2-afterpump remove status=00000102 n=0
+A3-post-after-pump remove status=00000102 n=0
+A3 drain2(78) ret=0 gle=1400
+A3-afterdrain remove status=00000102 n=0
+A3-afterdrain queuestatus=00080008 peek=1 msg=0402
+A4-post-after-drain remove status=00000102 n=0
+A5 drain2(78) ret=0 gle=1400
+A5-afterdrain-empty remove status=00000102 n=0
+A5-post remove status=00000102 n=0
+A5b drain2(78) ret=0 gle=1400
+A5b remove status=00000102 n=0
+B-postthread remove status=00000102 n=0
+B drain2(78) ret=0 gle=1400
+T-timer remove status=00000102 n=0
+T queuestatus=00100010 peek=1 msg=0113
+T drain2(78) ret=0 gle=1400
+T-afterpump remove status=00000102 n=0
+S-crossthread remove status=00000102 n=0
+S queuestatus=00480048 peek=1 msg=0406
+S drain2(78) ret=0 gle=1400
+S-afterpump remove status=00000102 n=0
+R-again init2(hwnd=000000000002003E) ret=0000000000000000 out=cccccccc gle=87
+R same=0
+R-win2 init2(hwnd=0000000000020044) ret=0000000000000078 out=00000001 gle=3735928559
+R-win2 basic access=001f0003 handles=1 pointers=2 attr=0
+R-win2 type=IoCompletion
+R-win2 iocdepth status=00000000 depth=0
+done
+exit=0
+init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 isgui=1
+mode nullhwnd
+N init2(hwnd=0000000000000000) ret=0000000000000000 out=cccccccc gle=1400
+exit[nullhwnd]=0
+init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 isgui=1
+mode badhwnd
+B init2(hwnd=0000000000123456) ret=0000000000000000 out=cccccccc gle=1400
+exit[badhwnd]=0
+init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 isgui=1
+mode nullout
+O ret=0000000000000000 gle=87
+exit[nullout]=0
+init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 isgui=1
+mode drainnull
+D0 drain2(0) ret=0 gle=1400
+exit[drainnull]=0
+init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 isgui=1
+mode drainbad
+DB drain2(1234) ret=0 gle=1400
+exit[drainbad]=0
+init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 isgui=1
+mode drainhwnd
+DH init2(hwnd=000000000008003C) ret=0000000000000074 out=00000000 gle=3735928559
+DH basic access=001f0003 handles=1 pointers=2 attr=0
+DH type=IoCompletion
+DH iocdepth status=00000000 depth=0
+DH drain2(8003c) ret=1 gle=3735928559
+DH remove status=00000102 n=0
+exit[drainhwnd]=0
+init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 isgui=1
+mode drainpre
+DP drain2(168) ret=0 gle=1400
+exit[drainpre]=0
+init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 isgui=1
+mode otherhwnd
+X init2(hwnd=000000000005003A) ret=0000000000000000 out=cccccccc gle=5
+exit[otherhwnd]=0
+init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 isgui=1
+mode closethenre
+C1 init2(hwnd=00000000000A003C) ret=0000000000000074 out=00000000 gle=3735928559
+C1 basic access=001f0003 handles=1 pointers=2 attr=0
+C1 type=IoCompletion
+C1 iocdepth status=00000000 depth=0
+C2 init2(hwnd=00000000000A003C) ret=0000000000000000 out=cccccccc gle=87
+C2 remove status=c0000008 n=0
+exit[closethenre]=0
+init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 isgui=1
+mode destroywin
+W1 init2(hwnd=000000000007003A) ret=0000000000000074 out=00000000 gle=3735928559
+W1 basic access=001f0003 handles=1 pointers=2 attr=0
+W1 type=IoCompletion
+W1 iocdepth status=00000000 depth=0
+W1 remove status=00000102 n=0
+W1d remove status=00000102 n=0
+W1p remove status=00000102 n=0
+W1p queuestatus=00080008 peek=1 msg=0400
+W2 init2(hwnd=000000000008003A) ret=0000000000000074 out=00000000 gle=3735928559
+W2 basic access=001f0003 handles=1 pointers=2 attr=0
+W2 type=IoCompletion
+W2 iocdepth status=00000000 depth=0
+exit[destroywin]=0
+mode count init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 sched=00006FFFFDACC190
+K1 init2(hwnd=00000000000C003C) ret=0000000000000074 out=00000000 gle=3735928559
+K1 basic access=001f0003 handles=1 pointers=2 attr=0
+K1 type=IoCompletion
+K1 iocdepth status=00000000 depth=0
+K2 init2(hwnd=000000000003003E) ret=0000000000000074 out=00000001 gle=3735928559
+K2 basic access=001f0003 handles=1 pointers=2 attr=0
+K2 type=IoCompletion
+K2 iocdepth status=00000000 depth=0
+K3 init2(hwnd=0000000000020042) ret=0000000000000000 out=cccccccc gle=1247
+K4 init2(hwnd=000000000004003E) ret=0000000000000074 out=00000001 gle=3735928559
+K4 basic access=001f0003 handles=1 pointers=2 attr=0
+K4 type=IoCompletion
+K4 iocdepth status=00000000 depth=0
+K closing
+K5 init2(hwnd=0000000000010046) ret=0000000000000000 out=cccccccc gle=1247
+done
+exit[count]=0
+mode drainx init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 sched=00006FFFFDACC190
+DX-unreg-pre drain2(a003a) ret=0 gle=5
+DX init2(hwnd=00000000000A003A) ret=0000000000000074 out=00000000 gle=3735928559
+DX basic access=001f0003 handles=1 pointers=2 attr=0
+DX type=IoCompletion
+DX iocdepth status=00000000 depth=0
+DX-unreg drain2(30042) ret=0 gle=87
+DX-reg drain2(a003a) ret=1 gle=3735928559
+DX-reg2 drain2(a003a) ret=1 gle=3735928559
+DX-destroyed drain2(a003a) ret=0 gle=1400
+done
+exit[drainx]=0
+mode drainother init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 sched=00006FFFFDACC190
+DO-noiocp drain2(b003a) ret=0 gle=5
+DO init2(hwnd=0000000000090040) ret=0000000000000080 out=00000000 gle=3735928559
+DO basic access=001f0003 handles=1 pointers=2 attr=0
+DO type=IoCompletion
+DO iocdepth status=00000000 depth=0
+DO-other drain2(b003a) ret=0 gle=87
+DO-deadthread drain2(b003a) ret=0 gle=1400
+done
+exit[drainother]=0
+mode nulloutbad init2=00006FFFFDACBEA0 drain2=00006FFFFDACB900 sched=00006FFFFDACC190
+NB ret=0000000000000000 gle=1400
+done
+exit[nulloutbad]=0

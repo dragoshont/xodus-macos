@@ -1,0 +1,4 @@
+init2=00006FFFFDAABEB0 drain2=00006FFFFDAAB900 isgui=1
+mode badhwnd
+B init2(hwnd=0000000000123456) ret=0000000000000000 out=cccccccc gle=1400
+EXIT=0

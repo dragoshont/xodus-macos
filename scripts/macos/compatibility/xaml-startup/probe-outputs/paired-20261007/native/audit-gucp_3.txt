@@ -1,0 +1,4 @@
+byname=1 apiset=1
+override-first force=0 hr=00000000 start=ffc06700 accent=ffd47800 gle=0
+override-first force=1 hr=00000000 start=ffc06700 accent=ffd47800 gle=57005
+EXIT=0x00000000

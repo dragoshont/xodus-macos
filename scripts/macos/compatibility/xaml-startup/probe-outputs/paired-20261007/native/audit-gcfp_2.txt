@@ -1,0 +1,26 @@
+byname=1 apiset=1
+names=1227
+0 ApplicationBackground
+1 ApplicationBackgroundDarkTheme
+2 ApplicationBackgroundLightTheme
+3 ApplicationText
+4 ApplicationTextDarkTheme
+5 ApplicationTextLightTheme
+6 BootBackground
+7 BootConfirmationButton
+8 BootConfirmationButtonBackgroundDisabled
+9 BootConfirmationButtonBackgroundHover
+a BootConfirmationButtonBackgroundPressed
+b BootConfirmationButtonBackgroundRest
+c BootConfirmationButtonBorderDisabled
+d BootConfirmationButtonBorderHover
+e BootConfirmationButtonBorderPressed
+f BootConfirmationButtonBorderRest
+10 BootConfirmationButtonTextDisabled
+20 BootEditBackground
+d0 ControlDarkSliderThumbPressed
+d1 ControlDarkSliderThumbRest
+d2 ControlDarkSliderTickMark
+d3 ControlDarkSliderTrackBackgroundDisabled
+d4 ControlDarkSliderTrackBackgroundHover
+EXIT=0x00000000

@@ -1,0 +1,2 @@
+res://x.dll/a/b + c f=0 x=0 -> 00000000 res://x.dll/a/c
+EXIT=0

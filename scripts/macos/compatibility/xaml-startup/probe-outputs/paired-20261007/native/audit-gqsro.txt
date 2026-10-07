@@ -1,0 +1,13 @@
+byname=0 byord=1 same=0
+invalid ro=00000000 gle=57005
+invalid gqs=00000000 gle=1004
+maxflags ro=00000000 gle=57005
+empty ro=00000000
+posted ro1=00080008 ro2=00080008
+mixed inv=00080008 smres=00080008 b16=00080008 allpost=01000100 gle=57005
+subset ro_timer=00000000 ro_post=00080008 ro0=00000000
+gqs=00080008
+after-gqs ro=00080000
+posted2 ro=00080008 gqs_timer=00000000 ro=00080008
+drained ro=00000000 gqs=00000000 ro=00000000
+EXIT=0x00000000

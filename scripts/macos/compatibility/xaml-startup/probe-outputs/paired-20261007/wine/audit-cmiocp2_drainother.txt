@@ -1,0 +1,10 @@
+mode drainother init2=00006FFFFDAABEB0 drain2=00006FFFFDAAB900 sched=00006FFFFDAAC1A0
+DO-noiocp drain2(d004e) ret=0 gle=5
+DO init2(hwnd=00000000000D0050) ret=0000000000000080 out=00000000 gle=3735928559
+DO basic access=001f0003 handles=1 pointers=2 attr=0
+DO type=IoCompletion
+DO iocdepth status=00000000 depth=0
+DO-other drain2(d004e) ret=0 gle=87
+DO-deadthread drain2(d004e) ret=0 gle=1400
+done
+EXIT=0

@@ -1,0 +1,22 @@
+identity rc=15700 []
+procs 00006FFFFF3A0740 00006FFFFF390E80 00006FFFFF3725E0
+  in C:\windows\system32\kernelbase.dll
+OpenState -> 0000000000000000 le=15700
+OpenState2 -> 0000000000000000 le=15700
+GSF nullstate r=0 le=6 len=260
+kernelbase!OpenState 00006FFFFF3A0740
+  in C:\windows\system32\kernelbase.dll
+envchg GSF r=0 len=260 path=[]
+envchg GSF3 r=0 le=57005 path=[]
+CloseState(NULL) -> 0 le=6
+identity rc=15700 []
+procs 00006FFFFF3A0740 00006FFFFF390E80 00006FFFFF3725E0
+  in C:\windows\system32\kernelbase.dll
+OpenState -> 0000000000000000 le=15700
+OpenState2 -> 0000000000000000 le=15700
+GSF nullstate r=0 le=6 len=260
+kernelbase!OpenState 00006FFFFF3A0740
+  in C:\windows\system32\kernelbase.dll
+envchg GSF r=0 len=260 path=[]
+envchg GSF3 r=0 le=57005 path=[]
+CloseState(NULL) -> 0 le=6

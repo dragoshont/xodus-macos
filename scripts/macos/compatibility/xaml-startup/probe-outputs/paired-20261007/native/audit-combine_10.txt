@@ -1,0 +1,2 @@
+res://x.dll/a/b + c f=0 x=0 -> 8007000e (null)
+EXIT=0x00000000

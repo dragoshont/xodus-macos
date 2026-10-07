@@ -1,0 +1,2 @@
+mk:@MSITStore:C:\a.chm::/b/c.htm + /d.htm f=0 x=0 -> 00000000 mk:@MSITStore:C:\a.chm::/d.htm
+EXIT=0x00000000

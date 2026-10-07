@@ -1,0 +1,31 @@
+== desktop
+procs 00007FF91DFA6AB0 00007FF91DFA6930 00007FF91DFA6260
+  in C:\WINDOWS\SYSTEM32\kernel.appcore.dll
+OpenState -> 0000000000000000 le=15700
+OpenState2 -> 0000000000000000 le=15700
+GSF nullstate r=0 le=6 len=260
+CloseState(NULL) -> 0 le=6
+== package
+procs 00007FF91DFA6AB0 00007FF91DFA6930 00007FF91DFA6260
+  in C:\WINDOWS\SYSTEM32\kernel.appcore.dll
+OpenState -> 0000000000000000 le=15700
+OpenState2 -> 0000000000000000 le=15700
+GSF nullstate r=0 le=6 len=260
+CloseState(NULL) -> 0 le=6
+== dirs
+
+Name                            Attributes
+----                            ----------
+AC            Directory, NotContentIndexed
+AppData                          Directory
+LocalCache                       Directory
+LocalState                       Directory
+RoamingState                     Directory
+Settings                         Directory
+SystemAppData                    Directory
+TempState                        Directory
+
+
+
+== kernel.appcore exports
+10.0.26100.9278

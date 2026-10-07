@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 """InitThreadCoreMessagingIocp2 / DrainThreadCoreMessagingCompletions2 (user32 ordinals 2669/2670).
-Semantics measured on Windows 11 (audit-cmiocp*.c). Idempotent: re-patches from .pre-cmiocp backups."""
+Semantics measured on Windows 11 (audit-cmiocp*.c). Usage: patch-cmiocp.py <wine source dir>
+Edits the current file, so later slices are preserved; an edit whose replacement
+is already present is skipped and every other anchor must match exactly once.
+A `.pre-cmiocp` backup is kept the first time a file is changed. Apply after
+patch-wob-a.py (see README, "Patch application order")."""
 import os, shutil, sys
 W = sys.argv[1]
 def edit(rel, pairs):
     p = os.path.join(W, rel); b = p + '.pre-cmiocp'
-    if not os.path.exists(b): shutil.copy2(p, b)
-    s = open(b).read()
+    s = open(p).read(); orig = s
     for old, new in pairs:
+        if s.count(new) == 1 and new != old: continue
         if s.count(old) != 1: sys.exit('%s: anchor count %d: %r' % (rel, s.count(old), old[:60]))
         s = s.replace(old, new)
-    open(p, 'w').write(s)
+    if s != orig:
+        if not os.path.exists(b): shutil.copy2(p, b)
+        open(p, 'w').write(s)
 
 edit('dlls/win32u/ntuser_private.h', [(
 '''    struct mouse_tracking_info   *mouse_tracking_info;    /* NtUserTrackMouseEvent handling */

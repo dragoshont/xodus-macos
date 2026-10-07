@@ -1,0 +1,136 @@
+RoInitialize hr=00000000
+JsonObject factory hr=00000000
+JsonValue factory hr=00000000
+IJsonValueStatics hr=00000000
+QI IJsonValue hr=00000000
+QI IStringable hr=00000000
+QI IAgileObject hr=00000000
+set-null hr=00000000
+set-null => [{}]
+lookup-null hr=83750009
+obj-valuetype => 5
+obj-GetString hr=8000000e
+obj-GetObject hr=00000000 same=1
+order7 => [{"zeta":1,"alpha":1,"mid":1,"Beta":1,"_x":1,"10":1,"2":1}]
+order20 => [{"k1":true,"k2":true,"k3":true,"k4":true,"k5":true,"k6":true,"k7":true,"k8":true,"k9":true,"k10":true,"k11":true,"k12":true,"k13":true,"k14":true,"k15":true,"k16":true,"k17":true,"k18":true,"k19":true,"k20":true}]
+replace => [{"b":3,"a":2}]
+set-then-null => [{"b":2}]
+null-then-set-order => [{"b":2,"a":3}]
+case => [{"A":1,"a":2}]
+set-object-as-value hr=00000000
+nested-obj-as-value => [{"c":{"x":"y","z":true}}]
+GetNamedObject hr=00000000 same=1
+GetNamedString(obj) hr=8000000e
+emptykey => [{"":""}]
+key-escape => [{"k\"\n":0}]
+num 0 => [0]
+num 1 => [1]
+num -1 => [-1]
+num 1.5 => [1.5]
+num 0.10000000000000001 => [0.1]
+num 0.33333333333333331 => [0.33333333333333331]
+num 1e+21 => [1E+21]
+num 9.9999999999999995e-08 => [1E-7]
+num 1.2345678901234568e+17 => [1.2345678901234568E+17]
+num -0 => [-0]
+num 2.5e-300 => [2.5E-300]
+num 1.0000000000000001e+300 => [1E+300]
+num 100 => [100]
+num 1000000000000000 => [1E+15]
+num 10000000000000000 => [1E+16]
+num 1e+17 => [1E+17]
+num 12345.678 => [12345.678]
+num 100000000000000 => [100000000000000]
+num 123456789012345 => [123456789012345]
+num 1234567890123456 => [1234567890123456]
+num 0.0001 => [0.0001]
+num 1.0000000000000001e-05 => [1E-5]
+num 4.9406564584124654e-324 => [4.94065645841247E-324]
+num 1.7976931348623157e+308 => [1.7976931348623157E+308]
+num 2.5 => [2.5]
+num 0.30000000000000004 => [0.30000000000000004]
+num -2.5 => [-2.5]
+num 1.0000000000000001e-05 => [1E-5]
+num 4.3499999999999996 => [4.35]
+num 1e+20 => [1E+20]
+num 0.0001 => [0.0001]
+special fff8000000000000 => [-1.#IND]
+special 7ff8000000000000 => [1.#QNAN]
+special fff0000000000000 => [-1.#INF]
+special 7ff0000000000000 => [1.#INF]
+special 7ff4000000000000 => [1.#SNAN]
+special fff4000000000000 => [-1.#SNAN]
+special 7ff8000000000001 => [1.#QNAN]
+special fff8000000000001 => [-1.#QNAN]
+special 7ff0000000000001 => [1.#SNAN]
+special fff0000000000001 => [-1.#SNAN]
+special 7fffffffffffffff => [1.#QNAN]
+special ffffffffffffffff => [-1.#QNAN]
+str => ["q\"b\\s/d\n\t\r\b\f\u0001\u001F<7f><e9><20ac><2028><d83d><de00><d800>x"]
+bool => [false]
+parse-roundtrip => [{"a":[1,true,null,"x",{},[]],"b":{"c":-2.5},"s":"<e9>\n/"}]
+pcase0  => [1]
+pcase1  => [[1,2]]
+pcase2  => [{"a":1}]
+pcase3  => [{"a":[]}]
+pcase4  => [{"a":{}}]
+pcase5  => [[{},[]]]
+pcase6  => ["<e9>"]
+pcase7  => ["/"]
+pcase8  => ["\n"]
+pcase9  => [-2.5]
+pcase10  => [[null]]
+pcase11  => [{"a":null}]
+pcase12  => [null]
+pcase13  => [100]
+pcase14  => [100]
+pcase15  => [-0]
+pcase16  => [0.5]
+pcase17 parse hr=83750007  => NULL
+pcase18 parse hr=83750007  => NULL
+pcase19 parse hr=83750007  => NULL
+pcase20 parse hr=83750007  => NULL
+pcase21  => ["<e9>"]
+pcase22  => ["<d83d><de00>"]
+pcase23  => [[1]]
+pcase24 parse hr=83750007  => NULL
+pcase25 parse hr=83750007  => NULL
+pcase26  => [true]
+pcase27  => [[true,false]]
+pcase28 parse hr=83750008  => NULL
+pcase29 parse hr=83750008  => NULL
+pcase30 parse hr=83750008  => NULL
+pcase31 parse hr=83750007  => NULL
+pcase32 parse hr=83750007  => NULL
+pcase33 parse hr=83750007  => NULL
+pcase34 parse hr=83750007  => NULL
+pcase35  => [0]
+pcase36  => [100000]
+pcase37 parse hr=83750007  => NULL
+pcase38 parse hr=83750007  => NULL
+pcase39 parse hr=83750007  => NULL
+pcase40 parse hr=83750007  => NULL
+pcase41  => [[]]
+pcase42  => [{}]
+pcase43  => [[1]]
+pcase44  => [{"a":1}]
+pcase45  => [[1,2]]
+pcase46 parse hr=83750007  => NULL
+pcase47 parse hr=83750007  => NULL
+pcase48 parse hr=83750007  => NULL
+pcase49 parse hr=83750007  => NULL
+pcase50 parse hr=83750007  => NULL
+pcase51 parse hr=83750007  => NULL
+pcase52 parse hr=83750007  => NULL
+pcase53 parse hr=83750007  => NULL
+pcase54 parse hr=83750007  => NULL
+pcase55 parse hr=83750007  => NULL
+pcase56 parse hr=83750007  => NULL
+pcase57  => ["<d800>"]
+pcase58  => [-0]
+pcase59  => [1.2345678901234568E+29]
+parse-tostring => [{"a":1}]
+empty-obj => [{}]
+empty-arr => [[]]
+arr => [[1,"a",[2,{"k":false}]]]
+done

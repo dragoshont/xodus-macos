@@ -252,6 +252,9 @@ Implemented against native VM measurements instead, reusing those primitives.
 - `server/token.c`: write mask = `mapping->write | DELETE | WRITE_DAC |
   WRITE_OWNER`. This is the audit-stage correction that matched 32/32 native
   cases.
+  - *Superseded (R4, 2026-10-07):* the mask is now the measured overlap mask
+    (`patch-write-mask.py`, `native-write-overlap.txt`). The 32/32 claim no
+    longer applies.
 - `server/alpc.c`: the creator of a new ALPC connection port gets
   `PORT_ALL_ACCESS` without a check against the port's own DACL.
   - Native measurement: `0x001f0001` with an empty DACL, a read-only DACL, and
@@ -272,7 +275,8 @@ Recorded gaps:
 - The 8 `S-1-5-32-<hash>` capability SIDs are missing.
 - Session is 1, not 0.
 - Reported integrity is 12288, not 16384.
-- AuthId is assigned by the server, not `0:3e5`.
+- AuthId is assigned by the server, not `0:3e5`. *Superseded:*
+  `service_token.c` now uses `LOCALSERVICE_LUID {0x3e5,0}`.
 - `NtCreateToken` doesn't check privilege (pre-existing).
 - Wine does not check the parent directory's create access (pre-existing, more
   permissive than native).
@@ -320,6 +324,59 @@ the headless harness disables `winemac.drv`. It then calls
 | CoreApplication / Xaml framework startup (headless) | reaches rendering-device creation |
 | Original window (milestone 4) | **UNTESTED**: needs Phase 3 with `winemac.drv`, which needs owner permission |
 | Sign-in, library, play | UNTESTED |
+
+*Superseded by the Phase 3 checkpoint below.* The display boundary was
+crossed with a headless MoltenVK D3D11 device. The 7.3 s
+`SERVER_SID_MISMATCH` exit was superseded by Phase 1.
+
+### Sprint progress: Phase 3 checkpoint (2026-10-07 ~20:30)
+
+Runs sp24–sp46 (headless) and gui2–gui4 (`winemac.drv`, after the Exodus lane
+released the foreground) followed the next real failure each time. The ladder
+and provenance are in `scripts/macos/compatibility/xaml-startup/README.md`.
+
+| Rung | Status |
+|---|---|
+| Packaged activation, registrar, ALPC | pass |
+| CoreApplication / Xaml startup, D3D11 device | reached; no missing API after sp46 |
+| Process lifetime | alive about 70 s, then the launcher ends it (exit 92) |
+| Original window (milestone 4) | **FAIL/UNTESTED**: no CoreWindow; XAML renders only into the hidden DXGI device window |
+| Sign-in, library, play | UNTESTED |
+
+The earlier "window rendered" (sp36) claim is withdrawn.
+
+**Leading hypothesis:** no launch activation arrives, so the app never
+creates its CoreWindow.
+- This is supported by the original app's PDB symbols and stacks.
+- It is **not** proven until a change to activation input changes the
+  observed outcome.
+
+**R4 qualification:**
+- Paired native/Wine rerun of 71 probe invocations: 28 match after
+  normalisation. The other diffs are environment or identity values, or
+  documented semantic gaps on paths the app did not reach.
+- Deviations are recorded in the README:
+  - the CoreMessaging drain FIXME;
+  - the IOCP is not closed at thread exit;
+  - `msg->id` validation;
+  - the Phase 1 token scope;
+  - the creator's ALPC grant.
+
+**Incident:** an experimental run crash-looped `winedbg --auto`, reaching
+about 770 processes in 4 minutes and hitting the per-user process limit.
+- Contained by terminating that run's own process tree.
+- AeDebug is now empty, and every run goes through `guard.sh`.
+
+**Next (CTO-bounded, inside the original deadline of 2026-10-08 13:39):**
+one experiment through the documented `IApplicationActivationManager::ActivateApplication`
+with genuine package identity.
+- Upstream check first.
+- Observation: does the activation reach the app, and is CoreWindow
+  creation attempted?
+- Stop with a boundary report (NO-GO/pivot) if the experiment needs explorer,
+  ApplicationFrameHost RPC, window bands, a private shell protocol or a
+  success factory.
+- No 6 h shell-recreation lane.
 
 ## Xodus-backed substitutes for Windows dependencies (owner question, 2026-10-07)
 

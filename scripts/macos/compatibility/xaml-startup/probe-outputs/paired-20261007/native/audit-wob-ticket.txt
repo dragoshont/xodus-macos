@@ -1,0 +1,128 @@
+EXPORTS get=1 set=1 qalpc=1
+MAIN GET flags=00000000 status=00000000 bytes 00000000 00000000 cccccccc cccccccc cccccccc cccccccc
+MAIN GET flags=00000000 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=1 word1_zero=1
+MAIN GET flags=00000001 status=00000000 bytes 00000000 00000000 cccccccc cccccccc cccccccc cccccccc
+MAIN GET flags=00000001 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=1 word1_zero=1
+MAIN GET flags=00000002 status=00000000 bytes 00000000 00000000 cccccccc cccccccc cccccccc cccccccc
+MAIN GET flags=00000002 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=1 word1_zero=1
+MAIN GET flags=00000003 status=c00000f0 bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN GET flags=00000003 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=0 word1_zero=0
+MAIN GET flags=80000000 status=c00000f0 bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN GET flags=80000000 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=0 word1_zero=0
+MAIN QIT44 len=0 status=c0000004 ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN QIT44 len=4 status=c0000004 ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN QIT44 len=8 status=c0000004 ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN QIT44 len=16 status=00000000 ret=10 bytes c8e5267e d39a2f99 01000000 00000000 cccccccc cccccccc
+MAIN QIT44 len=32 status=c0000004 ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN_OTHERTHREAD QIT44 len=0 status=c0000004 ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN_OTHERTHREAD QIT44 len=4 status=c0000004 ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN_OTHERTHREAD QIT44 len=8 status=c0000004 ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN_OTHERTHREAD QIT44 len=16 status=c000000d ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN_OTHERTHREAD QIT44 len=32 status=c0000004 ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN SET_FAB status=c000000b
+  TEB diffs=0
+MAIN_AFTER_FAB GET flags=00000000 status=00000000 bytes 00000000 00000000 cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB GET flags=00000000 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=1 word1_zero=1
+MAIN_AFTER_FAB GET flags=00000001 status=00000000 bytes 00000000 00000000 cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB GET flags=00000001 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=1 word1_zero=1
+MAIN_AFTER_FAB GET flags=00000002 status=00000000 bytes 00000000 00000000 cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB GET flags=00000002 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=1 word1_zero=1
+MAIN_AFTER_FAB GET flags=00000003 status=c00000f0 bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB GET flags=00000003 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=0 word1_zero=0
+MAIN_AFTER_FAB GET flags=80000000 status=c00000f0 bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB GET flags=80000000 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=0 word1_zero=0
+MAIN_AFTER_FAB QIT44 len=0 status=c0000004 ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB QIT44 len=4 status=c0000004 ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB QIT44 len=8 status=c0000004 ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB QIT44 len=16 status=00000000 ret=10 bytes c8e5267e d39a2f99 01000000 00000000 cccccccc cccccccc
+MAIN_AFTER_FAB QIT44 len=32 status=c0000004 ret=dead bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN SET_RESTORE status=00000000
+  TEB diffs=0
+MAIN after_restore_equals_orig16=1 equals_orig8=1
+MAIN SET_FAB_FLAG1 status=c000000b
+MAIN_AFTER_FAB_FLAG1 GET flags=00000000 status=00000000 bytes 00000000 00000000 cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB_FLAG1 GET flags=00000000 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=1 word1_zero=1
+MAIN_AFTER_FAB_FLAG1 GET flags=00000001 status=00000000 bytes 00000000 00000000 cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB_FLAG1 GET flags=00000001 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=1 word1_zero=1
+MAIN_AFTER_FAB_FLAG1 GET flags=00000002 status=00000000 bytes 00000000 00000000 cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB_FLAG1 GET flags=00000002 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=1 word1_zero=1
+MAIN_AFTER_FAB_FLAG1 GET flags=00000003 status=c00000f0 bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB_FLAG1 GET flags=00000003 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=0 word1_zero=0
+MAIN_AFTER_FAB_FLAG1 GET flags=80000000 status=c00000f0 bytes cccccccc cccccccc cccccccc cccccccc cccccccc cccccccc
+MAIN_AFTER_FAB_FLAG1 GET flags=80000000 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=0 word1_zero=0
+MAIN SET_RESTORE2 status=00000000
+MAIN after_restore2_equals_orig16=1
+CREATE status=00000000
+CREATE status=00000000
+ACCEPT status=00000000
+CONNECT status=00000000
+C GET1 status=00000000 bytes 00000000 00000000 cccccccc cccccccc
+C GET1 word0_is_tid=0 word1_is_ctime_low=0 word0_zero=1 word1_zero=1
+ACCEPT status=00000000
+CONNECT status=00000000
+SRV1_BEFORE QBASIC len=16 status=00000000 ret=10 flags=00020000 seq=00000001 ctx=0000000000000000
+SRV1_BEFORE QBASIC len=8 status=c0000004 ret=10 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+SRV1_BEFORE QBASIC len=32 status=00000000 ret=10 flags=00020000 seq=00000001 ctx=0000000000000000
+SRV1_BEFORE QBASIC len=0 status=c0000004 ret=10 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+SRV1_BEFORE QBASIC nullret status=00000000 flags=00020000 seq=00000001 ctx=0000000000000000
+COMM1_BEFORE QBASIC len=16 status=00000000 ret=10 flags=00000000 seq=00000001 ctx=0000000000005150
+COMM1_BEFORE QBASIC len=8 status=c0000004 ret=10 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+COMM1_BEFORE QBASIC len=32 status=00000000 ret=10 flags=00000000 seq=00000001 ctx=0000000000005150
+COMM1_BEFORE QBASIC len=0 status=c0000004 ret=10 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+COMM1_BEFORE QBASIC nullret status=00000000 flags=00000000 seq=00000001 ctx=0000000000005150
+CLI2_BEFORE QBASIC len=16 status=00000000 ret=10 flags=00000000 seq=00000001 ctx=0000000000000108
+CLI2_BEFORE QBASIC len=8 status=c0000004 ret=10 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+CLI2_BEFORE QBASIC len=32 status=00000000 ret=10 flags=00000000 seq=00000001 ctx=0000000000000108
+CLI2_BEFORE QBASIC len=0 status=c0000004 ret=10 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+CLI2_BEFORE QBASIC nullret status=00000000 flags=00000000 seq=00000001 ctx=0000000000000108
+S_RECV tag=1 valid=1 eq_client_get1=0 eq_fab=0 ticket ccf7267e 43072d99
+S SET_RECEIVED status=00000000 get1_eq_received=1 get1 ccf7267e 43072d99 cccccccc cccccccc
+T_RECV tag=10 type=1 valid=1 ticket ccf7267e 43072d99
+S FORWARD status=00000000 t_eq_received=1 t_eq_s_own=0
+S SET_RESTORE status=00000000 get1_eq_saved16=1
+T_RECV tag=20 type=1 valid=1 ticket c8e5267e d39a2f99
+S FORWARD_RESTORED status=00000000 t_eq_received=0 t_eq_s_own=0
+C SEND1 status=00000000
+C SET_FAB status=c000000b
+S reply status=00000000
+S_RECV tag=2 valid=1 eq_client_get1=0 eq_fab=0 ticket ccf7267e 43072d99
+S SET_RECEIVED status=00000000 get1_eq_received=1 get1 ccf7267e 43072d99 cccccccc cccccccc
+T_RECV tag=11 type=1 valid=1 ticket ccf7267e 43072d99
+S FORWARD status=00000000 t_eq_received=1 t_eq_s_own=0
+S SET_RESTORE status=00000000 get1_eq_saved16=1
+T_RECV tag=21 type=1 valid=1 ticket c8e5267e d39a2f99
+S FORWARD_RESTORED status=00000000 t_eq_received=0 t_eq_s_own=0
+C SEND2 status=00000000
+S reply status=00000000
+C SET_RESTORE status=00000000
+S_RECV tag=3 valid=1 eq_client_get1=0 eq_fab=0 ticket ccf7267e 43072d99
+S SET_RECEIVED status=00000000 get1_eq_received=1 get1 ccf7267e 43072d99 cccccccc cccccccc
+T_RECV tag=12 type=1 valid=1 ticket ccf7267e 43072d99
+S FORWARD status=00000000 t_eq_received=1 t_eq_s_own=0
+S SET_RESTORE status=00000000 get1_eq_saved16=1
+T_RECV tag=22 type=1 valid=1 ticket c8e5267e d39a2f99
+S FORWARD_RESTORED status=00000000 t_eq_received=0 t_eq_s_own=0
+C SEND3 status=00000000
+S reply status=00000000
+SRV1_AFTER QBASIC len=16 status=00000000 ret=10 flags=00020000 seq=00000001 ctx=0000000000000000
+SRV1_AFTER QBASIC len=8 status=c0000004 ret=10 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+SRV1_AFTER QBASIC len=32 status=00000000 ret=10 flags=00020000 seq=00000001 ctx=0000000000000000
+SRV1_AFTER QBASIC len=0 status=c0000004 ret=10 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+SRV1_AFTER QBASIC nullret status=00000000 flags=00020000 seq=00000001 ctx=0000000000000000
+COMM1_AFTER QBASIC len=16 status=00000000 ret=10 flags=00000000 seq=00000003 ctx=0000000000005150
+COMM1_AFTER QBASIC len=8 status=c0000004 ret=10 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+COMM1_AFTER QBASIC len=32 status=00000000 ret=10 flags=00000000 seq=00000003 ctx=0000000000005150
+COMM1_AFTER QBASIC len=0 status=c0000004 ret=10 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+COMM1_AFTER QBASIC nullret status=00000000 flags=00000000 seq=00000003 ctx=0000000000005150
+CLI2_AFTER QBASIC len=16 status=00000000 ret=10 flags=00000000 seq=00000007 ctx=0000000000000108
+CLI2_AFTER QBASIC len=8 status=c0000004 ret=10 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+CLI2_AFTER QBASIC len=32 status=00000000 ret=10 flags=00000000 seq=00000007 ctx=0000000000000108
+CLI2_AFTER QBASIC len=0 status=c0000004 ret=10 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+CLI2_AFTER QBASIC nullret status=00000000 flags=00000000 seq=00000007 ctx=0000000000000108
+INVALID QBASIC len=16 status=c0000008 ret=dead flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+INVALID QBASIC len=8 status=c0000008 ret=dead flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+INVALID QBASIC len=32 status=c0000008 ret=dead flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+INVALID QBASIC len=0 status=c0000008 ret=dead flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+INVALID QBASIC nullret status=c0000008 flags=cccccccc seq=cccccccc ctx=CCCCCCCCCCCCCCCC
+WOB_DONE
+EXIT=0x00000000

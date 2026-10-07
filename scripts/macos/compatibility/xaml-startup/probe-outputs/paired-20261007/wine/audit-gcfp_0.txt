@@ -1,0 +1,18 @@
+byname=1 apiset=1
+real start=ff9e5a00 accent=ffd77800
+pref ff9e5a00/ffd77800: 0=ff000000 1=ffffeb99 2=ffffc24c 3=fff89100 4=ffd47800 5=ffc06700 6=ff923e00 7=ff681a00 8=ffffffff 9=ffff00ff a=ffff00ff 20=ffff00ff d1=ffff00ff d2=ffffffff d3=ffff00ff 200=ffff00ff 7fffffff=ffff00ff
+pref ff9e5a00/ffd77800: 0=ff000000 1=ffffeb99 2=ffffc24c 3=fff89100 4=ffd47800 5=ffc06700 6=ff923e00 7=ff681a00 8=ffffffff 9=ffff00ff a=ffff00ff 20=ffff00ff d1=ffff00ff d2=ffffffff d3=ffff00ff 200=ffff00ff 7fffffff=ffff00ff
+pref ff000000/ff3366cc: 0=ff000000 1=ffffeb99 2=ffffc24c 3=fff89100 4=ffd47800 5=ffc06700 6=ff923e00 7=ff681a00 8=ffffffff 9=ffff00ff a=ffff00ff 20=ffff00ff d1=ffff00ff d2=ffffffff d3=ffff00ff 200=ffff00ff 7fffffff=ffff00ff
+pref ff112233/ff445566: 0=ff000000 1=ffffeb99 2=ffffc24c 3=fff89100 4=ffd47800 5=ffc06700 6=ff923e00 7=ff681a00 8=ffffffff 9=ffff00ff a=ffff00ff 20=ffff00ff d1=ffff00ff d2=ffffffff d3=ffff00ff 200=ffff00ff 7fffffff=ffff00ff
+pref 00ffffff/00ffffff: 0=ff000000 1=ffffeb99 2=ffffc24c 3=fff89100 4=ffd47800 5=ffc06700 6=ff923e00 7=ff681a00 8=ffffffff 9=ffff00ff a=ffff00ff 20=ffff00ff d1=ffff00ff d2=ffffffff d3=ffff00ff 200=ffff00ff 7fffffff=ffff00ff
+pref ff00ff00/ff0000ff: 0=ff000000 1=ffffeb99 2=ffffc24c 3=fff89100 4=ffd47800 5=ffc06700 6=ff923e00 7=ff681a00 8=ffffffff 9=ffff00ff a=ffff00ff 20=ffff00ff d1=ffff00ff d2=ffffffff d3=ffff00ff 200=ffff00ff 7fffffff=ffff00ff
+pref 80123456/40abcdef: 0=ff000000 1=ffffeb99 2=ffffc24c 3=fff89100 4=ffd47800 5=ffc06700 6=ff923e00 7=ff681a00 8=ffffffff 9=ffff00ff a=ffff00ff 20=ffff00ff d1=ffff00ff d2=ffffffff d3=ffff00ff 200=ffff00ff 7fffffff=ffff00ff
+real hc=0 mode=0: 1=ffffeb99 4=ffd47800 7=ff681a00 d2=ffffffff
+real hc=0 mode=1: 1=ffffeb99 4=ffd47800 7=ff681a00 d2=ffffffff
+real hc=0 mode=2: 1=ffffeb99 4=ffd47800 7=ff681a00 d2=ffffffff
+real hc=0 mode=3: 1=ffffeb99 4=ffd47800 7=ff681a00 d2=ffffffff
+real hc=1 mode=0: 1=ffffeb99 4=ffd47800 7=ff681a00 d2=ffffffff
+real hc=1 mode=1: 1=ffffeb99 4=ffd47800 7=ff681a00 d2=ffffffff
+real hc=1 mode=2: 1=ffffeb99 4=ffd47800 7=ff681a00 d2=ffffffff
+real hc=1 mode=3: 1=ffffeb99 4=ffd47800 7=ff681a00 d2=ffffffff
+EXIT=0

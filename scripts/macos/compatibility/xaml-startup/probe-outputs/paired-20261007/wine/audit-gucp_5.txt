@@ -1,0 +1,6 @@
+byname=1 apiset=1
+pre force=1 hr=00000000 start=ff9e5a00 accent=ffd77800 gle=57005
+both-missing force=1 hr=00000000 start=ff9e5a00 accent=ffd77800 gle=57005
+palette-missing force=1 hr=00000000 start=ff9e5a00 accent=ffd77800 gle=57005
+key-missing force=1 hr=00000000 start=ff9e5a00 accent=ffd77800 gle=57005
+EXIT=0

@@ -1,0 +1,43 @@
+init2=00006FFFFDAABEB0 drain2=00006FFFFDAAB900 isgui=1
+hwnd=000000000004004A tid=472 isgui=1
+pre queuestatus=00000000 peek=0 msg=0000
+A init2(hwnd=000000000004004A) ret=0000000000000074 out=00000000 gle=3735928559
+A basic access=001f0003 handles=1 pointers=2 attr=0
+A type=IoCompletion
+A iocdepth status=00000000 depth=0
+A0 remove status=00000102 n=0
+A0 queuestatus=00000000 peek=0 msg=0000
+A1-post remove status=00000102 n=0
+A1 queuestatus=00080008 peek=1 msg=0400
+A2-post2 remove status=00000102 n=0
+A2 queuestatus=00080008 peek=1 msg=0400
+A2-pumped queuestatus=00000000 peek=0 msg=0000
+A2-afterpump remove status=00000102 n=0
+A3-post-after-pump remove status=00000102 n=0
+A3 drain2(74) ret=0 gle=1400
+A3-afterdrain remove status=00000102 n=0
+A3-afterdrain queuestatus=00080008 peek=1 msg=0402
+A4-post-after-drain remove status=00000102 n=0
+A5 drain2(74) ret=0 gle=1400
+A5-afterdrain-empty remove status=00000102 n=0
+A5-post remove status=00000102 n=0
+A5b drain2(74) ret=0 gle=1400
+A5b remove status=00000102 n=0
+B-postthread remove status=00000102 n=0
+B drain2(74) ret=0 gle=1400
+T-timer remove status=00000102 n=0
+T queuestatus=00100010 peek=1 msg=0113
+T drain2(74) ret=0 gle=1400
+T-afterpump remove status=00000102 n=0
+S-crossthread remove status=00000102 n=0
+S queuestatus=00480048 peek=1 msg=0406
+S drain2(74) ret=0 gle=1400
+S-afterpump remove status=00000102 n=0
+R-again init2(hwnd=000000000004004A) ret=0000000000000000 out=cccccccc gle=87
+R same=0
+R-win2 init2(hwnd=0000000000020054) ret=0000000000000074 out=00000001 gle=3735928559
+R-win2 basic access=001f0003 handles=1 pointers=2 attr=0
+R-win2 type=IoCompletion
+R-win2 iocdepth status=00000000 depth=0
+done
+EXIT=0

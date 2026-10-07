@@ -1,0 +1,4 @@
+init2=00007FF922DA8B90 drain2=00007FF922DA8640 isgui=1
+mode drainpre
+DP drain2(2280) ret=0 gle=1400
+EXIT=0x00000000

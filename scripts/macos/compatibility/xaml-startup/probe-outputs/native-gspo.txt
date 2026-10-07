@@ -1,0 +1,26 @@
+kinds: gaming=Store inbox=Microsoft.Windows.ShellExperienceHost_10.0.26100.8115_neutral_neutral_cw5n1h2txyewy fw=Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe dev=Microsoft.WindowsAppRuntime.1.6_6000.424.1611.0_arm64__8wekyb3d8bbwe
+== desktop
+resolved=1
+case=1 ret=0 origin=0x3 gle=3735928559 name=Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+case=2 ret=0 origin=0x2 gle=3735928559 name=Microsoft.Windows.ShellExperienceHost_10.0.26100.8115_neutral_neutral_cw5n1h2txyewy
+case=3 ret=0 origin=0x3 gle=3735928559 name=Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+case=4 ret=4400 origin=0x55 gle=0 name=Contoso.App_1.0.0.0_x64__8wekyb3d8bbwe
+case=5 ret=4400 origin=0x55 gle=0 name=foo
+case=6 ret=4400 origin=0x55 gle=0 name=Microsoft.GamingApp_8wekyb3d8bbwe
+case=7 ret=234 origin=0x55 gle=0 name=
+case=8 ret=0 origin=0x3 gle=3735928559 name=MICROSOFT.GAMINGAPP_2609.1001.16.0_ARM64__8WEKYB3D8BBWE
+case=9 ret=87 origin=0x55 gle=3735928559 name=(null)
+case=10 ret=0 origin=0x5 gle=3735928559 name=Microsoft.WindowsAppRuntime.1.6_6000.424.1611.0_arm64__8wekyb3d8bbwe
+== nullorigin
+resolved=1
+case=1 ret=87 origin=0x55 gle=3735928559 name=Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+exit=0
+== nullorigin-absent
+resolved=1
+case=1 ret=87 origin=0x55 gle=3735928559 name=Contoso.App_1.0.0.0_x64__8wekyb3d8bbwe
+exit=0
+== package
+resolved=1
+case=1 ret=0 origin=0x3 gle=3735928559 name=Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+case=2 ret=4400 origin=0x55 gle=0 name=Contoso.App_1.0.0.0_x64__8wekyb3d8bbwe
+case=3 ret=4400 origin=0x55 gle=0 name=foo

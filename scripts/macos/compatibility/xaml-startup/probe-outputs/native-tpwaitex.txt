@@ -1,0 +1,10 @@
+A never-set cancel=0
+B pending cancel=1
+C second cancel=0
+D replace pending with new handle=1
+E cancel after replace=1
+F after signaled fire cancel=0 fired=1
+G after timeout cancel=0 fired=2
+H pending with timeout cancel=1 fired=2
+done
+10.0.26100.9278 (WinBuild.160101.0800)

@@ -1,0 +1,141 @@
+combase=00007FF921FC0000 CoGetStdMarshalEx=00007FF921FC2560 ole32=00007FF921FC2560
+T0 no-COM flags=1 hr=800401f0 inner=NULL ref=1
+CoInit STA hr=00000000
+T1 flags=0 hr=80070057 inner=untouched outerref=1
+    [outer QI {0000001b-0000-0000-c000-000000000046}]
+    [outer QI {ecc8691b-c1db-4dc0-855e-65f6c551af49}]
+    [outer QI {00000018-0000-0000-c000-000000000046}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {00000040-0000-0000-c000-000000000046}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {94ea2b94-e9cc-49e0-c0ff-ee64ca8f5b90}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {77dd1250-139c-2bc3-bd95-900aced61be5}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {bfd60505-5a1f-4e41-88ba-a6fb07202da9}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {143715d9-a015-40ea-b695-d5cc267e36ee}]
+    [outer QI {a914f499-4633-4b26-a93e-707eb5bdc0b6}]
+    [outer QI {ea5d0de4-770d-4da0-a9f8-d7f9a140ff79}]
+    [outer QI {816e5b3e-5523-4efc-9223-98ec4214c3a0}]
+    [outer QI {3c169ff7-37b2-484c-b199-c3155590f316}]
+    [outer QI {4f4f92b5-6ded-4e9b-a93f-013891b3a8b7}]
+    [outer QI {9bc79c93-2289-4bb5-abf4-3287fd9cae39}]
+    [outer QI {1868091e-ab5a-415f-a02f-5c4dd0cf901d}]
+    [outer QI {11456f96-09d1-4909-8f36-4eb74e42b93e}]
+    [outer QI {1ac7516e-e6bb-4a69-b63f-e841904dc5a6}]
+    [outer QI {35bd3360-1b35-4927-bae4-b10e70d99eff}]
+    [outer QI {f2153260-232e-4474-9d0a-9f2ab153441d}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {03fb5c57-d534-45f5-a1f4-d39556983875}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {2c258ae7-50dc-49ff-9d1d-2ecb9a52cdd7}]
+    [outer QI {00000019-0000-0000-c000-000000000046}]
+    [outer QI {4c1e39e1-e3e3-4296-aa86-ec938d896e92}]
+T1 flags=1 hr=00000000 inner=set outerref=1
+   inner Release->0 outerref=1
+    [outer QI {0000001b-0000-0000-c000-000000000046}]
+T1 flags=2 hr=80070057 inner=NULL outerref=1
+T1 flags=3 hr=80070057 inner=untouched outerref=1
+T1 flags=4 hr=80070057 inner=untouched outerref=1
+T1 flags=8 hr=80070057 inner=untouched outerref=1
+T1 flags=80000000 hr=80070057 inner=untouched outerref=1
+T2 NULL outer f=1 hr=80070057 inner=untouched
+T2 NULL outer f=2 hr=80070057 inner=untouched
+    [outer QI {0000001b-0000-0000-c000-000000000046}]
+    [outer QI {ecc8691b-c1db-4dc0-855e-65f6c551af49}]
+    [outer QI {00000018-0000-0000-c000-000000000046}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {00000040-0000-0000-c000-000000000046}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {94ea2b94-e9cc-49e0-c0ff-ee64ca8f5b90}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {77dd1250-139c-2bc3-bd95-900aced61be5}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {bfd60505-5a1f-4e41-88ba-a6fb07202da9}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {143715d9-a015-40ea-b695-d5cc267e36ee}]
+    [outer QI {a914f499-4633-4b26-a93e-707eb5bdc0b6}]
+    [outer QI {ea5d0de4-770d-4da0-a9f8-d7f9a140ff79}]
+    [outer QI {816e5b3e-5523-4efc-9223-98ec4214c3a0}]
+    [outer QI {3c169ff7-37b2-484c-b199-c3155590f316}]
+    [outer QI {4f4f92b5-6ded-4e9b-a93f-013891b3a8b7}]
+    [outer QI {9bc79c93-2289-4bb5-abf4-3287fd9cae39}]
+    [outer QI {1868091e-ab5a-415f-a02f-5c4dd0cf901d}]
+    [outer QI {11456f96-09d1-4909-8f36-4eb74e42b93e}]
+    [outer QI {1ac7516e-e6bb-4a69-b63f-e841904dc5a6}]
+    [outer QI {35bd3360-1b35-4927-bae4-b10e70d99eff}]
+    [outer QI {f2153260-232e-4474-9d0a-9f2ab153441d}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {03fb5c57-d534-45f5-a1f4-d39556983875}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {2c258ae7-50dc-49ff-9d1d-2ecb9a52cdd7}]
+    [outer QI {00000019-0000-0000-c000-000000000046}]
+    [outer QI {4c1e39e1-e3e3-4296-aa86-ec938d896e92}]
+T3 flags=1 hr=00000000 outerref=1
+  inner QI IUnknown             hr=00000000 ==inner outer 1->1
+  inner QI IMarshal             hr=00000000 other outer 1->2
+    IMarshal->QI(IUnknown)=outer outerref=3
+    [outer QI {0000001b-0000-0000-c000-000000000046}]
+    IMarshal->QI(IStdIdentity) hr=80004002
+    GetUnmarshalClass inproc hr=00000000 {00000017-0000-0000-c000-000000000046}
+    GetUnmarshalClass local hr=00000000 {00000017-0000-0000-c000-000000000046}
+    GetMarshalSizeMax hr=00000000 size=348
+  inner QI IMarshal2            hr=00000000 other outer 1->2
+  inner QI IStdMarshalInfo      hr=80004002 NULL outer 1->1
+  inner QI IExternalConnection  hr=80004002 NULL outer 1->1
+  inner QI IStdIdentity         hr=00000000 other outer 1->2
+  inner QI IProxyManager        hr=00000000 other outer 1->2
+  inner QI IClientSecurity      hr=80004002 NULL outer 1->1
+  inner QI IMultiQI             hr=80004002 NULL outer 1->1
+  inner QI IRpcOptions          hr=80004002 NULL outer 1->1
+  inner QI INoMarshal           hr=80004002 NULL outer 1->1
+  inner QI IAgileObject         hr=80004002 NULL outer 1->1
+  inner QI IMarshalOptions      hr=80004002 NULL outer 1->1
+T4 refs before marshal outer=1
+    [outer QI {ecc8691b-c1db-4dc0-855e-65f6c551af49}]
+    [outer QI {94ea2b94-e9cc-49e0-c0ff-ee64ca8f5b90}]
+    [outer QI {2132b005-c604-4354-85bd-8f2e24181b0c}]
+    [outer QI {00000003-0000-0000-c000-000000000046}]
+T4 CoMarshalInterface hr=00000000 outerref=2
+T4 MTA unmarshal hr=00000000 proxy=distinct
+T4 proxy QI IMarshal hr=00000000
+T4 after MTA outerref=1
+    [outer QI {0000001b-0000-0000-c000-000000000046}]
+    [outer QI {ecc8691b-c1db-4dc0-855e-65f6c551af49}]
+    [outer QI {00000018-0000-0000-c000-000000000046}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {00000040-0000-0000-c000-000000000046}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {94ea2b94-e9cc-49e0-c0ff-ee64ca8f5b90}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {77dd1250-139c-2bc3-bd95-900aced61be5}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {bfd60505-5a1f-4e41-88ba-a6fb07202da9}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {143715d9-a015-40ea-b695-d5cc267e36ee}]
+    [outer QI {a914f499-4633-4b26-a93e-707eb5bdc0b6}]
+    [outer QI {ea5d0de4-770d-4da0-a9f8-d7f9a140ff79}]
+    [outer QI {816e5b3e-5523-4efc-9223-98ec4214c3a0}]
+    [outer QI {3c169ff7-37b2-484c-b199-c3155590f316}]
+    [outer QI {4f4f92b5-6ded-4e9b-a93f-013891b3a8b7}]
+    [outer QI {9bc79c93-2289-4bb5-abf4-3287fd9cae39}]
+    [outer QI {1868091e-ab5a-415f-a02f-5c4dd0cf901d}]
+    [outer QI {11456f96-09d1-4909-8f36-4eb74e42b93e}]
+    [outer QI {1ac7516e-e6bb-4a69-b63f-e841904dc5a6}]
+    [outer QI {35bd3360-1b35-4927-bae4-b10e70d99eff}]
+    [outer QI {f2153260-232e-4474-9d0a-9f2ab153441d}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {03fb5c57-d534-45f5-a1f4-d39556983875}]
+    [outer QI {334d391f-0e79-3b15-c9ff-eac65dd07c42}]
+    [outer QI {2c258ae7-50dc-49ff-9d1d-2ecb9a52cdd7}]
+    [outer QI {00000019-0000-0000-c000-000000000046}]
+    [outer QI {4c1e39e1-e3e3-4296-aa86-ec938d896e92}]
+T5 second call same outer hr=80010119 inner=NULL same=0
+    [outer QI {00000003-0000-0000-c000-000000000046}]
+T4 CoDisconnectObject hr=00000000 outerref=1
+T3 final inner Release->0 outerref=1
+    [outer QI {0000001b-0000-0000-c000-000000000046}]
+T3 flags=2 hr=80070057 outerref=1
+done
+EXIT=0x00000000

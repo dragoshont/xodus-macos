@@ -1,0 +1,103 @@
+OVERLAP map=FILE desired=00100000 api=1 allowed=1 granted=00100000 error=0
+OVERLAP map=FILE desired=00020000 api=1 allowed=1 granted=00020000 error=0
+OVERLAP map=FILE desired=00120000 api=1 allowed=1 granted=00120000 error=0
+OVERLAP map=FILE desired=00100020 api=1 allowed=1 granted=00100020 error=0
+OVERLAP map=FILE desired=00120089 api=1 allowed=1 granted=00120089 error=0
+OVERLAP map=FILE desired=00020019 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=FILE desired=80000000 api=0 allowed=0 granted=00000000 error=1360
+OVERLAP map=FILE desired=20000000 api=0 allowed=0 granted=00000000 error=1360
+OVERLAP map=FILE desired=00000001 api=1 allowed=1 granted=00000001 error=0
+OVERLAP map=FILE desired=00000002 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=FILE desired=00000004 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=FILE desired=00120116 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=FILE desired=00020006 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=FILE desired=40000000 api=0 allowed=0 granted=00000000 error=1360
+OVERLAP map=FILE desired=02000000 api=1 allowed=1 granted=001200e9 error=0
+OVERLAP map=KEY desired=00100000 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=KEY desired=00020000 api=1 allowed=1 granted=00020000 error=0
+OVERLAP map=KEY desired=00120000 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=KEY desired=00100020 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=KEY desired=00120089 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=KEY desired=00020019 api=1 allowed=1 granted=00020019 error=0
+OVERLAP map=KEY desired=80000000 api=0 allowed=0 granted=00000000 error=1360
+OVERLAP map=KEY desired=20000000 api=0 allowed=0 granted=00000000 error=1360
+OVERLAP map=KEY desired=00000001 api=1 allowed=1 granted=00000001 error=0
+OVERLAP map=KEY desired=00000002 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=KEY desired=00000004 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=KEY desired=00120116 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=KEY desired=00020006 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=KEY desired=40000000 api=0 allowed=0 granted=00000000 error=1360
+OVERLAP map=KEY desired=02000000 api=1 allowed=1 granted=00020039 error=0
+OVERLAP map=WX_RW desired=00100000 api=1 allowed=1 granted=00100000 error=0
+OVERLAP map=WX_RW desired=00020000 api=1 allowed=1 granted=00020000 error=0
+OVERLAP map=WX_RW desired=00120000 api=1 allowed=1 granted=00120000 error=0
+OVERLAP map=WX_RW desired=00100020 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=WX_RW desired=00120089 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=WX_RW desired=00020019 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=WX_RW desired=80000000 api=0 allowed=0 granted=00000000 error=1360
+OVERLAP map=WX_RW desired=20000000 api=0 allowed=0 granted=00000000 error=1360
+OVERLAP map=WX_RW desired=00000001 api=1 allowed=1 granted=00000001 error=0
+OVERLAP map=WX_RW desired=00000002 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=WX_RW desired=00000004 api=1 allowed=1 granted=00000004 error=0
+OVERLAP map=WX_RW desired=00120116 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=WX_RW desired=00020006 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=WX_RW desired=40000000 api=0 allowed=0 granted=00000000 error=1360
+OVERLAP map=WX_RW desired=02000000 api=1 allowed=1 granted=00120005 error=0
+OVERLAP map=SPLIT desired=00100000 api=1 allowed=1 granted=00100000 error=0
+OVERLAP map=SPLIT desired=00020000 api=1 allowed=1 granted=00020000 error=0
+OVERLAP map=SPLIT desired=00120000 api=1 allowed=1 granted=00120000 error=0
+OVERLAP map=SPLIT desired=00100020 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=SPLIT desired=00120089 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=SPLIT desired=00020019 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=SPLIT desired=80000000 api=0 allowed=0 granted=00000000 error=1360
+OVERLAP map=SPLIT desired=20000000 api=0 allowed=0 granted=00000000 error=1360
+OVERLAP map=SPLIT desired=00000001 api=1 allowed=1 granted=00000001 error=0
+OVERLAP map=SPLIT desired=00000002 api=1 allowed=1 granted=00000002 error=0
+OVERLAP map=SPLIT desired=00000004 api=1 allowed=1 granted=00000004 error=0
+OVERLAP map=SPLIT desired=00120116 api=1 allowed=0 granted=00000000 error=0
+OVERLAP map=SPLIT desired=00020006 api=1 allowed=1 granted=00020006 error=0
+OVERLAP map=SPLIT desired=40000000 api=0 allowed=0 granted=00000000 error=1360
+OVERLAP map=SPLIT desired=02000000 api=1 allowed=1 granted=00120007 error=0
+OVERLAP_MATRIX rows=60 api_failures=12
+TOKSD dup-default O:S-1-5-21-0-0-0-513G:S-1-5-21-0-0-0-513D:(A;;GA;;;SY)(A;;GA;;;S-1-5-21-0-0-0-513)
+TOKSD dup-custom O:S-1-5-21-0-0-0-513G:S-1-5-21-0-0-0-513D:(A;;GA;;;SY)(A;;RC;;;OW)(A;;SW;;;BA)(A;;GA;;;WD)
+TOKSD filtered-write-restricted O:S-1-5-21-0-0-0-513G:S-1-5-21-0-0-0-513D:(A;;GA;;;SY)(A;;GA;;;S-1-5-21-0-0-0-513)
+TOKSD filtered-plain O:S-1-5-21-0-0-0-513G:S-1-5-21-0-0-0-513D:(A;;GA;;;SY)(A;;GA;;;S-1-5-21-0-0-0-513)
+TOKSD_DONE
+OPENIF first status=00000000 handle_nonnull=1
+OPENIF second_openif status=c000000d handle_nonnull=0
+OPENIF third_plain status=c0000035 handle_nonnull=0
+OPENIF_DONE
+MATRIX generic_write=00000000 desired=00000001 api=1 allowed=1 granted=00000001 error=0
+MATRIX generic_write=00000000 desired=00000002 api=1 allowed=1 granted=00000002 error=0
+MATRIX generic_write=00000000 desired=00020000 api=1 allowed=1 granted=00020000 error=0
+MATRIX generic_write=00000000 desired=00100000 api=1 allowed=1 granted=00100000 error=0
+MATRIX generic_write=00000000 desired=00040000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00000000 desired=00080000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00000000 desired=00010000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00000000 desired=02000000 api=1 allowed=1 granted=00120007 error=0
+MATRIX generic_write=00000002 desired=00000001 api=1 allowed=1 granted=00000001 error=0
+MATRIX generic_write=00000002 desired=00000002 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00000002 desired=00020000 api=1 allowed=1 granted=00020000 error=0
+MATRIX generic_write=00000002 desired=00100000 api=1 allowed=1 granted=00100000 error=0
+MATRIX generic_write=00000002 desired=00040000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00000002 desired=00080000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00000002 desired=00010000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00000002 desired=02000000 api=1 allowed=1 granted=00120005 error=0
+MATRIX generic_write=00020002 desired=00000001 api=1 allowed=1 granted=00000001 error=0
+MATRIX generic_write=00020002 desired=00000002 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00020002 desired=00020000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00020002 desired=00100000 api=1 allowed=1 granted=00100000 error=0
+MATRIX generic_write=00020002 desired=00040000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00020002 desired=00080000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00020002 desired=00010000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00020002 desired=02000000 api=1 allowed=1 granted=00100005 error=0
+MATRIX generic_write=00100002 desired=00000001 api=1 allowed=1 granted=00000001 error=0
+MATRIX generic_write=00100002 desired=00000002 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00100002 desired=00020000 api=1 allowed=1 granted=00020000 error=0
+MATRIX generic_write=00100002 desired=00100000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00100002 desired=00040000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00100002 desired=00080000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00100002 desired=00010000 api=1 allowed=0 granted=00000000 error=0
+MATRIX generic_write=00100002 desired=02000000 api=1 allowed=1 granted=00020005 error=0
+OWNED_RESTRICTION_MATRIX rows=32 api_failures=0 service_or_policy_changes=0

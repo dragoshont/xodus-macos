@@ -1,0 +1,5 @@
+== HKLM:\SOFTWARE\Classes\CLSID\{dbce7e40-7345-439d-b12c-114a11819a09}
+  [] = MrtResourceManager Class
+== HKLM:\SOFTWARE\Classes\CLSID\{dbce7e40-7345-439d-b12c-114a11819a09}\InProcServer32
+  [] = C:\Windows\System32\MrmCoreR.dll
+  [ThreadingModel] = Both

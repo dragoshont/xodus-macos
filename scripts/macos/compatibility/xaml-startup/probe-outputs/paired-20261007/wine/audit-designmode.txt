@@ -1,0 +1,18 @@
+RoGetDesignMode #90 byname=0
+  NULL hr=80070057
+  hr=00000000 value=0
+  again hr=00000000 value=0
+RoGetDesignModeV2 #157 byname=0
+  NULL hr=80070057
+  hr=00000000 value=0
+  again hr=00000000 value=0
+impersonating
+RoGetDesignMode #90 byname=0
+  NULL hr=80070057
+  hr=00000000 value=0
+  again hr=00000000 value=0
+RoGetDesignModeV2 #157 byname=0
+  NULL hr=80070057
+  hr=00000000 value=0
+  again hr=00000000 value=0
+EXIT=0

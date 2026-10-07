@@ -1,0 +1,15 @@
+T6 after plain marshal(hr=00000000): hr=80010119 inner=NULL ref=2
+T6 ReleaseMarshalData hr=00000000
+T6 Disconnect hr=00000000 ref=1
+T6b after disconnect: hr=00000000 inner=set
+T8 create hr=00000000
+T8 after inner released (never marshaled): hr=00000000 inner=set
+T9 IMarshal2==IMarshal 1
+T9 DisconnectObject unmarshaled hr=00000000
+T9 direct MarshalInterface hr=00000000 bytes=68 ref=3
+T9 objref sig=574f454d flags=1
+T9 ReleaseMarshalData via IMarshal hr=00000000 ref=3
+T9 DisconnectObject hr=00000000 ref=2
+T9 inner release->0 ref=1
+done
+EXIT=0x00000000

@@ -1,0 +1,17 @@
+Native ALPC creator-access measurement, Windows 11 ARM VM build 10.0.26300.9457, 2026-10-07, run as SYSTEM via prlctl exec.
+Probe: NtAlpcCreatePort with explicit SD, then NtQueryObject(ObjectBasicInformation).GrantedAccess.
+probe.ps1 (unrestricted SYSTEM token):
+  empty-dacl unnamed: create ok granted=0x001f0001
+  empty-dacl named \BaseNamedObjects\...: create ok granted=0x001f0001
+  D:(A;;GR;;;WD) named: create ok granted=0x001f0001
+  Wine WM_RegistrarServer DACL (CO full, IU/AU GR) named: create ok granted=0x001f0001
+probe2.ps1 (impersonating WRITE_RESTRICTED token, restricting SIDs = {S-1-5-33}):
+  named empty-dacl / wine-registrar / D:(A;;GA;;;WD): create status=0xc0000022 (all three)
+probe3.ps1:
+  WRITE_RESTRICTED {S-1-5-33} unnamed empty-dacl: ok granted=0x001f0001
+  WRITE_RESTRICTED {S-1-5-33} unnamed wine-registrar: ok granted=0x001f0001
+  WRITE_RESTRICTED {S-1-5-33, S-1-1-0} named empty-dacl: ok granted=0x001f0001
+  WRITE_RESTRICTED {S-1-5-33, S-1-1-0} named wine-registrar: ok granted=0x001f0001
+Conclusion: creator of a new ALPC connection port receives PORT_ALL_ACCESS without an access check against the
+new object's own DACL, even with a write-restricted token. Write restriction is enforced on the parent directory
+create (DIRECTORY_CREATE_OBJECT) check; Everyone as a restricting SID satisfies it for \BaseNamedObjects.

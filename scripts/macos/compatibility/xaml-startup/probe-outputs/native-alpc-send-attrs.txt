@@ -1,0 +1,41 @@
+SERVER create status=00000000
+SERVER recv status=00000000 type=10 len=0
+SERVER_CONN case=-1 valid=00000000
+SERVER accept status=00000000
+CLIENT connect status=00000000
+SERVER recv status=00000000 type=1 len=16
+SERVER_REQ case=0 valid=22000000 ctx_port_is_client_handle=0 ctx_port=0000000000005150 ctx_msg=0000000000000000 seq_nonzero=1 msgid_nonzero=1 cb=2084991 wob_tid=other wob_low=other wob_tid_is_client=0 wob_tid_is_server=0 wob_low_is_client_ctime=0 raw_tid=7e26decc raw_low=3715141a client_tid=00000f80 client_ctime_low=6687a5f1 server_tid=00001440
+CLIENT case=0 send_valid=22000000 status=00000000 reply_type=2 reply_len=16
+CLIENT_REPLY case=0 valid=20000000 ctx_port_is_client_handle=1 ctx_port=0000000000000104 ctx_msg=0000000000002222 seq_nonzero=1 msgid_nonzero=1 cb=2084991
+SERVER reply case=0 flags=00010000 status=00000000
+SERVER recv status=00000000 type=1 len=16
+SERVER_REQ case=1 valid=20000000 ctx_port_is_client_handle=0 ctx_port=0000000000005150 ctx_msg=0000000000000000 seq_nonzero=1 msgid_nonzero=1 cb=2084992
+CLIENT case=1 send_valid=20000000 status=00000000 reply_type=2 reply_len=16
+CLIENT_REPLY case=1 valid=20000000 ctx_port_is_client_handle=1 ctx_port=0000000000000104 ctx_msg=0000000000002222 seq_nonzero=1 msgid_nonzero=1 cb=2084992
+SERVER reply case=1 flags=00010000 status=00000000
+SERVER recv status=00000000 type=1 len=16
+SERVER_REQ case=2 valid=22000000 ctx_port_is_client_handle=0 ctx_port=0000000000005150 ctx_msg=0000000000000000 seq_nonzero=1 msgid_nonzero=1 cb=2084993 wob_tid=other wob_low=other wob_tid_is_client=0 wob_tid_is_server=0 wob_low_is_client_ctime=0 raw_tid=7e26decc raw_low=3715141a client_tid=00000f80 client_ctime_low=6687a5f1 server_tid=00001440
+CLIENT case=2 send_valid=02000000 status=00000000 reply_type=2 reply_len=16
+CLIENT_REPLY case=2 valid=20000000 ctx_port_is_client_handle=1 ctx_port=0000000000000104 ctx_msg=0000000000000000 seq_nonzero=1 msgid_nonzero=1 cb=2084993
+SERVER reply case=2 flags=00010000 status=00000000
+SERVER recv status=00000000 type=1 len=16
+SERVER_REQ case=3 valid=22000000 ctx_port_is_client_handle=0 ctx_port=0000000000005150 ctx_msg=0000000000000000 seq_nonzero=1 msgid_nonzero=1 cb=2084994 wob_tid=other wob_low=other wob_tid_is_client=0 wob_tid_is_server=0 wob_low_is_client_ctime=0 raw_tid=7e26decc raw_low=3715141a client_tid=00000f80 client_ctime_low=6687a5f1 server_tid=00001440
+CLIENT case=3 send_valid=02000000 status=00000000 reply_type=2 reply_len=16
+CLIENT_REPLY case=3 valid=20000000 ctx_port_is_client_handle=1 ctx_port=0000000000000104 ctx_msg=0000000000000000 seq_nonzero=1 msgid_nonzero=1 cb=2084994
+SERVER reply case=3 flags=00010000 status=00000000
+SERVER recv status=00000000 type=1 len=16
+SERVER_REQ case=4 valid=20000000 ctx_port_is_client_handle=0 ctx_port=0000000000005150 ctx_msg=0000000000000000 seq_nonzero=1 msgid_nonzero=1 cb=2084995
+CLIENT case=4 send_valid=00000000 status=00000000 reply_type=2 reply_len=16
+CLIENT_REPLY case=4 valid=20000000 ctx_port_is_client_handle=1 ctx_port=0000000000000104 ctx_msg=0000000000000000 seq_nonzero=1 msgid_nonzero=1 cb=2084995
+SERVER reply case=4 flags=00010000 status=00000000
+SERVER recv status=00000000 type=1 len=16
+SERVER_REQ case=5 valid=20000000 ctx_port_is_client_handle=0 ctx_port=0000000000005150 ctx_msg=0000000000000000 seq_nonzero=1 msgid_nonzero=1 cb=2084996
+CLIENT case=5 send_valid=00000000 status=00000000 reply_type=2 reply_len=16
+CLIENT_REPLY case=5 valid=20000000 ctx_port_is_client_handle=1 ctx_port=0000000000000104 ctx_msg=0000000000000000 seq_nonzero=1 msgid_nonzero=1 cb=2084996
+SERVER reply case=5 flags=00010000 status=00000000
+SERVER recv status=00000000 type=1 len=16
+SERVER_REQ case=6 valid=20000000 ctx_port_is_client_handle=0 ctx_port=0000000000005150 ctx_msg=0000000000000000 seq_nonzero=1 msgid_nonzero=1 cb=2084997
+CLIENT case=6 send_valid=00000000 status=00000000 reply_type=1 reply_len=16
+CLIENT_REPLY case=6 valid=20000000 ctx_port_is_client_handle=1 ctx_port=0000000000000104 ctx_msg=0000000000000000 seq_nonzero=1 msgid_nonzero=1 cb=2084997
+SERVER reply case=6 flags=00000001 status=00000000
+SENDATTR_DONE

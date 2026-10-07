@@ -1,0 +1,10 @@
+ord95=1
+nocom gle=0xdeadbeef
+sta=0x0
+sta gle=0xdeadbeef
+git=0x0
+reg=0x0
+sta-git gle=0xdeadbeef
+revoke=0x0
+uninit gle=0xdeadbeef
+done

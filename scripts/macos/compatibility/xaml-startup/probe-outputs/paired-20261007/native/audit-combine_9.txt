@@ -1,0 +1,2 @@
+file:///C:/dir/file.txt + /other.txt f=0 x=0 -> 00000000 file:///C:/other.txt
+EXIT=0x00000000

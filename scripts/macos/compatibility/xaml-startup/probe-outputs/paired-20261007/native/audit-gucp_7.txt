@@ -1,0 +1,6 @@
+byname=1 apiset=1
+pre force=1 hr=00000000 start=ff9e5a00 accent=ffd77800 gle=0
+start-sz force=1 hr=00000000 start=ff9e5a00 accent=ffd77800 gle=57005
+start-bin2 force=1 hr=00000000 start=ff9e5a00 accent=ffd77800 gle=57005
+start-bin4 force=1 hr=00000000 start=ff9e5a00 accent=ffd77800 gle=57005
+EXIT=0x00000000

@@ -1,10 +1,20 @@
-import re,sys
+"""ALPC send-attribute slice (ntdll + wineserver). Usage: patch-sendattr.py <wine source dir>
+
+Idempotent: an edit whose replacement is already present is skipped, every
+other anchor must match exactly, and a `.pre-sendattr` backup is kept the
+first time a file is changed. Apply after the OPENIF/recvattr slices and
+before patch-wob-a.py (see README, "Patch application order")."""
+import os,re,shutil,sys
 root=sys.argv[1]
+def write(p, s):
+    if not os.path.exists(p+'.pre-sendattr'): shutil.copy2(p, p+'.pre-sendattr')
+    open(p,'w').write(s)
 def sub(path, old, new, count=1):
     p=root+'/'+path; s=open(p).read()
+    if s.count(new)==count and new not in old: return
     n=s.count(old)
     if n!=count: sys.exit(f"{path}: expected {count} got {n} for: {old[:70]!r}")
-    s=s.replace(old,new); open(p,'w').write(s)
+    write(p, s.replace(old,new))
 
 # ---- ntdll ----
 N='dlls/ntdll/unix/alpc.c'
@@ -146,11 +156,13 @@ sub(S,'''    const struct alpc_msg_attr_t *msg_attr = NULL;
     const unsigned char *data_ptr = get_req_data();
     client_ptr_t reply_msg_context = 0;
     unsigned short msg_type;''')
-s=open(root+'/'+S).read()
-# remaining connect/accept validate_request calls and add_msg_record calls
-s2=re.sub(r'(validate_request\( req->connection_attr_size \+ req->server_sd_size \+ req->name_size \+[^;]*?)\)\)',
-          lambda m: m.group(1)+', ALPC_MESSAGE_SECURITY_ATTRIBUTE ))', s, count=1)
-s2=re.sub(r'(validate_request\( req->obj_attr_size \+ sizeof\(struct alpc_port_attr_t\),[^;]*?)\)\)',
-          lambda m: m.group(1)+', ALPC_MESSAGE_SECURITY_ATTRIBUTE ))', s2, count=1)
-open(root+'/'+S,'w').write(s2)
+s2=open(root+'/'+S).read()
+# remaining connect/accept validate_request calls
+for pat in (r'(validate_request\( req->connection_attr_size \+ req->server_sd_size \+ req->name_size \+[^;]*?)\)\)',
+            r'(validate_request\( req->obj_attr_size \+ sizeof\(struct alpc_port_attr_t\),[^;]*?)\)\)'):
+    m=re.search(pat, s2)
+    if m and m.group(1).rstrip().endswith('ALPC_MESSAGE_SECURITY_ATTRIBUTE'): continue
+    s2,n=re.subn(pat, lambda m: m.group(1)+', ALPC_MESSAGE_SECURITY_ATTRIBUTE ))', s2, count=1)
+    if n!=1: sys.exit(f"{S}: validate_request anchor not found: {pat[:60]!r}")
+write(root+'/'+S, s2)
 print("ok")

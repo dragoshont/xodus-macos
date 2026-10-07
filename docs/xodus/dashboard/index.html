@@ -54,6 +54,8 @@
   .seg label { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; font-weight: 600; color: #101113; white-space: nowrap; }
   .seg.planned label { color: var(--ink-2); }
   .seg.changed { animation: flash 1.4s cubic-bezier(.16,1,.3,1) 1; }
+  .cut { width: 2px; margin: -6px 4px; background: var(--ink-3); border-radius: 1px; }
+  .rail-scale { display: flex; justify-content: space-between; color: var(--ink-3); font-size: 0.75rem; margin-top: 8px; }
   @keyframes flash { 0% { filter: brightness(1.8); } 100% { filter: none; } }
   .legend { display: flex; gap: 22px; margin-top: 14px; color: var(--ink-3); font-size: 0.8125rem; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; vertical-align: -1px; }
@@ -143,6 +145,7 @@
   <section class="rail" aria-label="Phase 2 budget">
     <div class="rail-head"><strong id="budget"></strong><span id="phase"></span></div>
     <div class="bar" id="bar"></div>
+    <div class="rail-scale"><span>Delivered S0–S6 · 8 h</span><span>Phase 2 · 16 h</span></div>
     <div class="legend">
       <span><i style="background:var(--done)"></i>Done</span>
       <span><i style="background:var(--now)"></i>In progress or next</span>
@@ -189,18 +192,23 @@ const ago = iso => { const m = Math.round((Date.now() - new Date(iso)) / 60000);
 function render(s) {
   const items = s.backlog;
   const done = items.filter(i => i.status === "done").length;
-  const total = s.budget.totalHours, spent = s.budget.spentHours;
-  const shippedCount = s.shipped.length;
+  const total = s.budget.totalHours;
+  const spent = s.budget.spentHours;
+  const budgetShipped = s.shipped.filter(e => e.hours);
+  const shippedCount = budgetShipped.length;
+  const remaining = items.filter(i => i.status !== "done").reduce((a, i) => a + i.hours, 0);
   document.getElementById("headline").textContent =
-    done === items.length ? "Phase 2 complete." : `${shippedCount} slices shipped. ${items.length - done} to go.`;
+    done === items.length ? "All 24 hours delivered." : `${spent} of ${total} hours delivered. ${remaining} to go.`;
   const current = items.find(i => i.status === "now") || items.find(i => i.status === "next");
   document.getElementById("lede").textContent =
-    `${s.phase}. ${current ? `Now: ${current.id} ${current.title.toLowerCase()}.` : ""}`;
+    `${shippedCount} slices shipped in this budget, ${done} of ${items.length} Phase 2 items done. ${current ? `Now: ${current.id} — ${current.title}.` : ""}`;
   document.getElementById("updated").textContent = `Updated ${fmtTime(s.updatedAt)} · ${ago(s.updatedAt)}`;
   document.getElementById("budget").textContent = `${spent} of ${total} h`;
-  document.getElementById("phase").textContent = `${done} of ${items.length} items done`;
+  document.getElementById("phase").textContent = s.budget.note || s.phase;
 
-  document.getElementById("bar").innerHTML = items.map(i => {
+  const shippedSegs = budgetShipped.map(e =>
+    `<div class="seg done" style="flex:${e.hours}" title="${esc(e.id)} ${esc(e.title)} · ${e.hours} h · Shipped"><label>${esc(e.id)}</label></div>`).join("");
+  document.getElementById("bar").innerHTML = shippedSegs + `<div class="cut" aria-hidden="true"></div>` + items.map(i => {
     const changed = previous[i.id] && previous[i.id] !== i.status ? " changed" : "";
     return `<div class="seg ${i.status === "next" ? "now" : esc(i.status)}${changed}" style="flex:${i.hours}" title="${esc(i.id)} ${esc(i.title)} · ${i.hours} h · ${STATE_LABEL[i.status] || i.status}"><label>${esc(i.id)}</label></div>`;
   }).join("");
@@ -214,7 +222,7 @@ function render(s) {
   document.getElementById("history").innerHTML = s.shipped.slice().reverse().map(e => `
     <div class="ev"><div class="when">${esc(e.date)}</div><div class="node"></div>
     <div class="what"><b>${esc(e.title)}</b><p>${esc(e.detail)}</p></div>
-    <div class="proof">${esc(e.proof)}</div></div>`).join("");
+    <div class="proof">${e.hours ? `${e.hours} h · ` : "before budget · "}${esc(e.proof)}</div></div>`).join("");
 
   document.getElementById("lineage").innerHTML = s.lineage.map(l => `
     <div class="row">

@@ -4,20 +4,20 @@
 window.XODUS_STATUS = {
   updatedAt: "2026-10-07T21:05:00+03:00",
   phase: "Phase 2 — functionally complete, user-serviceable",
-  budget: { totalHours: 16, spentHours: 0 },
+  budget: { totalHours: 24, spentHours: 8, note: "8 h delivered (S0�S6) + 16 h Phase 2" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
     { id: "F1", title: "Native app foundation", detail: "SwiftUI app, approved Figma Library composition, Store sign-in, signed engine pairing", proof: "xodus-macos-app", date: "Oct 2–5" },
     { id: "F2", title: "Hogwarts plays on Mac", detail: "Private launch path: CrossOver + Xodus game runtime + service licensing + real HTTPS transport", proof: "Played full-screen", date: "Oct 6" },
-    { id: "S0", title: "Installed, Import, Play", detail: "Import an installed Xbox game and launch it from the app", proof: "0926414", date: "Oct 7" },
-    { id: "S1", title: "Library with real artwork", detail: "Tile and splash art from the game package, Continue Playing, session history, Show log", proof: "e401464", date: "Oct 7" },
-    { id: "S2", title: "Launch polish", detail: "Clean quit returns to Play; graphics-driver warning suppressed", proof: "Live quit + launch", date: "Oct 7" },
-    { id: "S4", title: "Owned PC games", detail: "13 owned PC titles with Store art via first-party sign-in and collections", proof: "7ec1daa", date: "Oct 7" },
-    { id: "L2", title: "Second title end to end", detail: "Lara Croft downloaded, imported, played; four runtime and verifier fixes", proof: "Main menu, 119 FPS", date: "Oct 7" },
-    { id: "S3", title: "Game sign-in status", detail: "Game service owns credentials; app shows and starts game sign-in", proof: "1463cdb", date: "Oct 7" },
-    { id: "S5", title: "Install from the app", detail: "Consent, real byte progress, cancel, verified registration", proof: "3.25 GB fresh install", date: "Oct 7" },
-    { id: "S6", title: "Repair and uninstall", detail: "Incremental repair; uninstall keeps saves; remove from list", proof: "Live in app", date: "Oct 7" }
+    { id: "S0", hours: 1.5, title: "Installed, Import, Play", detail: "Import an installed Xbox game and launch it from the app", proof: "0926414", date: "Oct 7" },
+    { id: "S1", hours: 1.0, title: "Library with real artwork", detail: "Tile and splash art from the game package, Continue Playing, session history, Show log", proof: "e401464", date: "Oct 7" },
+    { id: "S2", hours: 0.5, title: "Launch polish", detail: "Clean quit returns to Play; graphics-driver warning suppressed", proof: "Live quit + launch", date: "Oct 7" },
+    { id: "S4", hours: 1.5, title: "Owned PC games", detail: "13 owned PC titles with Store art via first-party sign-in and collections", proof: "7ec1daa", date: "Oct 7" },
+    { id: "L2", hours: 1.5, title: "Second title end to end", detail: "Lara Croft downloaded, imported, played; four runtime and verifier fixes", proof: "Main menu, 119 FPS", date: "Oct 7" },
+    { id: "S3", hours: 0.5, title: "Game sign-in status", detail: "Game service owns credentials; app shows and starts game sign-in", proof: "1463cdb", date: "Oct 7" },
+    { id: "S5", hours: 1.0, title: "Install from the app", detail: "Consent, real byte progress, cancel, verified registration", proof: "3.25 GB fresh install", date: "Oct 7" },
+    { id: "S6", hours: 0.5, title: "Repair and uninstall", detail: "Incremental repair; uninstall keeps saves; remove from list", proof: "Live in app", date: "Oct 7" }
   ],
 
   backlog: [

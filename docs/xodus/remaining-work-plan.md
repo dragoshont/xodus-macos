@@ -355,6 +355,61 @@ valid (P4); CrossOver licensing/version drift (P6 checks the version);
 packages without an MSA app identity stay unsupported until the runtime can
 create an Xbox user for them.
 
+### Parity with the Xbox PC app
+
+Target: the Xbox app's launcher features **for titles Xodus marks "Plays on
+Mac"**. Not every Xbox PC game will run (package type, MSA identity, runtime
+coverage, anti-cheat).
+
+| Xbox app feature | Xodus status | Where |
+|---|---|---|
+| Installed library, Play, recently played | Matched | S1–S2 |
+| Owned games library | Matched (PC titles) | S4 |
+| Install / repair / uninstall / import | Matched (supported titles) | S5–S6 |
+| Search the Store, browse Game Pass | Planned | P1 |
+| Compatibility shown before install | Xodus-only, planned | P2 |
+| Game Pass subscription + installs | Unproven → spike | P3 |
+| One sign-in | Planned | P4 |
+| Stop game | Planned | P7 |
+| Game updates (explicit) | Matched via Repair; "Update available" deferred | P8 |
+| Cloud saves sync | Gap: saves are local-only today | Spike in budget, build deferred |
+| Achievements, online play | Unproven (Lara shows "network lost") | Spike in budget |
+| Install location choice, add-ons/DLC, auto-update | Deferred | — |
+| Purchase | Out of scope (link to Store page) | — |
+| Friends, party, invites, notifications | Out of scope | — |
+| Cloud gaming | Out of scope (link out) | — |
+
+### 16-hour backlog (budget from 7 October 2026)
+
+Ordered; each item lists its estimate and its done-when. Live acceptance is in
+the installed app on the Mac. If an item overruns by 50%, stop and record the
+blocker (stop rules), then continue with the next item.
+
+| # | Item | Est. | Done when |
+|---|---|---|---|
+| B1 | P1a Fix Discover failure | 1.0h | Discover lists live PC Game Pass titles in the installed app |
+| B2 | P1b Store-wide search by name + Owned / Game Pass / Not owned badges | 1.5h | "Lara", "Hogwarts", "Celeste" return with correct badges; Install from a result works |
+| B3 | P2 Compatibility pre-check (package type, MSA identity, licence) before download, shown as Plays on Mac / Not supported / Unknown | 1.5h | Celeste and Subnautica-type packages show Not supported with zero bytes downloaded; Lara shows Plays on Mac |
+| B4 | P3a Game Pass spike: subscription status + one Game Pass licence through the game service | 1.0h | Yes/no evidence recorded; if no, P3b becomes "Subscription shown, install not supported yet" |
+| B5 | P3b Game Pass status (active / end date / none) + Game Pass shelf with Install gating | 2.0h | Subscription state correct for the user's account; Install offered only when active and supported |
+| B6 | P4 One sign-in, no Keychain prompts (service is sole writer, stable signing identity) | 2.0h | Sign in once covers library, Game Pass and licensing; restart service and app → zero prompts |
+| B7 | P5 Self-contained app (backend, engine, launcher, game service and LaunchAgent inside the signed app) | 2.5h | With `~/src/xodus-macos-private-ai` and `~/.local/libexec/xodus-private` moved aside, install + play Lara |
+| B8 | P6 First-run setup + Repair Xodus (CrossOver check, template + runtime from scratch, service start) | 2.0h | Deleting `XodusGameTemplate` then Repair Xodus restores it; Lara installs and plays |
+| B9 | P7 Stop game (graceful then forced, no leftovers) | 1.0h | Stop ends Lara; app returns to Play with no error |
+| B10 | Parity spikes: cloud save sync and achievements/online for Lara | 0.5h | Feasible / not feasible, with evidence, and the next step recorded |
+| B11 | P10 Release acceptance on a fresh macOS user account (setup → sign in → search → install → play → stop → repair → uninstall → reinstall restores saves) | 1.0h | Checklist passes, or each failure is logged as the next backlog item |
+| | **Total** | **16.0h** | |
+
+Deferred beyond this budget: P8 "Update available" and app self-update, P9
+Hogwarts migration to the generic launcher, cloud save sync build, install
+location, add-ons/DLC, out-of-scope social/purchase features.
+
+Working method: root owns the backend, runtime and live acceptance; the app
+owner session builds UI against frozen contracts (neutral tests → exact CI →
+admitted package with the signed engine preserved → install). New UI in B2, B5
+and B8 gets a short Figma check against the approved composition first. One full
+Figma review after B9.
+
 ## Stop rules
 
 - A slice is done only with its real-product evidence, not CI alone.

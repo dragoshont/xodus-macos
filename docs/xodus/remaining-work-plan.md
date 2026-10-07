@@ -17,7 +17,7 @@ game session to test.
 | S1 | Installed games look and behave like a launcher library | — | **Done** (installed `e401464`, live evidence below) |
 | S2 | Launch polish: clean quit, no driver-warning stop | S1 not required | **Done** (AC2.1–AC2.3 passed) |
 | S3 | One sign-in for launcher and games | — | **Decided: game service owns credentials**; app integration next |
-| S4 | Owned PC library | S3 (credential owner) | **Blocked: query accepted but empty for this identity; decision needed** |
+| S4 | Owned PC library | — | **Unblocked (user signed in; full list returned); building** |
 | S5 | Install from the app | S3, S4 or explicit product ID | Planned |
 | S6 | Update, repair and remove | S5 | Planned |
 
@@ -125,6 +125,36 @@ through that first-party web client (user approves on microsoft.com/link), used
 only for read-only library queries, with the token kept in the existing
 Keychain-backed store — or defer the owned list and keep Installed as the
 library. No further variants without that decision.
+
+**Decision (user, 7 October 2026): sign in.** Probe result with the
+first-party web client (device code, `XboxLive.signin offline_access`, token in
+memory only): Xbox user auth `RpsTicket=d=<access>`, XSTS for both audiences,
+v7 query market GB, `validityType: All`, `excludeDuplicates: true`. **2 pages,
+complete (no continuation), 136 items**: 69 Game, 25 Application, 20 Durable,
+18 Pass, others; statuses 129 Active, 5 Expired, 2 Revoked. Hogwarts and No
+Man's Sky present. Fields include `productId`, `skuId`, `productKind`,
+`status`, `isTrial`, `skuType`, `ownershipType`, `purchasedCountry`.
+
+### S4 acceptance criteria
+
+- AC4.1 Library offers **Sign in to see your PC games**: an in-app device-code
+  sheet (code, open microsoft.com/link, cancel). The refresh token is stored
+  only in the macOS Keychain (app-owned item); access tokens stay in memory.
+  Sign out removes it.
+- AC4.2 Fetch: refresh → Xbox user auth → XSTS (`http://xboxlive.com`,
+  `http://mp.microsoft.com/`, matching user hash) → v7 collections, following
+  continuation to completion (max 20 pages, 4 MiB/page, 30 s each). Partial or
+  failed fetches are shown as such, never as an empty library.
+- AC4.3 "Your PC games": items with `productKind` Game, `status` Active, not
+  trial, joined to public DisplayCatalog metadata (batched by product ID) and
+  kept only when a package declares `Windows.Desktop`. Title and box art come
+  from the catalog. Console-only and unresolved products are excluded and
+  counted in a quiet "not shown" note.
+- AC4.4 A game that is also imported shows **Play**; others show
+  "Not installed" (install is S5). Installed stays separate from Owned.
+- AC4.5 No Xbox activity, Game Pass catalogue or guesses fill this list.
+- Evidence to close: installed app signed in by the user, owned PC games
+  shown with art, Hogwarts marked installed with working Play.
 
 ## S5 — Install from the app
 

@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-08T08:54:02+03:00",
+  updatedAt: "2026-10-08T09:43:23+03:00",
   phase: "Phase 2 â€” functionally complete, user-serviceable",
-  budget: { totalHours: 30, spentHours: 25.5, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension" },
+  budget: { totalHours: 30, spentHours: 27, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -26,7 +26,7 @@ window.XODUS_STATUS = {
     { id: "B3", title: "Plays-on-Mac check before download", hours: 1.5, status: "done", done: "Unsupported packages flagged with zero bytes downloaded", evidence: "Live: Celeste install checks first and is blocked with the reason; zero download." },
     { id: "B4", title: "Game Pass licence spike", hours: 1.0, status: "done", done: "Yes/no evidence for subscription status and one Game Pass licence", evidence: "YES: 3 unowned Game Pass titles licensed; 2 unowned non-Game Pass titles refused. Status command live (active)." },
     { id: "B5", title: "Game Pass status and shelf", hours: 2.0, status: "done", done: "Subscription state correct; Install only when active and supported", evidence: "Live: Game Pass shelf; Install showed Plays on Mac · 5.3 GB and registered Abiotic Factor (not owned). Probe-order fix live in 208939c: status Active." },
-    { id: "B6", title: "One sign-in, no Keychain prompts", hours: 3.0, status: "now", done: "Sign in once; restarts cause zero prompts", evidence: "macOS requires one human approval to migrate the Keychain item (proven with synthetic items). 208939c signed and installed this morning (keychain unlocked). Only the one-time migration approval remains." },
+    { id: "B6", title: "One sign-in, no Keychain prompts", hours: 3.0, status: "blocked", done: "Sign in once; restarts cause zero prompts", evidence: "Helper build 2d420d1 admitted: exact CI green, hashes and signatures verified, both migration outcomes proven in a test keychain. Going live needs the user at the Mac for one Keychain approval." },
     { id: "B7", title: "Self-contained app", hours: 2.5, status: "done", evidence: "App now runs every script from ~/Library/Application Support/Xodus/Runtime (50 MB, self-contained). Remaining: game service still at ~/.local; runtime not yet inside the app bundle.", done: "Developer folders moved aside; Lara still installs and plays" },
     { id: "B8", title: "First-run setup and Repair Xodus", hours: 2.0, status: "done", evidence: "Live: Setup list in the app; Repair Xodus ran from the app (status 0); backend rebuilds the environment from scratch in 11 s.", done: "Missing template rebuilt from the app; Lara plays" },
     { id: "B9", title: "Stop game", hours: 1.0, status: "done", done: "Stop ends the game; app returns to Play cleanly", evidence: "Live: Stop from the app ended Abiotic in 6 s; app shows Stopped; Continue Playing updated." },
@@ -90,6 +90,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-08T09:43:23+03:00", text: "B6 helper build admitted; waiting for the user to approve one Keychain prompt" },
     { at: "2026-10-08T08:54:02+03:00", text: "B12 done: first launch in a new environment no longer shows the No GPU dialog" },
     { at: "2026-10-08T08:54:02+03:00", text: "B6 helper: signed build A writes, different build B reads through the same helper, unsigned caller rejected" },
     { at: "2026-10-08T08:48:37+03:00", text: "Budget extended by 6 h to 30 h: B6 credential helper, first-launch fix, game service in runtime, fresh-account test" },

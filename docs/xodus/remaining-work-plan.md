@@ -439,3 +439,8 @@ Open (needs the user at the Mac):
 - Two failed attempts on a slice's runtime evidence: stop and report the exact
   blocker instead of adding scaffolding.
 - Do not expand Figma screens, auth architecture or contracts beyond the slice.
+
+## B6 admission (2026-10-08)
+
+App 2d420d1 (tree c630816), CI run 37737577280 succeeded on the exact SHA. Package z4RPpO receipt 80118680…fe9543 (22 files); launcher a15d9fbd…, auth host e1389298…, C8 c8fe69a3… unchanged; broker 2c40354c…/228448 bytes; deep strict codesign check passed. Native v3 qualification 3de4feee… records both outcomes: exact-reference delete succeeds without a prompt, and when the delete is denied, the old item is kept and no retry happens. Live install of the broker, app replacement and the one-approval migration (bundled with B13) are held until the user is at the Mac.
+

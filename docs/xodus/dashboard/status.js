@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-08T18:57:49+03:00",
+  updatedAt: "2026-10-08T19:46:05+03:00",
   phase: "Phase 3 — design refresh: native macOS 27, Apple Games look",
-  budget: { totalHours: 42, spentHours: 31.5, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension + 12 h design (estimate)" },
+  budget: { totalHours: 42, spentHours: 33.5, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension + 12 h design (estimate)" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -35,15 +35,15 @@ window.XODUS_STATUS = {
     { id: "B13", title: "Game service ships with Xodus", hours: 1.0, status: "done", done: "Service binary runs from the Xodus runtime folder; ~/.local no longer used", evidence: "The service now runs from the Xodus runtime folder, signed in, with no Keychain prompt (the binary is identical)." },
     { id: "B14", title: "Second-Mac acceptance", hours: 1.0, status: "deferred", evidence: "Deferred until the UX is pinned down and implemented. Then a full test on a second Mac (M5, not Max), which also checks a different GPU.", done: "Full journey on a brand-new Mac user using only the app" },
     { id: "B11", title: "Release acceptance on a fresh account", hours: 1.0, status: "done", done: "Full journey passes using only the app", evidence: "On the user account (fresh macOS account deferred): setup, sign-in, Discover, search, Game Pass install, play, stop, uninstall with saves kept,     reinstall restored 11 save files, play, stop." },
-        { id: "D1", title: "Library redesign", hours: 2.0, status: "now", done: "Full-bleed hero under the toolbar, large glass Play, Continue Playing art cards, cover grid with native filter; signed off by the user in Dark and Light", evidence: "Preview A captured: layout works. 9 fixes in progress (hero under toolbar, larger controls, art fallback, glass card buttons, sort menu, auto-load, all 13 PC games, hero height, + label)." },
-        { id: "D2", title: "Discover and search redesign", hours: 2.0, status: "planned", done: "Paging hero, Game Pass and category shelves; toolbar search with Library/Store scopes; native empty state" },
+        { id: "D1", title: "Library redesign", hours: 2.0, status: "done", done: "Full-bleed hero under the toolbar, large glass Play, Continue Playing art cards, cover grid with native filter; signed off by the user in Dark and Light", evidence: "C3 approved: native macOS 27 tabs and regular glass, poster/hero art, Owned/Game Pass, genre and capabilities, Xbox stats, actual installed sizes and public download sizes. Play remains installed-only." },
+        { id: "D2", title: "Discover and search redesign", hours: 2.0, status: "now", done: "Paging hero, Game Pass and category shelves; toolbar search with Library/Store scopes; native empty state", evidence: "Library direction is frozen; Discover/search is the next active design slice." },
         { id: "D3", title: "Game detail redesign", hours: 1.5, status: "planned", done: "Extended hero, glass Play/Install and menu, facts as native labelled grid (access, PC download, compatibility, size)" },
         { id: "D4", title: "Install sheet", hours: 1.0, status: "planned", done: "Native form sheet: what gets installed, disk space gauge, location, Install" },
         { id: "D5", title: "Downloads", hours: 1.0, status: "planned", done: "Native inset list: cover, progress, speed and time left, pause and cancel" },
         { id: "D6", title: "Onboarding, blocked and error states", hours: 1.0, status: "planned", done: "Native empty and error states, each with one clear recovery action" },
         { id: "D7", title: "Account and setup", hours: 1.0, status: "planned", done: "Sign-in, Game Pass, game service and Repair Xodus in one native Account sheet; sign-out lives here" },
-        { id: "D8", title: "Accessibility, polish and ship", hours: 1.5, status: "planned", done: "VoiceOver, keyboard, Reduce Transparency checked; signed build admitted and installed" },
-        { id: "D9", title: "Game stats from Xbox", hours: 1.0, status: "now", done: "Play time, achievements and friends who play shown on Library and detail", evidence: "Backend game-stats command live (09a2eaa): Hogwarts 292 min on Xbox; Lara 14 achievements, 215/1000 G, 1 friend plays. App display pending." }
+        { id: "D8", title: "Accessibility, caching, polish and ship", hours: 1.5, status: "planned", done: "VoiceOver, keyboard, Reduce Transparency and persistent public-media cache checked; signed build admitted and installed", evidence: "Required before shipping: bounded 512 MB disk cache for catalog images; trailers stream through AVPlayer rather than downloading automatically." },
+        { id: "D9", title: "Game stats from Xbox", hours: 1.0, status: "done", done: "Play time, achievements and friends who play shown on Library and detail", evidence: "Backend command 09a2eaa and C3 display are live in review: Xbox-labelled play time, achievements/gamerscore and friends who play; missing stats remain hidden. Automatic 15-minute refresh is pending integration before shipping." }
       ],
 
   lineage: [
@@ -99,6 +99,8 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-08T19:44:00+03:00", text: "Library C3 approved: native regular glass, game stats and game sizes; D1 and D9 done, D2 Discover/search next" },
+    { at: "2026-10-08T19:12:00+03:00", text: "Catalog detail feasibility confirmed: public trailers, screenshots, descriptions, ratings, capabilities and PC requirements" },
     { at: "2026-10-08T19:00:00+03:00", text: "Game stats feasible: Xbox play time, achievements and friends who play now come from the backend" },
     { at: "2026-10-08T18:45:00+03:00", text: "Design track added: D1–D8, native macOS 27 in the Apple Games look; Library preview under review" },
     { at: "2026-10-08T14:40:00+03:00", text: "B6 proven across builds: a different signed Xodus build read the sign-in with no prompt" },

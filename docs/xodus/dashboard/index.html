@@ -156,7 +156,7 @@
     </div>
   </section>
 
-  <h2>Phase 2 backlog</h2>
+  <h2>Work plan</h2>
   <p class="sub">Each item closes only after a real run in the installed app. Width in the bar above is proportional to its estimate.</p>
   <div class="backlog" id="backlog"></div>
 
@@ -203,7 +203,7 @@ function render(s) {
     done === items.length ? "All 24 hours delivered." : `${spent} of ${total} hours used. ${Math.max(total - spent, 0)} left · ${remaining} h of planned work open.`;
   const current = items.find(i => i.status === "now") || items.find(i => i.status === "next");
   document.getElementById("lede").textContent =
-    `${shippedCount} slices shipped in this budget, ${done} of ${items.length} Phase 2 items done. ${current ? `Now: ${current.id} — ${current.title}.` : ""}`;
+    `${shippedCount} slices shipped in this budget, ${done} of ${items.length} planned items done. ${current ? `Now: ${current.id} — ${current.title}.` : ""}`;
   document.getElementById("updated").textContent = `Updated ${fmtTime(s.updatedAt)} · ${ago(s.updatedAt)}`;
   document.getElementById("budget").textContent = `${spent} of ${total} h`;
   document.getElementById("phase").textContent = s.budget.note || s.phase;

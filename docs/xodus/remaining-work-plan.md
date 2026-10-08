@@ -458,3 +458,6 @@ B14 deferred by the user (2026-10-08): Xodus only runs in the developer account 
 
 B14 update (2026-10-08): deferred until the UX is pinned down and implemented. It will then run on a second Mac (M5, not Max) instead of a fresh account on this Mac. That also checks a different GPU, and the B12 display-id seeding reads the host GPU at environment creation, so it should adapt. Prerequisite: an install path that needs no ~/src, ~/.local, Rust toolchain or hand-installed LaunchAgents.
 
+
+Reboot check (2026-10-08): after a restart and FileVault login, com.xodus.service did not start (RunAtLoad was false). It is now true: the service starts at login through the stale-socket wrapper and reported signedIn=true with no prompt.
+

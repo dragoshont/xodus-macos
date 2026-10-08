@@ -90,10 +90,11 @@
  574 stub SetCleanupFlag
 --- a/dlls/user32/misc.c
 +++ b/dlls/user32/misc.c
-@@ -572,3 +572,30 @@
+@@ -571,4 +571,46 @@
+ {
      FIXME( "(%lu, %p): interaction tracking not running\n", info_class, info );
      return STATUS_PROFILING_NOT_STARTED;
- }
++}
 +
 +/* PROCESS_UICONTEXT_INFORMATION layout from the Windows SDK winuser.h */
 +struct process_uicontext_information
@@ -120,6 +121,21 @@
 +    info->context = 0;
 +    info->flags = 0;
 +    return TRUE;
+ }
++
++/***********************************************************************
++ *		GetResizeDCompositionSynchronizationObject (USER32.2614)
++ *
++ * Returns the DWM resize synchronisation handle for a CoreWindow HWND.
++ * Native Windows.UI.dll clears *handle, calls this and ignores the result.
++ * Wine has no DWM resize synchronisation, so no object exists.
++ */
++BOOL WINAPI GetResizeDCompositionSynchronizationObject( HWND hwnd, HANDLE *handle )
++{
++    FIXME( "(%p, %p): no DWM resize synchronisation object\n", hwnd, handle );
++    if (handle) *handle = NULL;
++    SetLastError( ERROR_NOT_SUPPORTED );
++    return FALSE;
 +}
 --- a/dlls/user32/user32.spec
 +++ b/dlls/user32/user32.spec
@@ -132,3 +148,12 @@
  2522 stub -noname SetBrokeredForeground  # NtUserSetBrokeredForeground
  2523 stub @
  2524 stub @
+@@ -121,7 +121,7 @@
+ 2611 stub -noname EnableWindowResizeOptimization  # NtUserEnableWindowResizeOptimization
+ 2612 stub -noname InitThreadCoreMessagingIocp  # NtUserInitThreadCoreMessagingIocp
+ 2613 stub -noname DrainThreadCoreMessagingCompletions  # NtUserDrainThreadCoreMessagingCompletions
+-2614 stub -noname GetResizeDCompositionSynchronizationObject  # NtUserGetResizeDCompositionSynchronizationObject
++2614 stdcall -noname GetResizeDCompositionSynchronizationObject(long ptr)
+ 2615 stdcall -noname EnableResizeLayoutSynchronization(long long)
+ 2616 stub -noname BeginLayoutUpdate  # NtUserBeginLayoutUpdate
+ 2617 stdcall -noname IsResizeLayoutSynchronizationEnabled(long)

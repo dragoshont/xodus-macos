@@ -619,8 +619,10 @@ Wine source delta for these cycles: `wine-xbox-br113-br118-delta.patch`.
 | br116 | Deferral registry row (`wintypes-winrt-classes.txt`), RoTransformError(W) | Deferral resolved; SetWindow E_NOTIMPL from Wine dataexchange stub |
 | br117 | genuine x64 DataExchange.dll 26100.9278, `dataexchange=n` | SetWindow passes; abort in user32 GetProcessUIContextInformation (unimplemented) |
 | br118 | user32 GetProcessUIContextInformation (DESKTOP; Wine tokens are not AppContainers) | passes; abort in user32 GetResizeDCompositionSynchronizationObject (unimplemented) right after CoreWindow factory |
+| br119 | user32 GetResizeDCompositionSynchronizationObject (2614; NULL handle, FALSE) | **ShowWindow reached**: WM_SHOWWINDOW(1) and WM_PAINT on CoreWindow 0x10070; then XAML ReportUnhandledError FailFast c0000602 |
+| br120 | WindowServerFactory {4d3bd4b7} registration (native Windows.UI.dll, Both) | unmarshal hr 0; ShowWindow again; XAML FailFast persists (HRESULT under diagnosis in br121) |
 
-**Status at br118:**
+**Status at br120:** ShowWindow reached (headless). Activated and rendering calls are not yet observed. The first blocker is a XAML unhandled-error FailFast. Earlier status at br118:
 - Reached: ConnectionComplete, ActivateViewComplete, ReadyToNavigate, presentation deferral and SetWindow.
 - Not reached: Activated, ShowWindow and any rendering call.
 - The first composition-adjacent API (DComposition resize sync) has been reached, but it is not yet a rendering call.

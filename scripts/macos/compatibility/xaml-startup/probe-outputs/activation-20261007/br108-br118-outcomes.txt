@@ -65,3 +65,32 @@ Milestone ladder at br118 (vs br94: blocked at GetActiveView NULL, no Connection
 Original frame / auth / library: UNACCEPTED. XBOX-APP-STARTUP: UNTESTED.
 Next blocker: user32 GetResizeDCompositionSynchronizationObject (resize/DComposition sync with DWM), first
 composition-adjacent API reached; ABI to be resolved from native user32/win32u before implementing.
+
+br119        user32 GetResizeDCompositionSynchronizationObject (ordinal 2614, -noname; ABI from native Windows.UI.dll
+             RVA 0x50750: *out=0; call(HWND=[this+0x28], HANDLE*); result ignored). Wine has no DWM resize sync
+             object: FIXME, *handle=NULL, ERROR_NOT_SUPPORTED, FALSE (no fabricated handle). user32.dll sha256
+             1a3d97d61b4284a2d4f7126a57a1ff361a35d75d69918681ecd7f1f165f0efe3.
+             MILESTONE: ShowWindow reached on the CoreWindow:
+               13107:039c:Call window proc 00006FFFF7076150 (hwnd=0000000000010070,msg=WM_SHOWWINDOW,wp=00000001,lp=00000000)
+               followed by WM_WINDOWPOSCHANGING, WM_NCPAINT, WM_ERASEBKGND, WM_WINDOWPOSCHANGED and
+               13142:039c:Call window proc 00006FFFF7076150 (hwnd=0000000000010070,msg=WM_PAINT,...)
+             (headless run; no visible window was observed or claimed).
+             Then: main thread 0388 CoCreateInstance({4d3bd4b7-ad22-4dc4-b889-311dae0d8aeb}) "not registered"
+             (custom unmarshaler) -> twinapi.appcore agilecontainer(539) ReturnHr 80040154; view thread 039c
+             XAML DirectUI::ErrorHelper::ReportUnhandledError+0x175 (Windows.UI.Xaml RVA 0x71f659) RaiseFailFast
+             c0000602. Its CoCreateInstance({00000352-...}=CLSID_RestrictedErrorObject, combase-internal on native)
+             is error-report plumbing only.
+             sha256 original 6b5a06a3c9d5afcf1d2965a2007f660ad6269dee142ce22c3faf6829f043ba78
+                    broker   bfea37e7f7f1f5ff745cd4f09756eb5dec08a378183ecb4a33844dd1f86a0f2f
+br120        Registry row for native WindowServerFactory {4d3bd4b7-...} (measured on 26100: InProcServer32
+             C:\Windows\System32\Windows.UI.dll, ThreadingModel Both), now in register-appcore-handlers.sh.
+             The unmarshal now completes with hr 0. ShowWindow/WM_PAINT reached again. XAML still
+             ReportUnhandledError -> FailFast c0000602 on 039c during WM_TIMER on hwnd 0x10062. The HRESULT is not
+             yet observed: br121 is DIAGNOSTIC (trace-xaml.sh breakpoint at Xaml RVA 0x71f4e4).
+             Also seen: CoCreateInstance {77cbbbb7-6cd0-48ed-a02b-52fbb0e43ecd} not registered (earlier, 039c).
+             sha256 original a1caf641a7853671f847c67ef938de7392b969c773daebc972633b6ac65580b3
+                    broker   14604a2381bb7011144bd952aa357d46f91278408e1481efc49a788bc1b367fd
+
+Milestone ladder at br120: ConnectionComplete YES; ReadyToNavigate YES; SetWindow YES; ShowWindow YES
+(WM_SHOWWINDOW wp=1 + WM_PAINT on CoreWindow 0x10070); Activated: not yet observed; rendering call
+(dcomp.dll / Windows.UI.Composition): NO. First blocker: XAML unhandled error -> FailFast c0000602.

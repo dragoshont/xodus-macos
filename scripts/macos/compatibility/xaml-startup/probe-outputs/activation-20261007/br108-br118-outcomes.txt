@@ -322,3 +322,35 @@ br144        DIAGNOSTIC only: combase marshal_object logs "xodus-psdiag" iid/obj
              Candidate: bcp47langs Bcp47FromLcid (measured @0x17060: 0/0x7f/0x1400 -> E_INVALIDARG),
              Bcp47FromHkl (@0xb950, same CLanguage(HKL) path), Bcp47GetNlsForm (@0x37b0, (HSTRING, HSTRING*)).
              bcp47langs sha256 7e9c9d40.
+
+== br144 RESULT (2026-10-09 ~01:20) ==
+ORIGINAL_APP_EXIT 3221227010 (same RoFailFastWithErrorContext 0x80004002). RN/hermes NO, dcomp NO.
+Diag (combase marshal.c DIAGNOSTIC xodus_diag_marshal): failing IID {b05f4313-8bb4-582e-b7df-96fa5b183ff3},
+object vtbl XboxPcAppFT.exe+0x4571c0, standard-marshaled cross-process in the FT exe-server RPC stub.
+Object is IAgileObject and has IMarshal (FTM), but FTM delegates to standard marshaling for MSHCTX_LOCAL,
+which needs a PSFactory.  dnfile on XboxPcAppFT.winmd: {b05f4313} = XboxPcAppFT.IXpaftFactory (activation factory).
+Native mechanism (MEASURED): the AppxManifest proxyStub entry uses ClassId {00000355-0000-0000-C000-000000000046}
+= "MetadataPSFactory" (InProcServer32 combase.dll); combase.pdb shows WinRT::Metadata::Marshaling::TypeCache,
+CRIFTable::GetPSClsidAndObject(UniversalMarshalerType), CComCatalog::GetProxyStubCLSIDFromPackageScopedCatalog.
+Wine has no metadata marshaler.
+
+== br145 (2026-10-09 01:59) xboxftps.dll proxy/stub (Wine analogue of MetadataPSFactory) ==
+Change: winrt-proxystub/winmd2idl.py turns XboxPcAppFT/XboxLib/Extensions winmds into widl IDL;
+widl (patched: widl-winrt-proxy.patch = proxy.c uses c_name for pinterface C identifiers; typegen.c marshals
+a runtimeclass reference as its default interface) emits NDR proxies for 171 interfaces; compiled
+xboxftps.dll sha1 1db6d5dc68e0fef9ab30945053b6b1d107d14046; PSFactory CLSID {b70d1129-254c-45dd-be65-2d2124641b0c}
+registered as ProxyStubClsid32 for all 171 IIDs (mkreg.py).  CANDIDATE (analogue, not a forged result:
+real NDR marshaling of the real calls).
+Result: ORIGINAL_APP_EXIT 92 (alive at timeout; first time past the FT fail-fast). IXpaftFactory no longer
+in the PSFactory misses.  Remaining misses: {94ea2b94-...} IAgileObject and {ecc8691b-...} INoMarshal probes
+(non-fatal), {2dbdba9d-20da-519d-9078-09f835bc5bc7} (Xaml, line 7031, non-fatal so far).
+ConnectionComplete yes (as br112+). ReactNative.dll: NO. hermes: NO. dcomp/Composition: NO.
+New first failure: thread 04f4 EXCEPTION_WINE_STUB shcore.SHTaskPoolAllowThreadReuse (delay-load
+api-ms-win-shcore-taskpool-l1-1-0, log 38116/38126) -> unhandled -> process stalled ~300 s (loader_section
+wait timed out, 035c blocked by 033c, line 38304); afterwards polling LoadLibrary("gameplatformservices.dll")
+(System32, from Gaming Services; absent) on threads 04fc/041c/0438 until timeout.
+
+== br146 (2026-10-09 02:10) shcore SHTaskPoolAllowThreadReuse/SetThreadReuseAllowed ==
+MEASURED native shcore 26300: SHTaskPoolAllowThreadReuse = `g = GetCurrentThreadId(); ret` (RVA 0x46750);
+SHTaskPoolSetThreadReuseAllowed(BOOL) = `g2 = (ecx != 0); ret` (RVA 0x6cd80).  Implemented identically
+(shcore sha1 5ed50b61c3f33a8e94cbb60893d375453a56769e).  CANDIDATE.

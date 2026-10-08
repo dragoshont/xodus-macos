@@ -20,8 +20,9 @@
  *
  * usage: shellhost-broker.exe [seconds=240] [width=1280] [height=800] [window_type=6]
  *                             [factory=coreui|twinapi] [aumid] [contract=Windows.Launch] [viewId|-] [flags=0x140]
- *                             [nav|nonav]
+ *                             [nav|nonav|shellvm]
  *
+ * shellvm: nav plus a ShellViewManager client that navigates new views at level 0 (see shellvm_thread).
  * nav (default): also host the genuine CoreUIComponents navigation server the way sihost.exe does (see
  * start_nav_server below); nonav reproduces br43-br60, where no process served it.
  *
@@ -605,6 +606,127 @@ static void start_nav_server(void)
     blog("navserver: wait -> %lu (0=started, 1=thread exited code %#lx, %lu=timeout)", ret, code, WAIT_TIMEOUT);
 }
 
+/* ---- ShellViewManager client (nav mode "shellvm") ----
+ * Under ViewManager phaseout (TRUE for the Desktop device family in CoreUIComponents and WindowManagement), the
+ * navigation server creates the app's task on CreateView but does not navigate it; ConnectNavigationTask only sends
+ * ConnectionComplete once the task's target state is 10, which SessionLayer::NavigateToView sets for level 0.
+ * Natively the navigating actor is explorer's WindowManagement.dll ViewManagerBridge (Connect 0x47c18, OnConnected
+ * 0x480a0, 26100): CoreUIFactoryCreate; FindTypeID({490C6BC3}) ; CreateMessageProxy(
+ * L"System\\NavigationServer_ShellViewManager", type) ; AddProxyListener ; QI {490C6BC3}; on OnConnected
+ * AddEventListener, GetViews and AddListListener, then IShellViewManager::NavigateToView(viewId, level, direction 0,
+ * animation 1) from its data model. This reproduces only the connect and the navigate: it polls GetViews instead of a
+ * list listener (recorded deviation) and navigates each newly listed view once at level 0. The native trigger for the
+ * navigate inside WindowManagement was not pinned down. All server logic is the genuine CoreUIComponents.dll. */
+static const IID IID_ShellViewManager = {0x490c6bc3,0x8ab2,0x4528,{0xb9,0x74,0x70,0x9a,0x9e,0xf2,0xd7,0x2d}};
+static const IID IID_RemoteShellView = {0x884eb994,0x3fdf,0x40ff,{0x88,0x00,0xaa,0x11,0x76,0xf0,0xf4,0x5e}};
+static HANDLE svm_connected;
+
+static HRESULT WINAPI pl_QueryInterface(IUnknown *iface, REFIID riid, void **out)
+{
+    char g[40];
+    if (IsEqualIID(riid, &IID_IUnknown)) { *out = iface; return S_OK; }
+    blog("shellvm: listener QI %s -> E_NOINTERFACE", guidstr(riid, g));
+    *out = NULL;
+    return E_NOINTERFACE;
+}
+static ULONG WINAPI pl_AddRef(IUnknown *iface) { return 2; }
+static ULONG WINAPI pl_Release(IUnknown *iface) { return 1; }
+/* ICallbackMessageProxyListener$X__ComVTable slots 3-5, from the CallbackAdapter dispatch (CoreUI 0x166e8 -> +0x18,
+ * 0x1764c -> +0x20, OnPropertyChanged third). */
+static void WINAPI pl_OnConnected(IUnknown *iface, void *proxy)
+{
+    blog("shellvm: OnConnected proxy=%p", proxy);
+    SetEvent(svm_connected);
+}
+static void WINAPI pl_OnDisconnected(IUnknown *iface, void *proxy) { blog("shellvm: OnDisconnected proxy=%p", proxy); }
+static void WINAPI pl_OnPropertyChanged(IUnknown *iface, void *proxy, USHORT id) { blog("shellvm: OnPropertyChanged %u", id); }
+static void *pl_vtbl[] = { pl_QueryInterface, pl_AddRef, pl_Release, pl_OnConnected, pl_OnDisconnected, pl_OnPropertyChanged };
+static IUnknown proxy_listener = { (IUnknownVtbl *)pl_vtbl };
+
+#define VCALL(obj, slot, type) ((type)(*(void ***)(obj))[slot])
+
+static void svm_pump(DWORD ms)
+{
+    DWORD end = GetTickCount() + ms;
+    MSG msg;
+    for (;;)
+    {
+        while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessageW(&msg); }
+        if ((LONG)(end - GetTickCount()) <= 0) break;
+        MsgWaitForMultipleObjects(0, NULL, FALSE, 50, QS_ALLINPUT);
+    }
+}
+
+static DWORD WINAPI shellvm_thread(void *arg)
+{
+    typedef HRESULT (WINAPI *create_fn)(IUnknown **);
+    HMODULE msg = LoadLibraryW(L"CoreMessaging.dll"), coreui = LoadLibraryW(L"CoreUIComponents.dll");
+    create_fn coreui_create = msg ? (void *)GetProcAddress(msg, "CoreUICreate") : NULL;
+    create_fn factory_create = coreui ? (void *)GetProcAddress(coreui, "CoreUIFactoryCreate") : NULL;
+    IUnknown *core = NULL, *factory = NULL, *proxy = NULL, *svm = NULL;
+    UINT32 type = 0, navigated[64];
+    int nnav = 0, polls;
+    HRESULT hr;
+
+    if (!coreui_create || !factory_create) { blog("shellvm: CoreUICreate=%p CoreUIFactoryCreate=%p", coreui_create, factory_create); return 1; }
+    hr = coreui_create(&core);
+    blog("shellvm: CoreUICreate -> %#lx", hr);
+    if (FAILED(hr = factory_create(&factory))) { blog("shellvm: CoreUIFactoryCreate -> %#lx", hr); goto done; }
+    hr = VCALL(factory, 3, HRESULT (WINAPI *)(IUnknown *, const GUID *, UINT32 *))(factory, &IID_ShellViewManager, &type);
+    blog("shellvm: FindTypeID({490C6BC3}) -> %#lx type=%#x", hr, type);
+    if (FAILED(hr)) goto done;
+    hr = VCALL(factory, 5, HRESULT (WINAPI *)(IUnknown *, const WCHAR *, UINT32, IUnknown **))(factory,
+            L"System\\NavigationServer_ShellViewManager", type, &proxy);
+    blog("shellvm: CreateMessageProxy(System\\NavigationServer_ShellViewManager) -> %#lx proxy=%p", hr, proxy);
+    if (FAILED(hr)) goto done;
+    hr = VCALL(proxy, 7, HRESULT (WINAPI *)(IUnknown *, IUnknown *))(proxy, &proxy_listener);
+    blog("shellvm: AddProxyListener -> %#lx", hr);
+    hr = IUnknown_QueryInterface(proxy, &IID_ShellViewManager, (void **)&svm);
+    blog("shellvm: QI {490C6BC3} -> %#lx", hr);
+    if (FAILED(hr)) goto done;
+    for (polls = 0; polls < 600 && WaitForSingleObject(nav_stop, 0) == WAIT_TIMEOUT; polls++)
+    {
+        IUnknown *list = NULL;
+        INT32 count = 0, i;
+        svm_pump(500);
+        if (WaitForSingleObject(svm_connected, 0) == WAIT_TIMEOUT) { if (polls % 20 == 0) blog("shellvm: waiting for OnConnected"); continue; }
+        hr = VCALL(svm, 5, HRESULT (WINAPI *)(IUnknown *, IUnknown **))(svm, &list);
+        if (SUCCEEDED(hr) && list) hr = VCALL(list, 6, HRESULT (WINAPI *)(IUnknown *, INT32 *))(list, &count);
+        if (FAILED(hr) || polls % 20 == 0) blog("shellvm: GetViews -> %#lx list=%p count=%d", hr, list, count);
+        for (i = 0; SUCCEEDED(hr) && i < count; i++)
+        {
+            IUnknown *item = NULL, *view = NULL;
+            UINT32 id = 0, pid = 0, level = 0, j;
+            HRESULT hr2 = VCALL(list, 7, HRESULT (WINAPI *)(IUnknown *, INT32, IUnknown **))(list, i, &item);
+            if (SUCCEEDED(hr2) && item) hr2 = IUnknown_QueryInterface(item, &IID_RemoteShellView, (void **)&view);
+            if (SUCCEEDED(hr2))
+            {
+                VCALL(view, 19, HRESULT (WINAPI *)(IUnknown *, UINT32 *))(view, &id);
+                VCALL(view, 12, HRESULT (WINAPI *)(IUnknown *, UINT32 *))(view, &pid);
+                VCALL(view, 9, HRESULT (WINAPI *)(IUnknown *, UINT32 *))(view, &level);
+                for (j = 0; j < nnav && navigated[j] != id; j++);
+                if (j == nnav && nnav < ARRAY_SIZE(navigated))
+                {
+                    blog("shellvm: view[%d] id=%#x pid=%u level=%u", i, id, pid, level);
+                    navigated[nnav++] = id;
+                    hr2 = VCALL(svm, 14, HRESULT (WINAPI *)(IUnknown *, UINT32, INT32, INT32, INT32))(svm, id, 0, 0, 1);
+                    blog("shellvm: NavigateToView(id=%#x, level 0, direction 0, animation 1) -> %#lx", id, hr2);
+                }
+            }
+            else blog("shellvm: GetItem(%d)/QI IRemoteShellView -> %#lx", i, hr2);
+            if (view) IUnknown_Release(view);
+            if (item) IUnknown_Release(item);
+        }
+        if (list) IUnknown_Release(list);
+    }
+done:
+    if (svm) IUnknown_Release(svm);
+    if (proxy) IUnknown_Release(proxy);
+    if (factory) IUnknown_Release(factory);
+    if (core) IUnknown_Release(core);
+    return 0;
+}
+
 static void stop_nav_server(void)
 {
     if (!nav_thread) return;
@@ -615,7 +737,7 @@ static void stop_nav_server(void)
 int main(int argc, char **argv)
 {
     int seconds = argc > 1 ? atoi(argv[1]) : 240;
-    BOOL nav_server = TRUE;
+    BOOL nav_server = TRUE, shellvm = FALSE;
     DWORD cookie;
     HRESULT hr;
 
@@ -628,6 +750,7 @@ int main(int argc, char **argv)
     if (argc > 8 && strcmp(argv[8], "-")) coreui_view_id = _strtoui64(argv[8], NULL, 0);
     if (argc > 9) coreui_flags = strtoul(argv[9], NULL, 0);
     if (argc > 10) nav_server = strcmp(argv[10], "nonav") != 0;
+    if (argc > 10) shellvm = !strcmp(argv[10], "shellvm");
     fill(provider_vtbl);
     fill(broker_vtbl);
     fill(presenter_broker_vtbl);
@@ -637,6 +760,11 @@ int main(int argc, char **argv)
     hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
     blog("start pid=%lu CoInitializeEx -> %#lx seconds=%d", GetCurrentProcessId(), hr, seconds);
     if (nav_server) start_nav_server();
+    if (nav_server && shellvm && nav_stop)
+    {
+        svm_connected = CreateEventW(NULL, TRUE, FALSE, NULL);
+        CloseHandle(CreateThread(NULL, 0, shellvm_thread, NULL, 0, NULL));
+    }
     hr = CoRegisterClassObject(&CLSID_Broker, (IUnknown *)&cf, CLSCTX_LOCAL_SERVER, REGCLS_MULTIPLEUSE, &cookie);
     blog("CoRegisterClassObject {3480A401-BDE9-4407-BC02-798A866AC051} -> %#lx", hr);
     if (FAILED(hr)) return 1;

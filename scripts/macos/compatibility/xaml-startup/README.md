@@ -511,6 +511,8 @@ passes its probe. "Verified" means an app run showed the predicted change.
 | br87 | user32 `CitSetInfo` with the native "CIT not running" result (0xC00000B7) | `citprobe` native vs Wine | implemented; broker no longer dies |
 | br88–br90 | diagnosis only | view thread 0338 busy-spins: CoreMessaging arms its NotificationTimer with relative due `0x8000000000000001`; Wine signals it at once and the wait packet re-fires (br90: 1,117,213 associations in 60 s) | reproduced |
 | br91 | wineserver: a relative timeout too far ahead to represent never expires (`server/file.h` `timeout_to_abstime`, `server/timer.c` `set_timer`); kernel32 test `test_far_relative_due_time` | standalone equivalent fails before, passes after; upstream master has the same overflow; br91 log 33K lines vs 5.6M, view thread idles on WM_TIMER | verified (Wine); native confirmation pending |
+| br92d | diagnosis only (CoreMessaging ALPC dumps) | navigation server healthy; app connects to the offered CoreUI port; H1/H3 not supported (H4 later retracted) | reproduced |
+| br92 | broker opt-in `shellvm`: ShellViewManager client reproducing WindowManagement ViewManagerBridge connect + `NavigateToView(view, level 0)` (polls GetViews: recorded deviation) | server accepts the navigate (0) and drops the view from GetViews; app receives the same 19 messages as br92d, no ShowWindow, no Compositor/dcomp | no app delta; hypothesis open |
 
 At br91 the view thread receives two datagrams from the broker's CoreUI port
 and then idles. The main thread waits behind a 60 s timer and the CoreWindow is

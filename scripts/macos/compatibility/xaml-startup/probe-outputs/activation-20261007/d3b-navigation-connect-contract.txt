@@ -102,3 +102,80 @@ Cheapest next test: decode CoreMessaging iface 1 methods 0x0e/0x0c/0x17 (CoreMes
 Expected observation: either the server never receives or accepts the app's connect on 3dcbbfcc (Wine ALPC
   defect), or it accepts and then a CoreMessaging-level handshake message is missing.
 No fix and no br92 rerun were made in the D3b box: the Mac was unreachable from about 16:12 to 18:25.
+
+== D3c (2026-10-08 18:35-19:15 EEST; Mac `date` and local clock agree) ==
+CORRECTION to D3b:
+- H4 is RETRACTED. Re-reading the trace shows the server accepts the app's connect on 3dcbbfcc. The
+  10 re-offered ports are normal per-connection endpoints, not a failed handshake.
+- The "18:33" times in commit e15bce9 were wrong. The real time was about 18:26.
+
+Static map (CoreUIComponents.dll, WindowManagement.dll and twinapi.appcore 26100, read with their PDBs):
+- ConnectionComplete gate. ConnectNavigationTask sends ConnectionComplete only after the task's target
+  state (+0x3bc) reaches 10. The target state is set by SessionLayer::NavigateToView (0x3294c). Mapping
+  from ViewNavigationLevel to target state: 0->10, 1->0, 2->0xc, 3->0xb, 4->0xd, 5->5; any other level
+  throws ProtocolException 0x4c.
+- Phaseout. IsViewManagerPhaseoutEnabled (CoreUI 0x2ab14, WM 0x2d944) is TRUE for device family 3
+  (Desktop), which is what Wine returns. Under phaseout:
+  - the server path (CreateView, then IMSA 0x47250) creates the task but skips
+    NotifyRequestNavigateToView;
+  - it navigates the task itself only when get_IsDefaultNavigationUsed is true, which is a phone-shell
+    path;
+  - ActivationBypass does nothing.
+  -> H5 (the CoreUI ViewActivator navigates) is REFUTED.
+- Native navigating actor (HYPOTHESIS: the trigger is not pinned down). Explorer's WindowManagement
+  ViewManagerBridge does the following:
+  - Connect (0x47c18): CoreUIFactoryCreate; FindTypeID({490C6BC3-8AB2-4528-B974-709A9EF2D72D});
+    CreateMessageProxy(L"System\\NavigationServer_ShellViewManager"); AddProxyListener; QI {490C6BC3};
+    the same again for ClientViewCreator.
+  - OnConnected (0x480a0): proxy AddEventListener(listener, type), then GetViews (slot 5), then
+    AddListListener on the list.
+  - After that it calls IShellViewManager::NavigateToView (slot 14: viewId, level, direction 0,
+    animation 1).
+  - ViewManager::NavigateToView (0x326d4) finds the task with FindTaskByInstanceId(viewId).
+- Flat ABI used. ICallbackMessageProxyListener COM slots: 3 OnConnected, 4 OnDisconnected,
+  5 OnPropertyChanged (from the CallbackAdapter dispatch at 0x166e8 and 0x1764c). WM QIs list items to
+  IRemoteShellView {884EB994-3FDF-40FF-8800-AA1176F0F45E}; its slots are 9 NavigationLevel, 12 ProcessId
+  and 19 ViewInstanceId.
+- Upstream check: GitHub code search for "NavigationServer_ShellViewManager" across all repositories
+  returned 0 hits (2026-10-08 ~18:55). That search is bounded negative evidence only. Wine, wine-staging,
+  Proton and ReactOS contain no CoreUIComponents implementation to reuse.
+
+Candidate: shellhost-broker.c gains an opt-in `shellvm` mode, an argument after nav/nonav. It reproduces
+the bridge's connect sequence and calls NavigateToView(id, 0, 0, 1) once for each newly listed view.
+- Recorded deviations:
+  - it polls GetViews every 0.5 s instead of AddListListener;
+  - it registers no AddEventListener, so IRemoteShellViewManagerListener events are not observed;
+  - the navigate trigger is "view listed", not the native trigger, which is unknown.
+- Lifetime: the client thread stops when "Stop NavigationServer" is set or after 600 polls.
+- broker exe sha256 ab832b71f78eb230... Before the run, the diagnostics were reverted from .pre-d3bdiag
+  and .pre-ffdiag and the DLLs rebuilt; the sources compare equal to the baselines and contain no diag
+  strings. Hashes: ntdll.so 57422d0090294f81 (non-reproducible relink of the clean source; it differs
+  from the earlier b004c9fd), kernelbase.dll 8deb0b230ac910df, wineserver 8454506c9a6e9a77.
+
+br92 (18:58:40-19:02:40 EEST, the single D3c rerun, BROKER_ARGS "... 0x140 shellvm"):
+VERIFIED, from $S/br92-broker.stdout.log:
+- CoreUICreate 0, FindTypeID 0 (type 0x10200c9), CreateMessageProxy 0, AddProxyListener 0, QI 0.
+- OnConnected arrived 3 ms after connecting. GetViews returned count 0 until 18:59:15.
+- At 18:59:15 view[0] was listed: id=0x10070, pid=800 (the app), level=1. The id equals the app's
+  CoreWindow-era HWND value 0x10070 (a coincidence, or the shared id space; unproven).
+- NavigateToView(0x10070, 0, 0, 1) returned 0. From the next poll on, GetViews showed count 0 for the
+  rest of the run.
+VERIFIED, from $S/br92-original.stderr.log compared with br92d:
+- The app's view thread received exactly the same 19 ALPC messages in the same order with the same
+  lengths and types. The last two are 184 and 360 bytes, type 3, identical to br92d's 117/118. Nothing
+  new reached the app after the navigate.
+- The window-message histogram is the same as br92d: no WM_SHOWWINDOW and no WM_ACTIVATE. The same
+  84 modules loaded; no Windows.UI.Composition and no dcomp.
+- The app exits at broker teardown; activator Activate returns 0x800706be, as in br92d.
+- Ladder: ConnectionComplete NOT observed (no new message); RunMessageSession exit NOT observed;
+  Activated NO; ShowWindow NO; U3 (Compositor/dcomp) NOT reached.
+New evidence: the server accepts the shell navigate, and the view leaves the ShellViewManager list.
+  Unknown: whether it became the active view, was closed, or the navigate failed. OnNavigateToViewFailed
+  is an IRemoteShellViewManagerListener event, which this client did not subscribe to.
+HYPOTHESIS: the server-side navigation either fails asynchronously or completes without signalling the
+  app's ConnectNavigationTask. Cheapest next test, needing approval for a rerun: AddEventListener with a
+  logging IRemoteShellViewManagerListener (slot 3 OnRequestNavigateToView ... 12 OnNavigateToViewFailed,
+  23 slots), plus GetActiveView (slot 3) after the navigate.
+Expected observation: either OnNavigateToViewFailed with a reason, or GetActiveView returning 0x10070
+  with the app still silent. The second would point at the server-to-app ConnectionComplete path
+  (ConnectNavigationTask state).

@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-08T13:59:51+03:00",
-  phase: "Phase 2 â€” functionally complete, user-serviceable",
-  budget: { totalHours: 30, spentHours: 28.5, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension" },
+  updatedAt: "2026-10-08T18:41:27+03:00",
+  phase: "Phase 3 â€” design refresh: native macOS 27, Apple Games look",
+  budget: { totalHours: 41, spentHours: 30.5, note: "8 h delivered (S0â€“S6) + 16 h Phase 2 + 6 h extension + 11 h design (estimate)" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -25,7 +25,7 @@ window.XODUS_STATUS = {
     { id: "B2", title: "Store-wide search with ownership badges", hours: 1.5, status: "done", evidence: "Live: Lara and Hogwarts Owned + Play; Celeste Owned + Install.", done: "Lara, Hogwarts, Celeste found with correct badges; install from a result" },
     { id: "B3", title: "Plays-on-Mac check before download", hours: 1.5, status: "done", done: "Unsupported packages flagged with zero bytes downloaded", evidence: "Live: Celeste install checks first and is blocked with the reason; zero download." },
     { id: "B4", title: "Game Pass licence spike", hours: 1.0, status: "done", done: "Yes/no evidence for subscription status and one Game Pass licence", evidence: "YES: 3 unowned Game Pass titles licensed; 2 unowned non-Game Pass titles refused. Status command live (active)." },
-    { id: "B5", title: "Game Pass status and shelf", hours: 2.0, status: "done", done: "Subscription state correct; Install only when active and supported", evidence: "Live: Game Pass shelf; Install showed Plays on Mac · 5.3 GB and registered Abiotic Factor (not owned). Probe-order fix live in 208939c: status Active." },
+    { id: "B5", title: "Game Pass status and shelf", hours: 2.0, status: "done", done: "Subscription state correct; Install only when active and supported", evidence: "Live: Game Pass shelf; Install showed Plays on Mac Â· 5.3 GB and registered Abiotic Factor (not owned). Probe-order fix live in 208939c: status Active." },
     { id: "B6", title: "One sign-in, no Keychain prompts", hours: 3.0, status: "done", done: "Sign in once; restarts cause zero prompts", evidence: "Live: the sign-in moved to the helper after one approval, and the old copy was removed. After reinstalling Xodus, the PC Library loaded 13 games with no prompt." },
     { id: "B7", title: "Self-contained app", hours: 2.5, status: "done", evidence: "App now runs every script from ~/Library/Application Support/Xodus/Runtime (50 MB, self-contained). Remaining: game service still at ~/.local; runtime not yet inside the app bundle.", done: "Developer folders moved aside; Lara still installs and plays" },
     { id: "B8", title: "First-run setup and Repair Xodus", hours: 2.0, status: "done", evidence: "Live: Setup list in the app; Repair Xodus ran from the app (status 0); backend rebuilds the environment from scratch in 11 s.", done: "Missing template rebuilt from the app; Lara plays" },
@@ -34,8 +34,16 @@ window.XODUS_STATUS = {
     { id: "B12", title: "First launch works in a new environment", hours: 1.0, status: "done", done: "Lara opens with no GPU dialog on its very first launch after install", evidence: "Root cause: new environments list the Vulkan GPU id that the first launch replaces. New environments now get this Mac's real id; a fresh environment launched Lara with no dialog." },
     { id: "B13", title: "Game service ships with Xodus", hours: 1.0, status: "done", done: "Service binary runs from the Xodus runtime folder; ~/.local no longer used", evidence: "The service now runs from the Xodus runtime folder, signed in, with no Keychain prompt (the binary is identical)." },
     { id: "B14", title: "Second-Mac acceptance", hours: 1.0, status: "deferred", evidence: "Deferred until the UX is pinned down and implemented. Then a full test on a second Mac (M5, not Max), which also checks a different GPU.", done: "Full journey on a brand-new Mac user using only the app" },
-    { id: "B11", title: "Release acceptance on a fresh account", hours: 1.0, status: "done", done: "Full journey passes using only the app", evidence: "On the user account (fresh macOS account deferred): setup, sign-in, Discover, search, Game Pass install, play, stop, uninstall with saves kept, reinstall restored 11 save files, play, stop." }
-  ],
+    { id: "B11", title: "Release acceptance on a fresh account", hours: 1.0, status: "done", done: "Full journey passes using only the app", evidence: "On the user account (fresh macOS account deferred): setup, sign-in, Discover, search, Game Pass install, play, stop, uninstall with saves kept,     reinstall restored 11 save files, play, stop." },
+        { id: "D1", title: "Library redesign", hours: 2.0, status: "now", done: "Full-bleed hero under the toolbar, large glass Play, Continue Playing art cards, cover grid with native filter; signed off by the user in Dark and Light", evidence: "Preview A captured: layout works. 9 fixes in progress (hero under toolbar, larger controls, art fallback, glass card buttons, sort menu, auto-load, all 13 PC games, hero height, + label)." },
+        { id: "D2", title: "Discover and search redesign", hours: 2.0, status: "planned", done: "Paging hero, Game Pass and category shelves; toolbar search with Library/Store scopes; native empty state" },
+        { id: "D3", title: "Game detail redesign", hours: 1.5, status: "planned", done: "Extended hero, glass Play/Install and menu, facts as native labelled grid (access, PC download, compatibility, size)" },
+        { id: "D4", title: "Install sheet", hours: 1.0, status: "planned", done: "Native form sheet: what gets installed, disk space gauge, location, Install" },
+        { id: "D5", title: "Downloads", hours: 1.0, status: "planned", done: "Native inset list: cover, progress, speed and time left, pause and cancel" },
+        { id: "D6", title: "Onboarding, blocked and error states", hours: 1.0, status: "planned", done: "Native empty and error states, each with one clear recovery action" },
+        { id: "D7", title: "Account and setup", hours: 1.0, status: "planned", done: "Sign-in, Game Pass, game service and Repair Xodus in one native Account sheet; sign-out lives here" },
+        { id: "D8", title: "Accessibility, polish and ship", hours: 1.5, status: "planned", done: "VoiceOver, keyboard, Reduce Transparency checked; signed build admitted and installed" }
+      ],
 
   lineage: [
     { source: "Xodus (Exodus) fork", origin: "xodus-gaming/xodus", kind: "extended",
@@ -90,6 +98,9 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-08T18:45:00+03:00", text: "Design track added: D1â€“D8, native macOS 27 in the Apple Games look; Library preview under review" },
+    { at: "2026-10-08T14:40:00+03:00", text: "B6 proven across builds: a different signed Xodus build read the sign-in with no prompt" },
+    { at: "2026-10-08T14:36:00+03:00", text: "After restart: game service now starts at login, signed in" },
     { at: "2026-10-08T13:59:51+03:00", text: "B14 moved to after the UX work; it will run on a second M5 Mac" },
     { at: "2026-10-08T13:39:44+03:00", text: "B14 deferred: Xodus only runs in this account for now" },
     { at: "2026-10-08T10:53:53+03:00", text: "B6 live: one Keychain approval; after reinstalling Xodus, the PC Library loads with no prompt" },
@@ -108,11 +119,11 @@ window.XODUS_STATUS = {
     { at: "2026-10-07T22:52:47+03:00", text: "App package for B5, B7, B8, B9 frozen (fee7f5f), CI green, source approved; packaging" },
     { at: "2026-10-07T22:22:13+03:00", text: "B6 scoped: Keychain ACL policy plus migration as its own package after B5/B7/B8/B9" },
     { at: "2026-10-07T22:11:10+03:00", text: "B1, B2, B3 accepted live in the installed app" },
-    { at: "2026-10-07T22:00:43+03:00", text: "B1–B3 package admitted (CI green, C8 preserved); installing" },
+    { at: "2026-10-07T22:00:43+03:00", text: "B1â€“B3 package admitted (CI green, C8 preserved); installing" },
     { at: "2026-10-07T22:00:43+03:00", text: "B7/B8 backend: self-contained runtime and Repair Xodus rebuild the game environment from scratch" },
     { at: "2026-10-07T21:43:59+03:00", text: "B10 done: cloud saves deferred (local-only); online works for some titles, SISU sign-in fails for others" },
     { at: "2026-10-07T21:43:59+03:00", text: "B9 backend: Stop game command stops Lara in 4 s with no leftovers" },
-    { at: "2026-10-07T21:39:40+03:00", text: "App B1–B3 source frozen (7c3c1f0) and approved; CI and packaging next" },
+    { at: "2026-10-07T21:39:40+03:00", text: "App B1â€“B3 source frozen (7c3c1f0) and approved; CI and packaging next" },
     { at: "2026-10-07T21:39:40+03:00", text: "Game Pass title Abiotic Factor installed and running on Mac (D3D12, 59 FPS); online sign-in still fails" },
     { at: "2026-10-07T21:22:13+03:00", text: "B4 done: Game Pass licences issue through the service; non-entitled titles are refused" },
     { at: "2026-10-07T21:16:49+03:00", text: "B3 backend: pre-download check live; unsupported installs stop before any download" },

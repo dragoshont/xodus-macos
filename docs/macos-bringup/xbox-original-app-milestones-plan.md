@@ -633,6 +633,18 @@ box (hard stop 17:50): decode the CoreUI exchange, implement only a reply the
 native contract evidences, one rerun. Composition, sign-in and library stay
 out of scope; PARK criteria unchanged.
 
+**Coordinator amendment (16:10): D3b hard stop 17:50 -> 18:50.** One-time,
+60 min, for the Mac outage 14:52-16:00 (about 70 min lost). Made by the
+coordinator session inside the owner's unchanged final deadline
+(2026-10-09 08:00 +03:00, freeze 06:00); it is not a new owner grant and
+adds no scope. Receipt: the coordinator's message to the navigation child at
+16:10 (accepted) and the rescheduled checkpoint at 18:55. No further
+renewal for host downtime: the later outage (about 16:12 onward) counts
+against the box; if the Mac is still down at 18:50 the child hands back and
+the coordinator decides PARK versus a next slice.
+Scope correction from the trace: the cross-apartment call is posted and
+dispatched; the remaining wait is the nav server's `ConnectionComplete`.
+
 **Decision (14:20): BOUNDED_GO, narrow.** One implementation slice: D3a only,
 3 h real-clock box (hard stop 17:20), then one rerun to learn D3b/D4 and U3.
 No composition, sign-in or library implementation. If U3 shows XAML fail-fasts

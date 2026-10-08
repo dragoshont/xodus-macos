@@ -118,4 +118,22 @@ br123        CANDIDATE: dxgi IDXGIOutput::WaitForVBlank now blocks until the nex
              (new); Activated: not confirmed; dcomp.dll load / Windows.UI.Composition activation: NO (none in log).
              The broker's GetActiveView stays NULL (DIAGNOSTIC observation).
              sha256 original 2f8629694d955e78d07da8aa46e486d30d83c202ca09940ad9acf9cea7099570
-                    broker   77f6076da37e9fa0a1077a30e0a701d6b114b6af85e9a465d5d3db55d54d5831
+                    broker   77f6076da37e9fa0a1077a30e0a701d6b114b6af85e9a465d5d3db55d54d5831br124        DIAGNOSTIC (trace-act.sh, winedbg breakpoints on Windows.UI.Xaml entry points): breakpoint 1
+             FrameworkView::OnActivated (RVA 0x610360) HIT, so the XAML view receives CoreApplicationView
+             Activated. winedbg then lost the process ("No process loaded"); the attached debugger also turns on
+             wil OutputDebugString logging, so this run is perturbed and is not a candidate result.
+br125        DIAGNOSTIC (same, without 0x610360/0xa87910): breakpoints on put_Content, Window::ActivateImpl,
+             Window.Activate, CoreWindowFocusObserver::OnActivated, both EnsureDCompDevice and NWDrawTree could
+             not be inserted ("Invalid address ... disabling it"; the attach landed while the process was being
+             torn down/re-attached, then "Exception c0000005 / No process loaded"). No hit information. Dropped
+             the multi-breakpoint debugger method.
+             Static (Windows.UI.Xaml 26100 PDB): DCompTreeHost::EnsureDCompDevice is reached from
+             DCompTreeHost::EnsureResources and WindowsGraphicsDeviceManager::EnsureDCompDevice, whose callers
+             include CCoreServices::GetCompositor and EnsureCompositionIslandCreated (content/visual paths).
+             App-side finding: XboxPcApp is a React Native for Windows app. Microsoft.ReactNative.dll and
+             hermes.dll are never loaded in br123, so the app has not created its React host / root content
+             yet. In br123 the UI thread catches the HttpClient class_not_registered locally (catch at
+             XboxPcApp.exe+0x211c2f) and returns to its message loop. The app also calls
+             CoCreateInstance({2de3095a-b49e-418f-b5c1-69d2ccf62a8f} XboxPcAppFT, CLSCTX_LOCAL_SERVER,
+             IActivationFactory) -> "class not registered" (it is a packaged com:ExeServer of
+             XboxPcAppFT.exe in AppxManifest.xml) and throws on that thread.

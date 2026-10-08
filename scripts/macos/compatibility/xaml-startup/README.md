@@ -623,6 +623,7 @@ Wine source delta for these cycles: `wine-xbox-br113-br118-delta.patch`.
 | br120 | WindowServerFactory {4d3bd4b7} registration (native Windows.UI.dll, Both) | unmarshal hr 0; ShowWindow again; XAML FailFast persists (HRESULT under diagnosis in br121) |
 | br121-br122 | DIAGNOSTIC breakpoints (ReportUnhandledError, wil capture) | hr E_NOTIMPL from RefreshRateInfo::WaitForRefreshInterval -> Wine dxgi_output_WaitForVBlank stub |
 | br123 | dxgi WaitForVBlank waits to the next refresh boundary (as DXVK does) | **no FailFast; app stays alive in its UI loop for the whole 420 s run**; app startup code runs; no dcomp/Composition yet |
+| br124-br125 | DIAGNOSTIC winedbg breakpoints on XAML entry points | FrameworkView::OnActivated HIT (XAML view gets Activated); debugger perturbs the run; app is React Native for Windows and Microsoft.ReactNative.dll is never loaded (no root content yet); packaged COM ExeServer XboxPcAppFT is "class not registered" |
 
 **Status at br123:** ShowWindow reached and the app survives XAML startup (headless, alive until the harness alarm). Activated and rendering calls (dcomp/Composition) are not yet observed. Earlier status at br118:
 - Reached: ConnectionComplete, ActivateViewComplete, ReadyToNavigate, presentation deferral and SetWindow.

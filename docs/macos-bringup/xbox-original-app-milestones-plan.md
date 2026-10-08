@@ -732,6 +732,33 @@ experiment then needs its scoped plan and budget. If G0 stays earlier-blocked,
 composition need and implementation start remain UNKNOWN. Do not convert the
 90-minute investigation cap into a completion estimate or renew it silently.
 
+**Owner-requested intermediate readiness checkpoint (2026-10-08 19:46).**
+At **20:05 EEST**, inspect the evidence already produced by G0 to decide
+whether a composition builder can be launched. Do not wait for the whole G0
+box if a real rendering boundary is qualified earlier; equally, do not spend
+another launch merely to satisfy this checkpoint. The 20:50 stop, two-launch
+cap, 20:55 final G0 report and overall deadlines remain unchanged.
+
+| Decision | Required evidence | Action |
+|---|---|---|
+| WAIT: blocked earlier or evidence unavailable | No actual rendering call/failure, or insufficient target/ABI evidence | Continue only the existing G0 grant; no composition builder |
+| READY TO SCOPE: rendering dependency identified | Actual API/class/IID/ordinal, defining native module/version/hash, error, call context and backend; pinned reuse assessment identifies the matching behavior and gaps | Existing composition owner prepares one bounded SDD implementation slice; this is not permission to build |
+| READY TO LAUNCH: bounded slice approved | READY TO SCOPE plus a concrete contract, upstream-first reuse decision, focused failing control, Mac-backend acceptance, permitted target/operations, finite budget and nonoverlapping mutable ownership | Launch one isolated implementation owner only within that approved scope; preserve original-frame/account/library gates and require independent review before integration |
+
+This request authorizes the intermediate check, not an open-ended compositor
+project or a new runtime mutation grant. A read-only assessment can continue
+with the existing research owner; a builder must not compete with the active
+G0 owner for the shared Mac source/runtime. Pending native evidence remains
+pending. No callback, S_OK, DLL load, blank HWND or static import establishes
+composition readiness.
+
+The coordinator reports the decision, exact supporting evidence, missing
+launch conditions and next cheapest action at 20:05. Because this session has
+one attached automation slot, the intermediate wake replaces the next wake:
+its **first action is to restore the 20:55 final G0 checkpoint**, before
+reading producer results. A delayed or earlier-blocked intermediate report
+must not silently cancel final closure.
+
 ### G0 specification-driven execution contract
 
 The owner's `/architrave` direction is to plan thoroughly, use the canvas and

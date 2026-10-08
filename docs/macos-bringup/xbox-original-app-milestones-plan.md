@@ -470,6 +470,36 @@ boundary".
 - **Next step needs an owner decision:** a shell window-manager (CoreUI
   server) lane, or stop.
 
+### Owner decisions and budget ledger (2026-10-08)
+
+| Time (+03:00) | Decision | Deadline |
+|---|---|---|
+| 2026-10-07 13:39 | 24-hour sprint started | 2026-10-08 13:39 |
+| 2026-10-08 ~07:58 | Owner lifted the navigation-client stop; work continues on branch `dragoshont-xbox-app-shell-navigation-client`, merging back here (never `main`) | unchanged |
+| 2026-10-08 08:48 | Budget +6 h | 2026-10-08 19:39 |
+| 2026-10-08 13:48 | Owner review of progress, budget +12 h from 19:39 | **2026-10-09 07:39** |
+
+**Progress assessment at 13:48 (not a milestone PASS).**
+- **Pace.** Runs br38–br86 took about 5 h. Each run reached a distinct,
+  deeper failure, and each fix was measured on the native Windows 11 ARM64 VM.
+- **Fixes in this stretch:**
+  - a CoreUI navigation server in the broker;
+  - the win32u CoreMessaging IOCP model;
+  - `ParseApplicationUserModelId`;
+  - an IPresenterBroker object;
+  - CoreWindow HWND creation (band/type rules, `SetCoreWindow`,
+    `EnableMouseInPointerForWindow`);
+  - wineserver ALPC LPC-request and sync-reply semantics.
+- **Not stuck.** No failure repeated across runs.
+- **Risk.** It is still unknown how many more prerequisites lie before the
+  first visible frame. Sign-in and library may need more services.
+  XBOX-APP-STARTUP stays UNTESTED.
+- **Revisit when:** the deadline is reached, or three consecutive runs
+  produce no new, deeper failure.
+- **Run API.** The durable Run API refused to record this extension
+  (`HOST_PAUSE_REQUIRED`), and the Run state was not edited by hand. This
+  table is the ledger of record for the extension.
+
 ## Xodus-backed substitutes for Windows dependencies (owner question, 2026-10-07)
 
 Xodus already reimplements several Windows pieces, using genuine Microsoft

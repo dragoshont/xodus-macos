@@ -794,6 +794,48 @@ this result, not permission for another experiment; final reporting remains
 20:55. Composition need/effort remain unknown, and original frame, account
 and library remain unaccepted.
 
+**Final producer closure (2026-10-08 19:50 EEST): BLOCKED BEFORE RENDERING.**
+The coordinator retrieved the persisted G0 section from pushed side-branch
+commit `6fa2d9caed3a7c34bdad8b80123e3997a1b19c7a` and confirmed that the
+commit changes only the lane README, evidence, manifest and retained diagnostic
+diff. The record distinguishes invalid br93 from corrected br94, records full
+log hashes, and identifies both diagnostic and restored broker binaries.
+
+- [Committed G0 evidence](https://github.com/dragoshont/xodus-macos/blob/6fa2d9caed3a7c34bdad8b80123e3997a1b19c7a/scripts/macos/compatibility/xaml-startup/probe-outputs/activation-20261007/d3b-navigation-connect-contract.txt).
+- [Candidate manifest](https://github.com/dragoshont/xodus-macos/blob/6fa2d9caed3a7c34bdad8b80123e3997a1b19c7a/scripts/macos/compatibility/xaml-startup/probe-outputs/activation-20261007/built-sha256-d3c-final.txt).
+- The research owner published the final earlier-blocked assessment in
+  [the private feasibility report](https://github.com/dragoshont/wine-composition-research/blob/437f10b86fb62789ecee1d4d688a9bbc633c6d5f/docs/feasibility.md).
+
+The runtime owner reports restoration of the pre-G0 broker, no remaining
+Wine/app/broker processes, cleaned temporary workspace and a clean side
+worktree. Diagnostics are retained as evidence, not installed candidate code.
+This is persisted producer evidence inspected by the coordinator, not an
+independent replay of the app or native Windows confirmation. S14 candidate
+qualification and canonical source/owner reconciliation remain separate.
+
+**Composition builder decision: WAIT / DO NOT LAUNCH.** G0 has a final
+earlier-blocked outcome, not a composition contract to implement. The 20:05
+intermediate check and 20:55 final checkpoint now confirm this closure and
+remaining qualification work; they do not reopen experiments. App-launch
+budget is exhausted. Composition implementation needs new reached-rendering
+evidence and a separately approved bounded slice. No conclusion of universal
+composition absence, no completion ETA, and no original-frame/account/library
+PASS follows from this result.
+
+**Conditional development approval (owner clarification, 2026-10-08
+19:53 EEST).** The owner said "i approve the development", then qualified it
+with "if the go has been confirmed". Record this as approval to proceed only
+after the composition readiness conditions establish GO for a concrete bounded
+slice, not as approval for speculative development. Current G0 is BLOCKED
+BEFORE RENDERING and the builder decision remains WAIT; no GO has been
+confirmed. This clarification does not authorize an independent proof of
+concept, another original-app launch, a budget renewal or unscoped operations.
+Preserve the conditional approval for a later evidence-backed slice; do not
+ask again merely to cross an internal phase boundary, but obtain any missing
+target/operation/scope permissions before side effects. The private final
+assessment's visibility and main SHA `437f10b86fb62789ecee1d4d688a9bbc633c6d5f`
+were independently checked by the coordinator.
+
 ### G0 specification-driven execution contract
 
 The owner's `/architrave` direction is to plan thoroughly, use the canvas and

@@ -2,7 +2,7 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-08T08:25:45+03:00",
+  updatedAt: "2026-10-08T08:36:04+03:00",
   phase: "Phase 2 â€” functionally complete, user-serviceable",
   budget: { totalHours: 24, spentHours: 24, note: "8 h delivered (S0–S6) + 16 h Phase 2" },
 
@@ -87,6 +87,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-08T08:36:04+03:00", text: "B6 direction chosen by the user: a frozen credential helper owns Xodus sign-in so app updates don't prompt (self-signed certificate rules out an ACL-only fix)" },
     { at: "2026-10-08T08:25:45+03:00", text: "User approved the post-update Keychain prompt; B6 implementation resumed" },
     { at: "2026-10-08T08:06:59+03:00", text: "App 208939c installed: Game Pass status Active, setup banner clears after sign-in; signing worked once the keychain was unlocked" },
     { at: "2026-10-08T00:34:52+03:00", text: "B5, B9, B11 accepted live: Game Pass install, Stop, full journey with save restore" },

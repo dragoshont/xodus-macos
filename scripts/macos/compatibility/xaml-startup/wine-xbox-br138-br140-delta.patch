@@ -1,0 +1,375 @@
+--- a/dlls/combase/combase.c
++++ b/dlls/combase/combase.c
+@@ -2556,6 +2556,8 @@
+     IContextCallback IContextCallback_iface;
+     IObjContext IObjContext_iface;
+     LONG refcount;
++    BOOL apt_mta;   /* context belongs to the MTA (or no apartment) */
++    DWORD apt_tid;  /* owning thread of an STA context */
+ };
+ 
+ static inline struct thread_context *impl_from_IComThreadingInfo(IComThreadingInfo *iface)
+@@ -2699,14 +2701,83 @@
+ {
+     struct thread_context *context = impl_from_IContextCallback(iface);
+     return IComThreadingInfo_Release(&context->IComThreadingInfo_iface);
++}
++
++struct context_callback_params
++{
++    PFNCONTEXTCALL callback;
++    ComCallData *param;
++    HRESULT hr;
++    HANDLE event;
++};
++
++LRESULT context_callback_execute(void *arg)
++{
++    struct context_callback_params *params = arg;
++    return params->callback(params->param);
++}
++
++static void CALLBACK context_callback_mta_proc(TP_CALLBACK_INSTANCE *instance, void *arg)
++{
++    struct context_callback_params *params = arg;
++    params->hr = params->callback(params->param);
++    SetEvent(params->event);
+ }
+ 
+ static HRESULT WINAPI thread_context_callback_ContextCallback(IContextCallback *iface,
+         PFNCONTEXTCALL callback, ComCallData *param, REFIID riid, int method, IUnknown *punk)
+ {
+-    FIXME("%p, %p, %p, %s, %d, %p\n", iface, callback, param, debugstr_guid(riid), method, punk);
++    struct thread_context *context = impl_from_IContextCallback(iface);
++    struct context_callback_params params;
++    struct apartment *apt;
++    BOOL current_mta;
++    DWORD index;
++    HRESULT hr;
+ 
+-    return E_NOTIMPL;
++    TRACE("%p, %p, %p, %s, %d, %p\n", iface, callback, param, debugstr_guid(riid), method, punk);
++
++    if (!callback)
++        return E_INVALIDARG;
++
++    apt = apartment_get_current_or_mta();
++    current_mta = !apt || apt->multi_threaded;
++    if (apt) apartment_release(apt);
++
++    if (context->apt_mta ? current_mta : context->apt_tid == GetCurrentThreadId())
++        return callback(param);
++
++    params.callback = callback;
++    params.param = param;
++
++    if (!context->apt_mta)
++    {
++        HWND hwnd = NULL;
++
++        if ((apt = apartment_findfromtid(context->apt_tid)))
++        {
++            hwnd = apartment_getwindow(apt);
++            apartment_release(apt);
++        }
++        if (!hwnd)
++        {
++            WARN("target apartment %#lx is gone\n", context->apt_tid);
++            return RPC_E_DISCONNECTED;
++        }
++        return SendMessageW(hwnd, DM_CONTEXTCALLBACK, 0, (LPARAM)&params);
++    }
++
++    if (!(params.event = CreateEventW(NULL, TRUE, FALSE, NULL)))
++        return HRESULT_FROM_WIN32(GetLastError());
++    params.hr = E_FAIL;
++    if (!TrySubmitThreadpoolCallback(context_callback_mta_proc, &params, NULL))
++    {
++        hr = HRESULT_FROM_WIN32(GetLastError());
++        CloseHandle(params.event);
++        return hr;
++    }
++    hr = CoWaitForMultipleHandles(0, INFINITE, 1, &params.event, &index);
++    CloseHandle(params.event);
++    return FAILED(hr) ? hr : params.hr;
+ }
+ 
+ static const IContextCallbackVtbl thread_context_callback_vtbl =
+@@ -2841,6 +2912,7 @@
+     if (!tlsdata->context_token)
+     {
+         struct thread_context *context;
++        struct apartment *apt;
+ 
+         context = calloc(1, sizeof(*context));
+         if (!context)
+@@ -2849,6 +2921,14 @@
+         context->IComThreadingInfo_iface.lpVtbl = &thread_context_info_vtbl;
+         context->IContextCallback_iface.lpVtbl = &thread_context_callback_vtbl;
+         context->IObjContext_iface.lpVtbl = &thread_object_context_vtbl;
++        if ((apt = apartment_get_current_or_mta()))
++        {
++            context->apt_mta = apt->multi_threaded;
++            context->apt_tid = apt->tid;
++            apartment_release(apt);
++        }
++        else
++            context->apt_mta = TRUE;
+         /* Context token does not take a reference, it's always zero until the
+            interface is explicitly requested with CoGetObjectContext(). */
+         context->refcount = 0;
+--- a/dlls/combase/apartment.c
++++ b/dlls/combase/apartment.c
+@@ -1244,6 +1244,8 @@
+         return 0;
+     case DM_HOSTOBJECT:
+         return apartment_hostobject(com_get_current_apt(), (const struct host_object_params *)lParam);
++    case DM_CONTEXTCALLBACK:
++        return context_callback_execute((void *)lParam);
+     default:
+         return DefWindowProcW(hWnd, msg, wParam, lParam);
+     }
+--- a/dlls/combase/combase_private.h
++++ b/dlls/combase/combase_private.h
+@@ -61,6 +61,7 @@
+ /* DCOM messages used by the apartment window (not compatible with native) */
+ #define DM_EXECUTERPC   (WM_USER + 0) /* WPARAM = 0, LPARAM = (struct dispatch_params *) */
+ #define DM_HOSTOBJECT   (WM_USER + 1) /* WPARAM = 0, LPARAM = (struct host_object_params *) */
++#define DM_CONTEXTCALLBACK (WM_USER + 2) /* WPARAM = 0, LPARAM = (struct context_callback_params *) */
+ 
+ #define CHARS_IN_GUID 39
+ 
+@@ -114,6 +115,7 @@
+ }
+ 
+ HWND apartment_getwindow(const struct apartment *apt);
++LRESULT context_callback_execute(void *params);
+ HRESULT apartment_createwindowifneeded(struct apartment *apt);
+ void apartment_freeunusedlibraries(struct apartment *apt, DWORD unload_delay);
+ void apartment_global_cleanup(void);
+--- a/dlls/shcore/main.c
++++ b/dlls/shcore/main.c
+@@ -963,8 +963,212 @@
+ 
+     stream = shstream_create(&memstreamvtbl, data, data_len);
+     return stream ? &stream->IStream_iface : NULL;
++}
++
++struct access_private_buffer
++{
++    struct
++    {
++        HRESULT (WINAPI *QueryInterface)(struct access_private_buffer *, REFIID, void **);
++        ULONG (WINAPI *AddRef)(struct access_private_buffer *);
++        ULONG (WINAPI *Release)(struct access_private_buffer *);
++        HRESULT (WINAPI *GetPrivateBuffer)(struct access_private_buffer *, UINT *, const BYTE **);
++    } *lpVtbl;
++};
++
++struct sharedbuf_stream
++{
++    struct shstream stream;
++    struct access_private_buffer IAccessPrivateBuffer_iface;
++    IUnknown *owner;
++    DWORD capacity;
++};
++
++/* {ed3071e9-f556-4c46-9294-6640c8c75281}, IAccessPrivateBuffer (shcore CMemStream, measured) */
++static const GUID IID_IAccessPrivateBuffer = {0xed3071e9, 0xf556, 0x4c46, {0x92, 0x94, 0x66, 0x40, 0xc8, 0xc7, 0x52, 0x81}};
++
++static inline struct sharedbuf_stream *sharedbuf_from_IAccessPrivateBuffer(struct access_private_buffer *iface)
++{
++    return CONTAINING_RECORD(iface, struct sharedbuf_stream, IAccessPrivateBuffer_iface);
++}
++
++static HRESULT WINAPI sharedbuf_stream_QueryInterface(IStream *iface, REFIID riid, void **out)
++{
++    struct shstream *stream = impl_from_IStream(iface);
++    struct sharedbuf_stream *shared = CONTAINING_RECORD(stream, struct sharedbuf_stream, stream);
++
++    if (IsEqualIID(riid, &IID_IAccessPrivateBuffer))
++    {
++        *out = &shared->IAccessPrivateBuffer_iface;
++        IStream_AddRef(iface);
++        return S_OK;
++    }
++    return shstream_QueryInterface(iface, riid, out);
++}
++
++static HRESULT WINAPI access_private_buffer_QueryInterface(struct access_private_buffer *iface, REFIID riid, void **out)
++{
++    struct sharedbuf_stream *shared = sharedbuf_from_IAccessPrivateBuffer(iface);
++    return IStream_QueryInterface(&shared->stream.IStream_iface, riid, out);
++}
++
++static ULONG WINAPI access_private_buffer_AddRef(struct access_private_buffer *iface)
++{
++    struct sharedbuf_stream *shared = sharedbuf_from_IAccessPrivateBuffer(iface);
++    return IStream_AddRef(&shared->stream.IStream_iface);
++}
++
++static ULONG WINAPI access_private_buffer_Release(struct access_private_buffer *iface)
++{
++    struct sharedbuf_stream *shared = sharedbuf_from_IAccessPrivateBuffer(iface);
++    return IStream_Release(&shared->stream.IStream_iface);
++}
++
++/* Native CMemStream::GetPrivateBuffer returns the whole buffer (not position
++ * relative) and E_UNEXPECTED when there is no backing data. */
++static HRESULT WINAPI access_private_buffer_GetPrivateBuffer(struct access_private_buffer *iface, UINT *size, const BYTE **buffer)
++{
++    struct sharedbuf_stream *shared = sharedbuf_from_IAccessPrivateBuffer(iface);
++
++    TRACE("%p, %p, %p.\n", iface, size, buffer);
++
++    *size = shared->stream.u.mem.length;
++    *buffer = shared->stream.u.mem.buffer;
++    return shared->stream.u.mem.buffer ? S_OK : E_UNEXPECTED;
++}
++
++static const struct
++{
++    HRESULT (WINAPI *QueryInterface)(struct access_private_buffer *, REFIID, void **);
++    ULONG (WINAPI *AddRef)(struct access_private_buffer *);
++    ULONG (WINAPI *Release)(struct access_private_buffer *);
++    HRESULT (WINAPI *GetPrivateBuffer)(struct access_private_buffer *, UINT *, const BYTE **);
++} access_private_buffer_vtbl =
++{
++    access_private_buffer_QueryInterface,
++    access_private_buffer_AddRef,
++    access_private_buffer_Release,
++    access_private_buffer_GetPrivateBuffer,
++};
++
++static ULONG WINAPI sharedbuf_stream_Release(IStream *iface)
++{
++    struct shstream *stream = impl_from_IStream(iface);
++    struct sharedbuf_stream *shared = CONTAINING_RECORD(stream, struct sharedbuf_stream, stream);
++    ULONG refcount = InterlockedDecrement(&stream->refcount);
++
++    TRACE("%p, refcount %lu.\n", iface, refcount);
++
++    if (!refcount)
++    {
++        IUnknown_Release(shared->owner);
++        free(shared);
++    }
++
++    return refcount;
+ }
+ 
++static HRESULT WINAPI sharedbuf_stream_Write(IStream *iface, const void *buff, ULONG buff_size, ULONG *written)
++{
++    struct shstream *stream = impl_from_IStream(iface);
++    struct sharedbuf_stream *shared = CONTAINING_RECORD(stream, struct sharedbuf_stream, stream);
++    DWORD end = stream->u.mem.position + buff_size;
++
++    TRACE("%p, %p, %lu, %p.\n", iface, buff, buff_size, written);
++
++    if (written) *written = 0;
++    if (end < stream->u.mem.position || end > shared->capacity)
++        return STG_E_MEDIUMFULL;
++
++    memmove(stream->u.mem.buffer + stream->u.mem.position, buff, buff_size);
++    stream->u.mem.position = end;
++    if (end > stream->u.mem.length) stream->u.mem.length = end;
++    if (written) *written = buff_size;
++    return S_OK;
++}
++
++static HRESULT WINAPI sharedbuf_stream_SetSize(IStream *iface, ULARGE_INTEGER new_size)
++{
++    struct shstream *stream = impl_from_IStream(iface);
++    struct sharedbuf_stream *shared = CONTAINING_RECORD(stream, struct sharedbuf_stream, stream);
++
++    TRACE("%p, %s.\n", iface, wine_dbgstr_longlong(new_size.QuadPart));
++
++    if (new_size.QuadPart > shared->capacity)
++        return STG_E_MEDIUMFULL;
++    stream->u.mem.length = new_size.u.LowPart;
++    return S_OK;
++}
++
++static const IStreamVtbl sharedbufstreamvtbl =
++{
++    sharedbuf_stream_QueryInterface,
++    shstream_AddRef,
++    sharedbuf_stream_Release,
++    memstream_Read,
++    sharedbuf_stream_Write,
++    memstream_Seek,
++    sharedbuf_stream_SetSize,
++    shstream_CopyTo,
++    shstream_Commit,
++    shstream_Revert,
++    shstream_LockRegion,
++    shstream_UnlockRegion,
++    memstream_Stat,
++    shstream_Clone,
++};
++
++typedef struct
++{
++    struct
++    {
++        HRESULT (WINAPI *QueryInterface)(IUnknown *, REFIID, void **);
++        ULONG (WINAPI *AddRef)(IUnknown *);
++        ULONG (WINAPI *Release)(IUnknown *);
++        HRESULT (WINAPI *Buffer)(IUnknown *, BYTE **);
++    } *lpVtbl;
++} buffer_byte_access;
++
++/*************************************************************************
++ * SHCreateMemoryStreamOnSharedBuffer   [SHCORE.270]
++ *
++ * Creates an IStream over the bytes exposed by a buffer object whose first
++ * method after IUnknown returns the data pointer (IBufferByteAccess layout).
++ * The stream does not copy the data; it keeps a reference on the buffer.
++ */
++HRESULT WINAPI SHCreateMemoryStreamOnSharedBuffer(IUnknown *buffer, DWORD size, IStream **out)
++{
++    struct sharedbuf_stream *shared;
++    BYTE *data = NULL;
++    HRESULT hr;
++
++    TRACE("%p, %lu, %p.\n", buffer, size, out);
++
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (!buffer) return E_INVALIDARG;
++
++    if (!(shared = calloc(1, sizeof(*shared)))) return E_OUTOFMEMORY;
++    if (FAILED(hr = ((buffer_byte_access *)buffer)->lpVtbl->Buffer(buffer, &data)))
++    {
++        free(shared);
++        return hr;
++    }
++
++    shared->stream.IStream_iface.lpVtbl = &sharedbufstreamvtbl;
++    shared->IAccessPrivateBuffer_iface.lpVtbl = (void *)&access_private_buffer_vtbl;
++    shared->stream.refcount = 1;
++    shared->stream.u.mem.buffer = data;
++    shared->stream.u.mem.length = size;
++    shared->stream.u.mem.position = 0;
++    shared->capacity = size;
++    shared->owner = buffer;
++    IUnknown_AddRef(buffer);
++
++    *out = &shared->stream.IStream_iface;
++    return S_OK;
++}
++
+ static ULONG WINAPI filestream_Release(IStream *iface)
+ {
+     struct shstream *stream = impl_from_IStream(iface);
+--- a/dlls/shcore/shcore.spec
++++ b/dlls/shcore/shcore.spec
+@@ -188,7 +188,7 @@
+ 260 stub -noname PhysicalRectFromRelativeRectWithScales
+ 261 stub -noname RelativeRectFromPhysicalRectWithScales
+ 265 stdcall -noname GetScaleFactorForCoreWindow(ptr ptr)
+-270 stub -noname SHCreateMemoryStreamOnSharedBuffer
++270 stdcall -noname SHCreateMemoryStreamOnSharedBuffer(ptr long ptr)
+ 280 stub -noname _CreateDirectoryHelper
+ 281 stub -noname Win32CreateDirectory
+ 282 stub -noname SuspendSHNotify

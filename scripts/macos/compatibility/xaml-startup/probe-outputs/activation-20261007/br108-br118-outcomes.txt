@@ -253,3 +253,27 @@ br137        Wine fix: windows.storage.applicationdata StorageFolder.CreateFolde
              a failed async operation's E_NOTIMPL), caught at +0x2050d2, rethrown, then winrt terminate ->
              RoFailFastWithErrorContext. Source async op still unidentified (next cycle).
              RN / hermes: NO. dcomp / Composition: NO. Visible window: NO.
+br138        Root cause of br137 E_NOTIMPL: Wine combase IContextCallback::ContextCallback was a silent FIXME
+             returning E_NOTIMPL; C++/WinRT resume_apartment uses it to resume a coroutine on its original
+             apartment, so await_adapter::await_resume (XboxPcApp+0x533cc) rethrew E_NOTIMPL.
+             Wine fix (combase.c/apartment.c/combase_private.h): thread_context records apartment (MTA / STA tid)
+             at CoGetContextToken; ContextCallback runs inline on same thread or MTA->MTA, SendMessage to the STA
+             apartment window (new DM_CONTEXTCALLBACK) for STA targets, threadpool + CoWaitForMultipleHandles for
+             MTA targets from an STA. combase.dll sha256 a7325a0f.
+             RESULT: 0 hresult_not_implemented throws, no fail-fast; XAML loads ms-resource:///Files/XboxPcApp.xaml.
+             New exit 0x80000100: unimplemented shcore #270 SHCreateMemoryStreamOnSharedBuffer.
+             RN / hermes: NO. dcomp: NO.
+br139        Wine fix: shcore #270 SHCreateMemoryStreamOnSharedBuffer(IUnknown *IBufferByteAccess, DWORD size,
+             IStream **) from native shcore disassembly (non-copying stream holding a ref on the buffer).
+             shcore.dll sha256 385ee244. Prefix: imported 561 measured Windows.UI.Xaml.* ActivatableClassId rows
+             (native-26300-windows-ui-xaml-activation-rows.reg; DllPath Windows.UI.Xaml.dll).
+             RESULT: Windows.UI.Xaml.Window now activates. New fail-fast:
+             "0340:err:combase:RoFailFastWithErrorContext fail fast, error 0x80004002" -> c0000602 at
+             XboxPcApp+0x503bb (ORIGINAL_APP_EXIT 3221227010), preceded by
+             "0340:warn:shcore:shstream_QueryInterface Unsupported interface {ed3071e9-f556-4c46-9294-6640c8c75281}".
+             RN / hermes: NO. dcomp: NO.
+br140        IID identified from shcore.pdb public symbols (_GUID_ed3071e9...) + native CMemStream QI/vtable:
+             IAccessPrivateBuffer, single method GetPrivateBuffer(UINT *size, const BYTE **buf); native returns
+             the whole buffer length + data pointer, E_UNEXPECTED when no data (CMemStream::GetPrivateBuffer @0x47800).
+             Native object is created by CMemStream::CreateReadOnlyInstanceOverSharedBuffer. Wine fix: shared-buffer
+             stream exposes IAccessPrivateBuffer. shcore.dll sha256 9fef343d. RESULT: (pending, see next entry)

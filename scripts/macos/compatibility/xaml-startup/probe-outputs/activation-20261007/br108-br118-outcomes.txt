@@ -94,3 +94,28 @@ br120        Registry row for native WindowServerFactory {4d3bd4b7-...} (measure
 Milestone ladder at br120: ConnectionComplete YES; ReadyToNavigate YES; SetWindow YES; ShowWindow YES
 (WM_SHOWWINDOW wp=1 + WM_PAINT on CoreWindow 0x10070); Activated: not yet observed; rendering call
 (dcomp.dll / Windows.UI.Composition): NO. First blocker: XAML unhandled error -> FailFast c0000602.
+br121        DIAGNOSTIC (trace-xaml.sh, breakpoint Windows.UI.Xaml RVA 0x71f4e4 = DirectUI::ErrorHelper::
+             ReportUnhandledError): hr = 0x80004001 (E_NOTIMPL), reported from CXcpDispatcher::Tick+0x23e ->
+             CXcpBrowserHost::OnTick (XAML frame tick, dispatched by CoreMessaging WM_TIMER on hwnd 0x10062).
+br122        DIAGNOSTIC (breakpoint ntdll RtlCaptureStackBackTrace = wil failure capture; the caller is in rdi):
+             first failure site = Windows.UI.Xaml RVA 0x20f069 RefreshRateInfo::WaitForRefreshInterval+0x2a9
+             on the XAML render thread (CompositorScheduler::RenderThreadFrame), hr 0x80004001; the UI thread's
+             OnTick then reports it. The Wine call underneath: dxgi_output_WaitForVBlank, an upstream stub
+             returning E_NOTIMPL (br121 log line 5339 "fixme:dxgi:dxgi_output_WaitForVBlank ... stub!").
+br123        CANDIDATE: dxgi IDXGIOutput::WaitForVBlank now blocks until the next refresh-interval boundary of the
+             output's current display mode (QPC phase, refresh rate from wined3d_output_get_display_mode,
+             60 Hz if unknown) and returns S_OK. Upstream Wine master still stubs this (E_NOTIMPL); win32u
+             D3DKMTWaitForVerticalBlankEvent is also a stub upstream. DXVK's DxgiOutput::WaitForVBlank uses the
+             same approximation. This is a real wait, not a canned success. dxgi.dll sha256
+             05e368a0593a5e76dc11a2b1c19f47235426544686059c0ee16ff027f3b66c28.
+             RESULT: no FailFast. The app stays alive for the whole 420 s harness window. The UI thread 033c
+             runs its CoreMessaging loop (WM_TIMER on 0x10062) and the render thread waits for vblank. App
+             startup code runs: activation attempts for ExtendedExecutionForegroundSession,
+             Microsoft.GamePlatform.Services.PlatformStatus, Windows.ApplicationModel.PackageCatalog,
+             Windows.Web.Http.HttpClient and XboxPcAppFT.RequestFetchIfNeededResult (all "Failed to find
+             library"), plus app C++ exceptions it handles. The process is ended only by the harness alarm.
+             Ladder: ConnectionComplete YES; ShowWindow YES (4 x WM_SHOWWINDOW); survives XAML startup YES
+             (new); Activated: not confirmed; dcomp.dll load / Windows.UI.Composition activation: NO (none in log).
+             The broker's GetActiveView stays NULL (DIAGNOSTIC observation).
+             sha256 original 2f8629694d955e78d07da8aa46e486d30d83c202ca09940ad9acf9cea7099570
+                    broker   77f6076da37e9fa0a1077a30e0a701d6b114b6af85e9a465d5d3db55d54d5831

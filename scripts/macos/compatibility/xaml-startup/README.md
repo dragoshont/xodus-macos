@@ -621,8 +621,10 @@ Wine source delta for these cycles: `wine-xbox-br113-br118-delta.patch`.
 | br118 | user32 GetProcessUIContextInformation (DESKTOP; Wine tokens are not AppContainers) | passes; abort in user32 GetResizeDCompositionSynchronizationObject (unimplemented) right after CoreWindow factory |
 | br119 | user32 GetResizeDCompositionSynchronizationObject (2614; NULL handle, FALSE) | **ShowWindow reached**: WM_SHOWWINDOW(1) and WM_PAINT on CoreWindow 0x10070; then XAML ReportUnhandledError FailFast c0000602 |
 | br120 | WindowServerFactory {4d3bd4b7} registration (native Windows.UI.dll, Both) | unmarshal hr 0; ShowWindow again; XAML FailFast persists (HRESULT under diagnosis in br121) |
+| br121-br122 | DIAGNOSTIC breakpoints (ReportUnhandledError, wil capture) | hr E_NOTIMPL from RefreshRateInfo::WaitForRefreshInterval -> Wine dxgi_output_WaitForVBlank stub |
+| br123 | dxgi WaitForVBlank waits to the next refresh boundary (as DXVK does) | **no FailFast; app stays alive in its UI loop for the whole 420 s run**; app startup code runs; no dcomp/Composition yet |
 
-**Status at br120:** ShowWindow reached (headless). Activated and rendering calls are not yet observed. The first blocker is a XAML unhandled-error FailFast. Earlier status at br118:
+**Status at br123:** ShowWindow reached and the app survives XAML startup (headless, alive until the harness alarm). Activated and rendering calls (dcomp/Composition) are not yet observed. Earlier status at br118:
 - Reached: ConnectionComplete, ActivateViewComplete, ReadyToNavigate, presentation deferral and SetWindow.
 - Not reached: Activated, ShowWindow and any rendering call.
 - The first composition-adjacent API (DComposition resize sync) has been reached, but it is not yet a rendering call.

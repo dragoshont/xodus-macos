@@ -591,7 +591,32 @@ The owner reports br88 creates an HWND but the view thread busy-loops in
 `NtUserDrainThreadCoreMessagingCompletions2`, repeatedly re-signaling a
 wait node, until launcher timeout. The reason that node stays signaled
 is a hypothesis under investigation, not a verified root cause.
-The one-hour look-ahead has started; its dependency findings are pending.
+The look-ahead finished (real time 14:00-14:16, read-only, about 20
+investigation calls). Full handoff, kept by reference:
+`.copilot/session-state/5f86378e-.../files/lookahead-20261008.md`.
+
+**Look-ahead register (14:16).**
+
+| ID | Finding | Label | Next test | Estimate |
+|---|---|---|---|---|
+| D3a | The view thread spins on CoreMessaging's NotificationTimer: the wait packet re-fires about 1.27M times in 60 s; one `NtSetTimer` after the first fire. Cause hypothesis: due-time or clock-base mismatch (ALPC not implicated) | REPRODUCED spin; HYPOTHESIS cause | Log due-time against the Wine clock; one native timer + wait-packet re-arm probe | 1-3 h |
+| D3b | Whether activation completes once the spin stops | HYPOTHESIS | Single rerun after D3a | 0.5-4 h or UNKNOWN |
+| D4 | HWND exists (131x34 placeholder); showing it needs activation | HYPOTHESIS | winemac run after D3b | UNKNOWN |
+| D5/D6 | **Main frame risk.** XAML renders through dcomp and Windows.UI.Composition. Wine 11.0 dcomp is a stub returning E_NOTIMPL, with no Compositor registered; native dcomp talks to the DWM kernel channel (55 win32u NtDComposition/NtFlipObject calls). App stack: React Native for Windows + WinUI2 + WebView2 | Gap VERIFIED; XAML fallback behavior UNKNOWN (believed fail-fast) | Observe Compositor activation after D3/D4 | Emulating DWM or writing Windows.UI.Composition: weeks, not feasible before the freeze |
+| D8/D9 | Static only: WAM, Microsoft.XboxIdentityProvider, XblAuthManager, Gaming Services, catalog.gamepass.com; none present in Wine or the prefix | Static VERIFIED; runtime UNKNOWN | No credential actions | Multi-day or UNKNOWN |
+
+Unknowns: U1 early timer fire cause; U2 activation after D3a; U3 XAML
+without a Compositor; U4 meaning of dcomp #1045; U5 upstream composition
+work newer than Wine 11.0 (a separate read-only check is running);
+U6 WAM provider path; U7 whether Gaming Services gates UI before sign-in.
+
+**Decision (14:20): BOUNDED_GO, narrow.** One implementation slice: D3a only,
+3 h real-clock box (hard stop 17:20), then one rerun to learn D3b/D4 and U3.
+No composition, sign-in or library implementation. If U3 shows XAML fail-fasts
+at Compositor activation and U5 finds no reusable upstream implementation,
+PARK the frame goal and move to qualification and wrap-up (S14). The
+coordinator decides after the slice; the owner is not assumed to approve a
+multi-week composition project.
 
 This is an evidence-qualified map, not a complete Windows compatibility
 specification. The statuses below use checkpoint 19 and later dashboard

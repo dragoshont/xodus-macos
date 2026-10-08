@@ -645,6 +645,27 @@ the coordinator decides PARK versus a next slice.
 Scope correction from the trace: the cross-apartment call is posted and
 dispatched; the remaining wait is the nav server's `ConnectionComplete`.
 
+**Slice D3b result (child handoff, commits a116819 and e15bce9, evidence
+`probe-outputs/activation-20261007/d3b-navigation-connect-contract.txt`).**
+No fix, no rerun: the Mac was unreachable 16:12-18:25. VERIFIED from the
+br92d logs: the broker's nav thread had no exceptions (H1 and H3 not
+supported); the server created 10 per-connection ALPC ports and offered
+each to the app (CoreMessaging iface 1 method 0x0e), each offer got a
+reply; the app connected only to the first port. Open: H4 (the app's
+connection on the offered port never reaches the state the server expects:
+ALPC accept semantics or a missing CoreMessaging handshake) and H2 (the
+ExecModel/ForegroundTaskManager prerequisite never completes). First
+failing call: `NavigationClient::RunMessageSession` never exits. U3 still
+not reached.
+
+**Decision (18:30): third narrow BOUNDED_GO, D3c only**, 4 h real-clock box,
+hard stop 22:35, no downtime renewal. Offline decode first (45 min cap),
+then an evidenced fix only, then one rerun (br92). If U3 is still not
+reached at 22:35 the child hands back with a PARK recommendation, unless
+the rerun shows a new reached failure within a few steps of a frame. The
+diagnostics (ntdll d3bdiag, kernelbase ffdiag) are reverted before the
+candidate is recorded. Freeze at 06:00 and the 08:00 deadline are unchanged.
+
 **Decision (14:20): BOUNDED_GO, narrow.** One implementation slice: D3a only,
 3 h real-clock box (hard stop 17:20), then one rerun to learn D3b/D4 and U3.
 No composition, sign-in or library implementation. If U3 shows XAML fail-fasts

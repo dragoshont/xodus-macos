@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-09T00:13:43+03:00",
-  phase: "Phase 3 complete — redesigned native macOS 27 app installed",
-  budget: { totalHours: 42, spentHours: 42, note: "Functional launcher plus native Apple Games-style redesign shipped on the development Mac" },
+  updatedAt: "2026-10-09T00:55:16+03:00",
+  phase: "Phase 4 — Xbox feature parity, independent review and native companion views",
+  budget: { totalHours: 48, spentHours: 42, note: "42 h baseline + 6 h user-approved Xbox parity extension; onboarding and second-Mac testing deferred" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -43,8 +43,38 @@ window.XODUS_STATUS = {
         { id: "D6", title: "Onboarding, blocked and error states", hours: 1.0, status: "done", done: "Native empty and error states, each with one clear recovery action", evidence: "db1ebaf: native product states and consumer copy pass presentation/native checks." },
         { id: "D7", title: "Account and setup", hours: 1.0, status: "done", done: "Sign-in, Game Pass, game service and Repair Xodus in one native Account sheet; sign-out lives here", evidence: "db1ebaf/e66efaa: Account observed installed with Game Pass Active, setup readiness, cache control and vertically reachable content." },
         { id: "D8", title: "Accessibility, caching, polish and ship", hours: 1.5, status: "done", done: "VoiceOver, keyboard, Reduce Transparency and persistent public-media cache checked; signed build admitted and installed", evidence: "e66efaa, CI 37840831475: 160 presentation + 894 native checks; 512 MB validated public-image cache; strict signatures; admitted C8/broker preserved; installed and runtime-observed with no Keychain prompt." },
-        { id: "D9", title: "Game stats from Xbox", hours: 1.0, status: "done", done: "Play time, achievements and friends who play shown on Library and detail", evidence: "Backend command and C3 display are live in review. Cache, service status and receipts now share an opaque account hash (6abb8dd/c75e38c), preventing stats from one Xbox account appearing for another. Automatic 15-minute refresh is pending app integration." }
+        { id: "D9", title: "Game stats from Xbox", hours: 1.0, status: "done", done: "Play time, achievements and friends who play shown on Library and detail", evidence: "Account-bound Xbox stats and 15-minute refresh installed. Full profile and achievement-detail views are new parity scope below." },
+        { id: "P1", title: "Xbox inventory and adversarial review", hours: 0.75, status: "now", done: "Source-backed 1:1 feature inventory, every-view review, uncovered original specs and one consolidated verdict", evidence: "Reviewing the current installed baseline; missing capabilities remain explicit, not marked complete." },
+        { id: "P2", title: "Parity contracts and tomorrow triage", hours: 0.5, status: "planned", done: "Ordered native/browser/unavailable plan; research-only extras separated from approved implementation" },
+        { id: "P3", title: "Owned and Game Pass clarity", hours: 0.75, status: "planned", done: "Both badges can coexist; free access, installed state, active subscription and Mac support remain separate" },
+        { id: "P4", title: "Xbox profile and achievements", hours: 1.25, status: "planned", done: "Real profile, gamer identity/G score and achievement views with account-safe paging/cache/errors" },
+        { id: "P5", title: "Consoles and browser remote play", hours: 0.75, status: "planned", done: "Actual console inventory where supported; verified official browser handoff, never invented devices or deep links" },
+        { id: "P6", title: "Native Engines page", hours: 0.75, status: "planned", done: "CrossOver and configured alternatives, observed components/readiness, safe defaults and honest experimental states" },
+        { id: "P7", title: "Integrated parity fixes and shipping", hours: 1.25, status: "planned", done: "Consolidated all-view fixes, independent review, exact CI, package/runtime acceptance and preserved saves/auth/C8" }
       ],
+
+  capabilityInventory: [
+    { feature: "Purchased PC library", xbox: "Owned library", xodus: "Paged PC collection exists; paid/free acquisition semantics need review", mode: "Native", state: "review" },
+    { feature: "Owned and Game Pass together", xbox: "Independent access filters", xodus: "Current single badge can hide membership overlap", mode: "Native fix", state: "planned" },
+    { feature: "Installed, recent and imported games", xbox: "My Library and recent play", xodus: "Local registry and Xodus sessions working", mode: "Native", state: "implemented" },
+    { feature: "Game Pass status and catalogue", xbox: "Subscription and catalogue", xodus: "Active status/feed implemented; stale/revoked state review pending", mode: "Native", state: "review" },
+    { feature: "Browse, search and editions", xbox: "Store discovery and edition selection", xodus: "Search implemented; paging/edition gaps need comparison", mode: "Native", state: "review" },
+    { feature: "Artwork, trailers and screenshots", xbox: "Media gallery", xodus: "Gallery/player implemented; live playback/detail-loading reliability being closed", mode: "Native", state: "review" },
+    { feature: "Install, cancel and progress", xbox: "Install queue", xodus: "Working backend; durable queue/pause/recovery boundaries need review", mode: "Native", state: "review" },
+    { feature: "Update, repair and uninstall", xbox: "Manage game", xodus: "Check/repair and save-preserving uninstall working; automation/rollback review pending", mode: "Native", state: "review" },
+    { feature: "Profile and gamer identity", xbox: "Avatar, gamertag, bio, gamer score", xodus: "Dedicated real profile page missing", mode: "Native addition", state: "planned" },
+    { feature: "Achievements", xbox: "Per-game list and progress", xodus: "Summary/G score exists; achievement detail view missing", mode: "Native addition", state: "planned" },
+    { feature: "Friends and recently played", xbox: "Social/profile activity", xodus: "Friends-who-play stats exist; broader social/profile inventory needed", mode: "Research/triage", state: "research" },
+    { feature: "Console inventory", xbox: "Where I play / console list", xodus: "No console enumeration yet; authentic API feasibility required", mode: "Native or official handoff", state: "research" },
+    { feature: "Console remote play", xbox: "Play from my console", xodus: "Official browser handoff requested; URL must be verified", mode: "Browser handoff", state: "planned" },
+    { feature: "Engine/runtime management", xbox: "Gaming Services diagnostics", xodus: "Runtime presets exist; dedicated Engines page missing", mode: "Native addition", state: "planned" },
+    { feature: "Cloud gaming", xbox: "Stream eligible games", xodus: "No native streaming claim; official browser option needs triage", mode: "Research/triage", state: "research" },
+    { feature: "Party, chat and invites", xbox: "Social communications", xodus: "Not implemented; auth/privacy/write capabilities require research", mode: "Tomorrow triage", state: "deferred" },
+    { feature: "DLC, mods and language components", xbox: "Manage add-ons/content", xodus: "No complete management UX; existing package support needs inventory", mode: "Tomorrow triage", state: "deferred" },
+    { feature: "Purchases, Rewards and account offers", xbox: "Store/account programmes", xodus: "Not implemented; favour official browser handoffs", mode: "Research/triage", state: "research" },
+    { feature: "Cloud saves and online title support", xbox: "Xbox network integration", xodus: "Save preservation works locally; upload/SISU limitations remain", mode: "Separate runtime scope", state: "deferred" },
+    { feature: "First-run/login and second M5 Mac", xbox: "Setup and device onboarding", xodus: "User explicitly defers first-login review and fresh-Mac acceptance", mode: "User review tomorrow", state: "deferred" }
+  ],
 
   lineage: [
     { source: "Xodus (Exodus) fork", origin: "xodus-gaming/xodus", kind: "extended",
@@ -99,6 +129,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-09T00:55:00+03:00", text: "User adds 6 h: full Xbox parity inventory/review; dual access badges, profile, achievements, consoles/browser remote play and Engines page" },
     { at: "2026-10-09T00:26:00+03:00", text: "Native action refinement shipped at 1d721c2: cloud Download for owned games, explicit Install for Game Pass, large Play for installed games; safeguards preserved" },
     { at: "2026-10-09T00:05:00+03:00", text: "Redesign shipped: e66efaa installed; Library, Discover/search, detail, install review, Downloads and Account verified; app left running" },
     { at: "2026-10-09T00:02:00+03:00", text: "Final read-only gaps closed: filtered gears search, installed detail and real install review observed without starting a download" },

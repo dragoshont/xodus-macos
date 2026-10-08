@@ -107,6 +107,15 @@
   .ps { font-size: 0.8125rem; font-weight: 560; white-space: nowrap; padding-top: 1px; }
   .ps.matched { color: var(--done); } .ps.planned { color: var(--now); } .ps.unproven { color: var(--risk); }
   .ps.deferred, .ps.out { color: var(--ink-3); }
+  .inventory-wrap { overflow-x: auto; }
+  .inventory { width: 100%; border-collapse: collapse; min-width: 680px; }
+  .inventory th, .inventory td { padding: 12px 14px 12px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line-soft); }
+  .inventory th { color: var(--ink-2); font-weight: 600; border-bottom-color: var(--line); }
+  .inventory td { color: var(--ink-2); }
+  .inventory td:first-child { color: var(--ink); font-weight: 560; }
+  .inventory .implemented { color: var(--done); }
+  .inventory .planned, .inventory .review { color: var(--now); }
+  .inventory .research, .inventory .deferred { color: var(--ink-3); }
 
   /* Activity */
   .feed { border-top: 1px solid var(--line); }
@@ -144,7 +153,7 @@
     <div class="live"><span class="dot" id="dot"></span>Live from <b>status.js</b><br><span id="updated"></span></div>
   </header>
 
-  <section class="rail" aria-label="Phase 2 budget">
+  <section class="rail" aria-label="Delivery budget">
     <div class="rail-head"><strong id="budget"></strong><span id="phase"></span></div>
     <div class="bar" id="bar"></div>
     <div class="rail-scale"><span>Delivered S0–S6 · 8 h</span><span>Phase 2 · 16 h</span></div>
@@ -159,6 +168,15 @@
   <h2>Work plan</h2>
   <p class="sub">Each item closes only after a real run in the installed app. Width in the bar above is proportional to its estimate.</p>
   <div class="backlog" id="backlog"></div>
+
+  <h2>Xbox capability inventory</h2>
+  <p class="sub">One-to-one comparison in progress. Implemented is not full parity: each feature retains its real data, native/browser delivery mode and remaining verification. <a href="../xbox-parity-plan.md">Parity plan and acceptance</a>.</p>
+  <div class="inventory-wrap">
+    <table class="inventory">
+      <thead><tr><th scope="col">Capability</th><th scope="col">Xbox reference</th><th scope="col">Xodus today / gap</th><th scope="col">Delivery</th><th scope="col">Status</th></tr></thead>
+      <tbody id="capability-inventory"></tbody>
+    </table>
+  </div>
 
   <h2>What already shipped</h2>
   <p class="sub">From the first feasibility call to the in-app install, repair and uninstall accepted tonight.</p>
@@ -198,9 +216,9 @@ function render(s) {
   const spent = s.budget.spentHours;
   const budgetShipped = s.shipped.filter(e => e.hours);
   const shippedCount = budgetShipped.length;
-  const remaining = items.filter(i => i.status !== "done").reduce((a, i) => a + i.hours, 0);
+  const remaining = items.filter(i => !["done", "deferred"].includes(i.status)).reduce((a, i) => a + i.hours, 0);
   document.getElementById("headline").textContent =
-    done === items.length ? "All 24 hours delivered." : `${spent} of ${total} hours used. ${Math.max(total - spent, 0)} left · ${remaining} h of planned work open.`;
+    remaining === 0 ? `Approved delivery complete · ${spent} of ${total} hours used.` : `${spent} of ${total} hours used. ${Math.max(total - spent, 0)} left · ${remaining} h of planned work open.`;
   const current = items.find(i => i.status === "now") || items.find(i => i.status === "next");
   document.getElementById("lede").textContent =
     `${shippedCount} slices shipped in this budget, ${done} of ${items.length} planned items done. ${current ? `Now: ${current.id} — ${current.title}.` : ""}`;
@@ -220,6 +238,11 @@ function render(s) {
     <div><div class="t">${esc(i.title)}</div><div class="d">${esc(i.evidence || i.done)}</div></div>
     <div class="h">${i.hours} h</div>
     <div class="state ${esc(i.status)}">${STATE_LABEL[i.status] || esc(i.status)}</div>`).join("");
+
+  const inventoryLabels = { implemented: "Implemented", review: "Under review", planned: "Planned", research: "Research needed", deferred: "Deferred" };
+  document.getElementById("capability-inventory").innerHTML = (s.capabilityInventory || []).map(i =>
+    `<tr><td>${esc(i.feature)}</td><td>${esc(i.xbox)}</td><td>${esc(i.xodus)}</td><td>${esc(i.mode)}</td><td class="${esc(i.state)}">${inventoryLabels[i.state] || esc(i.state)}</td></tr>`
+  ).join("");
 
   document.getElementById("history").innerHTML = s.shipped.slice().reverse().map(e => `
     <div class="ev"><div class="when">${esc(e.date)}</div><div class="node"></div>

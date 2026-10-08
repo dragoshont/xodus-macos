@@ -1,0 +1,38 @@
+# D3c final candidate (diagnostics reverted), Mac date 2026-10-08T19:08:08+0300, stage dir $S
+a11fd189ae496ef60fd5a27b2320bf1a5577ec46a69eb22381121ee952154875  build/dlls/ntdll/x86_64-windows/ntdll.dll
+a0317441615ccf00fcdeec7544708359a39c8413a1584123994dd1c34812175d  build/dlls/win32u/x86_64-windows/win32u.dll
+503cf345a2dfcb01c0b8ac425825dff3ebae54bcfcf1a0df9e1e05aa17a9072e  build/dlls/user32/x86_64-windows/user32.dll
+c207288eb11252da3aeb440929f952bded2e867174da650859bf2e040a495ae7  build/dlls/uxtheme/x86_64-windows/uxtheme.dll
+913062c5eefb847ffab740aa6ab5befc8b76cb429c17c0d27568232bd9c97f20  build/dlls/urlmon/x86_64-windows/urlmon.dll
+54362b944401f7436d4aa525d9832c27bcd6267201b31cf76d7489833fdfef05  build/dlls/iertutil/x86_64-windows/iertutil.dll
+772b0f255972ddcff31fa67c611ce360da8386acb2313bd9f1da2a8ba1d891d1  build/dlls/combase/x86_64-windows/combase.dll
+f6e99d94ddb2cd3d8bf86cc72ce280b4eaba1bbb6cf93b3fc611c1f6ee40b70b  build/dlls/rpcrt4/x86_64-windows/rpcrt4.dll
+e66b89c0427f94350fbe0e948d635819361f1a05b81a38d3d6e0f182821aeace  build/dlls/ole32/x86_64-windows/ole32.dll
+8deb0b230ac910df3509a474ae323572783441b8d0df96a8068552cc1eb131a1  build/dlls/kernelbase/x86_64-windows/kernelbase.dll
+c520daf2102ee9e3b4eb35d3420406ccd14597bf030ac8180dcca24f54ccf3ee  build/dlls/dxgi/x86_64-windows/dxgi.dll
+d864fac94ce17868fedcde819d05f18bf906c60e553150215763dd90f676fac2  build/dlls/msctf/x86_64-windows/msctf.dll
+e8ad4aa5d7f6401d5acbcb2a90284973673e7f23382ab4c741f58bf5ba1feb79  build/dlls/windows.ui/x86_64-windows/windows.ui.dll
+920d664425cb7215aeb8cca9abe2b5f2a9fcd38c799074b25c96ec3cba4ad1e9  build/dlls/windows.web/x86_64-windows/windows.web.dll
+b05785f36f83243ff588d9b300698fa063baaf814eff0843a0aa9f1a9c281611  build/dlls/windows.applicationmodel/x86_64-windows/windows.applicationmodel.dll
+0cff57a93309e273c9709a6e865135bfee2b53ce613c942ae8ff12514592df0b  build/dlls/apisetschema/x86_64-windows/apisetschema.dll
+57422d0090294f8178b6af53db2ce9ed05652670117f6811160e5e5880e3f83b  build/dlls/ntdll/ntdll.so
+12ae9b45105b4894e71ec2dfb5dea7a55235e4ff8544c7e60bedcc347f1bad36  build/dlls/win32u/win32u.so
+8454506c9a6e9a77493c7a286c2144a418bccfa9abfd92272cef4930151f646d  build/server/wineserver
+31387a35ed9c1fbb31b12e3c3ac287b8663b44ee80728f43c8c2e8b0650b9a28  build/programs/wineboot/x86_64-windows/wineboot.exe
+0980ecc6c635ec47a91674034db17fef54ba0946ae1b15a99d3a66ea9c0ccf01  build/programs/services/x86_64-windows/services.exe
+4b69724693faf293f460d891ac982649385c0dcf7338f7aa77c301d1b724b3ce  prefix/drive_c/windows/system32/Windows.UI.Xaml.dll
+88c7b4d6ee26f7695de0885f39db2949ad77bffc20902b0d19fde7f7ad9d31bc  prefix/drive_c/windows/system32/CoreMessaging.dll
+0b8b1a5342cf4600329f950e8b0cfa141168b90ea2b05b806ab4c30eba0a6f17  prefix/drive_c/windows/system32/Windows.UI.dll
+d360b4926165bc68d8a8225e4345e1454e2d386de0ced29d4cae8c70d845ef7c  prefix/drive_c/windows/system32/twinapi.appcore.dll
+6186f981d1aa1e1991697133aa066045097ab52227a240632a0c7d8fd04352be  prefix/drive_c/windows/system32/MrmCoreR.dll
+c8a840f9681ee5e9bccba59ef94f50ea9eb82db928869c7e3b559f80da077614  prefix/drive_c/windows/system32/bcp47mrm.dll
+556d65bc0e5fd7dff550f37e9a8b1b7bd45c7359b8059fd3b4905e748aed230f  prefix/drive_c/windows/system32/threadpoolwinrt.dll
+ab832b71f78eb230d7fe0fb996566b69136bf902eb8cf5b81847d27dd1bccdff  shellhost-broker.exe
+141ed5878b7a0b5ba7ad42bb994c7a22579544690d3f058e54c2d15fbe18f3bf  shellhost-broker.c
+6abbb8e96ad80b3e6827850159d909214f415f88c82b731d27a5a6d8e93d8e96  evidence-d3c/sprint.patch
+# Excluded: evidence-sp46/wine-xbox-original-app-sprint.patch (old copy, not a candidate identity); duplicate .so/wineserver lines removed.
+# evidence-d3c/sprint.patch = make-sprint-patch.py output WITHOUT the hand-appended configure.ac section; byte-identical to the committed patch minus that section, 0 diagnostic strings.
+dbce570b0a03f9263e484f56b7409bd2bce907fb788aec6d9a5d5a8053327e6c  repo: scripts/macos/compatibility/xaml-startup/wine-xbox-original-app-sprint.patch (committed, LF, with configure.ac)
+# Scoped regression (headless, Mac 2026-10-08 19:09 EEST): standalone far-relative timer test on these binaries: 0 failures.
+3f96b8fd8af7da2e7698e507e176cd720f8166073878ce67b1d8ca395b4252cc  evidence-d3c/far-relative-timer.c
+d12a39bdb1e0c4c009ce6d22165ba8b80aee01b0515fc614eda5b3262a939e5f  evidence-d3c/far-relative-timer.exe

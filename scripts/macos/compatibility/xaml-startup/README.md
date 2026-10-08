@@ -520,10 +520,52 @@ never shown. XAML has not yet asked for `Windows.UI.Composition` or `dcomp`.
 The launcher still ends the app at 60 s (exit 92). Details:
 `probe-outputs/activation-20261007/d3a-timer-far-relative.txt`.
 
+## S14 qualification after PARK (2026-10-08 19:05-19:15 EEST, Mac clock)
+
+Startup and product experiments are PARKED after br92. The prediction failed
+and there was no reached failure close to a frame. This does not show that
+composition is impossible. The precise revisit test (not approved) is to
+register an `IRemoteShellViewManagerListener` (proxy `AddEventListener`) to
+observe `OnNavigateToViewFailed`, then call `GetActiveView`. No app launch,
+GUI, VM or authentication action was taken during qualification.
+
+- **Timer fix (D3a, 3771720).** Verified under Wine only: br91 log 33K lines
+  versus 3.0M, and the spin is gone. On the final binaries (19:09) the
+  standalone far-relative timer test, `test_far_relative_due_time` from the
+  patch's `dlls/kernel32/tests/timer.c`, ran headless with 0 failures. The
+  in-tree Wine test cannot run because tests are disabled in the stage build.
+  Native Windows confirmation is still PENDING because the VM was not running.
+- **Patch.** `wine-xbox-original-app-sprint.patch` (sha256 `dbce570b...`) was
+  regenerated from the final source tree. It is byte-identical apart from the
+  hand-appended `configure.ac` section and contains 0 diagnostic strings. The
+  d3bdiag (ntdll ALPC dump) and ffdiag (kernelbase) diagnostics were reverted
+  from their baselines and rebuilt before hashing.
+- **shellvm.** This is unproven, opt-in experimental code in
+  `shellhost-broker.c` (argument 10 `shellvm`). It is not product progress. It
+  is not in the Wine patch, and the broker's default behaviour without the
+  argument is unchanged, so timer qualification does not depend on it.
+- **Identities.** Full sha256 list:
+  `probe-outputs/activation-20261007/built-sha256-d3c-final.txt`. Key hashes:
+  wineserver `8454506c...`, ntdll.so `57422d00...` (relink is not
+  reproducible; source unchanged), win32u.dll `a0317441...`, user32
+  `503cf345...`, combase `772b0f25...`, windows.ui `e8ad4aa5...`, broker exe
+  `ab832b71...`, broker source `141ed587...`.
+- **Gates.** `gates/checks.sh` ran on a clean clone of `1d30f10` on the Mac
+  (19:10). Result: **PASS**. Build ok; tests 18+12+12 passed, 0 failed,
+  1 ignored. This covers the Rust workspace only. The Wine candidate is
+  qualified only by the hash manifest, the patch check and the headless timer
+  test above.
+  - Not run: Wine's full conformance suite (disabled in the stage tree).
+  - Not run: native confirmation (no VM).
+  - Not run: any app-level gate (parked).
+- **Side note.** The timer test run printed an unrelated prefix-service
+  message: `coremessaging.dll.ServiceMain` is unimplemented when wineboot
+  starts services. The test still exited 0 and this was not investigated
+  (out of scope).
 ## Status
 
-These are candidates for an experimental runtime. Nothing is upstreamed,
-pushed or signed. Passing probes and getting further along the headless chain
+These are candidates for an experimental runtime. Nothing is upstreamed
+or signed (the lane side branch is pushed for review; never main). Passing probes and getting further along the headless chain
 are **not** app milestones. XBOX-APP-STARTUP remains UNTESTED. At br38 the
 original app creates its CoreWindow under the Xodus broker. Activation then
 fails at the shell navigation-client boundary, so no window of its own was

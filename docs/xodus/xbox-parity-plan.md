@@ -127,6 +127,15 @@ than treating old Unverified rows as the latest capability state.
 
 ## Research and review status
 
-Public research and independent review are pending. Until their results are
-recorded, console enumeration, individual achievement APIs, social writes,
-purchase flows and engine execution alternatives have no new capability claim.
+[Independent review and source-backed findings](xbox-parity-review.md) record
+the REVISE verdict, original-spec gaps, exact public references and live
+read-only companion results. Profile, one actual console, friends and a full
+Hogwarts achievement list are feasible through the existing credential owner.
+The backend contract is implemented/tested at private commit `8cfcbaf`.
+App integration remains in progress; those reads do not certify installed
+native pages until P4/P5 runtime acceptance.
+
+Social writes, purchase flows, remote console commands and experimental engine
+execution alternatives have no new capability claim. The six-hour slice
+implements the named P3-P6 vertical slices and consolidated defects first;
+the rest remains a specific, evidence-labelled tomorrow-triage inventory.

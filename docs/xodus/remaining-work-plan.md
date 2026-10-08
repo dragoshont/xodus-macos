@@ -449,3 +449,6 @@ App 2d420d1 (tree c630816), CI run 37737577280 succeeded on the exact SHA. Packa
 
 B6: the broker is installed at ~/Library/Application Support/Xodus/CredentialBroker (2c40354c…). The migration needed one user approval (legacyRetained=false). After an identical reinstall (PID 23110), the PC Library loaded 13 games with no prompt. Receipts are in app-b6-broker-2d420d1-20261008/. B13: the com.xodus.service LaunchAgent now runs Runtime/bin/xodus-service (same hash 24e78d53…); service-status reports signedIn=true; no prompt. A stale /tmp/xodus.sock from the old process had to be removed (the service does not unlink it on SIGTERM). Plist backup: com.xodus.service.plist.pre-b13.bak. B14 is open; it needs a fresh macOS account.
 
+
+Stale socket fixed: com.xodus.service now starts via Runtime/scripts/macos/private-xodus-service-run.sh. It removes /tmp/xodus.sock if nothing answers on it, then execs the same service binary. Stop, start and kill-restart cycles all came back signed in with no prompt.
+

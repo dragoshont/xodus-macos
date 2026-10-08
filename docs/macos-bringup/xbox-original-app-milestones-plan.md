@@ -759,6 +759,41 @@ its **first action is to restore the 20:55 final G0 checkpoint**, before
 reading producer results. A delayed or earlier-blocked intermediate report
 must not silently cancel final closure.
 
+**Early readiness result (producer handoff, 2026-10-08 19:48 EEST): WAIT /
+BLOCKED EARLIER.** The runtime owner reports **two of two launches consumed**;
+no further original-app launch is authorized under G0. The first attempt,
+br93, was invalid: the wrong runner omitted `EXTRA_OVR=windows.ui=n`, loading
+builtin windows.ui and reproducing the old `PrepareToActivateAsync`
+E_NOTIMPL setup failure. It still counts against the launch cap. Corrected
+br94 used the documented override after a focused broker-only control.
+
+In br94, `NavigateToView(0x10070, level 0)` returned S_OK at 19:43:58, but
+`GetActiveView` remained NULL in approximately 30 polls from 19:43:33 to
+19:47. The app retained br92's ALPC byte-length fingerprint: its view thread
+033c sent the 120-byte connect, received 184 and 360 bytes, then remained in
+a WM_TIMER pump. No ConnectionComplete, Activated, CoreWindow ShowWindow,
+dcomp or Compositor call was observed. Early d3d11/dxgi device creation also
+occurred in br92; it is not a reached composition dependency or frame.
+
+The failure-event discriminator is **incomplete**, not a passed listener
+test. CoreUI's static map links entry 100 to the listener at gidx 365
+(`0x10200ca`), but FindTypeID returned 0 and AddEventListener returned
+E_INVALIDARG on the type/reflection-match path even with that static ID.
+No failure reason can be inferred from absent callbacks when registration
+fails. Neither the predicted failure callback nor an active view was observed;
+the accepted-navigation-to-active-view transition remains unresolved.
+
+KEEP: preserve the valid diagnostic, invalid-runner deviation and exact
+identities. DEFER: composition implementation, because rendering remains
+unreached. CUT: further app launches under this exhausted grant. Broker
+diagnostics are reported restored to the pre-G0 baseline; full committed
+source/log hashes, cleanup evidence and the final report are still pending.
+This is a producer-reported early decision, not independent candidate
+qualification. The 20:05 checkpoint now checks persistence and assessment of
+this result, not permission for another experiment; final reporting remains
+20:55. Composition need/effort remain unknown, and original frame, account
+and library remain unaccepted.
+
 ### G0 specification-driven execution contract
 
 The owner's `/architrave` direction is to plan thoroughly, use the canvas and

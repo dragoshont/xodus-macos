@@ -1,0 +1,67 @@
+OUTCOME RECORD br108-br118 (original Xbox PC app, Microsoft.GamingApp 2609.1001.16.0,
+AUMID Microsoft.Xbox.AppL, Wine on Apple-silicon Mac, headless; no VM, no credentials)
+Recorded 2026-10-08 ~23:05 EEST. Run root S=~/xodus-runs/xbox-service-principal-20261007-001.
+
+Launch identity (every run): broker shellhost-broker.exe with
+  BROKER_ARGS="1280 800 6 coreui Microsoft.GamingApp_8wekyb3d8bbwe!Microsoft.Xbox.AppL Windows.Launch - 0x140 shellvm"
+  run-br-ovr.sh <tag> XboxPcApp.App Microsoft.Xbox.AppL Windows.Launch under guard.sh 440 150,
+  alarm 420; wineserver -k before every run; only owned PIDs were killed.
+  Process scope: one wineserver; broker (navigation server + shell view manager, its own Wine process);
+  XboxPcApp.exe launched by package-activation-launch-parent-timed.exe. View ASTA thread is 039c/03bc.
+
+DIAGNOSTIC vs CANDIDATE
+- DIAGNOSTIC (excluded from candidate): broker svm_diag_tasks ServerTask field dumps; trace.sh breakpoints.
+- CANDIDATE: broker listener/navigate/BeginPresentView/ActivateViewComplete behaviour (static-derived from
+  CoreUIComponents/WindowManagement 26100.9278 PDBs; native confirmation of the shell-role sequence pending);
+  combase RoGetMatchingRestrictedErrorInfo / IsErrorPropagationEnabled / RoTransformError(W);
+  user32 GetProcessUIContextInformation; registry row for native Windows.Foundation.Deferral;
+  genuine x64 DataExchange.dll 10.0.26100.9278 (sha256 6b979beb...460d) with dataexchange=n.
+  Wine source delta for br113-br118: wine-xbox-br113-br118-delta.patch (this lane dir).
+
+Per-run outcome (broker lines from <tag>-broker.stdout.log, client breakpoints from <tag>-trace.txt,
+first failure from <tag>-original.stderr.log; log sha256 prefixes original/broker)
+br108-br111  AddEventListener(type 0x10200c9) -> 0; NavigateToView(id=0x10070, level 5 Active) -> 0;
+             listener OnRequestNavigateToView (slot 3). No ConnectionComplete. (br110: broker path not reached.)
+             br108 a30a8560/199fa392  br109 53f272e6/b1f5e884  br110 4e714c82/2c580317  br111 9a17a92e/88855304
+br112        + client breakpoint coreuicomponents+0x3fa4c (IRemoteTask::ConnectionComplete client side) HIT once.
+             FIRST ConnectionComplete observed. b947e158/8762c4d6
+br113        + broker "ActivateViewComplete(id=0x10070, activation 0) try 1 -> 0" (slot 29).
+             Client hits +0x74f20 (ActivateViewComplete) and +0x8a734 (ReadyToNavigate).
+             Then aborted: unimplemented combase.IsErrorPropagationEnabled. 472e5b45/1903a21c
+br114        combase error-info functions added. Aborted: unimplemented combase.RoTransformError; also
+             ReturnHr 80040154 from coreapplicationview.cpp(81) = OnPresentationLoading GetDeferral,
+             class Windows.Foundation.Deferral not registered. b2342910/e9af2a55
+br115        INVALID setup control: Wine-built wintypes copied over the lane's wintypes resolver shim; under
+             wintypes=n Wine refused it, app exited early. Shim restored (sha256 9875c52c...). a9935b7c/8dd6bdfd
+br116        Deferral registry row (native WinTypes serves it): Deferral resolved. New failure
+             ReturnHr 80004001 coreapplicationview.cpp(430) SetWindowAndGetDispatcher+0x39d: XAML
+             IFrameworkView::SetWindow -> Wine builtin dataexchange CoreDragDropManager::GetForCurrentView stub
+             (E_NOTIMPL, same as upstream Wine master). b0f3c018/e7485390
+br117        native DataExchange: SetWindow E_NOTIMPL gone. Aborted: unimplemented
+             user32.GetProcessUIContextInformation (view thread). cf459948/3f560afe
+br118        user32 GetProcessUIContextInformation implemented (DESKTOP, flags 0; native measured: AppContainer
+             XboxPcApp=IMMERSIVE(1), non-AppContainer XboxPcAppFT=DESKTOP(0); Wine tokens are never AppContainer).
+             Passed. Aborted next on view thread 03bc right after RoGetActivationFactory(Windows.UI.Core.CoreWindow):
+             "wine: Call from 00006FFFFF34DBF7 to unimplemented function
+              user32.dll.GetResizeDCompositionSynchronizationObject, aborting"
+             full sha256 original bc29344c7be2ca18f300050307eb975e2408cb4b4f5c9f12e91d7e35c72b9ca8
+                         broker   64e9f1bd44a22b679124c1b315ea3539b0f2a3703e4e6a1afe62fb19fb48b073
+                         trace    18768ceea7e1bce0df98cd1e4fdac0abbe927e43741062f5b107b1d885db89ce
+             combase.dll ce8f489fa4c7739eb5f3dcebe1a633763372eafa824b59b712314864f5b8554b
+             user32.dll  731b09fa6bf557f66db6efd90dc9e9c33f104a4f46df6e43f497207519bb8d79
+
+Milestone ladder at br118 (vs br94: blocked at GetActiveView NULL, no ConnectionComplete)
+  ConnectionComplete      YES (br112+, client +0x3fa4c)
+  ActivateViewComplete    YES (broker slot 29 -> 0; client +0x74f20)
+  ReadyToNavigate         YES (client +0x8a734)
+  OnPresentationLoading   YES, deferral obtained (br116+)
+  SetWindow               YES, returns past dataexchange (br117+)
+  Activated               NO
+  ShowWindow              NO
+  WMCC / rendering call   NO. D3D11/DXGI/dwrite activity exists in every run since br94 from app init
+                          (thread 03b8 telemetry/d2d1); NOT a milestone. No dcomp.dll load, no
+                          Windows.UI.Composition activation yet.
+  GetActiveView (server)  still NULL (ServerTask cur=2 target=5) - DIAGNOSTIC observation.
+Original frame / auth / library: UNACCEPTED. XBOX-APP-STARTUP: UNTESTED.
+Next blocker: user32 GetResizeDCompositionSynchronizationObject (resize/DComposition sync with DWM), first
+composition-adjacent API reached; ABI to be resolved from native user32/win32u before implementing.

@@ -68,6 +68,8 @@ static WCHAR coreui_aumid[256] = L"Microsoft.GamingApp_8wekyb3d8bbwe!Microsoft.X
 static WCHAR coreui_contract[128] = L"Windows.Launch";
 static DWORD coreui_flags = 0x140;
 static UINT64 coreui_view_id = ~(UINT64)0;
+/* activation id the shell's IApplicationActivationBroker::GetWindowFactory (slot 5) received for this launch */
+static volatile UINT64 activation_aam_id;
 
 static void blog(const char *fmt, ...)
 {
@@ -476,6 +478,7 @@ static HRESULT WINAPI broker_GetWindowFactory(struct object *o, UINT64 id, BYTE 
 {
     struct factory *f;
     blog("broker slot5 aamId=%#llx results=%p out=%p", (unsigned long long)id, results, out);
+    activation_aam_id = id;
     if (results) memset(results, 0, 32);
     if (!out) return E_POINTER;
     if (use_coreui)
@@ -758,7 +761,8 @@ static DWORD WINAPI shellvm_thread(void *arg)
     create_fn factory_create = coreui ? (void *)GetProcAddress(coreui, "CoreUIFactoryCreate") : NULL;
     IUnknown *core = NULL, *factory = NULL, *proxy = NULL, *svm = NULL;
     UINT32 type = 0, ltype = 0, navigated[64], wmcc[64];
-    int nnav = 0, nwmcc = 0, polls, watch_active = 0;
+    int nnav = 0, nwmcc = 0, polls, watch_active = 0, avc_tries = 0;
+    UINT32 avc_view = 0;
     BOOL listening = FALSE;
     HRESULT hr;
 
@@ -807,6 +811,25 @@ static DWORD WINAPI shellvm_thread(void *arg)
             blog("shellvm: %s(id=%#x, %u) -> %#lx", i ? "EndPresentView" : "BeginPresentView", svm_present[i].view,
                  svm_present[i].flag, hr);
             svm_log_active_view(svm, "after present");
+            if (!i && SUCCEEDED(hr) && !avc_view) avc_view = svm_present[i].view;
+        }
+        /* IRemoteShellViewManager slot 29 ActivateViewComplete(ViewInstanceId, UINT64) (ExportAdapter 0x7a700 ->
+         * ShellRemoteViewManager 0x323d0 -> FindTaskByInstanceId -> ServerTask::ActivateViewComplete 0x31da8, which
+         * sends IRemoteTask::ActivateViewComplete to the app). The app's CoreApplicationView::PrepareToActivateAsync
+         * (twinapi.appcore 0x1e6e0, reached from ApplicationActivationFactory::Activate's UINT64 activation id) calls
+         * NavigationClient::RequestActivateViewAsync(id), which records an AsyncDeferral keyed by that id and runs a
+         * nested message session; it sends ReadyToNavigate only after the session exits, and the session's exits are
+         * ActivateViewComplete(id) (0x74f20: completes the deferral, then ExitMessageSession), ConnectionFailed and
+         * RegistrationFailed. The shell side therefore reports activation completion with the same activation id.
+         * A call with no matching deferral is a no-op in the client, so it is retried a few times while the app
+         * reaches PrepareToActivate. */
+        if (avc_view && avc_tries < 6 && polls % 4 == 0)
+        {
+            avc_tries++;
+            hr = VCALL(svm, 29, HRESULT (WINAPI *)(IUnknown *, UINT32, UINT64))(svm, avc_view, activation_aam_id);
+            blog("shellvm: ActivateViewComplete(id=%#x, activation %#llx) try %d -> %#lx", avc_view,
+                 (unsigned long long)activation_aam_id, avc_tries, hr);
+            svm_log_active_view(svm, "after ActivateViewComplete");
         }
         if (watch_active && (watch_active++ <= 20 || polls % 20 == 0))
         {

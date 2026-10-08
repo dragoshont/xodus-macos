@@ -28,7 +28,7 @@ done
 # system32 (sha256 4e84bb64...7e46d, Winbindex/msdl). Only classes the prefix lacks are added.
 # Same for the in-process classes of the genuine Windows.UI.dll (measured list): CoreApplicationView
 # activation activates Windows.UI.Core.CoreWindowResizeManager and returns REGDB_E_CLASSNOTREG without it.
-for IHC in "$(dirname "$0")/inputhost-winrt-classes.txt" "$(dirname "$0")/windows-ui-winrt-classes.txt"; do
+for IHC in "$(dirname "$0")/inputhost-winrt-classes.txt" "$(dirname "$0")/windows-ui-winrt-classes.txt" "$(dirname "$0")/wintypes-winrt-classes.txt"; do
 IREG=$(mktemp -t inputhost-classes).reg
 python3 - "$IHC" "$WINEPREFIX/system.reg" "$IREG" <<'EOF'
 import sys

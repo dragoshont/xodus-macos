@@ -1,0 +1,134 @@
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -617,6 +617,31 @@
+ }
+ 
+ /***********************************************************************
++ *      RoGetMatchingRestrictedErrorInfo (combase.@)
++ *
++ * Returns the thread's restricted error info when it matches the HRESULT,
++ * otherwise originates a matching one.  Restricted error info is not stored
++ * (GetRestrictedErrorInfo/SetRestrictedErrorInfo) nor originated
++ * (RoOriginateError returns FALSE), so there is none to return.
++ */
++HRESULT WINAPI RoGetMatchingRestrictedErrorInfo(HRESULT error, IRestrictedErrorInfo **info)
++{
++    FIXME("%#lx, %p: restricted error info not supported\n", error, info);
++    if (!info) return E_POINTER;
++    *info = NULL;
++    return E_NOTIMPL;
++}
++
++/***********************************************************************
++ *      IsErrorPropagationEnabled (combase.@)
++ */
++BOOL WINAPI IsErrorPropagationEnabled(void)
++{
++    TRACE("\n");
++    return FALSE;
++}
++
++/***********************************************************************
+  *      RoOriginateLanguageException (combase.@)
+  */
+ BOOL WINAPI RoOriginateLanguageException(HRESULT error, HSTRING message, IUnknown *language_exception)
+@@ -635,6 +660,24 @@
+ }
+ 
+ /***********************************************************************
++ *      RoTransformError (combase.@)
++ */
++BOOL WINAPI RoTransformError(HRESULT old_error, HRESULT new_error, HSTRING message)
++{
++    FIXME("%#lx, %#lx, %s: stub\n", old_error, new_error, debugstr_hstring(message));
++    return FALSE;
++}
++
++/***********************************************************************
++ *      RoTransformErrorW (combase.@)
++ */
++BOOL WINAPI RoTransformErrorW(HRESULT old_error, HRESULT new_error, UINT max_len, const WCHAR *message)
++{
++    FIXME("%#lx, %#lx, %u, %s: stub\n", old_error, new_error, max_len, debugstr_wn(message, max_len));
++    return FALSE;
++}
++
++/***********************************************************************
+  *      RoOriginateErrorW (combase.@)
+  */
+ BOOL WINAPI RoOriginateErrorW(HRESULT error, UINT max_len, const WCHAR *message)
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -289,7 +289,7 @@
+ 528 stub InternalStubInvoke
+ 529 stdcall InternalTlsAllocData(ptr)
+ 530 stub InternalUnmarshalObjRef
+-531 stub IsErrorPropagationEnabled
++531 stdcall IsErrorPropagationEnabled()
+ 534 stub NdrExtStubInitialize
+ 535 stub NdrOleDllGetClassObject
+ 537 stub NdrpFindInterface
+@@ -311,7 +311,7 @@
+ 157 stdcall -noname RoGetDesignModeV2(ptr)
+ 550 stdcall RoGetApartmentIdentifier(ptr)
+ 551 stdcall RoGetErrorReportingFlags(ptr)
+-552 stub RoGetMatchingRestrictedErrorInfo
++552 stdcall RoGetMatchingRestrictedErrorInfo(long ptr)
+ 553 stdcall RoGetParameterizedTypeInstanceIID(long ptr ptr ptr ptr)
+ 554 stdcall RoGetServerActivatableClasses(ptr ptr ptr)
+ 555 stdcall RoInitialize(long)
+@@ -329,8 +329,8 @@
+ 567 stub RoResolveRestrictedErrorInfoReference
+ 568 stdcall RoRevokeActivationFactories(ptr)
+ 569 stdcall RoSetErrorReportingFlags(long)
+-570 stub RoTransformError
+-571 stub RoTransformErrorW
++570 stdcall RoTransformError(long long ptr)
++571 stdcall RoTransformErrorW(long long long wstr)
+ 572 stdcall RoUninitialize()
+ 573 stdcall RoUnregisterForApartmentShutdown(ptr)
+ 574 stub SetCleanupFlag
+--- a/dlls/user32/misc.c
++++ b/dlls/user32/misc.c
+@@ -572,3 +572,30 @@
+     FIXME( "(%lu, %p): interaction tracking not running\n", info_class, info );
+     return STATUS_PROFILING_NOT_STARTED;
+ }
++
++/* PROCESS_UICONTEXT_INFORMATION layout from the Windows SDK winuser.h */
++struct process_uicontext_information
++{
++    DWORD context; /* PROCESS_UICONTEXT: 0 desktop, 1 immersive, 2 immersive browser */
++    DWORD flags;   /* PROCESS_UIF_* */
++};
++
++/***********************************************************************
++ *		GetProcessUIContextInformation (USER32.@)
++ *
++ * Native reports PROCESS_UICONTEXT_IMMERSIVE only for immersive (AppContainer)
++ * processes. Wine tokens are never AppContainers (TokenIsAppContainer is 0),
++ * so every Wine process is in the desktop UI context.
++ */
++BOOL WINAPI GetProcessUIContextInformation( HANDLE process, struct process_uicontext_information *info )
++{
++    TRACE( "(%p, %p)\n", process, info );
++    if (!info)
++    {
++        SetLastError( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    info->context = 0;
++    info->flags = 0;
++    return TRUE;
++}
+--- a/dlls/user32/user32.spec
++++ b/dlls/user32/user32.spec
+@@ -32,7 +32,7 @@
+ 2518 stub @
+ 2519 stub -noname EnableMouseInputForCursorSuppression  # NtUserEnableMouseInputForCursorSuppression
+ 2520 stub -noname IsMouseInputEnabled  # NtUserIsMouseInputEnabled
+-2521 stub GetProcessUIContextInformation  # NtUserGetProcessUIContextInformation
++2521 stdcall GetProcessUIContextInformation(long ptr)
+ 2522 stub -noname SetBrokeredForeground  # NtUserSetBrokeredForeground
+ 2523 stub @
+ 2524 stub @

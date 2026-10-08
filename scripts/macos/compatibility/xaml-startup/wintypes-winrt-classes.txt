@@ -1,0 +1,3 @@
+# Windows.Foundation classes served by WinTypes.dll that the lane's Wine wintypes implements (measured on Windows 26100 wintypes 10.0.26100.7705).
+# class|DllPath|ActivationType|Threading|TrustLevel
+Windows.Foundation.Deferral|C:\Windows\System32\wintypes.dll|0|0|0

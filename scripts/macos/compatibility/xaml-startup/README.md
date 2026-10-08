@@ -604,3 +604,25 @@ User-directed run of the retained discriminator, capped at 2 launches. Both laun
 - The diagnostic broker code is kept as `g0-listener-discriminator.diff`. The candidate broker was reverted to its `.pre-g0` state (source 141ed587, exe ab832b71).
 - Native evidence is pending.
 - Details and hashes: `probe-outputs/activation-20261007/d3b-navigation-connect-contract.txt` (G0 section).
+## Overnight startup cycles br108-br118 (2026-10-08 21:46-23:00 EEST)
+
+Full outcome record with hashes: `probe-outputs/activation-20261007/br108-br118-outcomes.txt`.
+Wine source delta for these cycles: `wine-xbox-br113-br118-delta.patch`.
+
+| run | change | result |
+|---|---|---|
+| br108-br111 | AddEventListener with manager type 0x10200c9, NavigateToView level 5 | listener -> 0, navigate -> 0, OnRequestNavigateToView received; no ConnectionComplete |
+| br112 | BeginPresentView answer | client IRemoteTask::ConnectionComplete (coreuicomponents+0x3fa4c) HIT: first change since br94 |
+| br113 | broker ActivateViewComplete (slot 29) -> 0 | client ActivateViewComplete +0x74f20 and ReadyToNavigate +0x8a734 hit; abort in combase IsErrorPropagationEnabled (unimplemented) |
+| br114 | combase RoGetMatchingRestrictedErrorInfo / IsErrorPropagationEnabled | OnPresentationLoading GetDeferral 0x80040154 (Deferral unregistered); abort in combase RoTransformError |
+| br115 | INVALID: Wine wintypes over the lane shim | early exit; shim restored |
+| br116 | Deferral registry row (`wintypes-winrt-classes.txt`), RoTransformError(W) | Deferral resolved; SetWindow E_NOTIMPL from Wine dataexchange stub |
+| br117 | genuine x64 DataExchange.dll 26100.9278, `dataexchange=n` | SetWindow passes; abort in user32 GetProcessUIContextInformation (unimplemented) |
+| br118 | user32 GetProcessUIContextInformation (DESKTOP; Wine tokens are not AppContainers) | passes; abort in user32 GetResizeDCompositionSynchronizationObject (unimplemented) right after CoreWindow factory |
+
+**Status at br118:**
+- Reached: ConnectionComplete, ActivateViewComplete, ReadyToNavigate, presentation deferral and SetWindow.
+- Not reached: Activated, ShowWindow and any rendering call.
+- The first composition-adjacent API (DComposition resize sync) has been reached, but it is not yet a rendering call.
+- Server GetActiveView still returns NULL (diagnostic).
+- `svm_diag_tasks` is DIAGNOSTIC. The broker shell-role sequence is static-derived; native confirmation is pending.

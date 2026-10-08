@@ -618,6 +618,36 @@ PARK the frame goal and move to qualification and wrap-up (S14). The
 coordinator decides after the slice; the owner is not assumed to approve a
 multi-week composition project.
 
+**U5 result (upstream composition check, 14:35, read-only; sources opened
+by the research agent, not search summaries).**
+- `wine/wine` master and Proton `proton_11.0`: dcomp is still the
+  `E_NOTIMPL` stub, same as our Wine 11.0 tree. No `Windows.UI.Composition`
+  directory exists in Wine at all; `windows.ui.xaml` is a color-helper stub.
+- wine-staging 11.6+ carries a real 20-patch `dcomp-DCompositionCreateDevice2`
+  series (device, target, visual, commit, shared visual handle). Its own
+  notes say a proper implementation needs a dwm.exe equivalent and some
+  graphics-driver integration. Sourced from a CodeWeavers branch
+  (`bug-23698-react-native`, MR !9839). WineHQ bug 59918 shows it is
+  fragile (blackscreen regressions in other apps).
+- `giang17/wine` `d2d1-dcomp-11.0` (LGPL-2.1, based on Wine 11.0): a large
+  dcomp implementation (`device.c` about 354 KB). `DllGetActivationFactory`
+  still stubbed.
+- The CodeWeavers dev branch also stubs `NtCreateCompositionInputSink`;
+  that is input routing, not the `NtDComposition*` command channel.
+- CrossOver source drops, ReactOS: UNKNOWN (not source-verified).
+- **Conclusion:** no implementation of `Windows.UI.Composition`,
+  XAML hosting or the DWM kernel channel exists anywhere. A backport of the
+  staging/fork dcomp layer is weeks of backport-and-stabilize work and covers
+  COM `dcomp.dll` only.
+- **Open question (HYPOTHESIS):** the app uses the genuine Microsoft
+  `Windows.UI.Xaml` / `Windows.UI.Composition` DLLs (already how this lane
+  runs `windows.ui`), so the research agent's "write XAML from scratch" cost
+  may not apply; the likely missing piece is the DWM kernel-channel backend
+  those DLLs call through dcomp. That reading is unverified and is the
+  first thing to test once D3/D4 are cleared.
+- **Effect on the decision:** the PARK criterion above still stands; U5 found
+  no reusable implementation that makes XAML paint a frame in this window.
+
 This is an evidence-qualified map, not a complete Windows compatibility
 specification. The statuses below use checkpoint 19 and later dashboard
 reports; dashboard-only results still need linked build/probe/app evidence.

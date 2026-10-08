@@ -584,6 +584,15 @@ do not extend the analysis automatically or repeat the review/tournament.
 The navigation owner returns the analysis before new implementation
 resumes; the coordinator then selects one evidence-grounded next slice.
 
+**Safe-boundary report from the navigation owner.** No source edits or
+fixes are in flight. One previously started diagnostic-only job, br89,
+uses the br88 binaries plus tracing and retains its alarm/guard cap.
+The owner reports br88 creates an HWND but the view thread busy-loops in
+`NtUserDrainThreadCoreMessagingCompletions2`, repeatedly re-signaling a
+wait node, until launcher timeout. The reason that node stays signaled
+is a hypothesis under investigation, not a verified root cause.
+The one-hour look-ahead has started; its dependency findings are pending.
+
 This is an evidence-qualified map, not a complete Windows compatibility
 specification. The statuses below use checkpoint 19 and later dashboard
 reports; dashboard-only results still need linked build/probe/app evidence.

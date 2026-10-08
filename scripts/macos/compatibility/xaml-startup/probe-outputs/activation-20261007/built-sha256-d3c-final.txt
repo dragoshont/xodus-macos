@@ -36,3 +36,8 @@ dbce570b0a03f9263e484f56b7409bd2bce907fb788aec6d9a5d5a8053327e6c  repo: scripts/
 # Scoped regression (headless, Mac 2026-10-08 19:09 EEST): standalone far-relative timer test on these binaries: 0 failures.
 3f96b8fd8af7da2e7698e507e176cd720f8166073878ce67b1d8ca395b4252cc  evidence-d3c/far-relative-timer.c
 d12a39bdb1e0c4c009ce6d22165ba8b80aee01b0515fc614eda5b3262a939e5f  evidence-d3c/far-relative-timer.exe
+# G0 (2026-10-08 19:48 EEST): broker diagnostics reverted; candidate = .pre-g0
+141ed5878b7a0b5ba7ad42bb994c7a22579544690d3f058e54c2d15fbe18f3bf  shellhost-broker.c (candidate)
+ab832b71f78eb230d7fe0fb996566b69136bf902eb8cf5b81847d27dd1bccdff  shellhost-broker.exe (candidate)
+78f60caeea429cf5414f75085006e2dd95d935d8aa3165d0c4b914a29acd07d1  g0-shellhost-broker.c.diag (not candidate)
+9888cf214969659bc08a5a8a66d2189ea501ce7bb3f68c36b1afdb2ebb32c8f2  g0-shellhost-broker.exe.diag (not candidate)

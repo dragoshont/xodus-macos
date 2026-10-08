@@ -1,0 +1,111 @@
+diff --git a/scripts/macos/compatibility/xaml-startup/shellhost-broker.c b/scripts/macos/compatibility/xaml-startup/shellhost-broker.c
+index 23b1d1e..a33f957 100644
+--- a/scripts/macos/compatibility/xaml-startup/shellhost-broker.c
++++ b/scripts/macos/compatibility/xaml-startup/shellhost-broker.c
+@@ -615,7 +615,10 @@ static void start_nav_server(void)
+  * L"System\\NavigationServer_ShellViewManager", type) ; AddProxyListener ; QI {490C6BC3}; on OnConnected
+  * AddEventListener, GetViews and AddListListener, then IShellViewManager::NavigateToView(viewId, level, direction 0,
+  * animation 1) from its data model. This reproduces only the connect and the navigate: it polls GetViews instead of a
+- * list listener (recorded deviation) and navigates each newly listed view once at level 0. The native trigger for the
++ * list listener (recorded deviation) and navigates each newly listed view once at level 0. On OnConnected it also
++ * registers a logging IRemoteShellViewManagerListener (AddEventListener, as the bridge does) and logs GetActiveView
++ * before and after the navigate (G0 discriminator).
++ * The native trigger for the
+  * navigate inside WindowManagement was not pinned down. All server logic is the genuine CoreUIComponents.dll. */
+ static const IID IID_ShellViewManager = {0x490c6bc3,0x8ab2,0x4528,{0xb9,0x74,0x70,0x9a,0x9e,0xf2,0xd7,0x2d}};
+ static const IID IID_RemoteShellView = {0x884eb994,0x3fdf,0x40ff,{0x88,0x00,0xaa,0x11,0x76,0xf0,0xf4,0x5e}};
+@@ -645,6 +648,47 @@ static IUnknown proxy_listener = { (IUnknownVtbl *)pl_vtbl };
+ 
+ #define VCALL(obj, slot, type) ((type)(*(void ***)(obj))[slot])
+ 
++/* G0 discriminator: logging IRemoteShellViewManagerListener {89263C96-9582-4156-99EE-6252CE508EBC} (CoreUIComponents
++ * s_defType 0x224ea0, 0x15 methods). The proxy's AddEventListener (slot 9, 0x5d0f0) takes (listener, listener type id),
++ * checks the type against the proxy's event type, AddRefs the listener through slot 1 and wraps it in a CallbackAdapter
++ * that calls the COM slots directly (no QI): e.g. OnNavigateToViewFailed adapter 0x102904 calls +0x60 (slot 12) with
++ * (this, ViewInstanceId, int reason). Each slot returns HRESULT; all slots log their first three register arguments. */
++static const IID IID_RemoteShellViewManagerListener = {0x89263c96,0x9582,0x4156,{0x99,0xee,0x62,0x52,0xce,0x50,0x8e,0xbc}};
++static const char * const svml_names[24] = { NULL, NULL, NULL,
++    "OnRequestNavigateToView", "OnRequestBeginPresentView", "OnRequestEndPresentView", "OnNavigateAwayFromView",
++    "OnServerWindowCreated", "OnShutdownComplete", "OnSystemKeyPressedComplete", "OnUserLogoffComplete",
++    "OnViewLimitReached", "OnNavigateToViewFailed", "OnRequestShowStandardSystemOverlays", "OnCloseRequestedComplete",
++    "OnRequestConsolidateView", "OnUIAConnectComplete", "OnSystemKeyClientPressed", "OnRequestShowStatusBar",
++    "OnRequestHideStatusBar", "OnRequestClearPersistedState", "OnLayoutCompleted", "OnRequestHideWindow",
++    "OnTrySetTopMost" };
++static HRESULT svml_event(int slot, UINT_PTR a, UINT_PTR b, UINT_PTR c)
++{
++    blog("shellvm: listener %s (slot %d) a=%#x b=%#Ix c=%#Ix", svml_names[slot], slot, (UINT32)a, b, c);
++    return S_OK;
++}
++#define SVML(n) static HRESULT WINAPI svml_##n(IUnknown *iface, UINT_PTR a, UINT_PTR b, UINT_PTR c) { return svml_event(n, a, b, c); }
++SVML(3) SVML(4) SVML(5) SVML(6) SVML(7) SVML(8) SVML(9) SVML(10) SVML(11) SVML(12) SVML(13)
++SVML(14) SVML(15) SVML(16) SVML(17) SVML(18) SVML(19) SVML(20) SVML(21) SVML(22) SVML(23)
++static void *svml_vtbl[] = { pl_QueryInterface, pl_AddRef, pl_Release, svml_3, svml_4, svml_5, svml_6, svml_7,
++    svml_8, svml_9, svml_10, svml_11, svml_12, svml_13, svml_14, svml_15, svml_16, svml_17, svml_18, svml_19, svml_20,
++    svml_21, svml_22, svml_23 };
++static IUnknown svm_listener = { (IUnknownVtbl *)svml_vtbl };
++
++static void svm_log_active_view(IUnknown *svm, const char *when)
++{
++    IUnknown *view = NULL;
++    UINT32 id = 0, pid = 0, level = 0;
++    HRESULT hr = VCALL(svm, 3, HRESULT (WINAPI *)(IUnknown *, IUnknown **))(svm, &view);
++    if (SUCCEEDED(hr) && view)
++    {
++        VCALL(view, 19, HRESULT (WINAPI *)(IUnknown *, UINT32 *))(view, &id);
++        VCALL(view, 12, HRESULT (WINAPI *)(IUnknown *, UINT32 *))(view, &pid);
++        VCALL(view, 9, HRESULT (WINAPI *)(IUnknown *, UINT32 *))(view, &level);
++        IUnknown_Release(view);
++    }
++    blog("shellvm: GetActiveView (%s) -> %#lx view=%p id=%#x pid=%u level=%u", when, hr, view, id, pid, level);
++}
++
+ static void svm_pump(DWORD ms)
+ {
+     DWORD end = GetTickCount() + ms;
+@@ -664,8 +708,9 @@ static DWORD WINAPI shellvm_thread(void *arg)
+     create_fn coreui_create = msg ? (void *)GetProcAddress(msg, "CoreUICreate") : NULL;
+     create_fn factory_create = coreui ? (void *)GetProcAddress(coreui, "CoreUIFactoryCreate") : NULL;
+     IUnknown *core = NULL, *factory = NULL, *proxy = NULL, *svm = NULL;
+-    UINT32 type = 0, navigated[64];
+-    int nnav = 0, polls;
++    UINT32 type = 0, ltype = 0, navigated[64];
++    int nnav = 0, polls, watch_active = 0;
++    BOOL listening = FALSE;
+     HRESULT hr;
+ 
+     if (!coreui_create || !factory_create) { blog("shellvm: CoreUICreate=%p CoreUIFactoryCreate=%p", coreui_create, factory_create); return 1; }
+@@ -690,6 +735,25 @@ static DWORD WINAPI shellvm_thread(void *arg)
+         INT32 count = 0, i;
+         svm_pump(500);
+         if (WaitForSingleObject(svm_connected, 0) == WAIT_TIMEOUT) { if (polls % 20 == 0) blog("shellvm: waiting for OnConnected"); continue; }
++        if (!listening)
++        {
++            /* native bridge: AddEventListener in OnConnected, before GetViews */
++            listening = TRUE;
++            hr = VCALL(factory, 3, HRESULT (WINAPI *)(IUnknown *, const GUID *, UINT32 *))(factory,
++                    &IID_RemoteShellViewManagerListener, &ltype);
++            blog("shellvm: FindTypeID({89263C96}) -> %#lx type=%#x", hr, ltype);
++            /* FindTypeID resolves only server interfaces (br93: S_OK, type 0). The type id is (module << 16) | local
++             * index (lookup 0xed3c); the listener defType 0x224ea0 records local index 0xca at +0x22 in the same
++             * type module as IShellViewManager (defType 0x224f30, local 0xc9 = the FindTypeID result above). */
++            if (SUCCEEDED(hr) && !ltype && (type & 0x3fff) == 0xc9) ltype = (type & ~0x3fffu) | 0xca;
++            if (SUCCEEDED(hr) && ltype)
++            {
++                hr = VCALL(proxy, 9, HRESULT (WINAPI *)(IUnknown *, IUnknown *, UINT32))(proxy, &svm_listener, ltype);
++                blog("shellvm: AddEventListener(type %#x) -> %#lx", ltype, hr);
++            }
++            svm_log_active_view(svm, "connected");
++        }
++        if (watch_active && (watch_active++ <= 20 || polls % 20 == 0)) svm_log_active_view(svm, "after navigate");
+         hr = VCALL(svm, 5, HRESULT (WINAPI *)(IUnknown *, IUnknown **))(svm, &list);
+         if (SUCCEEDED(hr) && list) hr = VCALL(list, 6, HRESULT (WINAPI *)(IUnknown *, INT32 *))(list, &count);
+         if (FAILED(hr) || polls % 20 == 0) blog("shellvm: GetViews -> %#lx list=%p count=%d", hr, list, count);
+@@ -711,6 +775,8 @@ static DWORD WINAPI shellvm_thread(void *arg)
+                     navigated[nnav++] = id;
+                     hr2 = VCALL(svm, 14, HRESULT (WINAPI *)(IUnknown *, UINT32, INT32, INT32, INT32))(svm, id, 0, 0, 1);
+                     blog("shellvm: NavigateToView(id=%#x, level 0, direction 0, animation 1) -> %#lx", id, hr2);
++                    svm_log_active_view(svm, "immediately after navigate");
++                    watch_active = 1;
+                 }
+             }
+             else blog("shellvm: GetItem(%d)/QI IRemoteShellView -> %#lx", i, hr2);

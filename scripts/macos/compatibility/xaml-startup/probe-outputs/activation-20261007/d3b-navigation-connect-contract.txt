@@ -179,3 +179,66 @@ HYPOTHESIS: the server-side navigation either fails asynchronously or completes 
 Expected observation: either OnNavigateToViewFailed with a reason, or GetActiveView returning 0x10070
   with the app still silent. The second would point at the server-to-app ConnectionComplete path
   (ConnectNavigationTask state).
+
+G0 bounded qualification (2026-10-08 19:21-19:50 EEST, Mac clock; user-directed, 2 launches max)
+-----------------------------------------------------------------------------------------------
+Goal: run the retained discriminator (logging IRemoteShellViewManagerListener via AddEventListener,
+plus GetActiveView after NavigateToView) and find the first missing or failing call.
+Broker diagnostic diff: g0-listener-discriminator.diff (sha256 a5f57d1b...e75); it is shellvm opt-in only.
+Diagnostic broker: source 78f60caeea429cf5414f75085006e2dd95d935d8aa3165d0c4b914a29acd07d1,
+  exe 9888cf214969659bc08a5a8a66d2189ea501ce7bb3f68c36b1afdb2ebb32c8f2.
+Reverted after G0 to the .pre-g0 candidate: source 141ed5878b7a0b5ba7ad42bb994c7a22579544690d3f058e54c2d15fbe18f3bf,
+  exe ab832b71f78eb230d7fe0fb996566b69136bf902eb8cf5b81847d27dd1bccdff.
+Runtime identities unchanged from the S14 manifest (built-sha256-d3c-final.txt). Re-checked before br94:
+  wineserver 8454506c..., ntdll.dll a11fd189....
+
+Listener ABI, static from the CoreUIComponents PDB:
+- MessageProxy AddEventListener is at RVA 0x5d0f0.
+  - A null listener or proxy+0xa8 throws code 2 (E_POINTER).
+  - TypeSystem::FromTypeSystemID (0xed3c) returning null throws code 1 (E_INVALIDARG).
+  - TypeDefinition::GetReflection (0x5d338) != proxy+0x98 also throws code 1 (E_INVALIDARG).
+  - The code map is at 0xc57d4: 1=0x80070057, 2=0x80004003, 3=0x87b10202, 4=0x80004001, 5=0x80070005.
+- Type-id format: (module<<16) | kind 0xc000 | 14-bit local index.
+  - IRemoteShellViewManager: defType 0x224f30, gidx 364, local 0xc9.
+  - IRemoteShellViewManagerListener: defType 0x224ea0, gidx 365, local 0xca.
+  - s_messageTypeMap entry 100 = (0x16c iface, 0x2a5 Proxy_IRemoteShellViewManager, 0x16d listener).
+  - So the proxy's event type is the listener, and its runtime id is 0x10200ca.
+- FindTypeID(listener IID) returns 0. The broker derives 0x10200ca from the manager type instead.
+  AddEventListener still returns 0x80070057 (focused broker-only test 19:39, and br94).
+- UNRESOLVED: the content of proxy+0x98, and why the reflection match fails. Listener events therefore
+  stayed unobservable.
+
+br93 (launch 1, 19:25-19:29): INVALID, caused by operator error.
+- It was launched with the old run-br-relay.sh instead of run-br-ovr.sh with EXTRA_OVR='windows.ui=n'.
+- The stage windows.ui.dll (e8ad4aa5...) lacks PREFER_NATIVE, so builtin windows.ui loaded.
+- PrepareToActivateAsync then returned E_NOTIMPL (the old br42 fingerprint).
+- This is not a test of the discriminator.
+
+br94 (launch 2, 19:43:26-19:47:23, guard exit 0).
+- Wrapper: run-br-ovr.sh fcf8eb3a..., with EXTRA_OVR='windows.ui=n' and BROKER_ARGS "... 0x140 shellvm".
+- windows.ui loaded native on view thread 033c.
+- Broker: OnConnected at 19:43:32. GetActiveView returned S_OK with view NULL.
+- At 19:43:58: view[0] id 0x10070, pid 800, level 1. NavigateToView(0x10070, level 0, dir 0, anim 1)
+  returned S_OK.
+- GetActiveView stayed S_OK with view NULL at every poll through 19:47. No listener events (not registered).
+- App:
+  - ORIGINAL_EXIT 0; activation checks 13, failures 0; no E_NOTIMPL.
+  - View thread 033c ALPC: send 136, recv 108, recv 72, send 200, send 424, send 120, recv 184, recv 360.
+    This sequence is byte-length-identical to br92. After it the thread only pumps WM_TIMER (hwnd 0x10062).
+  - ConnectionComplete NO, Activated NO, ShowWindow on the CoreWindow NO.
+  - No dcomp, Windows.UI.Composition or DCompositionCreate.
+  - d3d11 (builtin, Vulkan) and dxgi device creation on thread 0354 happen early and are present in
+    br92 too. This is not frame rendering and is not a rendering milestone.
+
+G0 RESULT: BLOCKED before rendering.
+- First remaining blocker: the server accepts NavigateToView, but no active view results (GetActiveView
+  NULL), and the app's ConnectNavigationTask never receives ConnectionComplete.
+- The failure reason (OnNavigateToViewFailed) is unobservable, because listener registration is
+  rejected with E_INVALIDARG at the reflection/type check.
+- No rendering class, API, IID or HRESULT was reached. Composition remains UNQUALIFIED.
+- Native evidence (VM) is unavailable and stays PENDING.
+Log sha256 (Mac $S):
+- br93-original.stderr 51627ce9b8f4c8bd3df01b51a8773ff910e9ac93f9a9d5a1e42de53b05c00b6e
+- br94-original.stderr 3e373f5da40e8205fdfaa2a3ad9b6c483e48cb53323c441fb7d00820932d7b5b
+- br94-broker.stdout 20363be272d60df9da5c59cb34dcbb535c3991a0cf1fedfbc35a968f8e636df5
+- br94-broker.stderr 4aec053856e49dc303acde9b92e5e0b9332c41ed3e151c2917b53d931c87004b

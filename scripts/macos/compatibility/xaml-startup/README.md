@@ -586,3 +586,21 @@ processes in 4 minutes reached the per-user process limit. Since then:
 - every run goes through `guard.sh`;
 - AeDebug is empty;
 - process counts are checked before and after each run.
+
+## G0 bounded qualification (2026-10-08 19:21-19:50 EEST, Mac clock)
+
+User-directed run of the retained discriminator, capped at 2 launches. Both launches were used.
+
+| run | change | result |
+|---|---|---|
+| br93 | G0 listener and GetActiveView logging (shellvm opt-in) | INVALID because of operator error: the old `run-br-relay.sh` was used without `windows.ui=n`, so builtin windows.ui loaded and the old E_NOTIMPL appeared |
+| br94 | the same, plus the statically pinned listener type 0x10200ca, using `run-br-ovr.sh` with `EXTRA_OVR='windows.ui=n'` | NavigateToView returns S_OK, but GetActiveView stays NULL. The listener is rejected (E_INVALIDARG). The app's ALPC sequence is identical to br92: no ConnectionComplete, Activated, ShowWindow or dcomp |
+
+**Result: G0 BLOCKED before rendering. Composition is unqualified.**
+- No rendering call was reached.
+- Early d3d11/dxgi device creation also happens in br92, so it is not a milestone.
+- The first blocker is a navigation that is accepted but never produces an active view.
+- The failure reason cannot be observed until the reflection check on proxy+0x98 for the listener type is understood.
+- The diagnostic broker code is kept as `g0-listener-discriminator.diff`. The candidate broker was reverted to its `.pre-g0` state (source 141ed587, exe ab832b71).
+- Native evidence is pending.
+- Details and hashes: `probe-outputs/activation-20261007/d3b-navigation-connect-contract.txt` (G0 section).

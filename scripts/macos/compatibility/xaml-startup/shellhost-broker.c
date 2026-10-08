@@ -757,8 +757,8 @@ static DWORD WINAPI shellvm_thread(void *arg)
     create_fn coreui_create = msg ? (void *)GetProcAddress(msg, "CoreUICreate") : NULL;
     create_fn factory_create = coreui ? (void *)GetProcAddress(coreui, "CoreUIFactoryCreate") : NULL;
     IUnknown *core = NULL, *factory = NULL, *proxy = NULL, *svm = NULL;
-    UINT32 type = 0, ltype = 0, navigated[64];
-    int nnav = 0, polls, watch_active = 0;
+    UINT32 type = 0, ltype = 0, navigated[64], wmcc[64];
+    int nnav = 0, nwmcc = 0, polls, watch_active = 0;
     BOOL listening = FALSE;
     HRESULT hr;
 
@@ -827,6 +827,20 @@ static DWORD WINAPI shellvm_thread(void *arg)
                 VCALL(view, 19, HRESULT (WINAPI *)(IUnknown *, UINT32 *))(view, &id);
                 VCALL(view, 12, HRESULT (WINAPI *)(IUnknown *, UINT32 *))(view, &pid);
                 VCALL(view, 9, HRESULT (WINAPI *)(IUnknown *, UINT32 *))(view, &level);
+                for (j = 0; j < nwmcc && wmcc[j] != id; j++);
+                if (pid && j == nwmcc && nwmcc < ARRAY_SIZE(wmcc))
+                {
+                    /* IRemoteShellView slot 119 WindowManagerConnectionComplete() (ExportAdapter 0x81b40 ->
+                     * BaseRemoteView 0x6fefc): when the view is valid and the app's task proxy is connected
+                     * (ServerTask+0x2f8), the server sends IRemoteTask::ConnectionComplete (method 0, ServerTask+0x488)
+                     * to the app. That is the only path to the client Task's IRemoteClientTask (+0x150) outside a
+                     * connect-while-closing (ConnectNavigationTask 0x33531), and the client's ReadyToNavigate
+                     * (0x8a734) sends through it. Called once per view, by the shell side, after the app connected. */
+                    wmcc[nwmcc++] = id;
+                    hr2 = VCALL(view, 119, HRESULT (WINAPI *)(IUnknown *))(view);
+                    blog("shellvm: IRemoteShellView(id=%#x pid=%u)::WindowManagerConnectionComplete -> %#lx", id, pid, hr2);
+                    svm_diag_tasks("after WindowManagerConnectionComplete");
+                }
                 for (j = 0; j < nnav && navigated[j] != id; j++);
                 if (j == nnav && nnav < ARRAY_SIZE(navigated))
                 {

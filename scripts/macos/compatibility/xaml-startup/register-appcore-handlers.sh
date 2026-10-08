@@ -26,7 +26,9 @@ done
 # WinRT classes natively served by InputHost.dll (measured list; Windows.UI's CoreWindow WM_NCCREATE
 # activates ActivationController and InputSite). Needs genuine x64 InputHost.dll 10.0.26100.9278 in
 # system32 (sha256 4e84bb64...7e46d, Winbindex/msdl). Only classes the prefix lacks are added.
-IHC=$(dirname "$0")/inputhost-winrt-classes.txt
+# Same for the in-process classes of the genuine Windows.UI.dll (measured list): CoreApplicationView
+# activation activates Windows.UI.Core.CoreWindowResizeManager and returns REGDB_E_CLASSNOTREG without it.
+for IHC in "$(dirname "$0")/inputhost-winrt-classes.txt" "$(dirname "$0")/windows-ui-winrt-classes.txt"; do
 IREG=$(mktemp -t inputhost-classes).reg
 python3 - "$IHC" "$WINEPREFIX/system.reg" "$IREG" <<'EOF'
 import sys
@@ -40,10 +42,11 @@ with open(out, 'w', encoding='utf-16') as f:
         f.write('[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\WindowsRuntime\\ActivatableClassId\\%s]\r\n' % c)
         f.write('"DllPath"="%s"\r\n' % dll.replace('\\', '\\\\'))
         f.write('"ActivationType"=dword:%08x\r\n"Threading"=dword:%08x\r\n"TrustLevel"=dword:%08x\r\n\r\n' % (int(at), int(th), int(tl)))
-print('inputhost classes: %d measured, %d added' % (len(rows), len(add)))
+print('%s: %d measured, %d added' % (lst.rsplit('/', 1)[-1], len(rows), len(add)))
 EOF
 "$WINE" regedit /S "$("$WINE" winepath -w "$IREG")"
 rm -f "$IREG"
+done
 # Every other interface natively served by OneCoreUAPCommonProxyStub.dll (measured list), added only
 # where the prefix has no Interface key yet so Wine's own proxy registrations stay untouched.
 LIST=$(dirname "$0")/onecoreuap-proxystub-iids.txt
@@ -51,7 +54,7 @@ REG=$(mktemp -t onecoreuap-ps).reg
 python3 - "$LIST" "$WINEPREFIX/system.reg" "$REG" <<'EOF'
 import re, sys
 lst, sysreg, out = sys.argv[1:]
-have = set(m.upper() for m in re.findall(r'^\[Software\\\\Classes\\\\Interface\\\\(\{[0-9A-Fa-f-]{36}\})\]', open(sysreg, encoding='utf-8', errors='replace').read(), re.M))
+have = set(m.upper() for m in re.findall(r'^\[Software\\\\Classes\\\\Interface\\\\(\{[0-9A-Fa-f-]{36}\})(?:\]|\\\\)', open(sysreg, encoding='utf-8', errors='replace').read(), re.M))
 iids = [l.strip() for l in open(lst) if l.startswith('{')]
 add = [i for i in iids if i.upper() not in have]
 with open(out, 'w', encoding='utf-16') as f:
@@ -63,3 +66,26 @@ EOF
 WREG=$("$WINE" winepath -w "$REG")
 "$WINE" regedit /S "$WREG"
 rm -f "$REG"
+# Parameterized Windows.Foundation interfaces natively proxied by WinTypes.dll's Ptype_PSFactory (measured
+# list). CoreUIComponents takes RoGetAgileReference(AGILEREFERENCE_DEFAULT) on an IEventHandler<IInspectable>
+# {C50898F6-...} after RegisterScaleChangeSinkForWindow and fail-fasts if it cannot be marshaled. Needs the
+# genuine x64 WinTypes.dll in system32; only interfaces the prefix lacks are added.
+"$WINE" reg add 'HKLM\Software\Classes\CLSID\{11659A23-5884-4D1B-9CF6-67D6F4F90B36}' /ve /d 'Ptype_PSFactory' /f
+"$WINE" reg add 'HKLM\Software\Classes\CLSID\{11659A23-5884-4D1B-9CF6-67D6F4F90B36}\InProcServer32' /ve /d 'C:\Windows\System32\WinTypes.dll' /f
+"$WINE" reg add 'HKLM\Software\Classes\CLSID\{11659A23-5884-4D1B-9CF6-67D6F4F90B36}\InProcServer32' /v ThreadingModel /d Both /f
+WLIST=$(dirname "$0")/wintypes-proxystub-iids.txt
+WTREG=$(mktemp -t wintypes-ps).reg
+python3 - "$WLIST" "$WINEPREFIX/system.reg" "$WTREG" <<'EOF'
+import re, sys
+lst, sysreg, out = sys.argv[1:]
+have = set(m.upper() for m in re.findall(r'^\[Software\\\\Classes\\\\Interface\\\\(\{[0-9A-Fa-f-]{36}\})(?:\]|\\\\)', open(sysreg, encoding='utf-8', errors='replace').read(), re.M))
+iids = [l.strip() for l in open(lst) if l.startswith('{')]
+add = [i for i in iids if i.upper() not in have]
+with open(out, 'w', encoding='utf-16') as f:
+    f.write('Windows Registry Editor Version 5.00\r\n\r\n')
+    for i in add:
+        f.write('[HKEY_LOCAL_MACHINE\\Software\\Classes\\Interface\\%s\\ProxyStubClsid32]\r\n@="{11659A23-5884-4D1B-9CF6-67D6F4F90B36}"\r\n\r\n' % i)
+print('wintypes proxy/stub: %d measured, %d already present, %d added' % (len(iids), len(iids) - len(add), len(add)))
+EOF
+"$WINE" regedit /S "$("$WINE" winepath -w "$WTREG")"
+rm -f "$WTREG"

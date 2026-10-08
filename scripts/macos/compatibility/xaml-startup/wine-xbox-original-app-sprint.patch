@@ -6271,7 +6271,15 @@ diff -u a/dlls/sechost/sechost.spec b/dlls/sechost/sechost.spec
 diff -u a/dlls/shcore/main.c b/dlls/shcore/main.c
 --- a/dlls/shcore/main.c
 +++ b/dlls/shcore/main.c
-@@ -92,6 +92,52 @@
+@@ -38,6 +38,7 @@
+ #include "appmodel.h"
+ 
+ #include "wine/debug.h"
++#include "wine/list.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(shcore);
+ 
+@@ -92,6 +93,52 @@
  
      *scale = SCALE_100_PERCENT;
      return S_OK;
@@ -6324,9 +6332,248 @@ diff -u a/dlls/shcore/main.c b/dlls/shcore/main.c
  }
  
  DEVICE_SCALE_FACTOR WINAPI GetScaleFactorForDevice(DISPLAY_DEVICE_TYPE device_type)
+@@ -2581,11 +2628,214 @@
+     return E_NOTIMPL;
+ }
+ 
++/* Window scale-change sinks (ordinals 240/246). Native shcore (26100) resolves the window's scaling info
++ * (CScalingInfoCache::GetWindowScalingInfo) and registers the IScaleChangeSink there, returning a cookie; revoking an
++ * unknown cookie is not an error (HRESULT_FROM_WIN32(ERROR_NOT_FOUND) is mapped to S_OK). Wine never changes a
++ * window's scale factor at run time, so registered sinks are kept but never called. */
++struct scale_sink
++{
++    struct list entry;
++    HWND hwnd;
++    IUnknown *sink;
++    DWORD cookie;
++};
++
++static struct list scale_sinks = LIST_INIT(scale_sinks);
++static DWORD scale_sink_cookie;
++static CRITICAL_SECTION scale_sink_cs;
++static CRITICAL_SECTION_DEBUG scale_sink_cs_debug =
++{
++    0, 0, &scale_sink_cs,
++    { &scale_sink_cs_debug.ProcessLocksList, &scale_sink_cs_debug.ProcessLocksList },
++      0, 0, { (DWORD_PTR)(__FILE__ ": scale_sink_cs") }
++};
++static CRITICAL_SECTION scale_sink_cs = { &scale_sink_cs_debug, -1, 0, 0, 0, 0 };
++
+ /*************************************************************************
++ * RegisterScaleChangeSinkForWindow        [SHCORE.240]
++ */
++HRESULT WINAPI RegisterScaleChangeSinkForWindow(HWND hwnd, IUnknown *sink, DWORD *cookie)
++{
++    struct scale_sink *entry;
++
++    TRACE("(%p, %p, %p)\n", hwnd, sink, cookie);
++
++    if (!cookie) return E_POINTER;
++    *cookie = 0;
++    if (!IsWindow(hwnd)) return E_INVALIDARG;
++    if (!sink) return E_POINTER;
++    if (!(entry = malloc(sizeof(*entry)))) return E_OUTOFMEMORY;
++
++    entry->hwnd = hwnd;
++    entry->sink = sink;
++    IUnknown_AddRef(sink);
++    EnterCriticalSection(&scale_sink_cs);
++    if (!++scale_sink_cookie) ++scale_sink_cookie;
++    entry->cookie = scale_sink_cookie;
++    list_add_tail(&scale_sinks, &entry->entry);
++    LeaveCriticalSection(&scale_sink_cs);
++    *cookie = entry->cookie;
++    return S_OK;
++}
++
++/*************************************************************************
++ * RevokeScaleChangeNotificationsForWindow        [SHCORE.246]
++ */
++HRESULT WINAPI RevokeScaleChangeNotificationsForWindow(HWND hwnd, DWORD cookie)
++{
++    struct scale_sink *entry, *found = NULL;
++
++    TRACE("(%p, %lu)\n", hwnd, cookie);
++
++    EnterCriticalSection(&scale_sink_cs);
++    LIST_FOR_EACH_ENTRY(entry, &scale_sinks, struct scale_sink, entry)
++    {
++        if (entry->cookie != cookie || entry->hwnd != hwnd) continue;
++        list_remove(&entry->entry);
++        found = entry;
++        break;
++    }
++    LeaveCriticalSection(&scale_sink_cs);
++    if (found)
++    {
++        IUnknown_Release(found->sink);
++        free(found);
++    }
++    return S_OK;
++}
++
++/*************************************************************************
+  * CreateRandomAccessStreamOverStream        [SHCORE.@]
+  */
+ HRESULT WINAPI CreateRandomAccessStreamOverStream(IStream *stream, BSOS_OPTIONS options, REFIID riid, void **ppv)
+ {
+     FIXME("(%p, %d, %s, %p) stub\n", stream, options, debugstr_guid(riid), ppv);
+     return E_NOTIMPL;
++}
++
++/* Windows::Internal::IComPoolTask: IUnknown plus void Run(void) (native shcore CRemoteTask::Run). */
++typedef struct IComPoolTask IComPoolTask;
++typedef struct IComPoolTaskVtbl
++{
++    HRESULT (STDMETHODCALLTYPE *QueryInterface)(IComPoolTask *iface, REFIID riid, void **out);
++    ULONG (STDMETHODCALLTYPE *AddRef)(IComPoolTask *iface);
++    ULONG (STDMETHODCALLTYPE *Release)(IComPoolTask *iface);
++    void (STDMETHODCALLTYPE *Run)(IComPoolTask *iface);
++} IComPoolTaskVtbl;
++struct IComPoolTask { const IComPoolTaskVtbl *lpVtbl; };
++
++/* Native TaskApartment values, from the shcore SHTaskPoolQueueTask dispatch: 0 and 1 are the two
++ * pool apartments (MTA, STA), 2 and 3 queue to the MTA pool, 4 runs inline, 5 is the STA pool,
++ * 6 runs inline when the caller is already in the MTA (or NA), otherwise on the MTA pool. */
++enum task_pool_apartment { TASK_POOL_MTA = 0, TASK_POOL_STA = 1 };
++
++struct pool_task
++{
++    IComPoolTask *task;
++    DWORD apartment;
++};
++
++static void run_pool_task( struct pool_task *pt )
++{
++    HRESULT hr = CoInitializeEx( NULL, pt->apartment == TASK_POOL_STA ? COINIT_APARTMENTTHREADED
++                                                                      : COINIT_MULTITHREADED );
++    pt->task->lpVtbl->Run( pt->task );
++    pt->task->lpVtbl->Release( pt->task );
++    if (SUCCEEDED(hr)) CoUninitialize();
++    free( pt );
+ }
++
++static void CALLBACK pool_task_work( PTP_CALLBACK_INSTANCE instance, void *context )
++{
++    run_pool_task( context );
++}
++
++static void CALLBACK pool_task_timer( PTP_CALLBACK_INSTANCE instance, void *context, PTP_TIMER timer )
++{
++    run_pool_task( context );
++    CloseThreadpoolTimer( timer );
++}
++
++/*************************************************************************
++ * SHTaskPoolQueueTask        [SHCORE.@]
++ *
++ * Native signature (shcore PDB): HRESULT SHTaskPoolQueueTask( TaskApartment, TaskOptions,
++ * DWORD caller_thread, DWORD delay_ms, IComPoolTask *task, IUnknown **cancel_cookie ).
++ * Deviations: TaskOptions (priority / pool-thread reuse hints) are not interpreted, and for STA
++ * callers the final task Release happens on the pool thread instead of being marshalled back to
++ * the calling apartment (native CRemoteTask); the async objects queued by CoreUI are agile (FTM).
++ */
++HRESULT WINAPI SHTaskPoolQueueTask( DWORD apartment, DWORD options, DWORD thread, DWORD delay,
++                                    IComPoolTask *task, IUnknown **cookie )
++{
++    APTTYPEQUALIFIER qualifier;
++    struct pool_task *pt;
++    APTTYPE type;
++    DWORD pool;
++
++    TRACE( "%lu, %#lx, %#lx, %lu, %p, %p\n", apartment, options, thread, delay, task, cookie );
++
++    if (cookie) *cookie = NULL;
++    if (!task) return E_OUTOFMEMORY;
++
++    switch (apartment)
++    {
++    case 0: case 1: pool = apartment; break;
++    case 5: pool = TASK_POOL_STA; break;
++    case 2:
++        if (FAILED(CoGetApartmentType( &type, &qualifier ))) return E_UNEXPECTED;
++        if (type != APTTYPE_STA && type != APTTYPE_MAINSTA && type != APTTYPE_MTA && type != APTTYPE_NA)
++            return E_UNEXPECTED;
++        pool = TASK_POOL_MTA;
++        break;
++    case 3: pool = TASK_POOL_MTA; break;
++    case 4:
++        if (delay) break;
++        task->lpVtbl->Run( task );
++        return S_OK;
++    case 6:
++        pool = TASK_POOL_MTA;
++        if (delay) break;
++        if (SUCCEEDED(CoGetApartmentType( &type, &qualifier )) && (type == APTTYPE_MTA || type == APTTYPE_NA))
++        {
++            task->lpVtbl->Run( task );
++            return S_OK;
++        }
++        break;
++    default:
++        WARN( "unknown task apartment %lu\n", apartment );
++        return E_INVALIDARG;
++    }
++    if (apartment == 4) pool = TASK_POOL_MTA;
++
++    if (delay && cookie)
++    {
++        FIXME( "cancellable delayed task not implemented\n" );
++        return E_NOTIMPL;
++    }
++
++    if (!(pt = malloc( sizeof(*pt) ))) return E_OUTOFMEMORY;
++    pt->task = task;
++    pt->apartment = pool;
++    task->lpVtbl->AddRef( task );
++
++    if (delay)
++    {
++        PTP_TIMER timer;
++        LARGE_INTEGER due;
++        FILETIME ft;
++
++        if (!(timer = CreateThreadpoolTimer( pool_task_timer, pt, NULL ))) goto failed;
++        due.QuadPart = -(LONGLONG)delay * 10000;
++        ft.dwLowDateTime = due.u.LowPart;
++        ft.dwHighDateTime = due.u.HighPart;
++        SetThreadpoolTimer( timer, &ft, 0, 0 );
++        return S_OK;
++    }
++    if (TrySubmitThreadpoolCallback( pool_task_work, pt, NULL )) return S_OK;
++
++failed:
++    task->lpVtbl->Release( task );
++    free( pt );
++    return HRESULT_FROM_WIN32( GetLastError() );
++}
 diff -u a/dlls/shcore/shcore.spec b/dlls/shcore/shcore.spec
 --- a/dlls/shcore/shcore.spec
 +++ b/dlls/shcore/shcore.spec
+@@ -85,7 +85,7 @@
+ # @ stub SHTaskPoolDoNotWaitForMoreTasks
+ # @ stub SHTaskPoolGetCurrentThreadLifetime
+ # @ stub SHTaskPoolGetUniqueContext
+-# @ stub SHTaskPoolQueueTask
++@ stdcall SHTaskPoolQueueTask(long long long long ptr ptr)
+ # @ stub SHTaskPoolSetThreadReuseAllowed
+ @ stdcall SHUnicodeToAnsi(wstr ptr ptr)
+ @ stdcall SHUnicodeToUnicode(wstr ptr long)
+@@ -170,12 +170,12 @@
+ 232 stub -noname SHRemoveWindowSubclass
+ 233 stub -noname SHDefSubclassProc
+ 234 stub -noname SHRegisterClassW
+-240 stub -noname RegisterScaleChangeSinkForWindow
++240 stdcall -noname RegisterScaleChangeSinkForWindow(ptr ptr ptr)
+ 241 stub -noname ScaleAndMapRelativeRect
+ 242 stub -noname RelativeRectFromPhysicalRectWithScale
+ 244 stub -noname GetScaleFactorForWindow
+ 245 stub -noname RegisterScaleChangeNotificationsForWindow
+-246 stub -noname RevokeScaleChangeNotificationsForWindow
++246 stdcall -noname RevokeScaleChangeNotificationsForWindow(ptr long)
+ 247 stub -noname GetOverrideScaleFactorForWindow
+ 248 stub -noname GetSystemScaleFactorForWindow
+ 249 stub -noname UpdateScalingInfoCache
 @@ -187,6 +187,7 @@
  255 stub -noname GetCurrentWindow
  260 stub -noname PhysicalRectFromRelativeRectWithScales
@@ -6394,6 +6641,126 @@ diff -u a/dlls/urlmon/urlmon.spec b/dlls/urlmon/urlmon.spec
  @ stdcall CoInternetCreateSecurityManager(ptr ptr long)
  @ stdcall CoInternetCreateZoneManager(ptr ptr long)
  @ stub CoInternetGetProtocolFlags
+diff -u a/dlls/user32/defwnd.c b/dlls/user32/defwnd.c
+--- a/dlls/user32/defwnd.c
++++ b/dlls/user32/defwnd.c
+@@ -84,6 +84,89 @@
+  *
+  * See DefWindowProcW.
+  */
++/* Window-services destroy callback (native user32 ordinal 2536). One callback per process, referenced
++ * once per registered window; a window is marked through internal window long -40, and DestroyWindow
++ * sends it WM_UNREGISTER_WINDOW_SERVICES (0x272) right before WM_DESTROY, which DefWindowProc turns
++ * into a call of the callback followed by the window's deregistration. */
++#define WM_UNREGISTER_WINDOW_SERVICES 0x0272
++#define GWLP_WINDOW_SERVICES (-40)
++typedef void (CALLBACK *WINDOW_SERVICES_DESTROY_CALLBACK)( HWND );
++static SRWLOCK window_services_lock = SRWLOCK_INIT;
++static WINDOW_SERVICES_DESTROY_CALLBACK window_services_callback;
++static LONG window_services_count;
++
++static BOOL window_services_add_ref( WINDOW_SERVICES_DESTROY_CALLBACK callback )
++{
++    HMODULE module = NULL;
++    return GetModuleHandleExW( GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (const WCHAR *)callback, &module );
++}
++
++static void window_services_release( WINDOW_SERVICES_DESTROY_CALLBACK callback )
++{
++    HMODULE module = NULL;
++    if (GetModuleHandleExW( GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
++                            (const WCHAR *)callback, &module ))
++        FreeLibrary( module );
++}
++
++/***********************************************************************
++ *              SetWindowServicesDestroyCallback (USER32.2536)
++ */
++BOOL WINAPI SetWindowServicesDestroyCallback( HWND hwnd, WINDOW_SERVICES_DESTROY_CALLBACK callback )
++{
++    BOOL ret = FALSE, referenced = FALSE, registered = callback != NULL;
++    LONG_PTR previous;
++
++    TRACE( "%p %p\n", hwnd, callback );
++
++    AcquireSRWLockExclusive( &window_services_lock );
++    if (callback && callback != window_services_callback)
++    {
++        if (window_services_callback || !window_services_add_ref( callback )) goto invalid;
++        referenced = TRUE;
++    }
++    SetLastError( 0 );
++    previous = SetWindowLongPtrW( hwnd, GWLP_WINDOW_SERVICES, registered );
++    if (!previous && GetLastError())
++    {
++        if (referenced) window_services_release( callback );
++        goto invalid;
++    }
++    if (!!previous != registered)
++    {
++        if (callback)
++        {
++            window_services_count++;
++            window_services_callback = callback;
++        }
++        else if (!--window_services_count)
++        {
++            window_services_release( window_services_callback );
++            window_services_callback = NULL;
++        }
++    }
++    ret = TRUE;
++    goto done;
++invalid:
++    SetLastError( ERROR_INVALID_PARAMETER );
++done:
++    ReleaseSRWLockExclusive( &window_services_lock );
++    return ret;
++}
++
++static void call_window_services_callback( HWND hwnd )
++{
++    WINDOW_SERVICES_DESTROY_CALLBACK callback;
++
++    AcquireSRWLockShared( &window_services_lock );
++    if ((callback = window_services_callback) && !window_services_add_ref( callback )) callback = NULL;
++    ReleaseSRWLockShared( &window_services_lock );
++    if (!callback) return;
++    callback( hwnd );
++    window_services_release( callback );
++    SetWindowServicesDestroyCallback( hwnd, NULL );
++}
++
+ LRESULT WINAPI DefWindowProcA( HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam )
+ {
+     LRESULT result = 0;
+@@ -97,6 +180,12 @@
+     }
+     hwnd = full_handle;
+ 
++    if (msg == WM_UNREGISTER_WINDOW_SERVICES)
++    {
++        call_window_services_callback( hwnd );
++        return 0;
++    }
++
+     SPY_EnterMessage( SPY_DEFWNDPROC, hwnd, msg, wParam, lParam );
+ 
+     switch(msg)
+@@ -162,6 +251,13 @@
+         return 0;
+     }
+     hwnd = full_handle;
++
++    if (msg == WM_UNREGISTER_WINDOW_SERVICES)
++    {
++        call_window_services_callback( hwnd );
++        return 0;
++    }
++
+     SPY_EnterMessage( SPY_DEFWNDPROC, hwnd, msg, wParam, lParam );
+ 
+     switch(msg)
 diff -u a/dlls/user32/misc.c b/dlls/user32/misc.c
 --- a/dlls/user32/misc.c
 +++ b/dlls/user32/misc.c
@@ -6447,7 +6814,8 @@ diff -u a/dlls/user32/user32.spec b/dlls/user32/user32.spec
 -2534 stub @
 +2534 stdcall -noname InternalClipCursor(long long ptr)
  2535 stub @
- 2536 stub @
+-2536 stub @
++2536 stdcall -noname SetWindowServicesDestroyCallback(long ptr)
  2537 stub -noname SendEventMessage  # NtUserSendEventMessage
  2538 stub -noname LayoutCompleted  # NtUserLayoutCompleted
  2539 stub -noname HidePointerContactVisualization  # NtUserHidePointerContactVisualization
@@ -6475,6 +6843,18 @@ diff -u a/dlls/user32/user32.spec b/dlls/user32/user32.spec
  2598 stub @
  2599 stub @
  2600 stub -noname ForceEnableNumpadTranslation  # NtUserForceEnableNumpadTranslation
+@@ -122,9 +122,9 @@
+ 2612 stub -noname InitThreadCoreMessagingIocp  # NtUserInitThreadCoreMessagingIocp
+ 2613 stub -noname DrainThreadCoreMessagingCompletions  # NtUserDrainThreadCoreMessagingCompletions
+ 2614 stub -noname GetResizeDCompositionSynchronizationObject  # NtUserGetResizeDCompositionSynchronizationObject
+-2615 stub -noname EnableResizeLayoutSynchronization  # NtUserEnableResizeLayoutSynchronization
++2615 stdcall -noname EnableResizeLayoutSynchronization(long long)
+ 2616 stub -noname BeginLayoutUpdate  # NtUserBeginLayoutUpdate
+-2617 stub -noname IsResizeLayoutSynchronizationEnabled  # NtUserIsResizeLayoutSynchronizationEnabled
++2617 stdcall -noname IsResizeLayoutSynchronizationEnabled(long)
+ 2618 stub @
+ 2619 stub @
+ 2620 stub @
 @@ -133,7 +133,7 @@
  
  2627 stub -noname SetBridgeWindowChild  # NtUserSetBridgeWindowChild
@@ -6572,7 +6952,7 @@ diff -u a/dlls/user32/win.c b/dlls/user32/win.c
  #include "controls.h"
  #include "winver.h"
  #include "wine/asm.h"
-@@ -453,10 +454,238 @@
+@@ -453,6 +454,251 @@
      /* Note: we rely on the fact that CREATESTRUCTA and */
      /* CREATESTRUCTW have the same layout. */
      return wow_handlers.create_window( (CREATESTRUCTW *)&cs, (LPCWSTR)className, instance, FALSE );
@@ -6635,13 +7015,30 @@ diff -u a/dlls/user32/win.c b/dlls/user32/win.c
 +BOOL WINAPI EnableMouseInPointerForWindow( HWND hwnd, BOOL enable )
 +{
 +    return NtUserCallHwndParam( hwnd, enable, NtUserCallHwndParam_EnableMouseInPointer );
- }
- 
- 
++}
++
++
 +/* Windows 11 26100 accepts FEEDBACK_TYPE values 1 to 13; 12 and 13 are not in the SDK enum. */
 +#define FEEDBACK_MAX_MEASURED 13
 +
- /***********************************************************************
++/*****************************************************************************
++ *		EnableResizeLayoutSynchronization (USER32.2615)
++ */
++BOOL WINAPI EnableResizeLayoutSynchronization( HWND hwnd, BOOL enable )
++{
++    TRACE( "%p %d\n", hwnd, enable );
++    return NtUserCallHwndParam( hwnd, !!enable, NtUserCallHwndParam_EnableResizeLayoutSynchronization );
++}
++
++/*****************************************************************************
++ *		IsResizeLayoutSynchronizationEnabled (USER32.2617)
++ */
++BOOL WINAPI IsResizeLayoutSynchronizationEnabled( HWND hwnd )
++{
++    return NtUserCallHwndParam( hwnd, 0, NtUserCallHwndParam_IsResizeLayoutSynchronizationEnabled );
++}
++
++/***********************************************************************
 + *		SetWindowFeedbackSetting (USER32.@)
 + */
 +BOOL WINAPI SetWindowFeedbackSetting( HWND hwnd, FEEDBACK_TYPE type, DWORD flags, UINT32 size, const void *config )
@@ -6804,13 +7201,9 @@ diff -u a/dlls/user32/win.c b/dlls/user32/win.c
 +{
 +    return CreateWindowInBandEx( exStyle, className, windowName, style, x, y, width, height,
 +                                 parent, menu, instance, data, band, 0 );
-+}
-+
-+
-+/***********************************************************************
-  *		CreateWindowExW (USER32.@)
-  */
- HWND WINAPI DECLSPEC_HOTPATCH CreateWindowExW( DWORD exStyle, LPCWSTR className,
+ }
+ 
+ 
 diff -u a/dlls/uxtheme/system.c b/dlls/uxtheme/system.c
 --- a/dlls/uxtheme/system.c
 +++ b/dlls/uxtheme/system.c
@@ -7414,15 +7807,19 @@ diff -u a/dlls/win32u/ntuser_private.h b/dlls/win32u/ntuser_private.h
      DWORD              wExtra[1];     /* Window extra bytes */
  } WND;
  
-@@ -90,6 +92,7 @@
+@@ -90,6 +92,11 @@
  #define WIN_NEEDS_SHOW_OWNEDPOPUP 0x0020 /* WM_SHOWWINDOW:SC_SHOW must be sent in the next ShowOwnedPopup call */
  #define WIN_CHILDREN_MOVED        0x0040 /* children may have moved, ignore stored positions */
  #define WIN_HAS_IME_WIN           0x0080 /* the window has been registered with imm32 */
 +#define WIN_MOUSE_IN_POINTER      0x0100 /* mouse input is promoted to pointer messages */
++#define WM_UNREGISTER_WINDOW_SERVICES 0x0272
++#define GWLP_WINE_WINDOW_SERVICES     (-40)
++#define WIN_HAS_WINDOW_SERVICES   0x0200 /* registered through user32 SetWindowServicesDestroyCallback */
++#define WIN_RESIZE_LAYOUT_SYNC    0x0400 /* EnableResizeLayoutSynchronization( hwnd, TRUE ) */
  
  #define WND_OTHER_PROCESS ((WND *)1)  /* returned by get_win_ptr on unknown window handles */
  #define WND_DESKTOP       ((WND *)2)  /* returned by get_win_ptr on the desktop window */
-@@ -130,9 +133,12 @@
+@@ -130,9 +137,12 @@
      DWORD                         clipping_reset;         /* time when clipping was last reset */
      struct session_thread_data   *session_data;           /* shared session thread data */
      struct mouse_tracking_info   *mouse_tracking_info;    /* NtUserTrackMouseEvent handling */
@@ -7599,10 +7996,44 @@ diff -u a/dlls/win32u/win32u_private.h b/dlls/win32u/win32u_private.h
 diff -u a/dlls/win32u/window.c b/dlls/win32u/window.c
 --- a/dlls/win32u/window.c
 +++ b/dlls/win32u/window.c
-@@ -6215,6 +6215,73 @@
+@@ -1426,6 +1426,16 @@
+         return send_message( hwnd, WM_WINE_SETWINDOWLONG, MAKEWPARAM( offset, size ), newval );
      }
- }
  
++    if (offset == GWLP_WINE_WINDOW_SERVICES)
++    {
++        /* internal index used by user32 SetWindowServicesDestroyCallback; returns the previous state */
++        retval = !!(win->flags & WIN_HAS_WINDOW_SERVICES);
++        if (newval) win->flags |= WIN_HAS_WINDOW_SERVICES;
++        else win->flags &= ~WIN_HAS_WINDOW_SERVICES;
++        release_win_ptr( win );
++        return retval;
++    }
++
+     /* first some special cases */
+     switch( offset )
+     {
+@@ -5272,6 +5282,13 @@
+ 
+     if (winevent)
+         NtUserNotifyWinEvent( EVENT_OBJECT_DESTROY, hwnd, OBJID_WINDOW, 0 );
++
++    /* native win32k sends this just before WM_DESTROY to windows registered for window services */
++    if (win_get_flags( hwnd ) & WIN_HAS_WINDOW_SERVICES)
++    {
++        send_message( hwnd, WM_UNREGISTER_WINDOW_SERVICES, 0, 0 );
++        win_set_flags( hwnd, 0, WIN_HAS_WINDOW_SERVICES );
++    }
+ 
+     send_message( hwnd, WM_DESTROY, 0, 0);
+ 
+@@ -6212,9 +6229,108 @@
+     default:
+         FIXME( "invalid code %u\n", code );
+         return 0;
++    }
++}
++
 +/* SetWindowFeedbackSetting / GetWindowFeedbackSetting state is per window and per process. */
 +static BOOL set_window_feedback_setting( HWND hwnd, const struct window_feedback_params *params )
 +{
@@ -7666,17 +8097,50 @@ diff -u a/dlls/win32u/window.c b/dlls/win32u/window.c
 +        hwnd = win->parent;
 +        release_win_ptr( win );
 +        if (found || !params->include_ancestors) break;
-+    }
+     }
 +    return found;
+ }
+ 
++/* NtUserEnableResizeLayoutSynchronization / NtUserIsResizeLayoutSynchronizationEnabled: native win32k
++ * validates the window, refuses desktop and message windows without an error and keeps a per-window
++ * state bit that its DWM resize-layout synchronization consults. Wine has no DWM resize synchronization,
++ * so the state is recorded and reported only. */
++static BOOL resize_layout_synchronization( HWND hwnd, BOOL set, BOOL enable )
++{
++    BOOL ret;
++    WND *win;
++
++    if (!(win = get_win_ptr( hwnd )))
++    {
++        RtlSetLastWin32Error( ERROR_INVALID_WINDOW_HANDLE );
++        return FALSE;
++    }
++    if (win == WND_DESKTOP) return FALSE;
++    if (win == WND_OTHER_PROCESS)
++    {
++        FIXME( "window %p belongs to another process\n", hwnd );
++        RtlSetLastWin32Error( ERROR_ACCESS_DENIED );
++        return FALSE;
++    }
++    if (!set) ret = !!(win->flags & WIN_RESIZE_LAYOUT_SYNC);
++    else
++    {
++        if (enable) win->flags |= WIN_RESIZE_LAYOUT_SYNC;
++        else win->flags &= ~WIN_RESIZE_LAYOUT_SYNC;
++        ret = TRUE;
++    }
++    release_win_ptr( win );
++    return ret;
 +}
 +
  /*****************************************************************************
   *           NtUserCallHwndParam (win32u.@)
   */
-@@ -6350,6 +6417,18 @@
+@@ -6349,7 +6465,23 @@
+         struct set_private_data_params *params = (void *)param;
          return set_window_long_internal( hwnd, params->offset, params->size, params->value, FALSE, TRUE );
      }
- 
++
 +    case NtUserCallHwndParam_EnableMouseInPointer:
 +        return enable_mouse_in_pointer_for_window( hwnd, param );
 +
@@ -7685,9 +8149,13 @@ diff -u a/dlls/win32u/window.c b/dlls/win32u/window.c
 +
 +    case NtUserCallHwndParam_SetWindowFeedbackSetting:
 +        return set_window_feedback_setting( hwnd, (const struct window_feedback_params *)param );
-+
+ 
 +    case NtUserCallHwndParam_GetWindowFeedbackSetting:
 +        return get_window_feedback_setting( hwnd, (struct window_feedback_params *)param );
++
++    case NtUserCallHwndParam_EnableResizeLayoutSynchronization:
++    case NtUserCallHwndParam_IsResizeLayoutSynchronizationEnabled:
++        return resize_layout_synchronization( hwnd, code == NtUserCallHwndParam_EnableResizeLayoutSynchronization, param );
 +
      default:
          FIXME( "invalid code %u\n", code );
@@ -11369,7 +11837,7 @@ diff -u a/include/ntuser.h b/include/ntuser.h
      /* temporary exports */
      NtUserAllocWinProc,
  };
-@@ -1441,6 +1448,33 @@
+@@ -1441,8 +1448,37 @@
      NtUserCallHwndParam_SetRawWindowPos,
      NtUserCallHwndParam_GetPrivateData,
      NtUserCallHwndParam_SetPrivateData,
@@ -11377,6 +11845,8 @@ diff -u a/include/ntuser.h b/include/ntuser.h
 +    NtUserCallHwndParam_CreateActivationObject,
 +    NtUserCallHwndParam_SetWindowFeedbackSetting,
 +    NtUserCallHwndParam_GetWindowFeedbackSetting,
++    NtUserCallHwndParam_EnableResizeLayoutSynchronization,
++    NtUserCallHwndParam_IsResizeLayoutSynchronizationEnabled,
 +};
 +
 +struct window_feedback_params
@@ -11386,8 +11856,8 @@ diff -u a/include/ntuser.h b/include/ntuser.h
 +    BOOL reset;
 +    BOOL value;
 +    BOOL invalid;
-+};
-+
+ };
+ 
 +struct create_activation_object_params
 +{
 +    UINT64 id;
@@ -11400,9 +11870,11 @@ diff -u a/include/ntuser.h b/include/ntuser.h
 +    INT_PTR arg3;
 +    UINT    mask;
 +    UINT    value;
- };
- 
++};
++
  struct get_window_rects_params
+ {
+     RECT *rect;
 diff -u a/include/objbase.h b/include/objbase.h
 --- a/include/objbase.h
 +++ b/include/objbase.h

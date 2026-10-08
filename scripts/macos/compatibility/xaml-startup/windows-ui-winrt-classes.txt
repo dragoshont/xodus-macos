@@ -1,0 +1,33 @@
+# WinRT classes natively served in-process by Windows.UI.dll (Windows 10.0.26300 host, Windows.UI.dll 10.0.26100.7840 (WinBuild.160101.0800),
+# HKLM\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\*, DllPath matching Windows.UI.dll). CoreApplicationView
+# activation activates Windows.UI.Core.CoreWindowResizeManager. Format: class|DllPath|ActivationType|Threading|TrustLevel
+Windows.Devices.Haptics.InputHapticsManager|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.Devices.Haptics.KnownSimpleHapticsControllerWaveforms|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.Devices.Haptics.SimpleHapticsController|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.Devices.Haptics.SimpleHapticsControllerFeedback|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.Devices.Input.KeyboardCapabilities|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.Devices.Input.MouseCapabilities|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.Devices.Input.MouseDevice|C:\Windows\System32\Windows.UI.dll|0|1|0
+Windows.Devices.Input.PointerDevice|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.Devices.Input.TouchCapabilities|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Core.ComponentDisplayInformation|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Core.CoreCursor|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Core.CoreCursorFactory|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Core.CoreDispatcher|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Core.CoreWindow|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Core.CoreWindowHost|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Core.CoreWindowResizeManager|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Core.InternalCoordinateConversionStatics|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Core.InternalUICoreStatics|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Core.Private.DesktopWindowContentBridge|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Input.Core.RadialControllerIndependentInputSource|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Input.GestureRecognizer|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Input.KeyboardDeliveryInterceptor|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Input.PhysicalGestureRecognizer|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Input.PointerPoint|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Input.PointerVisualizationSettings|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Input.RadialController|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.Internal.Input.InteractiveObjectDeviceManager|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.ViewManagement.AccessibilitySettings|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.ViewManagement.ApplicationViewScaling|C:\Windows\System32\Windows.UI.dll|0|0|0
+Windows.UI.ViewManagement.UISettings|C:\Windows\System32\Windows.UI.dll|0|0|0

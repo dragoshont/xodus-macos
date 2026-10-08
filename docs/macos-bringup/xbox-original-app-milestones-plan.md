@@ -666,6 +666,26 @@ the rerun shows a new reached failure within a few steps of a frame. The
 diagnostics (ntdll d3bdiag, kernelbase ffdiag) are reverted before the
 candidate is recorded. Freeze at 06:00 and the 08:00 deadline are unchanged.
 
+**D3c result and decision (19:08; child commit 1d30f10).** The single br92
+rerun ran 18:58:40-19:02:40, from the Mac clock. The opt-in `shellvm`
+client connected to the navigation server, found view 0x10070 and called
+`NavigateToView(viewId, 0, 0, 1)` successfully. The server dropped that view
+from `GetViews`, but the original app received the same 19 ALPC messages as
+br92d: no `ConnectionComplete`, no message-session exit, no Activated,
+no ShowWindow and no Compositor/dcomp activation. Missing NavigateToView is
+therefore not the sole blocker. Its necessity remains a hypothesis.
+
+**PARK further startup/product experiments; proceed to S14 qualification.**
+No second listener rerun is approved. Preserve the next discriminator:
+register `IRemoteShellViewManagerListener` and inspect `GetActiveView` after
+navigation to distinguish navigation failure from server-to-app delivery.
+Parking follows a failed product prediction, not universal composition
+absence or an estimated rewrite cost. Diagnostics were reverted and rebuilt;
+full source/binary identities, focused controls, patch hygiene and independent
+review still need qualification. The opt-in shellvm code is unproven experimental
+code, not a passed startup milestone. Product freeze and final deadline remain
+unchanged; the separate feasibility research continues.
+
 **Decision (14:20): BOUNDED_GO, narrow.** One implementation slice: D3a only,
 3 h real-clock box (hard stop 17:20), then one rerun to learn D3b/D4 and U3.
 No composition, sign-in or library implementation. If U3 shows XAML fail-fasts
@@ -679,12 +699,13 @@ reported source inspection, not independently qualified for funding).**
 - `wine/wine` master and Proton `proton_11.0`: dcomp is still the
   `E_NOTIMPL` stub, same as our Wine 11.0 tree. No `Windows.UI.Composition`
   directory exists in Wine at all; `windows.ui.xaml` is a color-helper stub.
-- wine-staging 11.6+ carries a real 20-patch `dcomp-DCompositionCreateDevice2`
-  series (device, target, visual, commit, shared visual handle). Its own
-  notes say a proper implementation needs a dwm.exe equivalent and some
-  graphics-driver integration. Sourced from a CodeWeavers branch
-  (`bug-23698-react-native`, MR !9839). WineHQ bug 59918 shows it is
-  fragile (blackscreen regressions in other apps).
+- The earlier 20-patch count and attribution to MR !9839 were incorrect.
+  The dedicated researcher reports 67 patches, including pixel-test code, at
+  staging commit `2395d93338d6b75d44c4c68fec38213f2398a5a9`.
+  MR !9839 is a separate closed stub proposal by Jaakko Hannikainen, not
+  Zhiyi's rendering series. Coverage and graphics-driver integration still
+  require the source-backed feasibility review; test code is not proof of
+  this original app rendering on macOS.
 - `giang17/wine` `d2d1-dcomp-11.0` (LGPL-2.1, based on Wine 11.0): a large
   dcomp implementation (`device.c` about 354 KB). `DllGetActivationFactory`
   still stubbed.
@@ -1016,7 +1037,7 @@ These are inspected bodies/exports, not release-version assumptions.
 | [Wine author WaitCompletionPacket branch, 8809cc80](https://gitlab.winehq.org/zhiyi/wine/-/tree/8809cc80f11196616bf2ff7d19aa50eee09dfc68) | Real wait/completion object implementation and focused native/Wine controls | Preserve matched server protocol and lifetime/OOM behavior |
 | [CBS manifest decoder procedure](https://github.com/martinosani/Win-CBS-Manifest-Decoder) | Identifies required servicing dictionary for DCM/PA30 installation metadata | Our extractor uses native APIs; do not copy live machine policy |
 | [Wine Mac window driver, eba89375](https://github.com/wine-mirror/wine/blob/eba89375a0515957701928faac0f5007ef638b04/dlls/winemac.drv/window.c) | Existing real window/Cocoa path | Source presence does not prove Xbox rendering |
-| [Staging DirectComposition, 2395d933](https://github.com/wine-staging/wine-staging/tree/2395d93338d6b75d44c4c68fec38213f2398a5a9/patches/dcomp-DCompositionCreateDevice2) | Selected real texture/surface/composition behavior; linked MR !9839 | Partial/WIP, same-process limitations and unsupported methods; only adopt after a reached call |
+| [Staging DirectComposition, 2395d933](https://github.com/wine-staging/wine-staging/tree/2395d93338d6b75d44c4c68fec38213f2398a5a9/patches/dcomp-DCompositionCreateDevice2) | Selected real texture/surface/composition behavior and pixel-test code; earlier link to MR !9839 was incorrect | Partial/WIP, same-process limitations and unsupported methods; only adopt after a reached call |
 | [Microsoft WebView2 distribution](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution) | Genuine runtime acquisition/hosting contract | Not Wine support or permission to weaken the sandbox |
 | [Microsoft WAM contract](https://learn.microsoft.com/en-us/windows/uwp/security/web-account-manager) | Provider discovery and real token-request lifecycle | Not a replacement auth implementation |
 | [Microsoft WebAuthenticationBroker contract](https://learn.microsoft.com/en-us/windows/uwp/security/web-authentication-broker) | Request/callback and async success/cancel/error contract | Preserve original application identity |

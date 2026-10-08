@@ -686,6 +686,170 @@ review still need qualification. The opt-in shellvm code is unproven experimenta
 code, not a passed startup milestone. Product freeze and final deadline remain
 unchanged; the separate feasibility research continues.
 
+**Owner-directed G0 qualification (2026-10-08 19:18).** The user explicitly
+requested adding and executing reached-dependency qualification, then evaluating
+composition. This supersedes the 19:08 PARK for this bounded G0 only; it does
+not approve a compositor build or extend the final sprint deadline.
+
+KEEP: one logging `IRemoteShellViewManagerListener` / `GetActiveView`
+diagnostic against the frozen b6872a8 reference, because br92 accepted navigation
+without activating the app. DEFER: graphics implementations until the actual
+rendering contract is reached. CUT: wholesale XAML/DWM replacement and
+success-shaped navigation/composition placeholders.
+
+Execution owner: existing navigation child. Hard stop **20:50 +03:00**, no
+downtime renewal, at most **two guarded original-app launches**: the diagnostic
+first; one follow-up only after a narrowly evidenced startup correction and its
+focused control. Preserve process caps, enrolled target identity, exact hashes,
+foreground and authentication holds; no VM start, credentials or unrelated APIs.
+No original-app graphical launch without the existing resource permission.
+
+Required result: the first missing navigation transition and failure reason,
+or (if activation progresses) the first actual rendering class/API/IID/ordinal,
+HRESULT, call context and backend/binary identities. No event or no rendering
+call is **UNKNOWN / BLOCKED EARLIER**, not a passing composition test.
+Native/Wine parity is mandatory where available; unavailable native evidence
+stays explicitly pending. The research owner then maps that measured contract
+to pinned reuse candidates in the composition repo's existing feasibility report.
+If G0 remains earlier-blocked, composition stays unqualified and implementation
+stays deferred; preserve the exact next discriminator rather than extending
+the box. Original frame, authentication and library remain separate criteria.
+
+Canonical task `g0-reached-boundary-20261008` was added at revision 58;
+scoped `mac-experimental-xbox-app` edit/launch policy checks returned allowed.
+The Run baseline is stale and is not evidence for the current candidate.
+`feasibility-record` returned `HOST_PAUSE_REQUIRED` while the direct owner was
+active; no canonical reset/budget receipt or gate PASS is claimed, and no state
+was edited manually. Host-owned execution and the documented finite grant do
+not replace source-bound qualification or waive any policy/human checkpoint.
+Checkpoint **20:55**; original 06:00 freeze and 08:00 final deadline unchanged.
+
+**Composition ETA interpretation.** 20:55 tonight is the next findings/decision
+checkpoint, not a promised composition start or a guarantee that its necessity
+will be known. If G0 reaches an actual rendering failure, contract-specific
+composition evaluation can begin on that evidence; a focused implementation
+experiment then needs its scoped plan and budget. If G0 stays earlier-blocked,
+composition need and implementation start remain UNKNOWN. Do not convert the
+90-minute investigation cap into a completion estimate or renew it silently.
+
+### G0 specification-driven execution contract
+
+The owner's `/architrave` direction is to plan thoroughly, use the canvas and
+continue implementation using SDD. Here SDD means **specification-driven
+development**: define the observable contract, write the discriminating test,
+make the smallest supported correction, rerun the original app, then evaluate
+the actual next dependency. A successful helper is not the product acceptance.
+This elaborates the same G0 grant; it does not renew its clock or launch cap.
+
+**User-visible objective:** make the unchanged original Xbox app progress from
+its blocked navigation session toward activation, and identify whether a real
+composition dependency is actually reached. The working reference is br92 on
+the b6872a8 candidate: CoreWindow exists; shellvm connects and navigation returns
+success; ConnectionComplete, Activated and ShowWindow do not occur.
+
+**Ownership and persistence.** The navigation child owns broker/runtime edits,
+focused tests and original-app execution in the existing experimental target.
+The composition child owns the existing private `docs/feasibility.md`,
+`docs/evidence-register.md` and claim assessment; it evaluates the producer's
+measured result without launching another app or modifying the runtime.
+The coordinator owns this plan, decisions, integration and progress canvas.
+The composition repo's G0 execution plan is already pushed at
+`376b52749b94c48184f3cdc2cb6a252637890ef3`; the earlier feasibility report and
+review remain preserved. No duplicate roadmap or new implementation owner.
+
+#### Requirements and acceptance matrix
+
+| ID | Required behavior/evidence | Acceptance test | Failure meaning |
+|---|---|---|---|
+| G0-01 | Exact enrolled target and frozen reference | Record runtime/prefix, original executable/package identity, source commits and full binary hashes before mutation/launch | Wrong or unavailable target: stop; no substitute prefix/runtime |
+| G0-02 | Native listener ABI, not guessed callbacks | Resolve interface IID, slots, parameter types, threading and ownership from existing measured contracts/PDBs; build the smallest logging listener; exercise lifetime/error controls where available | ABI or native evidence missing: label unknown; do not fabricate signatures or callback success |
+| G0-03 | Observe registration and navigation outcomes | Log AddEventListener result, actual callbacks with view ID/time/thread, NavigateToView result and GetActiveView result/state; correlate original app and broker IDs | S_OK alone proves neither navigation nor activation; no callback is not proof of success |
+| G0-04 | Find the first missing original-app transition | Correlate listener/active-view observation with app ConnectionComplete, RunMessageSession exit, Activated and ShowWindow | Earlier wait remains: record the exact first missing transition, not a composition diagnosis |
+| G0-05 | At most one evidence-backed correction | Resolve the reached behavior/ABI, check upstream at a pinned revision, add the focused failing control, implement only that behavior, then use the second original-app launch | No new discriminating evidence or a broader protocol requirement: stop; no unchanged retry |
+| G0-06 | Inventory an actually reached rendering boundary | Record API/class/IID/ordinal, defining native module/version/hash, HRESULT/error, call context and active graphics backend | Import strings, DLL load, factory success or device creation alone do not qualify the rendering dependency |
+| G0-07 | Source-backed composition assessment | Map G0-06 to the pinned staging/fork/native-DLL candidates; identify matching behavior, required dependencies/tests, backend limits and missing contracts | No reached call: G0 BLOCKED EARLIER; retain conditional alternatives, no duration/cost forecast |
+| G0-08 | Recoverable candidate and truthful closure | Remove temporary diagnostics, preserve reference/candidate/log hashes, commit owned source/evidence, retain unproven opt-in code as experimental | Deterministic controls may pass while original startup/frame remain unaccepted |
+
+The listener must preserve normal error returns, reference counting and
+registration lifetime. It logs actual events rather than synthesizing them.
+Callbacks must not introduce a deadlock by calling back synchronously through
+an unsupported apartment path. The implementation owner grounds any such
+threading decision in the existing contract; this plan does not invent one.
+Unknown/unavailable native confirmation is explicitly pending, not inferred
+from a PDB or a Wine-only control.
+
+#### Execution sequence and decision branches
+
+1. **Preflight and focused control.** Compare against b6872a8; verify enrolled
+   target, current foreground hold, existing scoped policy, identities and
+   process caps. Add only the ABI-grounded listener/active-view observation.
+   Record build/control results and any unavailable native baseline.
+2. **First guarded launch: diagnosis.** Observe the unchanged original app
+   using the same launch identity and bounded runner. Record one chronology:
+   view creation -> listener registration -> navigation -> failure/active view
+   -> app connection/activation state. Stop owned processes normally under the
+   existing timeout policy; no global process kill or GUI/auth action.
+3. **Choose the smallest evidenced action.** A navigation-failure callback
+   identifies a server prerequisite to inspect. An active view with no app
+   completion points to the server-to-app notification path, not necessarily
+   an ALPC defect. Neither observation alone authorizes a guessed reply.
+   A silent listener or unresolved ABI is a diagnostic limitation, not proof
+   that navigation succeeded.
+4. **Conditional correction and second launch.** Only a reproduced in-scope
+   missing behavior with a grounded contract enters code. Apply upstream-first
+   reuse where applicable, demonstrate the focused control, then retry the
+   original app once. A second unchanged fingerprint ends this box.
+5. **Composition evaluation, not speculative implementation.** If activation
+   reaches rendering, classify its actual contract as classic COM dcomp,
+   WinRT Windows.UI.Composition, private native-DLL/backend, or another reached
+   subsystem. Hand that tuple to the composition owner for the reuse assessment.
+   If startup remains earlier-blocked, publish that result and the next precise
+   discriminator. There is no automatic third launch or budget renewal.
+
+```mermaid
+flowchart TD
+  A["Frozen original-app reference"] --> B["ABI-grounded listener + active-view test"]
+  B --> C["One bounded original-app diagnostic"]
+  C --> D{"Actual observation"}
+  D -->|Navigation failure| E["Record reason and reached prerequisite"]
+  D -->|Active view but no completion| F["Inspect notification contract"]
+  D -->|Silent or ambiguous| G["Unknown: diagnostic limitation"]
+  E --> H{"Narrow correction proven?"}
+  F --> H
+  H -->|Yes, within cap| I["Focused control + one original-app follow-up"]
+  H -->|No| J["Blocked earlier: composition unqualified"]
+  G --> J
+  I --> K{"Rendering actually reached?"}
+  D -->|Activation progresses| K
+  K -->|No| J
+  K -->|Yes| L["API/IID/ordinal + error + backend inventory"]
+  L --> M["Compare pinned reuse candidates"]
+  M --> N["Bounded next-slice proposal; no wholesale rewrite"]
+```
+
+#### Evidence record and completion definition
+
+Use the existing prerequisite evidence and composition report rather than a
+new report per attempt. Record: requirement ID, hypothesis/prediction, source
+commit and full hashes, producer/target, real start/end clock, relevant log path
+and digest, actual HRESULT/event/state, observed original-app milestone,
+classification (observed/static/inferred/unknown), and the next action.
+Keep tokens, cookies, credentials and account caches out of evidence.
+
+G0 closes with one of **RENDERING BOUNDARY QUALIFIED**, **BLOCKED EARLIER**,
+or **INCONCLUSIVE / TARGET OR EVIDENCE UNAVAILABLE**. Each is a valid completed
+qualification report; only the first supports a contract-specific composition
+evaluation. None passes original frame, authentication or library.
+Rendering-source presence and helper pixel tests are not original-frame proof.
+
+The next SDD slice, if warranted, has its own measured contract, reuse decision,
+native/control parity cases, actual Mac pixel acceptance, permitted operations
+and finite budget. A large/private protocol expansion returns for scope and
+funding approval rather than turning this G0 into a compositor project.
+Independent review is required for semantic/high-risk implementation before
+integration; tests/review attach to the exact final candidate. The earlier
+research review does not certify new runtime code.
+
 **Decision (14:20): BOUNDED_GO, narrow.** One implementation slice: D3a only,
 3 h real-clock box (hard stop 17:20), then one rerun to learn D3b/D4 and U3.
 No composition, sign-in or library implementation. If U3 shows XAML fail-fasts

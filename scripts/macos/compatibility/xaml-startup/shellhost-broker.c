@@ -608,14 +608,19 @@ static void start_nav_server(void)
 
 /* ---- ShellViewManager client (nav mode "shellvm") ----
  * Under ViewManager phaseout (TRUE for the Desktop device family in CoreUIComponents and WindowManagement), the
- * navigation server creates the app's task on CreateView but does not navigate it; ConnectNavigationTask only sends
- * ConnectionComplete once the task's target state is 10, which SessionLayer::NavigateToView sets for level 0.
+ * navigation server creates the app's task on CreateView but does not navigate it; ViewNavigationLevel (s_EnumNames 0x1e8f00) is
+ * 0 Closed, 1 Inactive, 2 Idle, 3 Obscured, 4 Visible, 5 Active; SessionLayer::NavigateToView (0x3294c) maps Active to
+ * state 5 and Session::BeginActivation, while Closed maps to state 10 and CloseSessionInternal (br95:
+ * OnNavigateAwayFromView right after a level-0 navigate).
  * Natively the navigating actor is explorer's WindowManagement.dll ViewManagerBridge (Connect 0x47c18, OnConnected
  * 0x480a0, 26100): CoreUIFactoryCreate; FindTypeID({490C6BC3}) ; CreateMessageProxy(
  * L"System\\NavigationServer_ShellViewManager", type) ; AddProxyListener ; QI {490C6BC3}; on OnConnected
  * AddEventListener, GetViews and AddListListener, then IShellViewManager::NavigateToView(viewId, level, direction 0,
  * animation 1) from its data model. This reproduces only the connect and the navigate: it polls GetViews instead of a
- * list listener (recorded deviation) and navigates each newly listed view once at level 0. The native trigger for the
+ * list listener (recorded deviation) and navigates each newly listed view once to Active. On OnConnected it also
+ * registers a logging IRemoteShellViewManagerListener (AddEventListener, as the bridge does) and logs GetActiveView
+ * before and after the navigate (G0 discriminator).
+ * The native trigger for the
  * navigate inside WindowManagement was not pinned down. All server logic is the genuine CoreUIComponents.dll. */
 static const IID IID_ShellViewManager = {0x490c6bc3,0x8ab2,0x4528,{0xb9,0x74,0x70,0x9a,0x9e,0xf2,0xd7,0x2d}};
 static const IID IID_RemoteShellView = {0x884eb994,0x3fdf,0x40ff,{0x88,0x00,0xaa,0x11,0x76,0xf0,0xf4,0x5e}};
@@ -645,6 +650,94 @@ static IUnknown proxy_listener = { (IUnknownVtbl *)pl_vtbl };
 
 #define VCALL(obj, slot, type) ((type)(*(void ***)(obj))[slot])
 
+/* G0 discriminator: logging IRemoteShellViewManagerListener {89263C96-9582-4156-99EE-6252CE508EBC} (CoreUIComponents
+ * s_defType 0x224ea0, 0x15 methods). The proxy's AddEventListener (slot 9, 0x5d0f0) takes (listener, proxied interface type id),
+ * checks the type against the proxy's interface and maps it to the event (listener) type, AddRefs the listener through slot 1 and wraps it in a CallbackAdapter
+ * that calls the COM slots directly (no QI): e.g. OnNavigateToViewFailed adapter 0x102904 calls +0x60 (slot 12) with
+ * (this, ViewInstanceId, int reason). Each slot returns HRESULT; all slots log their first three register arguments. */
+static const IID IID_RemoteShellViewManagerListener = {0x89263c96,0x9582,0x4156,{0x99,0xee,0x62,0x52,0xce,0x50,0x8e,0xbc}};
+static const char * const svml_names[24] = { NULL, NULL, NULL,
+    "OnRequestNavigateToView", "OnRequestBeginPresentView", "OnRequestEndPresentView", "OnNavigateAwayFromView",
+    "OnServerWindowCreated", "OnShutdownComplete", "OnSystemKeyPressedComplete", "OnUserLogoffComplete",
+    "OnViewLimitReached", "OnNavigateToViewFailed", "OnRequestShowStandardSystemOverlays", "OnCloseRequestedComplete",
+    "OnRequestConsolidateView", "OnUIAConnectComplete", "OnSystemKeyClientPressed", "OnRequestShowStatusBar",
+    "OnRequestHideStatusBar", "OnRequestClearPersistedState", "OnLayoutCompleted", "OnRequestHideWindow",
+    "OnTrySetTopMost" };
+/* OnRequestBeginPresentView(ViewInstanceId, bool) / OnRequestEndPresentView(ViewInstanceId, bool, ...) are requests
+ * to the shell: ViewManager::NotifyRequestBeginPresentView (0x6cb64) starts a navigation timeout, and the shell answers
+ * with IShellViewManager::BeginPresentView / EndPresentView (ExportAdapter slots 17/18, same view and bool), which
+ * ServerTask::BeginPresentView (0x50738) records before stopping the timeout and resuming the task state machine.
+ * Answered from the poll thread, outside the callback. */
+static struct { volatile LONG pending; UINT32 view; BOOLEAN flag; } svm_present[2];
+static HRESULT svml_event(int slot, UINT_PTR a, UINT_PTR b, UINT_PTR c)
+{
+    blog("shellvm: listener %s (slot %d) a=%#x b=%#Ix c=%#Ix", svml_names[slot], slot, (UINT32)a, b, c);
+    if (slot == 4 || slot == 5)
+    {
+        svm_present[slot - 4].view = (UINT32)a;
+        svm_present[slot - 4].flag = (BOOLEAN)(b & 0xff);
+        InterlockedExchange(&svm_present[slot - 4].pending, 1);
+    }
+    return S_OK;
+}
+#define SVML(n) static HRESULT WINAPI svml_##n(IUnknown *iface, UINT_PTR a, UINT_PTR b, UINT_PTR c) { return svml_event(n, a, b, c); }
+SVML(3) SVML(4) SVML(5) SVML(6) SVML(7) SVML(8) SVML(9) SVML(10) SVML(11) SVML(12) SVML(13)
+SVML(14) SVML(15) SVML(16) SVML(17) SVML(18) SVML(19) SVML(20) SVML(21) SVML(22) SVML(23)
+static void *svml_vtbl[] = { pl_QueryInterface, pl_AddRef, pl_Release, svml_3, svml_4, svml_5, svml_6, svml_7,
+    svml_8, svml_9, svml_10, svml_11, svml_12, svml_13, svml_14, svml_15, svml_16, svml_17, svml_18, svml_19, svml_20,
+    svml_21, svml_22, svml_23 };
+static IUnknown svm_listener = { (IUnknownVtbl *)svml_vtbl };
+
+static void svm_log_active_view(IUnknown *svm, const char *when)
+{
+    IUnknown *view = NULL;
+    UINT32 id = 0, pid = 0, level = 0;
+    HRESULT hr = VCALL(svm, 3, HRESULT (WINAPI *)(IUnknown *, IUnknown **))(svm, &view);
+    if (SUCCEEDED(hr) && view)
+    {
+        VCALL(view, 19, HRESULT (WINAPI *)(IUnknown *, UINT32 *))(view, &id);
+        VCALL(view, 12, HRESULT (WINAPI *)(IUnknown *, UINT32 *))(view, &pid);
+        VCALL(view, 9, HRESULT (WINAPI *)(IUnknown *, UINT32 *))(view, &level);
+        IUnknown_Release(view);
+    }
+    blog("shellvm: GetActiveView (%s) -> %#lx view=%p id=%#x pid=%u level=%u", when, hr, view, id, pid, level);
+}
+
+/* DIAGNOSTIC ONLY (read-only, not part of the candidate): the navigation server lives in this process, so locate
+ * ServerTask objects by their vtable (??_7ServerTask 0x1b82d8, CoreUIComponents 26100.9278) and log the fields
+ * the state machine gates on: +0x2f8 connected IRemoteTask proxy (ConnectNavigationTask 0x3349c), +0x3b8 current
+ * state (SetCurrentState 0x396bc), +0x3bc target state (SetTargetState 0x373ce), +0x3c4 navigation level,
+ * +0x3e9/+0x3eb BeginPresentView flags (0x50738). */
+static void svm_diag_tasks(const char *when)
+{
+    HMODULE coreui = GetModuleHandleW(L"CoreUIComponents.dll");
+    UINT_PTR vt = (UINT_PTR)coreui + 0x1b82d8;
+    MEMORY_BASIC_INFORMATION mbi;
+    BYTE *p = NULL;
+    int found = 0;
+    if (!coreui) return;
+    while (VirtualQuery(p, &mbi, sizeof(mbi)) && found < 8)
+    {
+        if (mbi.State == MEM_COMMIT && mbi.Type == MEM_PRIVATE && mbi.Protect == PAGE_READWRITE)
+        {
+            UINT_PTR *q = mbi.BaseAddress, *e = (UINT_PTR *)((BYTE *)mbi.BaseAddress + mbi.RegionSize);
+            for (; q + 0x80 < e && found < 8; q++)
+            {
+                BYTE *t = (BYTE *)q;
+                if (*q != vt) continue;
+                found++;
+                blog("shellvm: DIAG ServerTask(%s) %p remoteTask=%p cur=%u target=%u navlevel=%u +3cc=%u present=%u/%u "
+                     "readyToNavigate(+3e6)=%u running(+3f4)=%u completed(+3f5)=%u +45b=%u",
+                     when, t, *(void **)(t + 0x2f8), *(UINT32 *)(t + 0x3b8), *(UINT32 *)(t + 0x3bc),
+                     *(UINT32 *)(t + 0x3c4), *(UINT32 *)(t + 0x3cc), t[0x3e9], t[0x3eb], t[0x3e6], t[0x3f4], t[0x3f5],
+                     t[0x45b]);
+            }
+        }
+        p = (BYTE *)mbi.BaseAddress + mbi.RegionSize;
+    }
+    if (!found) blog("shellvm: DIAG ServerTask(%s) none found", when);
+}
+
 static void svm_pump(DWORD ms)
 {
     DWORD end = GetTickCount() + ms;
@@ -664,8 +757,9 @@ static DWORD WINAPI shellvm_thread(void *arg)
     create_fn coreui_create = msg ? (void *)GetProcAddress(msg, "CoreUICreate") : NULL;
     create_fn factory_create = coreui ? (void *)GetProcAddress(coreui, "CoreUIFactoryCreate") : NULL;
     IUnknown *core = NULL, *factory = NULL, *proxy = NULL, *svm = NULL;
-    UINT32 type = 0, navigated[64];
-    int nnav = 0, polls;
+    UINT32 type = 0, ltype = 0, navigated[64];
+    int nnav = 0, polls, watch_active = 0;
+    BOOL listening = FALSE;
     HRESULT hr;
 
     if (!coreui_create || !factory_create) { blog("shellvm: CoreUICreate=%p CoreUIFactoryCreate=%p", coreui_create, factory_create); return 1; }
@@ -690,6 +784,35 @@ static DWORD WINAPI shellvm_thread(void *arg)
         INT32 count = 0, i;
         svm_pump(500);
         if (WaitForSingleObject(svm_connected, 0) == WAIT_TIMEOUT) { if (polls % 20 == 0) blog("shellvm: waiting for OnConnected"); continue; }
+        if (!listening)
+        {
+            /* native bridge: AddEventListener in OnConnected, before GetViews */
+            listening = TRUE;
+            /* AddEventListener's type is the proxied interface type, not the listener's: CreateInstance (0xd595)
+             * stores GetReflection(interface def) at proxy+0x98, AddEventListener compares the def of its type
+             * argument against it, then FindTypeMap(that def) (s_messageTypeMap entry 100) yields the event type
+             * IRemoteShellViewManagerListener used to validate the listener. */
+            ltype = type;
+            hr = S_OK;
+            {
+                hr = VCALL(proxy, 9, HRESULT (WINAPI *)(IUnknown *, IUnknown *, UINT32))(proxy, &svm_listener, ltype);
+                blog("shellvm: AddEventListener(type %#x) -> %#lx", ltype, hr);
+            }
+            svm_log_active_view(svm, "connected");
+        }
+        for (i = 0; i < 2; i++)
+        {
+            if (!InterlockedExchange(&svm_present[i].pending, 0)) continue;
+            hr = VCALL(svm, 17 + i, HRESULT (WINAPI *)(IUnknown *, UINT32, BOOLEAN))(svm, svm_present[i].view, svm_present[i].flag);
+            blog("shellvm: %s(id=%#x, %u) -> %#lx", i ? "EndPresentView" : "BeginPresentView", svm_present[i].view,
+                 svm_present[i].flag, hr);
+            svm_log_active_view(svm, "after present");
+        }
+        if (watch_active && (watch_active++ <= 20 || polls % 20 == 0))
+        {
+            svm_log_active_view(svm, "after navigate");
+            svm_diag_tasks("after navigate");
+        }
         hr = VCALL(svm, 5, HRESULT (WINAPI *)(IUnknown *, IUnknown **))(svm, &list);
         if (SUCCEEDED(hr) && list) hr = VCALL(list, 6, HRESULT (WINAPI *)(IUnknown *, INT32 *))(list, &count);
         if (FAILED(hr) || polls % 20 == 0) blog("shellvm: GetViews -> %#lx list=%p count=%d", hr, list, count);
@@ -708,9 +831,12 @@ static DWORD WINAPI shellvm_thread(void *arg)
                 if (j == nnav && nnav < ARRAY_SIZE(navigated))
                 {
                     blog("shellvm: view[%d] id=%#x pid=%u level=%u", i, id, pid, level);
+                    svm_diag_tasks("before navigate");
                     navigated[nnav++] = id;
-                    hr2 = VCALL(svm, 14, HRESULT (WINAPI *)(IUnknown *, UINT32, INT32, INT32, INT32))(svm, id, 0, 0, 1);
-                    blog("shellvm: NavigateToView(id=%#x, level 0, direction 0, animation 1) -> %#lx", id, hr2);
+                    hr2 = VCALL(svm, 14, HRESULT (WINAPI *)(IUnknown *, UINT32, INT32, INT32, INT32))(svm, id, 5, 0, 1);
+                    blog("shellvm: NavigateToView(id=%#x, level 5 Active, direction 0, animation 1) -> %#lx", id, hr2);
+                    svm_log_active_view(svm, "immediately after navigate");
+                    watch_active = 1;
                 }
             }
             else blog("shellvm: GetItem(%d)/QI IRemoteShellView -> %#lx", i, hr2);

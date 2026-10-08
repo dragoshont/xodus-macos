@@ -51,6 +51,7 @@
   .seg.done { background: var(--done); }
   .seg.now { background: var(--now); }
   .seg.blocked { background: var(--risk); }
+  .seg.deferred { background: var(--ink-3); opacity: .45; }
   .seg label { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; font-weight: 600; color: #101113; white-space: nowrap; }
   .seg.planned label { color: var(--ink-2); }
   .seg.changed { animation: flash 1.4s cubic-bezier(.16,1,.3,1) 1; }
@@ -72,6 +73,7 @@
   .state.done { color: var(--done); } .state.done::before { background: var(--done); }
   .state.now, .state.next { color: var(--now); } .state.now::before, .state.next::before { background: var(--now); }
   .state.blocked { color: var(--risk); } .state.blocked::before { background: var(--risk); }
+  .state.deferred { color: var(--ink-3); } .state.deferred::before { background: var(--ink-3); }
   .state.planned { color: var(--ink-3); }
 
   /* Shipped history: a single ruled timeline */
@@ -179,7 +181,7 @@
 </main>
 
 <script>
-const STATE_LABEL = { done: "Done", now: "In progress", next: "Next", planned: "Planned", blocked: "Blocked" };
+const STATE_LABEL = { done: "Done", now: "In progress", next: "Next", planned: "Planned", blocked: "Blocked", deferred: "Deferred" };
 const PARITY_LABEL = { matched: "Matched", planned: "Planned", unproven: "Unproven", deferred: "Deferred", out: "Out of scope" };
 const KIND_LABEL = { built: "Built new", extended: "Extended", configured: "Configured", used: "Used as a service", rejected: "Researched, not adopted", process: "Process" };
 let previous = {};

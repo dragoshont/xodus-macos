@@ -807,7 +807,7 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
      }
      else
      {
-@@ -2277,4 +2283,892 @@
+@@ -2277,4 +2283,946 @@
      TRACE("%s, %p, %lx, %p, %lx, %p\n", debugstr_guid(riid), pUnk, dwDestContext, dest_context, flags, marshal);
  
      return StdMarshalImpl_Construct(&IID_IMarshal, dwDestContext, dest_context, (void **)marshal);
@@ -1134,6 +1134,7 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +    IMarshal IMarshal_iface;
 +    LONG refcount;
 +    IUnknown *outer;
++    SRWLOCK lock; /* guards proxy and handler_clsid */
 +    IUnknown *proxy;
 +    CLSID handler_clsid;
 +};
@@ -1159,10 +1160,19 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +        *obj = &handler->IUnknown_inner;
 +    else if (IsEqualIID(riid, &IID_IMarshal))
 +        *obj = &handler->IMarshal_iface;
-+    else if (handler->proxy)
-+        return IUnknown_QueryInterface(handler->proxy, riid, obj);
 +    else
-+        return E_NOINTERFACE;
++    {
++        IUnknown *proxy;
++        HRESULT hr;
++
++        AcquireSRWLockShared(&handler->lock);
++        if ((proxy = handler->proxy)) IUnknown_AddRef(proxy);
++        ReleaseSRWLockShared(&handler->lock);
++        if (!proxy) return E_NOINTERFACE;
++        hr = IUnknown_QueryInterface(proxy, riid, obj);
++        IUnknown_Release(proxy);
++        return hr;
++    }
 +
 +    IUnknown_AddRef((IUnknown *)*obj);
 +    return S_OK;
@@ -1213,12 +1223,25 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +    return IUnknown_Release(handler->outer);
 +}
 +
-+/* Marshaling the handler again marshals its proxy. */
-+static HRESULT std_marshal_handler_get_proxy_marshal(struct std_marshal_handler *handler, IMarshal **marshal)
++/* Marshaling the handler again marshals its proxy. Returns referenced proxy and IMarshal pointers and
++ * the handler CLSID, read together so that a concurrent unmarshal or disconnect cannot free them. */
++static HRESULT std_marshal_handler_get_proxy_marshal(struct std_marshal_handler *handler, IUnknown **proxy,
++        IMarshal **marshal, CLSID *clsid)
 +{
-+    if (!handler->proxy)
++    HRESULT hr;
++
++    AcquireSRWLockShared(&handler->lock);
++    if ((*proxy = handler->proxy)) IUnknown_AddRef(*proxy);
++    *clsid = handler->handler_clsid;
++    ReleaseSRWLockShared(&handler->lock);
++    if (!*proxy)
 +        return E_UNEXPECTED;
-+    return IUnknown_QueryInterface(handler->proxy, &IID_IMarshal, (void **)marshal);
++    if (FAILED(hr = IUnknown_QueryInterface(*proxy, &IID_IMarshal, (void **)marshal)))
++    {
++        IUnknown_Release(*proxy);
++        *proxy = NULL;
++    }
++    return hr;
 +}
 +
 +static HRESULT WINAPI std_marshal_handler_GetUnmarshalClass(IMarshal *iface, REFIID riid, void *pv,
@@ -1226,14 +1249,17 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +{
 +    struct std_marshal_handler *handler = std_marshal_handler_from_IMarshal(iface);
 +    IMarshal *marshal;
++    IUnknown *proxy;
++    CLSID handler_clsid;
 +    HRESULT hr;
 +
-+    if (FAILED(hr = std_marshal_handler_get_proxy_marshal(handler, &marshal)))
++    if (FAILED(hr = std_marshal_handler_get_proxy_marshal(handler, &proxy, &marshal, &handler_clsid)))
 +        return hr;
 +    hr = IMarshal_GetUnmarshalClass(marshal, riid, pv, dest_context, dest_context_data, mshlflags, clsid);
-+    if (SUCCEEDED(hr) && !IsEqualGUID(&handler->handler_clsid, &GUID_NULL))
++    if (SUCCEEDED(hr) && !IsEqualGUID(&handler_clsid, &GUID_NULL))
 +        *clsid = CLSID_AggStdMarshal_;
 +    IMarshal_Release(marshal);
++    IUnknown_Release(proxy);
 +    return hr;
 +}
 +
@@ -1242,22 +1268,27 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +{
 +    struct std_marshal_handler *handler = std_marshal_handler_from_IMarshal(iface);
 +    IMarshal *marshal;
++    IUnknown *proxy;
++    CLSID handler_clsid;
 +    HRESULT hr;
 +
-+    if (FAILED(hr = std_marshal_handler_get_proxy_marshal(handler, &marshal)))
++    if (FAILED(hr = std_marshal_handler_get_proxy_marshal(handler, &proxy, &marshal, &handler_clsid)))
 +        return hr;
 +    hr = IMarshal_GetMarshalSizeMax(marshal, riid, pv, dest_context, dest_context_data, mshlflags, size);
 +    IMarshal_Release(marshal);
-+    if (SUCCEEDED(hr) && !IsEqualGUID(&handler->handler_clsid, &GUID_NULL))
++    IUnknown_Release(proxy);
++    if (SUCCEEDED(hr) && !IsEqualGUID(&handler_clsid, &GUID_NULL))
 +        *size += sizeof(CLSID);
 +    return hr;
  }
 +
 +/* Re-marshaling a client identity that was unmarshaled with a handler keeps the handler: the proxy's
 + * OBJREF_STANDARD is rewritten as the OBJREF_HANDLER (inside CLSID_AggStdMarshal custom data) the
-+ * server wrote, so the destination apartment loads the same in-process handler. */
-+static HRESULT std_marshal_handler_write_handler_objref(struct std_marshal_handler *handler, IMarshal *marshal,
-+        IStream *stream, REFIID riid, DWORD dest_context, void *dest_context_data, DWORD mshlflags)
++ * server wrote, so the destination apartment loads the same in-process handler. Inferred from twinapi's
++ * delegation to the inner standard marshaler; not measured on native Windows. */
++static HRESULT std_marshal_handler_write_handler_objref(IUnknown *proxy, const CLSID *handler_clsid,
++        IMarshal *marshal, IStream *stream, REFIID riid, DWORD dest_context, void *dest_context_data,
++        DWORD mshlflags)
 +{
 +    LARGE_INTEGER zero = {{ 0 }};
 +    struct OR_STANDARD std;
@@ -1268,8 +1299,12 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +
 +    if (FAILED(hr = CreateStreamOnHGlobal(NULL, TRUE, &std_stream)))
 +        return hr;
-+    hr = IMarshal_MarshalInterface(marshal, std_stream, riid, handler->proxy, dest_context, dest_context_data, mshlflags);
-+    if (SUCCEEDED(hr)) hr = IStream_Seek(std_stream, zero, STREAM_SEEK_SET, NULL);
++    if (FAILED(hr = IMarshal_MarshalInterface(marshal, std_stream, riid, proxy, dest_context, dest_context_data, mshlflags)))
++    {
++        IStream_Release(std_stream);
++        return hr;
++    }
++    hr = IStream_Seek(std_stream, zero, STREAM_SEEK_SET, NULL);
 +    if (SUCCEEDED(hr)) hr = read_objref_header(std_stream, &objref);
 +    if (SUCCEEDED(hr) && !(objref.flags & OBJREF_STANDARD)) hr = E_UNEXPECTED;
 +    if (SUCCEEDED(hr))
@@ -1277,14 +1312,20 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +        hr = IStream_Read(std_stream, &std, FIELD_OFFSET(struct OR_STANDARD, saResAddr.aStringArray), &res);
 +        if (hr == S_OK && res != FIELD_OFFSET(struct OR_STANDARD, saResAddr.aStringArray)) hr = STG_E_READFAULT;
 +    }
-+    IStream_Release(std_stream);
 +    if (FAILED(hr))
++    {
++        /* the references taken by the inner marshal would otherwise leak */
++        if (SUCCEEDED(IStream_Seek(std_stream, zero, STREAM_SEEK_SET, NULL)))
++            IMarshal_ReleaseMarshalData(marshal, std_stream);
++        IStream_Release(std_stream);
 +        return hr;
++    }
++    IStream_Release(std_stream);
 +
-+    TRACE("handler %s\n", debugstr_guid(&handler->handler_clsid));
++    TRACE("handler %s\n", debugstr_guid(handler_clsid));
 +    objref.flags = OBJREF_HANDLER;
 +    objref.u_objref.u_handler.std = std.std;
-+    objref.u_objref.u_handler.clsid = handler->handler_clsid;
++    objref.u_objref.u_handler.clsid = *handler_clsid;
 +    memset(&objref.u_objref.u_handler.saResAddr, 0, sizeof(objref.u_objref.u_handler.saResAddr));
 +    return IStream_Write(stream, &objref, FIELD_OFFSET(OBJREF, u_objref.u_handler.saResAddr.aStringArray), &res);
 +}
@@ -1294,22 +1335,27 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +{
 +    struct std_marshal_handler *handler = std_marshal_handler_from_IMarshal(iface);
 +    IMarshal *marshal;
++    IUnknown *proxy;
++    CLSID handler_clsid;
 +    HRESULT hr;
 +
-+    if (FAILED(hr = std_marshal_handler_get_proxy_marshal(handler, &marshal)))
++    if (FAILED(hr = std_marshal_handler_get_proxy_marshal(handler, &proxy, &marshal, &handler_clsid)))
 +        return hr;
-+    if (!IsEqualGUID(&handler->handler_clsid, &GUID_NULL))
-+        hr = std_marshal_handler_write_handler_objref(handler, marshal, stream, riid, dest_context, dest_context_data, mshlflags);
++    if (!IsEqualGUID(&handler_clsid, &GUID_NULL))
++        hr = std_marshal_handler_write_handler_objref(proxy, &handler_clsid, marshal, stream, riid, dest_context,
++                dest_context_data, mshlflags);
 +    else
-+        hr = IMarshal_MarshalInterface(marshal, stream, riid, handler->proxy, dest_context, dest_context_data, mshlflags);
++        hr = IMarshal_MarshalInterface(marshal, stream, riid, proxy, dest_context, dest_context_data, mshlflags);
 +    IMarshal_Release(marshal);
++    IUnknown_Release(proxy);
 +    return hr;
 +}
 +
 +static HRESULT WINAPI std_marshal_handler_UnmarshalInterface(IMarshal *iface, IStream *stream, REFIID riid, void **obj)
 +{
 +    struct std_marshal_handler *handler = std_marshal_handler_from_IMarshal(iface);
-+    IUnknown *proxy;
++    IUnknown *proxy, *old;
++    CLSID handler_clsid;
 +    OBJREF objref;
 +    HRESULT hr;
 +
@@ -1318,11 +1364,15 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +    *obj = NULL;
 +    if (FAILED(hr = read_objref_header(stream, &objref)))
 +        return hr;
-+    if (FAILED(hr = std_or_handler_unmarshal(stream, &objref, &proxy, &handler->handler_clsid)))
++    if (FAILED(hr = std_or_handler_unmarshal(stream, &objref, &proxy, &handler_clsid)))
 +        return hr;
 +
-+    if (handler->proxy) IUnknown_Release(handler->proxy);
++    AcquireSRWLockExclusive(&handler->lock);
++    old = handler->proxy;
 +    handler->proxy = proxy;
++    handler->handler_clsid = handler_clsid;
++    ReleaseSRWLockExclusive(&handler->lock);
++    if (old) IUnknown_Release(old);
 +
 +    return IUnknown_QueryInterface(handler->outer, riid, obj);
 +}
@@ -1346,8 +1396,11 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +
 +    TRACE("%p, %#lx.\n", iface, reserved);
 +
-+    if ((proxy = InterlockedExchangePointer((void **)&handler->proxy, NULL)))
-+        IUnknown_Release(proxy);
++    AcquireSRWLockExclusive(&handler->lock);
++    proxy = handler->proxy;
++    handler->proxy = NULL;
++    ReleaseSRWLockExclusive(&handler->lock);
++    if (proxy) IUnknown_Release(proxy);
 +    return S_OK;
 +}
 +
@@ -1648,6 +1701,7 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +        handler->IUnknown_inner.lpVtbl = &std_marshal_handler_inner_vtbl;
 +        handler->IMarshal_iface.lpVtbl = &std_marshal_handler_vtbl;
 +        handler->refcount = 1;
++        InitializeSRWLock(&handler->lock);
 +        handler->outer = outer;
 +        *inner = &handler->IUnknown_inner;
 +        return S_OK;
@@ -1866,6 +1920,22 @@ diff -u a/dlls/combase/roapi.c b/dlls/combase/roapi.c
 +    TRACE("%d.\n", priority);
 +    return FALSE;
 +}
+diff -u a/dlls/combase/rpc.c b/dlls/combase/rpc.c
+--- a/dlls/combase/rpc.c
++++ b/dlls/combase/rpc.c
+@@ -1255,6 +1255,12 @@
+     /* shortcut the RPC runtime */
+     if (message_state->target_hwnd)
+     {
++        /* ndr3-compact: the in-process stub receives this client message directly, so record the
++         * NDR 2.0 syntax that every Wine proxy emits for NdrStubCall3 (the runtime path builds a
++         * zeroed server message instead). */
++        static const RPC_SYNTAX_IDENTIFIER ndr20_syntax =
++            {{0x8a885d04, 0x1ceb, 0x11c9, {0x9f, 0xe8, 0x08, 0x00, 0x2b, 0x10, 0x48, 0x60}}, {2, 0}};
++        msg->TransferSyntax = (RPC_SYNTAX_IDENTIFIER *)&ndr20_syntax;
+         msg->Buffer = malloc(msg->BufferLength);
+         if (msg->Buffer)
+             status = RPC_S_OK;
 diff -u a/dlls/dxgi/device.c b/dlls/dxgi/device.c
 --- a/dlls/dxgi/device.c
 +++ b/dlls/dxgi/device.c
@@ -2328,8 +2398,8 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 -    FIXME( "(%p %p): stub\n", length, name );
 -    return APPMODEL_ERROR_NO_PACKAGE;
 +    return get_current_package_identity_string( 0, length, name );
- }
- 
++}
++
 +
 +/* WIN://PKG holds the registration origin in its high 32 bits (see server/package_activation.c). */
 +static LONG get_current_package_origin( UINT32 *origin )
@@ -2354,7 +2424,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    NTSTATUS status;
 +    HANDLE token;
 +    LONG result = ERROR_INVALID_DATA;
- 
++
 +    if ((status = NtOpenProcessToken( GetCurrentProcess(), TOKEN_QUERY, &token )))
 +        return RtlNtStatusToDosError( status );
 +    RtlInitUnicodeString( &attribute_name, L"WIN://PKG" );
@@ -2396,7 +2466,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    return result;
 +}
 +
- /***********************************************************************
++/***********************************************************************
 + *         GetStagedPackageOrigin   (kernelbase.@)
 + */
 +LONG WINAPI GetStagedPackageOrigin( const WCHAR *full_name, UINT32 *origin )
@@ -2422,14 +2492,14 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    if ((result = get_current_package_origin( &value ))) return result;
 +    *origin = value;
 +    return ERROR_SUCCESS;
-+}
-+
+ }
+ 
 +/* Per-package application data state (api-ms-win-appmodel-state-l1-2-0).
 + * Measured on Windows 11 26100.9278: OpenState fails with APPMODEL_ERROR_NO_PACKAGE
 + * without package identity; GetStateFolder resolves under the token user's profile
 + * (not %LOCALAPPDATA%) and never creates folders. */
 +#define APPMODEL_STATE_MAGIC 0x54535041
-+
+ 
 +struct appmodel_state
 +{
 +    DWORD magic;
@@ -2440,7 +2510,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +BOOL WINAPI CloseState( HANDLE handle );
 +BOOL WINAPI GetStateFolder( HANDLE handle, int type, WCHAR *path, UINT32 *length );
 +
-+/***********************************************************************
+ /***********************************************************************
 + *         OpenState   (kernelbase.@)
 + */
 +HANDLE WINAPI OpenState( void )
@@ -3221,12 +3291,10 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
  }
  
  
-@@ -1873,6 +2735,810 @@
-         return ERROR_INVALID_PARAMETER;
-     memcpy(id->publisherId, publisher_id, sizeof(*id->publisherId) * len);
+@@ -1875,4 +2737,829 @@
      id->publisherId[len] = 0;
-+
-+    return ERROR_SUCCESS;
+ 
+     return ERROR_SUCCESS;
 +}
 +
 +#define MAX_PACKAGE_DEPENDENCIES 32
@@ -3416,7 +3484,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    if (family && _snwprintf( family, PACKAGE_FAMILY_NAME_MAX_LENGTH, L"%s_%s", node->name, publisher_id ) < 0)
 +        return FALSE;
 +    return TRUE;
-+}
+ }
 +
 +/* Finds a package by full name in Wine's staged package graph: the caller's catalog-registered
 + * package and the packages staged beside it. Packages from other publishers are not matched
@@ -3477,8 +3545,9 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +                                         WCHAR **full_names, UINT32 *buffer_len, WCHAR *buffer,
 +                                         UINT32 *properties )
 +{
-+    static WCHAR names[MAX_PACKAGE_DEPENDENCIES + 1][PACKAGE_FULL_NAME_MAX_LENGTH + 1];
-+    UINT32 props[MAX_PACKAGE_DEPENDENCIES + 1];
++    WCHAR (*names)[PACKAGE_FULL_NAME_MAX_LENGTH + 1] = NULL;
++    UINT32 *props = NULL, capacity = 0;
++    LONG ret = ERROR_SUCCESS;
 +    WCHAR current[PACKAGE_FULL_NAME_MAX_LENGTH + 1], family[PACKAGE_FAMILY_NAME_MAX_LENGTH + 1];
 +    WCHAR repository[MAX_PATH], pattern[MAX_PATH], root[MAX_PATH], *slash;
 +    BYTE basic[sizeof(PACKAGE_ID) + sizeof(current)];
@@ -3519,22 +3588,39 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +                wcscat( root, data.cFileName );
 +                if (read_package_node( root, &node, NULL, NULL ) || wcscmp( node.publisher, head.publisher )) continue;
 +                if (!(filters & (node.framework ? PACKAGE_FILTER_DIRECT : PACKAGE_FILTER_HEAD))) continue;
++                if (found == capacity)
++                {
++                    UINT32 grow = capacity ? capacity * 2 : 8;
++                    void *ptr;
++
++                    ptr = names ? HeapReAlloc( GetProcessHeap(), 0, names, grow * sizeof(*names) )
++                                : HeapAlloc( GetProcessHeap(), 0, grow * sizeof(*names) );
++                    if (!ptr) { ret = ERROR_NOT_ENOUGH_MEMORY; break; }
++                    names = ptr;
++                    ptr = props ? HeapReAlloc( GetProcessHeap(), 0, props, grow * sizeof(*props) )
++                                : HeapAlloc( GetProcessHeap(), 0, grow * sizeof(*props) );
++                    if (!ptr) { ret = ERROR_NOT_ENOUGH_MEMORY; break; }
++                    props = ptr;
++                    capacity = grow;
++                }
 +                if (!format_package_names( &node, head_id->publisherId, names[found], family )) continue;
 +                if (wcsicmp( family, family_name )) continue;
 +                props[found] = node.framework ? PACKAGE_PROPERTY_FRAMEWORK : 0;
 +                needed += wcslen( names[found] ) + 1;
-+                if (++found == ARRAY_SIZE(names)) break;
++                found++;
 +            } while (FindNextFileW( find, &data ));
 +            FindClose( find );
 +        }
 +    }
 +    else FIXME( "no staged package graph outside package context\n" );
 +
++    if (ret) goto done;
 +    if (*buffer_len < needed || (full_names && *count < found))
 +    {
 +        *count = found;
 +        *buffer_len = needed;
-+        return ERROR_INSUFFICIENT_BUFFER;
++        ret = ERROR_INSUFFICIENT_BUFFER;
++        goto done;
 +    }
 +    for (i = 0, length = 0; i < found; i++)
 +    {
@@ -3545,7 +3631,10 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    }
 +    *count = found;
 +    *buffer_len = needed;
-+    return ERROR_SUCCESS;
++done:
++    HeapFree( GetProcessHeap(), 0, names );
++    HeapFree( GetProcessHeap(), 0, props );
++    return ret;
 +}
 +
 +/***********************************************************************
@@ -3618,7 +3707,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +        /* Machine/User/Effective external locations are not modelled. */
 +        return ERROR_NOT_FOUND;
 +    }
- 
++
 +    needed = wcslen( node.root ) + 1;
 +    if (*length < needed)
 +    {
@@ -3627,8 +3716,8 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    }
 +    memcpy( path, node.root, needed * sizeof(WCHAR) );
 +    *length = needed;
-     return ERROR_SUCCESS;
- }
++    return ERROR_SUCCESS;
++}
 +/***********************************************************************
 + *         PackageFamilyNameFromFullName   (kernelbase.@)
 + */
@@ -5109,7 +5198,7 @@ diff -u a/dlls/profapi/Makefile.in b/dlls/profapi/Makefile.in
 diff -u a/dlls/profapi/main.c b/dlls/profapi/main.c
 --- /dev/null
 +++ b/dlls/profapi/main.c
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,80 @@
 +/*
 + * Profile API
 + *
@@ -5146,6 +5235,9 @@ diff -u a/dlls/profapi/main.c b/dlls/profapi/main.c
 +
 +/***********************************************************************
 + *           GetAppContainerRegistryHandleFromName (PROFAPI.114)
++ *
++ * Semantics measured on native Windows 11 with appcontainer-registry-handle-probe.c
++ * (acrh-native.txt, acrh-pkg-native-vm.txt).
 + */
 +HRESULT WINAPI GetAppContainerRegistryHandleFromName( const WCHAR *name, const WCHAR *child,
 +                                                      const WCHAR *subkey, REGSAM access, HKEY *ret )
@@ -5506,21 +5598,46 @@ diff -u a/dlls/rpcrt4/cpsf.h b/dlls/rpcrt4/cpsf.h
 diff -u a/dlls/rpcrt4/cstub.c b/dlls/rpcrt4/cstub.c
 --- a/dlls/rpcrt4/cstub.c
 +++ b/dlls/rpcrt4/cstub.c
-@@ -115,9 +115,10 @@
+@@ -105,6 +105,15 @@
+ }
+ 
+ 
++/* ndr3-rofill */
++static BOOL is_writable( const void *ptr )
++{
++    MEMORY_BASIC_INFORMATION info;
++
++    if (!VirtualQuery( ptr, &info, sizeof(info) )) return FALSE;
++    return !!(info.Protect & (PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY));
++}
++
+ BOOL fill_delegated_proxy_table(IUnknownVtbl *vtbl, DWORD num)
+ {
+     const void **entry = (const void **)(vtbl + 1);
+@@ -115,9 +124,19 @@
          FIXME( "%lu methods not supported\n", num );
          return FALSE;
      }
 -    vtbl->QueryInterface = IUnknown_QueryInterface_Proxy;
 -    vtbl->AddRef = IUnknown_AddRef_Proxy;
 -    vtbl->Release = IUnknown_Release_Proxy;
-+    /* ndr3-rofill: recent MIDL pre-fills these in read-only data */
-+    if (!vtbl->QueryInterface) vtbl->QueryInterface = IUnknown_QueryInterface_Proxy;
-+    if (!vtbl->AddRef) vtbl->AddRef = IUnknown_AddRef_Proxy;
-+    if (!vtbl->Release) vtbl->Release = IUnknown_Release_Proxy;
++    /* ndr3-rofill: recent MIDL emits these tables pre-filled (import thunks) in read-only
++     * data, which cannot be written; writable tables are always overwritten (tests/cstub.c) */
++    if (is_writable( vtbl ))
++    {
++        vtbl->QueryInterface = IUnknown_QueryInterface_Proxy;
++        vtbl->AddRef = IUnknown_AddRef_Proxy;
++        vtbl->Release = IUnknown_Release_Proxy;
++    }
++    else if (!vtbl->QueryInterface || !vtbl->AddRef || !vtbl->Release)
++    {
++        FIXME( "read-only proxy vtbl %p is not pre-filled\n", vtbl );
++        return FALSE;
++    }
      for (i = 0; i < num - 3; i++)
          if (!entry[i]) entry[i] = delegating_vtbl.methods[i];
      return TRUE;
-@@ -284,6 +285,8 @@
+@@ -284,6 +303,8 @@
          IUnknown_Release(old);
  }
  
@@ -5529,7 +5646,7 @@ diff -u a/dlls/rpcrt4/cstub.c b/dlls/rpcrt4/cstub.c
  HRESULT WINAPI CStdStubBuffer_Invoke(LPRPCSTUBBUFFER iface,
                                      PRPCOLEMESSAGE pMsg,
                                      LPRPCCHANNELBUFFER pChannel)
-@@ -297,7 +300,26 @@
+@@ -297,7 +318,26 @@
  
    __TRY
    {
@@ -5557,29 +5674,6 @@ diff -u a/dlls/rpcrt4/cstub.c b/dlls/rpcrt4/cstub.c
        header->pDispatchTable[pMsg->iMethod](iface, pChannel, (PRPC_MESSAGE)pMsg, &dwPhase);
      else /* pure interpreted */
        NdrStubCall2(iface, pChannel, (PRPC_MESSAGE)pMsg, &dwPhase);
-diff -u a/dlls/rpcrt4/ndr_clientserver.c b/dlls/rpcrt4/ndr_clientserver.c
---- a/dlls/rpcrt4/ndr_clientserver.c
-+++ b/dlls/rpcrt4/ndr_clientserver.c
-@@ -44,6 +44,11 @@
- /************************************************************************
-  *             NdrClientInitializeNew [RPCRT4.@]
-  */
-+/* ndr3-compact: every Wine client marshaling path emits NDR 2.0; record it so that an
-+ * in-process (cross-apartment) NdrStubCall3 does not read an uninitialized syntax pointer. */
-+static RPC_SYNTAX_IDENTIFIER ndr20_transfer_syntax =
-+    {{0x8a885d04, 0x1ceb, 0x11c9, {0x9f, 0xe8, 0x08, 0x00, 0x2b, 0x10, 0x48, 0x60}}, {2, 0}};
-+
- void WINAPI NdrClientInitializeNew( PRPC_MESSAGE pRpcMessage, PMIDL_STUB_MESSAGE pStubMsg, 
-                                     PMIDL_STUB_DESC pStubDesc, unsigned int ProcNum )
- {
-@@ -56,6 +61,7 @@
-   pRpcMessage->RpcFlags = 0;
-   pRpcMessage->ReservedForRuntime = NULL;
-   pRpcMessage->DataRepresentation = NDR_LOCAL_DATA_REPRESENTATION;
-+  pRpcMessage->TransferSyntax = &ndr20_transfer_syntax;
- 
-   pStubMsg->RpcMsg = pRpcMessage;
-   pStubMsg->BufferStart = NULL;
 diff -u a/dlls/rpcrt4/ndr_stubless.c b/dlls/rpcrt4/ndr_stubless.c
 --- a/dlls/rpcrt4/ndr_stubless.c
 +++ b/dlls/rpcrt4/ndr_stubless.c
@@ -10517,6 +10611,7 @@ diff -u a/server/token.c b/server/token.c
  
      ret = token_access_check_pass( token, FALSE, sd, desired_access, privs, priv_count,
                                    mapping, granted_access, status );
+diff -u a/configure.ac b/configure.ac
 --- a/configure.ac
 +++ b/configure.ac
 @@ -3356,6 +3356,7 @@

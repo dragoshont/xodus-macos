@@ -1,0 +1,57 @@
+Wine conformance tests for the sprint patch (R3 review item B2), 2026-10-08.
+
+Build: test tree $RUN_ROOT/buildtest (same source as the stage build, configured with tests enabled), test
+executables run by the stage build ($RUN_ROOT/build/wine) in a separate prefix ($RUN_ROOT/testprefix) through
+guard-test.sh. Headless SSH session: the prefix uses Wine's null graphics driver (HKCU\Software\Wine\Drivers
+Graphics=null); without it ole32 marshal/compobj window tests fail with "no driver could be loaded".
+There is no unpatched build of this exact base, so every failure was attributed against the touched code.
+
+Regressions found and fixed (both caused by the sprint patch, both now pass):
+1. rpcrt4:ndr_marshall "rpcMsg.TransferSyntax should have been unset": the patch set TransferSyntax in
+   NdrClientInitializeNew; native leaves it unset. The NDR 2.0 syntax is now recorded only in combase's in-process
+   channel shortcut (ClientRpcChannelBuffer_GetBuffer, target_hwnd path), the one place where the stub receives the
+   client message directly; the RPC runtime path builds a zeroed server message (rpc_server.c calloc), for which
+   NdrStubCall3 already falls back to NdrStubCall2. ndr_clientserver.c is back to upstream.
+2. rpcrt4:cstub "wrong proxy 1/3 func 0-2": the ndr3-rofill edit only filled NULL IUnknown slots; native overwrites
+   writable tables. fill_delegated_proxy_table now overwrites writable tables and keeps pre-filled read-only ones
+   (VirtualQuery). A compare-and-write variant was tried first and broke the original app (br40: access violation
+   writing OneCoreUAPCommonProxyStub.dll .rdata from NdrDllGetClassObject; its pre-filled slots are the DLL's own
+   import thunks, not rpcrt4 addresses). Native cannot write read-only data either.
+
+Final run (post-review DLLs: kernelbase FPBF, combase handler lock + rpc.c, rpcrt4 cstub, profapi):
+rpcrt4:cstub          213 tests, 0 failures
+rpcrt4:generated        0 tests, 0 failures
+rpcrt4:ndr_marshall 31859 tests, 0 failures
+rpcrt4:rpc          16501 tests, 0 failures
+rpcrt4:rpc_async       19 tests, 0 failures
+rpcrt4:server        2227 tests, 1 failure   (a)
+ole32:marshal        1239 tests, 1 failure   (b)
+ole32:compobj        1114 tests, 0 failures
+ole32:defaulthandler   38 tests, 0 failures
+ole32:usrmarshal      750 tests, 0 failures
+ole32:ole_server       33 tests, 0 failures
+combase:roapi         309 tests, 0 failures
+combase:string        598 tests, 0 failures
+kernel32:version      156 tests, 0 failures, 2 skipped
+kernelbase:file/memory/path/process/security/sync  4363 tests, 0 failures
+ntdll:rtl          600065 tests, 0 failures
+ntdll:port              1 test,  0 failures
+ntdll:reg            4072 tests, 0 failures
+ntdll:om             7741 tests, 5 failures  (c)
+ntdll:info           2769 tests, 20 failures (d)
+shcore:shcore         226 tests, 0 failures
+(child-process counts are reported separately by the test harness and are not included above)
+
+Remaining failures, not attributed to the patch:
+(a) server.c:1337 child exception 0x6ba: "rpcrt4_ncacn_ip_tcp_open couldn't connect to 127.0.0.1:4114" (TCP
+    transport; reproducible). The patch touches no socket, ws2_32, afd or ncacn_ip_tcp code.
+(b) marshal.c:3733 test_inproc_handler QI returned CO_E_OBJNOTCONNECTED instead of E_NOINTERFACE (ole32 default
+    handler path). Reproduces unchanged with the pre-review combase marshal.c and with upstream marshal.c
+    (.pre-stdmex) swapped in, so it is not caused by the handler marshaling work. test_handler_marshaling passes.
+(c) om.c:2603/2606: NtOpenFile("\??\GLOBALROOT\Device\Null") -> STATUS_OBJECT_NAME_INVALID (object namespace).
+    The patch's ntdll changes (rtl, sec, thread, threadpool, unix alpc/security/thread) do not touch it.
+(d) info.c thread affinity ("running on processor N"), battery minutes and WorkingSetSize/PagefileUsage: macOS
+    host behavior. The patch's ntdll/unix/thread.c change only adds ThreadWorkOnBehalfTicket.
+
+Original app after the fixes: br42 (same activation arguments as br39) reproduces the br38/br39 boundary signature:
+{f679dbef} 17, {2e5500b6} 50, E_NOTIMPL 13, E_FAIL 2, access violations 0, Activate hr=0x800706be.

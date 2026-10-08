@@ -458,10 +458,12 @@ boundary".
 - **Furthest point (br38).** The app's view thread creates a CoreWindow
   through the handler-marshaled `ICoreWindowFactory`.
 - **Stop.** On DESKTOP, `PrepareToActivateAsync` needs the CoreWindow
-  navigation client (CoreUIComponents `ImmersiveNavigationClient`). That
-  class is a client of the shell CoreUI window-manager server.
-  `ActivateInternal` treats its absence as fatal. Building that server is
-  explorer/ApplicationFrameHost work, so the bounded stop applies.
+  navigation client (CoreUIComponents `ImmersiveNavigationClient`). Static
+  analysis indicates that class is a client of the shell CoreUI
+  window-manager server; the serving process was not measured.
+  `ActivateInternal` treats its absence as fatal. Building that server is,
+  on a conservative reading, explorer/ApplicationFrameHost work, so the
+  bounded stop applies.
 - **Milestone 4 not proven.** XBOX-APP-STARTUP stays UNTESTED.
 - **Details.** See the xaml-startup README section "Shell-host lane" and
   `probe-outputs/activation-20261007/navigation-client-boundary.txt`.

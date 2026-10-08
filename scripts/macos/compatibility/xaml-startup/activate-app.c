@@ -35,9 +35,18 @@ static HSTRING make_string(const char *text)
 {
     WCHAR buffer[512];
     HSTRING out = NULL;
+    HRESULT hr;
     if (!strcmp(text, "-")) return NULL;
-    MultiByteToWideChar(CP_UTF8, 0, text, -1, buffer, ARRAYSIZE(buffer));
-    if (FAILED(WindowsCreateString(buffer, lstrlenW(buffer), &out))) return NULL;
+    if (!MultiByteToWideChar(CP_UTF8, 0, text, -1, buffer, ARRAYSIZE(buffer)))
+    {
+        printf("make_string: cannot convert \"%s\" (error %lu); passing NULL\n", text, GetLastError());
+        return NULL;
+    }
+    if (FAILED(hr = WindowsCreateString(buffer, lstrlenW(buffer), &out)))
+    {
+        printf("make_string: WindowsCreateString -> %#lx; passing NULL\n", hr);
+        return NULL;
+    }
     return out;
 }
 

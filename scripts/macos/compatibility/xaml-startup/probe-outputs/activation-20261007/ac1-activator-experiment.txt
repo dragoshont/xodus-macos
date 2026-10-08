@@ -1,4 +1,4 @@
-﻿CoInitializeEx hr=0x00000000
+CoInitializeEx hr=0x00000000
 ROT/moniker hr=0x00000000 item=Xodus.WinRT.Factory.v1|Microsoft.GamingApp_2609.1001.16.0_x64__8wekyb3d8bbwe|Microsoft.Xbox.AppL|Microsoft.Xbox.AppL
 factory published after 5750 ms
 QI IClassFactory hr=0x00000000
@@ -67,12 +67,12 @@ ACT_EXIT=5
 0228:trace:ole:NdrBaseTypeBufferSize pStubMsg 000000000156EDE0, pMemory 00000000012A4EE0, type 0x08
 0228:trace:ole:NdrStubGetBuffer (000000000130F250, 0000000001304580, 000000000156EDE0)
 === guard/boot
-0100:warn:module:start_main_thread error loading cxcompatdb.so: dlopen(/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so, 0x0005): tried: '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/win32u/cxcompatdb.so' (no such file), '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/System/Volumes/Preboot/Cryptexes/Rosetta/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file)
+0100:warn:module:start_main_thread error loading cxcompatdb.so: dlopen($RUN_ROOT/build/dlls/ntdll/cxcompatdb.so, 0x0005): tried: '$RUN_ROOT/build/dlls/ntdll/cxcompatdb.so' (no such file), '$RUN_ROOT/build/dlls/win32u/cxcompatdb.so' (no such file), '$RUN_ROOT/build/dlls/ntdll/cxcompatdb.so' (no such file), '/System/Volumes/Preboot/Cryptexes/Rosetta$RUN_ROOT/build/dlls/ntdll/cxcompatdb.so' (no such file), '/System/Volumes/Preboot/Cryptexes/OS$RUN_ROOT/build/dlls/ntdll/cxcompatdb.so' (no such file), '$RUN_ROOT/build/dlls/ntdll/cxcompatdb.so' (no such file)
 0100:warn:file:NtCreateFile L"\\??\\C:\\windows\\system32\\start.exe.manifest" not found (c0000034)
 0100:warn:globalmem:KernelBaseGetGlobalData semi-stub!
 0100:warn:msvcrt:_configure_wide_argv (1) stub
 0100:warn:file:NtQueryAttributesFile L"\\??\\C:\\windows\\system32\\reg.com" not found (c0000034)
-0108:warn:module:start_main_thread error loading cxcompatdb.so: dlopen(/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so, 0x0005): tried: '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/win32u/cxcompatdb.so' (no such file), '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/System/Volumes/Preboot/Cryptexes/Rosetta/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file)
+0108:warn:module:start_main_thread error loading cxcompatdb.so: dlopen($RUN_ROOT/build/dlls/ntdll/cxcompatdb.so, 0x0005): tried: '$RUN_ROOT/build/dlls/ntdll/cxcompatdb.so' (no such file), '$RUN_ROOT/build/dlls/win32u/cxcompatdb.so' (no such file), '$RUN_ROOT/build/dlls/ntdll/cxcompatdb.so' (no such file), '/System/Volumes/Preboot/Cryptexes/Rosetta$RUN_ROOT/build/dlls/ntdll/cxcompatdb.so' (no such file), '/System/Volumes/Preboot/Cryptexes/OS$RUN_ROOT/build/dlls/ntdll/cxcompatdb.so' (no such file), '$RUN_ROOT/build/dlls/ntdll/cxcompatdb.so' (no such file)
 0108:warn:file:NtCreateFile L"\\??\\C:\\windows\\system32\\reg.exe.manifest" not found (c0000034)
 0108:warn:globalmem:KernelBaseGetGlobalData semi-stub!
 0108:warn:msvcrt:_configure_wide_argv (1) stub

@@ -1,0 +1,7 @@
+# Native Windows 11 VM (SYSTEM via prlctl exec), captured 2026-10-08
+# reg query HKLM\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\Windows.Phone.UI.Core.ImmersiveNavigationClient /s
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\Windows.Phone.UI.Core.ImmersiveNavigationClient
+    ActivationType    REG_DWORD    0x0
+    DllPath    REG_SZ    C:\Windows\System32\CoreUIComponents.dll
+    Threading    REG_DWORD    0x0
+    TrustLevel    REG_DWORD    0x0

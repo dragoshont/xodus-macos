@@ -407,7 +407,7 @@ Lane files:
 
 | Run | Reached failure (original app) | Resolution | Evidence |
 |---|---|---|---|
-| ac1 | app waits for an external activator | `activate-app.c` calls the published factory; app asks for the broker | `ac1-activator-experiment.txt` |
+| ac1 | app waits for an external activator | `activate-app.c` calls the published factory; app asks for the broker. The `aamId` (command line, default 0) and the random activity GUID are probe inputs, not native shell-issued values | `ac1-activator-experiment.txt` |
 | br7–br8 | args NULL, then remote QI `{99FC44E3}` E_NOINTERFACE | genuine args via property set; PS registration mirrored | `launch-args-*` |
 | br9 | `PsmGetKeyFromToken` missing | honest `STATUS_NOT_IMPLEMENTED` export; twinapi continues as with reason 0 | — |
 | br10 | Activate E_NOINTERFACE | 6497 OneCoreUAP PS IIDs mirrored | `onecoreuap-proxystub-iids.txt` |
@@ -420,24 +420,31 @@ Lane files:
 | br33–br34 | `OpenGlobalizationUserSettingsKey` | implemented | `ogusk-*` |
 | br34–br35 | WNF state query | ntdll WNF model: measured unpublished names return size 0 | `wnf-*` |
 | br35–br36 | broker reached; handler re-marshal | broker `ICoreWindowFactory` mirrors the native base | `br38-broker.stdout.txt` |
-| br36–br37 | `NdrStubCall3`: "NDR64 server stubs are not supported" | rpcrt4: `NdrClientInitializeNew` sets `RpcMsg->TransferSyntax` to NDR 2.0, which every Wine client path marshals; in-process `NdrStubCall3` read a garbage pointer before | — |
+| br36–br37 | `NdrStubCall3`: "NDR64 server stubs are not supported" | rpcrt4/combase: the in-process (cross-apartment) message now carries the NDR 2.0 `TransferSyntax` that every Wine proxy marshals; in-process `NdrStubCall3` read a garbage pointer before. This was first set in `NdrClientInitializeNew` and was moved to the combase in-process channel after review. | — |
 | br37–br38 | re-marshaled factory became a plain proxy, so `CreateCoreWindow` ran on the broker (E_NOTIMPL) | combase: a client handler identity re-marshals as OBJREF_HANDLER with its handler CLSID | — |
 | **br38** | CoreWindow created on the view ASTA; then `PrepareToActivateAsync` E_NOTIMPL and `ICoreApplicationViewInternal` method 7 E_FAIL | **stop rule (shell window manager)** | `navigation-client-boundary.txt` |
 
 **Why br38 is the stop.** On DESKTOP, `IsWindowClientBamoEnabled` is false and
 `IsApplicationActivationWatcherEnabled` is true. `PrepareToActivateAsync`
-therefore needs the CoreWindow's navigation client.
+therefore needs the CoreWindow's navigation client. The chain below comes from
+static analysis of twinapi.appcore and CoreUIComponents.dll, plus one native
+registry measurement. The process that serves the CoreUI WindowManager
+endpoint on native Windows was **not** measured.
 
 - `CreateCoreWindow` attaches that client only when the factory data sets the
   navigation flag and id: `Windows.Phone.UI.Core.ImmersiveNavigationClient`,
-  which is in-process in `CoreUIComponents.dll`.
-- That class is a client of the CoreUI shell server: WindowManager endpoint,
-  SessionLayer, ForegroundTaskManager. The navigation id is a window/task id
-  owned by that server.
+  which is in-process in `CoreUIComponents.dll`
+  (`immersive-navigation-client-registration-native.txt`).
+- Strings in `CoreUIComponents.dll` indicate the class is a client of the
+  CoreUI shell server: WindowManager endpoint, SessionLayer,
+  ForegroundTaskManager. The navigation id would be a window/task id owned by
+  that server.
 - `ActivateInternal` propagates the failure (Return_Hr line 0x215).
-- Providing the client means implementing the shell window manager, which
-  is explorer/ApplicationFrameHost territory. The broker keeps `nav=0`, and
-  no id or client is fabricated.
+- Static analysis indicates that providing the client means implementing the
+  shell window manager. We read that as explorer/ApplicationFrameHost
+  territory under the stop rule. This is a conservative reading of the rule,
+  not a measured attribution. The broker keeps `nav=0`, and no id or client
+  is fabricated.
 
 **Recorded deviations and model gaps in this lane:**
 
@@ -446,14 +453,49 @@ therefore needs the CoreWindow's navigation client.
 - CoreWindow `GetForCurrentThread` returns NULL;
 - FPBF has no RESOURCE or BUNDLE support;
 - OGUSK multi-session redirection is not modelled;
-- WNF knows only the 2 measured names;
+- WNF knows only the 2 measured names, and accepted subscriptions are never
+  notified (native publishes those names when the language changes);
 - `RtlGetDeviceFamilyInfoEnum` is a DESKTOP stub;
 - `RtlQueryFeatureConfiguration` and `WilFailureNotifyWatchers` are absent,
   so WIL uses compiled feature defaults;
 - the broker has no splash surface; its window type 6 and 1280x800
   geometry are host choices;
+- the broker's `GetWindowFactory` (slot 5) zero-fills its 32-byte results
+  block. Native's layout for that block was not measured, so this is a host
+  assumption;
+- the broker is a non-native implementation registered under the real
+  system CLSID `{3480A401}` on the stage only. Every br35–br38 result is
+  "under the Xodus broker", not under the Windows shell;
 - the handler re-marshal rule is inferred from twinapi's delegation to the
   inner standard marshaler, not measured natively.
+
+Review follow-ups (independent R3 review of `b1102ef`, verdict REVISE):
+
+- `FindPackagesByPackageFamily` now uses per-call heap buffers that grow,
+  instead of a function-level static array capped at 33 entries;
+- the combase handler:
+  - guards its proxy and CLSID with an SRW lock;
+  - unmarshals into locals and updates them only on success;
+  - releases the inner marshal data if rewriting the OBJREF fails;
+- the NDR 2.0 transfer syntax is no longer set in `NdrClientInitializeNew`
+  (native leaves it unset, `tests/ndr_marshall.c`); combase records it only
+  on its in-process channel shortcut, where the stub receives the client
+  message directly;
+- `fill_delegated_proxy_table` overwrites writable proxy tables (native
+  behaviour, `tests/cstub.c`) and keeps read-only tables that recent MIDL
+  pre-fills with import thunks;
+- the broker initializes its inner standard marshaler atomically;
+- the missing native registration capture was re-taken and empty
+  placeholder files were removed;
+- profapi #114 cites `acrh-native.txt` and `acrh-pkg-native-vm.txt`;
+- Wine conformance tests for the touched DLLs (rpcrt4, ole32, combase,
+  kernel32 version, kernelbase, ntdll, shcore) found those two rpcrt4
+  regressions; both now pass. The four remaining failing units (TCP
+  loopback, the ole32 default-handler QI, the `GLOBALROOT` namespace, and
+  macOS affinity/working-set) are outside the touched code. The
+  default-handler QI fails the same way with upstream `marshal.c`. After
+  the fixes, `br42` reproduces the br38/br39 boundary signature
+  (`wine-conformance-tests-review.txt`).
 
 ## Status
 

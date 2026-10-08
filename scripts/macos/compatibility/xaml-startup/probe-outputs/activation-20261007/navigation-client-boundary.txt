@@ -15,11 +15,12 @@ CoreUIComponents.dll strings; native registration from the Windows 11 ARM64 VM.
    RoGetActivationFactory("Windows.Phone.UI.Core.ImmersiveNavigationClient"), then vtbl[6](nav id at +0x8c).
 5. Native registration: Windows.Phone.UI.Core.ImmersiveNavigationClient -> C:\Windows\System32\CoreUIComponents.dll,
    in-process (immersive-navigation-client-registration-native.txt).
-6. CoreUIComponents implements CoreNavigationClient as a client of the CoreUI shell server: strings include
+6. Static analysis (strings only) indicates CoreUIComponents implements CoreNavigationClient as a client of the CoreUI shell server:
    "CoreUI NavigationWindow ... WindowManager Endpoint Not Found", "CUI WindowManager", "CUI SessionLayer",
-   "CoreUI ForegroundTaskManager", "BrokerSessionManager - InitiateModernActivation". The nav id is a window/task id
-   owned by that server.
+   "CoreUI ForegroundTaskManager", "BrokerSessionManager - InitiateModernActivation". The nav id would be a window/task
+   id owned by that server. Which native process serves the WindowManager endpoint was NOT measured.
 
-Decision: supplying a navigation client requires the shell window-manager/session server (explorer /
-ApplicationFrameHost class). That is the declared bounded stop rule. No navigation id or client is fabricated.
+Decision: static analysis indicates that supplying a navigation client requires the shell window-manager/session
+server. We read that as explorer / ApplicationFrameHost territory, so the declared bounded stop rule applies; this is a
+conservative inference, not a measured attribution of the serving process. No navigation id or client is fabricated.
 The broker keeps nav=0. XBOX-APP-STARTUP stays UNTESTED; no original window was proven.

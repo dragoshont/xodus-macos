@@ -221,11 +221,18 @@ static const struct core_window_factory_vtbl factory_core_window_vtbl = { ccwf_Q
 
 static HRESULT get_std(struct factory *f, IMarshal **m)
 {
+    IUnknown *inner;
     HRESULT hr;
-    if (!f->std_inner && FAILED(hr = CoGetStdMarshalEx((IUnknown *)&f->IUnknown_iface, SMEXF_SERVER, &f->std_inner)))
+    if (!f->std_inner)
     {
-        blog("CoGetStdMarshalEx(SMEXF_SERVER) -> %#lx", hr);
-        return hr;
+        if (FAILED(hr = CoGetStdMarshalEx((IUnknown *)&f->IUnknown_iface, SMEXF_SERVER, &inner)))
+        {
+            blog("CoGetStdMarshalEx(SMEXF_SERVER) -> %#lx", hr);
+            return hr;
+        }
+        /* concurrent MTA marshal calls: keep the first inner marshaler, drop ours */
+        if (InterlockedCompareExchangePointer((void **)&f->std_inner, inner, NULL))
+            IUnknown_Release(inner);
     }
     return IUnknown_QueryInterface(f->std_inner, &IID_IMarshal, (void **)m);
 }
@@ -373,7 +380,9 @@ static HRESULT WINAPI provider_QueryService(struct object *o, REFGUID service, R
     return hr;
 }
 
-/* IApplicationActivationBroker slot 5: (UINT64 aamId, out 32-byte results, out IUnknown **factory) */
+/* IApplicationActivationBroker slot 5: (UINT64 aamId, out 32-byte results, out IUnknown **factory)
+ * The layout of the 32-byte results block was not measured natively; it is zero-filled as an explicit
+ * host assumption (recorded in README "Recorded deviations"), not a reproduction of native content. */
 static HRESULT WINAPI broker_GetWindowFactory(struct object *o, UINT64 id, BYTE *results, IUnknown **out)
 {
     struct factory *f;

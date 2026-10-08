@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-08T08:48:37+03:00",
+  updatedAt: "2026-10-08T08:54:02+03:00",
   phase: "Phase 2 â€” functionally complete, user-serviceable",
-  budget: { totalHours: 30, spentHours: 24, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension" },
+  budget: { totalHours: 30, spentHours: 25.5, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -31,9 +31,9 @@ window.XODUS_STATUS = {
     { id: "B8", title: "First-run setup and Repair Xodus", hours: 2.0, status: "done", evidence: "Live: Setup list in the app; Repair Xodus ran from the app (status 0); backend rebuilds the environment from scratch in 11 s.", done: "Missing template rebuilt from the app; Lara plays" },
     { id: "B9", title: "Stop game", hours: 1.0, status: "done", done: "Stop ends the game; app returns to Play cleanly", evidence: "Live: Stop from the app ended Abiotic in 6 s; app shows Stopped; Continue Playing updated." },
     { id: "B10", title: "Cloud saves and online spikes", hours: 0.5, status: "done", done: "Feasibility recorded with evidence", evidence: "Cloud saves: local-only, upload not implemented (deferred). Online: Lara Xbox user OK but publisher service offline; Abiotic Xbox user fails at SISU (E_INVALIDARG). Single player works." },
-    { id: "B12", title: "First launch works in a new environment", hours: 1.0, status: "now", done: "Lara opens with no GPU dialog on its very first launch after install" },
-    { id: "B13", title: "Game service ships with Xodus", hours: 1.0, status: "planned", done: "Service binary runs from the Xodus runtime folder; ~/.local no longer used" },
-    { id: "B14", title: "Fresh macOS account acceptance", hours: 1.0, status: "planned", done: "Full journey on a brand-new Mac user using only the app" },
+    { id: "B12", title: "First launch works in a new environment", hours: 1.0, status: "done", done: "Lara opens with no GPU dialog on its very first launch after install", evidence: "Root cause: new environments list the Vulkan GPU id that the first launch replaces. New environments now get this Mac's real id; a fresh environment launched Lara with no dialog." },
+    { id: "B13", title: "Game service ships with Xodus", hours: 1.0, status: "blocked", done: "Service binary runs from the Xodus runtime folder; ~/.local no longer used", evidence: "Binary already in the runtime folder. Switching the service to it changes its Keychain identity and would prompt; do it together with the B6 helper migration while the user is present." },
+    { id: "B14", title: "Fresh macOS account acceptance", hours: 1.0, status: "blocked", evidence: "Needs the user to create a macOS account (admin password).", done: "Full journey on a brand-new Mac user using only the app" },
     { id: "B11", title: "Release acceptance on a fresh account", hours: 1.0, status: "done", done: "Full journey passes using only the app", evidence: "On the user account (fresh macOS account deferred): setup, sign-in, Discover, search, Game Pass install, play, stop, uninstall with saves kept, reinstall restored 11 save files, play, stop." }
   ],
 
@@ -90,6 +90,8 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-08T08:54:02+03:00", text: "B12 done: first launch in a new environment no longer shows the No GPU dialog" },
+    { at: "2026-10-08T08:54:02+03:00", text: "B6 helper: signed build A writes, different build B reads through the same helper, unsigned caller rejected" },
     { at: "2026-10-08T08:48:37+03:00", text: "Budget extended by 6 h to 30 h: B6 credential helper, first-launch fix, game service in runtime, fresh-account test" },
     { at: "2026-10-08T08:36:04+03:00", text: "B6 direction chosen by the user: a frozen credential helper owns Xodus sign-in so app updates don't prompt (self-signed certificate rules out an ACL-only fix)" },
     { at: "2026-10-08T08:25:45+03:00", text: "User approved the post-update Keychain prompt; B6 implementation resumed" },

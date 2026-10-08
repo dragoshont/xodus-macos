@@ -5,6 +5,14 @@ User decisions (2026-10-08):
 - Look: Apple Games on macOS 26/27: dark, art-first, Liquid Glass.
 - Use native macOS 27 SwiftUI/AppKit components and materials wherever possible. Custom drawing only where no native component exists.
 
+User refinement (2026-10-09):
+- Overall intent: native macOS feel with an Xbox soul. Native controls and materials carry the interaction; real artwork, Game Pass, ownership, achievements and friends carry the gaming identity. The cloud icon is inspiration, not a mandatory visual prescription.
+- Prefer Apple's cloud-download affordance and large native action buttons.
+- For an owned, uninstalled game, use the SF Symbol `icloud.and.arrow.down` with an accessible Download label. In heroes/details, keep the visible label alongside the symbol; compact cards may use the symbol with a help tag and VoiceOver label.
+- Keep large native Play buttons for installed games. Game Pass installation stays clearly labelled Install; the cloud symbol must not imply ownership, cloud gaming or cloud-save support.
+- Download/Install still opens the compatibility and storage review before any transfer; it never launches automatically.
+- Implemented and installed at app commit `1d721c2`; exact CI `37846438226` passed. Existing composition, credential broker, engine and install-review safeguards are preserved.
+
 ## Why the current build looks dated
 - Grey window background, with no material or depth.
 - The hero is a cropped art strip on a grey slab.

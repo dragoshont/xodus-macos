@@ -99,6 +99,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-09T00:26:00+03:00", text: "Native action refinement shipped at 1d721c2: cloud Download for owned games, explicit Install for Game Pass, large Play for installed games; safeguards preserved" },
     { at: "2026-10-09T00:05:00+03:00", text: "Redesign shipped: e66efaa installed; Library, Discover/search, detail, install review, Downloads and Account verified; app left running" },
     { at: "2026-10-09T00:02:00+03:00", text: "Final read-only gaps closed: filtered gears search, installed detail and real install review observed without starting a download" },
     { at: "2026-10-08T21:10:00+03:00", text: "D2 Discover/search frozen and CI-green; D3 game detail started" },

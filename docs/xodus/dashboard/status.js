@@ -2,7 +2,7 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-08T19:46:05+03:00",
+  updatedAt: "2026-10-08T20:01:41+03:00",
   phase: "Phase 3 — design refresh: native macOS 27, Apple Games look",
   budget: { totalHours: 42, spentHours: 33.5, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension + 12 h design (estimate)" },
 
@@ -43,7 +43,7 @@ window.XODUS_STATUS = {
         { id: "D6", title: "Onboarding, blocked and error states", hours: 1.0, status: "planned", done: "Native empty and error states, each with one clear recovery action" },
         { id: "D7", title: "Account and setup", hours: 1.0, status: "planned", done: "Sign-in, Game Pass, game service and Repair Xodus in one native Account sheet; sign-out lives here" },
         { id: "D8", title: "Accessibility, caching, polish and ship", hours: 1.5, status: "planned", done: "VoiceOver, keyboard, Reduce Transparency and persistent public-media cache checked; signed build admitted and installed", evidence: "Required before shipping: bounded 512 MB disk cache for catalog images; trailers stream through AVPlayer rather than downloading automatically." },
-        { id: "D9", title: "Game stats from Xbox", hours: 1.0, status: "done", done: "Play time, achievements and friends who play shown on Library and detail", evidence: "Backend command 09a2eaa and C3 display are live in review: Xbox-labelled play time, achievements/gamerscore and friends who play; missing stats remain hidden. Automatic 15-minute refresh is pending integration before shipping." }
+        { id: "D9", title: "Game stats from Xbox", hours: 1.0, status: "done", done: "Play time, achievements and friends who play shown on Library and detail", evidence: "Backend command and C3 display are live in review. Cache, service status and receipts now share an opaque account hash (6abb8dd/c75e38c), preventing stats from one Xbox account appearing for another. Automatic 15-minute refresh is pending app integration." }
       ],
 
   lineage: [
@@ -99,6 +99,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-08T20:02:00+03:00", text: "Xbox stats cache is now account-bound: service status, cache and receipt share one opaque account hash" },
     { at: "2026-10-08T19:44:00+03:00", text: "Library C3 approved: native regular glass, game stats and game sizes; D1 and D9 done, D2 Discover/search next" },
     { at: "2026-10-08T19:12:00+03:00", text: "Catalog detail feasibility confirmed: public trailers, screenshots, descriptions, ratings, capabilities and PC requirements" },
     { at: "2026-10-08T19:00:00+03:00", text: "Game stats feasible: Xbox play time, achievements and friends who play now come from the backend" },

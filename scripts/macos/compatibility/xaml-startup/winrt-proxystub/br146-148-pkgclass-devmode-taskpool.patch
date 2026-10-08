@@ -1,0 +1,174 @@
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -26,6 +26,7 @@
+ #include "roerrorapi.h"
+ #include "winstring.h"
+ #include "errhandlingapi.h"
++#include "appmodel.h"
+ #undef WIN32_NO_STATUS
+ #include "ntstatus.h"
+ 
+@@ -49,6 +50,24 @@
+     DWORD threading_model;
+ };
+ 
++static LSTATUS open_package_class_key(const WCHAR *classid, HKEY *key)
++{
++    static const WCHAR fmt[] = L"Software\\Classes\\ActivatableClasses\\Package\\%s\\ActivatableClassId\\%s";
++    WCHAR name[PACKAGE_FULL_NAME_MAX_LENGTH + 1], *path;
++    UINT32 len = ARRAY_SIZE(name);
++    LSTATUS ret;
++    size_t size;
++
++    if (GetCurrentPackageFullName(&len, name)) return ERROR_NOT_FOUND;
++    size = wcslen(fmt) + wcslen(name) + wcslen(classid) + 1;
++    if (!(path = malloc(size * sizeof(WCHAR)))) return ERROR_OUTOFMEMORY;
++    swprintf(path, size, fmt, name, classid);
++    ret = RegOpenKeyExW(HKEY_LOCAL_MACHINE, path, 0, KEY_READ, key);
++    if (!ret) TRACE("package class %s\n", debugstr_w(path));
++    free(path);
++    return ret;
++}
++
+ static HRESULT get_library_for_classid(const WCHAR *classid, WCHAR **out)
+ {
+     ACTCTX_SECTION_KEYED_DATA data;
+@@ -69,6 +88,11 @@
+         *out = wcsdup(ptr);
+         return S_OK;
+     }
++
++    /* classes registered by the caller's package (native package catalog layout:
++     * Software\\Classes\\ActivatableClasses\\Package\\<full name>\\ActivatableClassId) */
++    if (!open_package_class_key(classid, &hkey_class))
++        goto found;
+ 
+     /* load class registry key */
+     if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\WindowsRuntime\\ActivatableClassId",
+@@ -82,6 +106,7 @@
+     }
+     RegCloseKey(hkey_root);
+ 
++found:
+     /* load (and expand) DllPath registry value */
+     if (RegQueryValueExW(hkey_class, L"DllPath", NULL, &type, NULL, &size))
+     {
+--- a/dlls/kernelbase/version.c
++++ b/dlls/kernelbase/version.c
+@@ -3615,4 +3615,36 @@
+     default:
+         return E_INVALIDARG;
+     }
++}
++
++/***********************************************************************
++ *         VerifyPackageFullName   (kernelbase.@)
++ */
++LONG WINAPI VerifyPackageFullName( const WCHAR *full_name )
++{
++    UINT32 size = 0;
++
++    TRACE( "(%s)\n", debugstr_w(full_name) );
++
++    if (!full_name) return ERROR_INVALID_PARAMETER;
++    if (PackageIdFromFullName( full_name, 0, &size, NULL ) != ERROR_INSUFFICIENT_BUFFER)
++        return ERROR_INVALID_PARAMETER;
++    return ERROR_SUCCESS;
++}
++
++/***********************************************************************
++ *         IsDeveloperModeEnabled   (kernelbase.@)
++ */
++HRESULT WINAPI IsDeveloperModeEnabled( BOOL *enabled )
++{
++    DWORD value = 0, size = sizeof(value);
++
++    TRACE( "(%p)\n", enabled );
++
++    if (!enabled) return E_POINTER;
++    if (RegGetValueW( HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock",
++                      L"AllowDevelopmentWithoutDevLicense", RRF_RT_REG_DWORD, NULL, &value, &size ))
++        value = 0;
++    *enabled = (value == 1);
++    return S_OK;
+ }
+--- a/dlls/kernelbase/kernelbase.spec
++++ b/dlls/kernelbase/kernelbase.spec
+@@ -903,7 +903,7 @@
+ @ stdcall IsDBCSLeadByte(long)
+ @ stdcall IsDBCSLeadByteEx(long long)
+ @ stdcall IsDebuggerPresent()
+-# @ stub IsDeveloperModeEnabled
++@ stdcall IsDeveloperModeEnabled(ptr)
+ # @ stub IsDeveloperModePolicyApplied
+ # @ stub IsEnclaveTypeSupported
+ # @ stub IsGlobalizationUserSettingsKeyRedirected
+@@ -1721,7 +1721,7 @@
+ @ stdcall -ret64 VerSetConditionMask(long long long long) ntdll.VerSetConditionMask
+ # @ stub VerifyApplicationUserModelId
+ # @ stub VerifyPackageFamilyName
+-# @ stub VerifyPackageFullName
++@ stdcall VerifyPackageFullName(wstr)
+ # @ stub VerifyPackageId
+ # @ stub VerifyPackageRelativeApplicationId
+ # @ stub VerifyScripts
+--- a/dlls/apisetschema/apisetschema.spec
++++ b/dlls/apisetschema/apisetschema.spec
+@@ -1,6 +1,7 @@
+ apiset api-ms-win-appmodel-runtime-internal-l1-1-1 = kernelbase.dll
+ apiset api-ms-win-appmodel-runtime-l1-1-2 = kernelbase.dll
+ apiset api-ms-win-appmodel-state-l1-2-0 = kernelbase.dll
++apiset api-ms-win-appmodel-unlock-l1-1-0 = kernelbase.dll
+ apiset api-ms-win-audiocore-spatial-config-l1-1-0 = windows.media.devices.dll
+ apiset api-ms-win-base-bootconfig-l1-1-0 = advapi32.dll
+ apiset api-ms-win-base-util-l1-1-0 = advapi32.dll
+--- a/dlls/shcore/main.c
++++ b/dlls/shcore/main.c
+@@ -3042,4 +3042,30 @@
+     task->lpVtbl->Release( task );
+     free( pt );
+     return HRESULT_FROM_WIN32( GetLastError() );
++}
++
++/* Native shcore keeps these as plain globals consulted by its task pool. */
++static DWORD taskpool_reuse_thread_id;
++static BOOL taskpool_thread_reuse_allowed;
++
++/*************************************************************************
++ * SHTaskPoolAllowThreadReuse        [SHCORE.@]
++ *
++ * Native: void SHTaskPoolAllowThreadReuse(void) records GetCurrentThreadId().
++ */
++void WINAPI SHTaskPoolAllowThreadReuse(void)
++{
++    TRACE("thread %04lx\n", GetCurrentThreadId());
++    taskpool_reuse_thread_id = GetCurrentThreadId();
+ }
++
++/*************************************************************************
++ * SHTaskPoolSetThreadReuseAllowed   [SHCORE.@]
++ *
++ * Native: void SHTaskPoolSetThreadReuseAllowed(BOOL) stores (allowed != 0).
++ */
++void WINAPI SHTaskPoolSetThreadReuseAllowed(BOOL allowed)
++{
++    TRACE("%d\n", allowed);
++    taskpool_thread_reuse_allowed = !!allowed;
++}
+--- a/dlls/shcore/shcore.spec
++++ b/dlls/shcore/shcore.spec
+@@ -81,12 +81,12 @@
+ @ stdcall SHSetValueW(long wstr wstr long ptr long)
+ @ stdcall SHStrDupA(str ptr)
+ @ stdcall SHStrDupW(wstr ptr)
+-# @ stub SHTaskPoolAllowThreadReuse
++@ stdcall SHTaskPoolAllowThreadReuse()
+ # @ stub SHTaskPoolDoNotWaitForMoreTasks
+ # @ stub SHTaskPoolGetCurrentThreadLifetime
+ # @ stub SHTaskPoolGetUniqueContext
+ @ stdcall SHTaskPoolQueueTask(long long long long ptr ptr)
+-# @ stub SHTaskPoolSetThreadReuseAllowed
++@ stdcall SHTaskPoolSetThreadReuseAllowed(long)
+ @ stdcall SHUnicodeToAnsi(wstr ptr ptr)
+ @ stdcall SHUnicodeToUnicode(wstr ptr long)
+ @ stdcall SetCurrentProcessExplicitAppUserModelID(wstr)

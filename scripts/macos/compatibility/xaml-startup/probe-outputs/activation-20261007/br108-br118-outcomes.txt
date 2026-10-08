@@ -353,4 +353,51 @@ wait timed out, 035c blocked by 033c, line 38304); afterwards polling LoadLibrar
 == br146 (2026-10-09 02:10) shcore SHTaskPoolAllowThreadReuse/SetThreadReuseAllowed ==
 MEASURED native shcore 26300: SHTaskPoolAllowThreadReuse = `g = GetCurrentThreadId(); ret` (RVA 0x46750);
 SHTaskPoolSetThreadReuseAllowed(BOOL) = `g2 = (ecx != 0); ret` (RVA 0x6cd80).  Implemented identically
-(shcore sha1 5ed50b61c3f33a8e94cbb60893d375453a56769e).  CANDIDATE.
+(shcore sha1 5ed50b61c3f33a8e94cbb60893d375453a56769e).  CANDIDATE.Result: ORIGINAL_APP_EXIT 92. Stub crash gone. Loader-lock wait still seen briefly (0488 blocked by 033c while
+033c loads builtin Bcp47Langs.dll). UI thread 033c ends idle in CoMsgWaitInProcessEvents/WM_TIMER pump.
+gameplatformservices.dll LoadLibrary polling continues (564 lines). ReactNative/hermes/dcomp: NO.
+Failing activations: PlatformStatus, PackageQueue, PackageCatalog, ExtendedExecution, AppThemeAPI,
+BackgroundTaskRegistration, FullTrustProcessLauncher, Radio, LauncherQueryInfo, AsyncCausalityTracer, ThreadPoolTimer.
+
+== br147 (2026-10-09 02:20) package-scoped WinRT class catalog + native gameplatformservices.dll ==
+MEASURED native layout (26300 host): HKLM\SOFTWARE\Classes\ActivatableClasses\Package\<PackageFullName>\
+ActivatableClassId\<class> {ActivationType=0, DllPath=<abs path>, Threading=0}.
+Change: combase roapi.c get_library_for_classid first opens that key for GetCurrentPackageFullName()
+(combase sha1 8a7c9c2b6d8ec94999bfbc4c5cc225e0192e594c); pkgclasses.reg = 442 rows generated from the
+AppxManifest InProcessServer blocks (Threading both->0 STA->1 MTA->2, DllPath = package dir + <Path>).
+Also deployed native gameplatformservices.dll 10.0.26100.9445 (sha1 ac69abe3...). CANDIDATE.
+Result: ORIGINAL_APP_EXIT 92. PlatformStatus/PackageQueue resolve now (Microsoft.GamePlatform.Services.dll
+loads natively). gameplatformservices.dll fails to load: api-ms-win-appmodel-unlock-l1-1-0 missing
+(IsDeveloperModeEnabled) + VerifyPackageFullName unimplemented (289 import errors). XblAuthManager
+{0134a8b2-...} LocalServer not registered (Xbox Live auth service; out of scope, no auth). RN/hermes/dcomp: NO.
+
+== br148 (2026-10-09 02:30) kernelbase IsDeveloperModeEnabled / VerifyPackageFullName ==
+MEASURED native kernelbase: IsDeveloperModeEnabled(BOOL*) E_POINTER on NULL, reads
+HKLM\...\CurrentVersion\AppModelUnlock AllowDevelopmentWithoutDevLicense (33-char name) ==1, returns S_OK;
+VerifyPackageFullName validates the name. Implemented (kernelbase sha1 9aa1826d...), apisetschema maps
+api-ms-win-appmodel-unlock-l1-1-0 -> kernelbase (sha1 642680f9...). CANDIDATE.
+Result: ORIGINAL_APP_EXIT 92. gameplatformservices.dll loads, InitializeApi queries
+PackageManager.FindPackagesByUserSecurityIdPackageFamilyName("Microsoft.GamingServices_8wekyb3d8bbwe")
+(Wine appx stub -> none) and unloads; app retries ~234 times. Gaming Services package is genuinely not
+installed: REAL ABSENCE, not fixed (would need the GamingServices package + service).
+UI thread 0340 last real work: Xaml probes windows.ui.xaml.resources.common.dll and
+Windows.UI.Xaml.Resources.21H1.dll -> not found -> error originated (IsErrorPropagationEnabled) -> idle pump.
+RN/hermes/dcomp: NO.
+
+== br149 (2026-10-09 02:40) native Windows.UI.Xaml.Resources.*.dll ==
+Change: deployed the 11 native resource-only DLLs (no imports) Windows.UI.Xaml.Resources.{Common,19h1,21h1,
+rs1..rs5,th,win81,win8rtm}.dll 10.0.26100.x (Common sha1 c715b854..., 21h1 sha1 f847abff...). Same
+provenance as the already-deployed native Windows.UI.Xaml.dll (system theme resources). CANDIDATE.Result: ORIGINAL_APP_EXIT 92, no change (resource loads produce no loaddll trace; the probe warnings are the
+load-order search only). RN/hermes/dcomp: NO.
+ROOT CAUSE FOUND (br149 SEH trace, STATIC disasm of XboxPcApp.exe):
+ - UI thread 0340 throws winrt::hresult_error (C++ e06d7363, ThrowInfo RVA 0x10b0ab8 = generic
+   hresult_error, i.e. NOT E_OUTOFMEMORY/E_ACCESSDENIED/RPC_E_WRONG_THREAD/E_NOTIMPL/E_INVALIDARG/
+   E_BOUNDS/E_NOINTERFACE/CLASS_E_CLASSNOTAVAILABLE) from fn 0x218e68 = consume_Windows_UI_Xaml_
+   IApplicationStatics::LoadComponent(component, ms-resource:///Files/XboxPcApp.xaml, location) (vtbl+0x48).
+ - Caught at 0x140211c33 inside fn 0x211c00 (the RN-start coroutine: 211c00 -> 20a1f4 -> 20bdcc -> 20dbc4 ->
+   81bcf0 -> 217604 creates ReactNativeHost). So XAML App.InitializeComponent fails and RN host is never built.
+ - No XboxPcApp.xbf on disk: XAML resolves it through MRT (native MrmCoreR.dll, loaded) + resources.pri.
+   MrmCoreR imports unimplemented: kernelbase GetPackagePathByFullName2, GetPackageStatusForUser,
+   GetSystemMetadataPathForPackage, PackageFamilyNameFromId, PackageNameAndPublisherIdFromFamilyName,
+   localization-private _OpenMuiStringCache/_GetMUIStringFromCache/_AddMUIStringToCache.
+Next: br150 DIAGNOSTIC ntdll trace of the thrown object (hresult at +0xc after 0xaabbccdd marker).

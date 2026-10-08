@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-08T18:41:27+03:00",
+  updatedAt: "2026-10-08T18:57:49+03:00",
   phase: "Phase 3 — design refresh: native macOS 27, Apple Games look",
-  budget: { totalHours: 41, spentHours: 30.5, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension + 11 h design (estimate)" },
+  budget: { totalHours: 42, spentHours: 31.5, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension + 12 h design (estimate)" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -42,7 +42,8 @@ window.XODUS_STATUS = {
         { id: "D5", title: "Downloads", hours: 1.0, status: "planned", done: "Native inset list: cover, progress, speed and time left, pause and cancel" },
         { id: "D6", title: "Onboarding, blocked and error states", hours: 1.0, status: "planned", done: "Native empty and error states, each with one clear recovery action" },
         { id: "D7", title: "Account and setup", hours: 1.0, status: "planned", done: "Sign-in, Game Pass, game service and Repair Xodus in one native Account sheet; sign-out lives here" },
-        { id: "D8", title: "Accessibility, polish and ship", hours: 1.5, status: "planned", done: "VoiceOver, keyboard, Reduce Transparency checked; signed build admitted and installed" }
+        { id: "D8", title: "Accessibility, polish and ship", hours: 1.5, status: "planned", done: "VoiceOver, keyboard, Reduce Transparency checked; signed build admitted and installed" },
+        { id: "D9", title: "Game stats from Xbox", hours: 1.0, status: "now", done: "Play time, achievements and friends who play shown on Library and detail", evidence: "Backend game-stats command live (09a2eaa): Hogwarts 292 min on Xbox; Lara 14 achievements, 215/1000 G, 1 friend plays. App display pending." }
       ],
 
   lineage: [
@@ -98,6 +99,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-08T19:00:00+03:00", text: "Game stats feasible: Xbox play time, achievements and friends who play now come from the backend" },
     { at: "2026-10-08T18:45:00+03:00", text: "Design track added: D1–D8, native macOS 27 in the Apple Games look; Library preview under review" },
     { at: "2026-10-08T14:40:00+03:00", text: "B6 proven across builds: a different signed Xodus build read the sign-in with no prompt" },
     { at: "2026-10-08T14:36:00+03:00", text: "After restart: game service now starts at login, signed in" },

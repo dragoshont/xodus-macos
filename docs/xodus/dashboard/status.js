@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-08T21:21:29+03:00",
-  phase: "Phase 3 — design refresh: native macOS 27, Apple Games look",
-  budget: { totalHours: 42, spentHours: 35.5, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension + 12 h design (estimate)" },
+  updatedAt: "2026-10-09T00:13:43+03:00",
+  phase: "Phase 3 complete — redesigned native macOS 27 app installed",
+  budget: { totalHours: 42, spentHours: 42, note: "Functional launcher plus native Apple Games-style redesign shipped on the development Mac" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -37,12 +37,12 @@ window.XODUS_STATUS = {
     { id: "B11", title: "Release acceptance on a fresh account", hours: 1.0, status: "done", done: "Full journey passes using only the app", evidence: "On the user account (fresh macOS account deferred): setup, sign-in, Discover, search, Game Pass install, play, stop, uninstall with saves kept,     reinstall restored 11 save files, play, stop." },
         { id: "D1", title: "Library redesign", hours: 2.0, status: "done", done: "Full-bleed hero under the toolbar, large glass Play, Continue Playing art cards, cover grid with native filter; signed off by the user in Dark and Light", evidence: "C3 approved: native macOS 27 tabs and regular glass, poster/hero art, Owned/Game Pass, genre and capabilities, Xbox stats, actual installed sizes and public download sizes. Play remains installed-only." },
         { id: "D2", title: "Discover and search redesign", hours: 2.0, status: "done", done: "Paging hero, Game Pass and category shelves; toolbar search with Library/Store scopes; native empty state", evidence: "Frozen at d2be594; exact CI 37822024468 passed. Browse uses real checked-catalog records; search prioritizes Your Games, uses consumer copy, and has a native truthful zero-result state." },
-        { id: "D3", title: "Game detail redesign", hours: 1.5, status: "now", done: "Extended hero, glass Play/Install and menu, facts as native labelled grid (access, PC download, compatibility, size)", evidence: "In progress with public trailers/screenshots, descriptions, ratings, capabilities and PC requirements. No Metascore." },
-        { id: "D4", title: "Install sheet", hours: 1.0, status: "planned", done: "Native form sheet: what gets installed, disk space gauge, location, Install" },
-        { id: "D5", title: "Downloads", hours: 1.0, status: "planned", done: "Native inset list: cover, progress, speed and time left, pause and cancel" },
-        { id: "D6", title: "Onboarding, blocked and error states", hours: 1.0, status: "planned", done: "Native empty and error states, each with one clear recovery action" },
-        { id: "D7", title: "Account and setup", hours: 1.0, status: "planned", done: "Sign-in, Game Pass, game service and Repair Xodus in one native Account sheet; sign-out lives here" },
-        { id: "D8", title: "Accessibility, caching, polish and ship", hours: 1.5, status: "planned", done: "VoiceOver, keyboard, Reduce Transparency and persistent public-media cache checked; signed build admitted and installed", evidence: "Required before shipping: bounded 512 MB disk cache for catalog images; trailers stream through AVPlayer rather than downloading automatically." },
+        { id: "D3", title: "Game detail redesign", hours: 1.5, status: "done", done: "Extended hero, glass Play/Install and menu, facts as native labelled grid (access, PC download, compatibility, size)", evidence: "fd2832f, CI 37833593837: native trailer/screenshots, About, ratings/IAP, capabilities, Windows PC requirements, consumer copy and strict Play/Install. Safe Dark/Light captures verified." },
+        { id: "D4", title: "Install sheet", hours: 1.0, status: "done", done: "Native form sheet: what gets installed, disk space gauge, location, Install", evidence: "db1ebaf: installed app opened the real review sheet with destination/free space/support result; confirmation remained disabled and no download started." },
+        { id: "D5", title: "Downloads", hours: 1.0, status: "done", done: "Native inset list: cover, progress, speed and time left, pause and cancel", evidence: "db1ebaf: native queue and honest empty/error/completion states installed; final Downloads empty state observed." },
+        { id: "D6", title: "Onboarding, blocked and error states", hours: 1.0, status: "done", done: "Native empty and error states, each with one clear recovery action", evidence: "db1ebaf: native product states and consumer copy pass presentation/native checks." },
+        { id: "D7", title: "Account and setup", hours: 1.0, status: "done", done: "Sign-in, Game Pass, game service and Repair Xodus in one native Account sheet; sign-out lives here", evidence: "db1ebaf/e66efaa: Account observed installed with Game Pass Active, setup readiness, cache control and vertically reachable content." },
+        { id: "D8", title: "Accessibility, caching, polish and ship", hours: 1.5, status: "done", done: "VoiceOver, keyboard, Reduce Transparency and persistent public-media cache checked; signed build admitted and installed", evidence: "e66efaa, CI 37840831475: 160 presentation + 894 native checks; 512 MB validated public-image cache; strict signatures; admitted C8/broker preserved; installed and runtime-observed with no Keychain prompt." },
         { id: "D9", title: "Game stats from Xbox", hours: 1.0, status: "done", done: "Play time, achievements and friends who play shown on Library and detail", evidence: "Backend command and C3 display are live in review. Cache, service status and receipts now share an opaque account hash (6abb8dd/c75e38c), preventing stats from one Xbox account appearing for another. Automatic 15-minute refresh is pending app integration." }
       ],
 
@@ -99,6 +99,8 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-09T00:05:00+03:00", text: "Redesign shipped: e66efaa installed; Library, Discover/search, detail, install review, Downloads and Account verified; app left running" },
+    { at: "2026-10-09T00:02:00+03:00", text: "Final read-only gaps closed: filtered gears search, installed detail and real install review observed without starting a download" },
     { at: "2026-10-08T21:10:00+03:00", text: "D2 Discover/search frozen and CI-green; D3 game detail started" },
     { at: "2026-10-08T20:02:00+03:00", text: "Xbox stats cache is now account-bound: service status, cache and receipt share one opaque account hash" },
     { at: "2026-10-08T19:44:00+03:00", text: "Library C3 approved: native regular glass, game stats and game sizes; D1 and D9 done, D2 Discover/search next" },

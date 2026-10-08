@@ -461,3 +461,8 @@ B14 update (2026-10-08): deferred until the UX is pinned down and implemented. I
 
 Reboot check (2026-10-08): after a restart and FileVault login, com.xodus.service did not start (RunAtLoad was false). It is now true: the service starts at login through the stale-socket wrapper and reported signedIn=true with no prompt.
 
+
+## Native redesign shipped (2026-10-09)
+
+Approved overnight UX scope D1-D9 is complete and installed at app commit e66efaa. Exact CI runs 37833593837 (D3), 37836578991 (D4-D7) and 37840831475 (D8) passed. Installed app/package hashes match; strict signatures pass; C8 c8fe69a3… and credential broker 2c40354c… are preserved; registry remains mode 0600; no Keychain prompt. Runtime acceptance observed Library, Discover, filtered gears search, game detail, real install review without confirmation/download, Downloads, Account/setup and safe Play/Stop. Final evidence is under ~/xodus-app-tooling/app-redesign-e66efaa-20261008/. Xodus is left running on Library. B14 remains deliberately deferred for the separate M5 Mac.
+

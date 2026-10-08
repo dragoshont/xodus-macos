@@ -1,0 +1,77 @@
+D3b - CoreUI navigation connect contract (static map + br92d trace)
+====================================================================
+Slice: D3b, 2026-10-08 14:50-18:50 +03 (box extended for Mac outage).
+Binary: CoreUIComponents.dll 26100.9444 (prefix sha256 prefix 6927df3d ==
+local Windows copy, so local public PDB symbols are exact). Addresses are RVAs.
+Caveat: the PDB has identical-COMDAT folding; tiny adapter names can be
+aliases (e.g. 0x3f9e4 is both ICallbackTaskOwner::ConnectionComplete and
+ICallbackWindowOwner::RegistrationComplete adapters).
+
+Status labels: VERIFIED = observed in br92d trace/backtrace; STATIC = read
+from genuine binary disassembly; HYPOTHESIS = not yet evidenced.
+
+1. Where the app waits (VERIFIED, br92d bt + log)
+   - Activator Activate -> app 0324 posts cross-apartment call to view ASTA
+     0338 ("Calling apartment thread 0x338", log lines 9474/9862); 0338
+     dispatches it (apartment_wndproc -> rpc_execute_call -> stub).
+   - Inside: twinapi.appcore CreateCoreWindow -> CoreUIComponents
+     CoreWindowFactoryProxy::CreateCoreWindow+0x45f -> NavigationClient::
+     Initialize(ICoreWindow*)+0x84 -> Initialize(INavigationClientWindow*,
+     HWND,WindowType)+0x1b1 -> SetState+0x295 -> RunMessageSession+0x56 ->
+     nested CoreMessaging loop (MsgWaitForMultipleObjectsEx mask 0x1cff).
+   - CoreWindow HWND 0x1006c exists; app received server datagrams 108,
+     117 (184 B), 118 (360 B) on nav session handle 0x3a8.
+
+2. Client exit condition (STATIC)
+   - SetState(1) -> RunMessageSession (sets +0x236, runs session).
+   - SetState(2) -> ExitMessageSession. SetState(2) callers:
+     NavigationClient::ConnectionComplete (0x6d400, call 0x6d4ee) and
+     PresentationUnloadedComplete. ExitMessageSession also from
+     ActivateViewComplete, ConnectionFailed, RegistrationFailed.
+   - Client NavigationWindow::IRemoteWindow::RegistrationComplete (0x3f8bc)
+     stores the IRemoteServerWindow proxy and calls the owner adapter
+     (0x3f9e4); NavigationClient::RegistrationComplete is 0x3ea00.
+
+3. Server window registration (STATIC; genuine server hosted by our broker)
+   - WindowManager::IRemoteWindowManager::RegisterNavigationWindow (0x3180)
+     -> reads current sender info -> ServerWindow::_Construct (0x3bc6c).
+   - _Construct checks GetWindowThreadProcessId(hwnd, &pid) against the
+     ALPC sender thread/process; mismatch -> ProtocolException 0x49.
+   - Then WindowManager::RegisterWindowHandleWithDxcore (0x8f044): if a wil
+     feature (0xaf4d8) is enabled it LoadLibraryExW
+     "api-ms-win-rtcore-navigation-l1-1-0" and calls
+     RegisterNavigationWindowHandle; load/call failure -> result 6 ->
+     ProtocolException 0x4b. Feature off -> result 0 (skipped).
+   - Other throw: 0x48. Success -> FormatMethod (0x3c269) = the reply to
+     the client window (RegistrationComplete path).
+
+4. Server task connect (STATIC)
+   - SessionManager::ConnectNavigationTask (0x3362c): no ServerTask for
+     TaskInstanceId -> ProtocolException 0x31; host-process check -> 0x33;
+     WindowManager::FindWindowByInstanceId fails -> DestroyTask + 0x32.
+   - ServerTask::ConnectNavigationTask (0x333dc): SetWindow,
+     set_ShellDataRoutingInfo, AddProxyListener, SetProcessId; if target
+     state (+0x3bc) == 10 (set by BeginClose) it sends IRemoteTask method 0
+     (ConnectionComplete) immediately; in all cases DeferProcessState ->
+     ProcessStateWorker -> EnterState (sends methods 8, 0xe, 6), gated by
+     ForegroundTaskManagerWrapper Resume/ResumePrerequisitePhase
+     (ExecModelClient.dll -> "ExecManService\Server", RPC
+     "ResourcePolicyEnginePublicRpc").
+   - IRemoteTask method ids from proxy stubs: 0 ConnectionComplete,
+     1 ProcessActivationData, 2 Show, 4 NavigateTo, 7 SystemKeyPressed,
+     9 HideStatusBarCompleted, 0xb LaunchSessionComplete,
+     0xc LaunchChildTaskComplete, 0xd ClientOperationComplete,
+     0xf Deactivate, 0x10 UIAConnect, 0x11 ActivateViewComplete.
+   - No other direct sender of IRemoteTask method 0 was found in the server.
+
+5. Open questions (HYPOTHESIS until the broker trace is read)
+   H1 ServerWindow::_Construct throws 0x49 (Wine ALPC sender pid/tid vs
+      GetWindowThreadProcessId) or 0x4b, so the window never registers.
+   H2 Registration succeeds but the ServerTask never reaches a state whose
+      EnterState message drives the client out of its session, because the
+      ExecModel/ForegroundTaskManager prerequisite never completes in Wine.
+   H3 ConnectNavigationTask throws 0x31/0x32 (no task/window yet).
+   Cheapest discriminating test: in $S/br92d-broker.stderr.log, find
+   exceptions (e0464645 or C++ throws) on the broker nav thread 0284 after
+   the app's first send on 0x3a8, and decode the method ids in the d3bdiag
+   ALPC body dumps of the app's sends and of replies 117/118.

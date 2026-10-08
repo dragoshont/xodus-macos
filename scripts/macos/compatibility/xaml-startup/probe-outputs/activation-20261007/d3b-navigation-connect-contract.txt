@@ -75,3 +75,30 @@ from genuine binary disassembly; HYPOTHESIS = not yet evidenced.
    exceptions (e0464645 or C++ throws) on the broker nav thread 0284 after
    the app's first send on 0x3a8, and decode the method ids in the d3bdiag
    ALPC body dumps of the app's sends and of replies 117/118.
+
+== br92d log read after the Mac returned (18:25-18:32 +03, 2026-10-08) ==
+VERIFIED, read from $S/br92d-broker.stderr.log and $S/br92d-original.stderr.log:
+- Broker CoreUI nav thread 0284 raised no exceptions: no dispatch_exception, ProtocolException, e0464645 or e06d7363.
+  The single RPC_S_SERVER_UNAVAILABLE (0x6ba) is on 0294, a different process (ShellWindows
+  {9ba05972-...} local-server registration). It is unrelated to the nav server.
+  -> H1 (0x49/0x4b) and H3 (0x31/0x32 throw) are NOT supported by the trace.
+- 0284 itself connects to \BaseNamedObjects\CoreMessagingRegistrar (OK).
+- 0284 creates 10 per-connection ALPC ports named
+  \BaseNamedObjects\[CoreUI]-PID(636)-TID(644) <guid> (log lines 637..877). For each one it sends a
+  CoreMessaging message (iface 1, method 0x0e, 0xd8 bytes) carrying that port name, and gets a reply
+  (0, 0x11). There are 10/10 such sends.
+- The app (0338) connects to only the FIRST of these ports (3dcbbfcc..., original log line 10373, result 0).
+  The app's sends include iface 1 method 0x0c x3, 0x17 x1, 0x0e x1, plus the method-0 replies 0x0f x4,
+  0x04, 0x0d, 0x13 and 0x1d.
+- Server-side receive pattern: (0,0x0e) x20, (0,0x10) x17, (0,0x11) x10, (0,0x12) x2.
+HYPOTHESIS H4 (new; replaces H1/H3 as first candidate): the server keeps re-offering a new per-connection
+  endpoint because the app's connection to the offered endpoint never reaches the state the server
+  expects. Candidates are a CoreMessaging endpoint-connect completion or an ALPC connection-accept
+  semantic on the [CoreUI] per-connection port. Either way, the navigation ConnectionComplete never
+  follows. H2 (ExecModel prerequisite) stays open.
+Cheapest next test: decode CoreMessaging iface 1 methods 0x0e/0x0c/0x17 (CoreMessaging.dll PDB). Then
+  correlate the server's port-10 creation timing with the app's single connect and with server-side
+  NtAlpcAcceptConnectPort / the connection-request receive on port 3dcbbfcc.
+Expected observation: either the server never receives or accepts the app's connect on 3dcbbfcc (Wine ALPC
+  defect), or it accepts and then a CoreMessaging-level handshake message is missing.
+No fix and no br92 rerun were made in the D3b box: the Mac was unreachable from about 16:12 to 18:25.

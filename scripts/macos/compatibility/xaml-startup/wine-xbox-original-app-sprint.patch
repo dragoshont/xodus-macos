@@ -35,7 +35,117 @@ diff -u a/dlls/apisetschema/apisetschema.spec b/dlls/apisetschema/apisetschema.s
 diff -u a/dlls/combase/combase.c b/dlls/combase/combase.c
 --- a/dlls/combase/combase.c
 +++ b/dlls/combase/combase.c
-@@ -3590,3 +3590,16 @@
+@@ -3501,9 +3501,109 @@
+     FIXME("%p\n", object);
+ 
+     return TRUE;
++}
++
++/* Per service-tag reference entries, as kept by native combase (CClassCache service refs). */
++struct shared_service_ref
++{
++    struct list entry;
++    DWORD id;
++    ULONG refs;
++    BOOL suspended;
++};
++
++static struct list shared_service_refs = LIST_INIT(shared_service_refs);
++
++static struct shared_service_ref *find_shared_service_ref(DWORD id)
++{
++    struct shared_service_ref *ref;
++
++    LIST_FOR_EACH_ENTRY(ref, &shared_service_refs, struct shared_service_ref, entry)
++        if (ref->id == id) return ref;
++    return NULL;
++}
++
++/***********************************************************************
++ *           CoGetSharedServiceId    (combase.66)
++ */
++HRESULT WINAPI CoGetSharedServiceId(DWORD *id)
++{
++    HRESULT hr = S_OK;
++
++    TRACE("%p\n", id);
++
++    if (!id) return E_INVALIDARG;
++    /* the service tag of the calling thread; 0 outside a shared service host */
++    *id = (DWORD)(ULONG_PTR)NtCurrentTeb()->SubProcessTag;
++
++    EnterCriticalSection(&registered_classes_cs);
++    if (!find_shared_service_ref(*id))
++    {
++        struct shared_service_ref *ref;
++
++        if ((ref = calloc(1, sizeof(*ref))))
++        {
++            ref->id = *id;
++            list_add_head(&shared_service_refs, &ref->entry);
++        }
++        else hr = E_OUTOFMEMORY;
++    }
++    LeaveCriticalSection(&registered_classes_cs);
++
++    return hr;
+ }
+ 
+ /***********************************************************************
++ *           CoAddRefSharedService    (combase.67)
++ */
++ULONG WINAPI CoAddRefSharedService(DWORD id)
++{
++    struct shared_service_ref *ref;
++    ULONG refs = ~0u;
++
++    EnterCriticalSection(&registered_classes_cs);
++    if ((ref = find_shared_service_ref(id)))
++    {
++        refs = ++ref->refs;
++        ref->suspended = FALSE;
++    }
++    else WARN("unknown shared service id %#lx\n", id);
++    LeaveCriticalSection(&registered_classes_cs);
++
++    TRACE("%#lx -> %lu\n", id, refs);
++    return refs;
++}
++
++/***********************************************************************
++ *           CoReleaseSharedService    (combase.68)
++ */
++ULONG WINAPI CoReleaseSharedService(DWORD id)
++{
++    struct shared_service_ref *ref;
++    BOOL suspend = FALSE;
++    ULONG refs = ~0u;
++
++    EnterCriticalSection(&registered_classes_cs);
++    if ((ref = find_shared_service_ref(id)))
++    {
++        refs = --ref->refs;
++        if (!refs)
++        {
++            ref->suspended = TRUE;
++            suspend = TRUE;
++        }
++    }
++    else WARN("unknown shared service id %#lx\n", id);
++    LeaveCriticalSection(&registered_classes_cs);
++
++    /* native suspends the service's local-server class objects here (all of them for id 0) */
++    if (suspend) CoSuspendClassObjects();
++
++    TRACE("%#lx -> %lu\n", id, refs);
++    return refs;
++}
++
++/***********************************************************************
+  *           CoSuspendClassObjects   (combase.@)
+  */
+ HRESULT WINAPI CoSuspendClassObjects(void)
+@@ -3590,3 +3690,16 @@
  
      return CLASS_E_CLASSNOTAVAILABLE;
  }
@@ -55,7 +165,7 @@ diff -u a/dlls/combase/combase.c b/dlls/combase/combase.c
 diff -u a/dlls/combase/combase.spec b/dlls/combase/combase.spec
 --- a/dlls/combase/combase.spec
 +++ b/dlls/combase/combase.spec
-@@ -1,356 +1,366 @@
+@@ -1,356 +1,369 @@
 -@ stub ObjectStublessClient3
 -@ stub ObjectStublessClient4
 -@ stub ObjectStublessClient5
@@ -494,6 +604,9 @@ diff -u a/dlls/combase/combase.spec b/dlls/combase/combase.spec
 +251 stdcall CleanupTlsOleState(ptr)
 +252 stub ClearCleanupFlag
 +254 stdcall CoAddRefServerProcess()
++66 stdcall -noname CoGetSharedServiceId(ptr)
++67 stdcall -noname CoAddRefSharedService(long)
++68 stdcall -noname CoReleaseSharedService(long)
 +69 stdcall CoRegisterServerShutdownDelay(ptr long)
 +255 stub CoAllowUnmarshalerCLSID
 +256 stub CoCancelCall
@@ -2091,6 +2204,48 @@ diff -u a/dlls/iertutil/iertutil.spec b/dlls/iertutil/iertutil.spec
  @ stdcall -private DllGetActivationFactory(ptr ptr)
  @ stdcall -private DllGetClassObject(ptr ptr ptr)
 +@ stdcall PrivateCoInternetCombineIUri(ptr ptr long ptr long) urlmon.PrivateCoInternetCombineIUri
+diff -u a/dlls/kernel32/tests/timer.c b/dlls/kernel32/tests/timer.c
+--- a/dlls/kernel32/tests/timer.c
++++ b/dlls/kernel32/tests/timer.c
+@@ -234,10 +234,38 @@
+         CloseHandle(threads[i]);
+     }
+     adjust_system_time(-11);
++}
++
++static void test_far_relative_due_time(void)
++{
++    static const LONGLONG due_times[] = { 0x8000000000000001ll, 0x8000000000000000ll };
++    LARGE_INTEGER due;
++    unsigned int i;
++    HANDLE timer;
++    DWORD ret;
++
++    for (i = 0; i < ARRAY_SIZE(due_times); i++)
++    {
++        timer = CreateWaitableTimerW( NULL, TRUE, NULL );
++        ok( timer != NULL, "CreateWaitableTimer failed, error %lu\n", GetLastError() );
++
++        due.QuadPart = 0;
++        ok( SetWaitableTimer( timer, &due, 0, NULL, NULL, FALSE ), "SetWaitableTimer failed\n" );
++        ret = WaitForSingleObject( timer, 1000 );
++        ok( ret == WAIT_OBJECT_0, "got %lu\n", ret );
++
++        /* re-arming a signaled notification timer with a far relative due time resets it */
++        due.QuadPart = due_times[i];
++        ok( SetWaitableTimer( timer, &due, 0, NULL, NULL, FALSE ), "SetWaitableTimer failed\n" );
++        ret = WaitForSingleObject( timer, 100 );
++        ok( ret == WAIT_TIMEOUT, "%u: got %lu\n", i, ret );
++        CloseHandle( timer );
++    }
+ }
+ 
+ START_TEST(timer)
+ {
+     test_timer();
+     test_timeouts();
++    test_far_relative_due_time();
+ }
 diff -u a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
 --- a/dlls/kernelbase/kernelbase.spec
 +++ b/dlls/kernelbase/kernelbase.spec
@@ -2209,6 +2364,15 @@ diff -u a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
  # @ stub PackageFamilyNameFromId
  # @ stub PackageFamilyNameFromProductId
  # @ stub PackageFullNameFromId
+@@ -1059,7 +1064,7 @@
+ # @ stub PackageRelativeApplicationIdFromProductId
+ # @ stub PackageSidFromFamilyName
+ # @ stub PackageSidFromProductId
+-# @ stub ParseApplicationUserModelId
++@ stdcall ParseApplicationUserModelId(wstr ptr ptr ptr ptr)
+ @ stdcall ParseURLA(str ptr)
+ @ stdcall ParseURLW(wstr ptr)
+ @ stdcall PathAddBackslashA(str)
 @@ -1215,11 +1220,12 @@
  # @ stub PsmEqualPackage
  # @ stub PsmGetApplicationNameFromKey
@@ -2223,6 +2387,59 @@ diff -u a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
  # @ stub PssCaptureSnapshot
  # @ stub PssDuplicateSnapshot
  # @ stub PssFreeSnapshot
+diff -u a/dlls/kernelbase/loader.c b/dlls/kernelbase/loader.c
+--- a/dlls/kernelbase/loader.c
++++ b/dlls/kernelbase/loader.c
+@@ -199,10 +199,49 @@
+ /***********************************************************************
+  *	DelayLoadFailureHook   (kernelbase.@)
+  */
++#ifndef __i386__
++static ULONG_PTR WINAPI delay_load_api_set_stub(void)
++{
++    SetLastError( ERROR_PROC_NOT_FOUND );
++    return 0;
++}
++
++/* Windows returns a failure stub for API sets that are in the schema but have no host. */
++static BOOL is_hostless_api_set( LPCSTR name )
++{
++    WCHAR buffer[MAX_PATH];
++    UNICODE_STRING str;
++    BOOLEAN in_schema, present;
++    int len;
++
++    if (!name || (_strnicmp( name, "api-", 4 ) && _strnicmp( name, "ext-", 4 ))) return FALSE;
++    len = strlen( name );
++    if (len > 4 && !_stricmp( name + len - 4, ".dll" )) len -= 4;
++    if (!len || len >= ARRAY_SIZE(buffer)) return FALSE;
++    len = MultiByteToWideChar( CP_ACP, 0, name, len, buffer, ARRAY_SIZE(buffer) - 1 );
++    if (!len) return FALSE;
++    str.Buffer = buffer;
++    str.Length = str.MaximumLength = len * sizeof(WCHAR);
++    if (ApiSetQueryApiSetPresenceEx( &str, &in_schema, &present )) return FALSE;
++    return in_schema && !present;
++}
++#endif
++
+ FARPROC WINAPI DECLSPEC_HOTPATCH DelayLoadFailureHook( LPCSTR name, LPCSTR function )
+ {
+     ULONG_PTR args[2];
+ 
++#ifndef __i386__
++    if (is_hostless_api_set( name ))
++    {
++        if ((ULONG_PTR)function >> 16)
++            WARN( "returning failure stub for %s.%s\n", name, function );
++        else
++            WARN( "returning failure stub for %s.%u\n", name, LOWORD(function) );
++        return (FARPROC)delay_load_api_set_stub;
++    }
++#endif
++
+     if ((ULONG_PTR)function >> 16)
+         ERR( "failed to delay load %s.%s\n", name, function );
+     else
 diff -u a/dlls/kernelbase/locale.c b/dlls/kernelbase/locale.c
 --- a/dlls/kernelbase/locale.c
 +++ b/dlls/kernelbase/locale.c
@@ -2372,7 +2589,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
      address = (ULONG_PTR)family->Buffer;
      if (!family->Length || family->Length % sizeof(WCHAR) ||
          family->MaximumLength < family->Length || address < base ||
-@@ -1671,9 +1670,17 @@
+@@ -1671,29 +1670,893 @@
      }
      *length = required;
  done:
@@ -2380,18 +2597,19 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    if (result == ERROR_INVALID_DATA) WARN( "Malformed package identity token attribute\n" );
      HeapFree( GetProcessHeap(), 0, info );
      return result;
-+}
-+
+ }
+ 
 +/***********************************************************************
 + *         GetCurrentPackageFamilyName   (kernelbase.@)
 + */
 +LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageFamilyName( UINT32 *length, WCHAR *name )
 +{
 +    return get_current_package_identity_string( 2, length, name );
- }
++}
  
- 
-@@ -1682,18 +1689,874 @@
++
+ /***********************************************************************
+  *         GetCurrentPackageFullName   (kernelbase.@)
   */
  LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageFullName( UINT32 *length, WCHAR *name )
  {
@@ -2492,14 +2710,14 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    if ((result = get_current_package_origin( &value ))) return result;
 +    *origin = value;
 +    return ERROR_SUCCESS;
- }
- 
++}
++
 +/* Per-package application data state (api-ms-win-appmodel-state-l1-2-0).
 + * Measured on Windows 11 26100.9278: OpenState fails with APPMODEL_ERROR_NO_PACKAGE
 + * without package identity; GetStateFolder resolves under the token user's profile
 + * (not %LOCALAPPDATA%) and never creates folders. */
 +#define APPMODEL_STATE_MAGIC 0x54535041
- 
++
 +struct appmodel_state
 +{
 +    DWORD magic;
@@ -2510,7 +2728,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +BOOL WINAPI CloseState( HANDLE handle );
 +BOOL WINAPI GetStateFolder( HANDLE handle, int type, WCHAR *path, UINT32 *length );
 +
- /***********************************************************************
++/***********************************************************************
 + *         OpenState   (kernelbase.@)
 + */
 +HANDLE WINAPI OpenState( void )
@@ -2823,8 +3041,8 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +        HeapFree( GetProcessHeap(), 0, res->application.values[i] );
 +    }
 +    HeapFree( GetProcessHeap(), 0, res );
-+}
-+
+ }
+ 
 +static WCHAR *read_manifest( const WCHAR *path, const WCHAR **end )
 +{
 +    LARGE_INTEGER size;
@@ -2833,7 +3051,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    WCHAR *text = NULL;
 +    HANDLE file;
 +    int len;
-+
+ 
 +    file = CreateFileW( path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL );
 +    if (file == INVALID_HANDLE_VALUE) return NULL;
 +    if (!GetFileSizeEx( file, &size ) || !size.QuadPart || size.QuadPart > 8 * 1024 * 1024 ||
@@ -3092,7 +3310,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    return ERROR_SUCCESS;
 +}
 +
-+/***********************************************************************
+ /***********************************************************************
 + *         GetCurrentPackageApplicationResourcesContext   (kernelbase.@)
 + */
 +LONG WINAPI GetCurrentPackageApplicationResourcesContext( UINT32 index, UINT32 flags, void **context )
@@ -3291,7 +3509,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
  }
  
  
-@@ -1875,4 +2737,829 @@
+@@ -1875,4 +2737,882 @@
      id->publisherId[len] = 0;
  
      return ERROR_SUCCESS;
@@ -3433,7 +3651,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    if (ret == ERROR_BAD_FORMAT) WARN( "Malformed package manifest %s\n", debugstr_w(path) );
 +    HeapFree( GetProcessHeap(), 0, data );
 +    return ret;
-+}
+ }
 +
 +/* Wine stages packages as sibling directories of the caller's package root; pick the highest
 + * matching version like the deployment resolver does for a static PackageDependency. */
@@ -3484,7 +3702,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    if (family && _snwprintf( family, PACKAGE_FAMILY_NAME_MAX_LENGTH, L"%s_%s", node->name, publisher_id ) < 0)
 +        return FALSE;
 +    return TRUE;
- }
++}
 +
 +/* Finds a package by full name in Wine's staged package graph: the caller's catalog-registered
 + * package and the packages staged beside it. Packages from other publishers are not matched
@@ -3718,6 +3936,59 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    *length = needed;
 +    return ERROR_SUCCESS;
 +}
++static BOOL is_package_name_char( WCHAR c )
++{
++    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '-';
++}
++
++/* publisher ids are 13 characters of Crockford base32 */
++static BOOL is_publisher_id_char( WCHAR c )
++{
++    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z' && c != 'i' && c != 'l' && c != 'o' && c != 'u');
++}
++
++static BOOL is_relative_app_id_char( WCHAR c )
++{
++    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.';
++}
++
++/***********************************************************************
++ *         ParseApplicationUserModelId   (kernelbase.@)
++ */
++LONG WINAPI ParseApplicationUserModelId( const WCHAR *aumid, UINT32 *family_length, WCHAR *family_name,
++                                         UINT32 *app_id_length, WCHAR *app_id )
++{
++    const WCHAR *bang, *underscore, *p;
++    UINT32 family_needed, app_needed;
++
++    TRACE( "(%s %p %p %p %p)\n", debugstr_w(aumid), family_length, family_name, app_id_length, app_id );
++
++    if (!aumid || !family_length || !app_id_length) return ERROR_INVALID_PARAMETER;
++    if (!(bang = wcschr( aumid, '!' ))) return ERROR_INVALID_PARAMETER;
++    if (!(underscore = wcschr( aumid, '_' )) || underscore > bang) return ERROR_INVALID_PARAMETER;
++    if (underscore - aumid < 3 || underscore - aumid > 50) return ERROR_INVALID_PARAMETER;
++    for (p = aumid; p < underscore; p++) if (!is_package_name_char( *p )) return ERROR_INVALID_PARAMETER;
++    if (bang - underscore - 1 != 13) return ERROR_INVALID_PARAMETER;
++    for (p = underscore + 1; p < bang; p++) if (!is_publisher_id_char( *p )) return ERROR_INVALID_PARAMETER;
++    if (!bang[1] || wcslen( bang + 1 ) > 64) return ERROR_INVALID_PARAMETER;
++    for (p = bang + 1; *p; p++) if (!is_relative_app_id_char( *p )) return ERROR_INVALID_PARAMETER;
++
++    family_needed = bang - aumid + 1;
++    app_needed = wcslen( bang + 1 ) + 1;
++    if (*family_length < family_needed || *app_id_length < app_needed || !family_name || !app_id)
++    {
++        *family_length = family_needed;
++        *app_id_length = app_needed;
++        return ERROR_INSUFFICIENT_BUFFER;
++    }
++    memcpy( family_name, aumid, (family_needed - 1) * sizeof(WCHAR) );
++    family_name[family_needed - 1] = 0;
++    memcpy( app_id, bang + 1, app_needed * sizeof(WCHAR) );
++    *family_length = family_needed;
++    *app_id_length = app_needed;
++    return ERROR_SUCCESS;
++}
++
 +/***********************************************************************
 + *         PackageFamilyNameFromFullName   (kernelbase.@)
 + */
@@ -4154,6 +4425,123 @@ diff -u a/dlls/msctf/msctf.spec b/dlls/msctf/msctf.spec
  @ stdcall SetInputScope(long long)
  @ stub SetInputScopeXML
  @ stdcall SetInputScopes(long ptr long ptr long wstr wstr)
+diff -u a/dlls/msvcrt/handler4.c b/dlls/msvcrt/handler4.c
+--- a/dlls/msvcrt/handler4.c
++++ b/dlls/msvcrt/handler4.c
+@@ -20,7 +20,7 @@
+ 
+ #include <corecrt.h>
+ 
+-#if defined(__x86_64__) && _MSVCR_VER>=140
++#if defined(__x86_64__) && (_MSVCR_VER>=140 || _MSVCR_VER==0)
+ 
+ #include <stdarg.h>
+ #include <stdlib.h>
+@@ -31,6 +31,12 @@
+ #include "msvcrt.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(seh);
++
++#if _MSVCR_VER==0
++/* msvcrt does not export the ucrtbase accessors; use the same per-thread state. */
++void** CDECL __current_exception(void) { return (void **)&msvcrt_get_thread_data()->exc_record; }
++int* CDECL __processing_throw(void) { return &msvcrt_get_thread_data()->processing_throw; }
++#endif
+ 
+ static DWORD fls_index;
+ 
+diff -u a/dlls/msvcrt/main.c b/dlls/msvcrt/main.c
+--- a/dlls/msvcrt/main.c
++++ b/dlls/msvcrt/main.c
+@@ -111,7 +111,7 @@
+         msvcrt_destroy_heap();
+         return FALSE;
+     }
+-#if defined(__x86_64__) && _MSVCR_VER>=140
++#if defined(__x86_64__) && (_MSVCR_VER>=140 || _MSVCR_VER==0)
+     if(!msvcrt_init_handler4()) {
+         msvcrt_free_locks();
+         msvcrt_free_tls_mem();
+@@ -137,7 +137,7 @@
+     TRACE("finished process init\n");
+     break;
+   case DLL_THREAD_ATTACH:
+-#if defined(__x86_64__) && _MSVCR_VER>=140
++#if defined(__x86_64__) && (_MSVCR_VER>=140 || _MSVCR_VER==0)
+     msvcrt_attach_handler4();
+ #endif
+     break;
+@@ -153,7 +153,7 @@
+     msvcrt_free_tls_mem();
+     if (!msvcrt_free_tls())
+       return FALSE;
+-#if defined(__x86_64__) && _MSVCR_VER>=140
++#if defined(__x86_64__) && (_MSVCR_VER>=140 || _MSVCR_VER==0)
+     msvcrt_free_handler4();
+ #endif
+     _free_locale(MSVCRT_locale);
+diff -u a/dlls/msvcrt/msvcrt.h b/dlls/msvcrt/msvcrt.h
+--- a/dlls/msvcrt/msvcrt.h
++++ b/dlls/msvcrt/msvcrt.h
+@@ -152,7 +152,7 @@
+ void** __cdecl __current_exception(void);
+ int* __cdecl __processing_throw(void);
+ 
+-#if defined(__x86_64__) && _MSVCR_VER>=140
++#if defined(__x86_64__) && (_MSVCR_VER>=140 || _MSVCR_VER==0)
+ BOOL msvcrt_init_handler4(void);
+ void msvcrt_attach_handler4(void);
+ void msvcrt_free_handler4(void);
+diff -u a/dlls/msvcrt/msvcrt.spec b/dlls/msvcrt/msvcrt.spec
+--- a/dlls/msvcrt/msvcrt.spec
++++ b/dlls/msvcrt/msvcrt.spec
+@@ -184,6 +184,7 @@
+ @ cdecl -norelay __CxxFrameHandler(ptr ptr ptr ptr)
+ @ cdecl -norelay __CxxFrameHandler2(ptr ptr ptr ptr) __CxxFrameHandler
+ @ cdecl -norelay __CxxFrameHandler3(ptr ptr ptr ptr) __CxxFrameHandler
++@ cdecl -arch=x86_64 __CxxFrameHandler4(ptr long ptr ptr)
+ @ stdcall -arch=i386 __CxxLongjmpUnwind(ptr)
+ @ cdecl __CxxQueryExceptionSize()
+ @ cdecl __CxxRegisterExceptionObject(ptr ptr)
+diff -u a/dlls/ntdll/loader.c b/dlls/ntdll/loader.c
+--- a/dlls/ntdll/loader.c
++++ b/dlls/ntdll/loader.c
+@@ -5613,9 +5613,32 @@
+     }
+     if (status) return status;
+ 
+-    /* the name must match exactly */
+-    *in_schema = (entry->NameLength == name->Length &&
+-                  !wcsnicmp( (WCHAR *)((char *)map + entry->NameOffset), name->Buffer, len ));
++    /* the contract name must match; a lower or equal minor version is in the schema */
++    {
++        const WCHAR *schema = (WCHAR *)((char *)map + entry->NameOffset);
++        ULONG schema_len = entry->NameLength / sizeof(WCHAR), prefix = len;
++
++        while (prefix && name->Buffer[prefix - 1] != '-') prefix--;
++        *in_schema = FALSE;
++        if (prefix && prefix < len && schema_len > prefix &&
++            !wcsnicmp( schema, name->Buffer, prefix ))
++        {
++            ULONG req = 0, have = 0, j;
++            BOOL digits = TRUE;
++
++            for (j = prefix; j < len; j++)
++            {
++                if (name->Buffer[j] < '0' || name->Buffer[j] > '9') { digits = FALSE; break; }
++                req = req * 10 + name->Buffer[j] - '0';
++            }
++            for (j = prefix; digits && j < schema_len; j++)
++            {
++                if (schema[j] < '0' || schema[j] > '9') { digits = FALSE; break; }
++                have = have * 10 + schema[j] - '0';
++            }
++            *in_schema = digits && req <= have;
++        }
++    }
+     *present = *in_schema && !get_apiset_target( map, entry, NULL, &str );
+     return STATUS_SUCCESS;
+ }
 diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
 --- a/dlls/ntdll/ntdll.spec
 +++ b/dlls/ntdll/ntdll.spec
@@ -4202,7 +4590,7 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  @ stdcall RtlGetThreadPreferredUILanguages(long ptr ptr ptr)
  @ stdcall RtlGetUnloadEventTrace()
  @ stdcall RtlGetUnloadEventTraceEx(ptr ptr ptr)
-@@ -877,6 +884,7 @@
+@@ -877,9 +884,11 @@
  @ stdcall -arch=x86_64 -norelay RtlIsEcCode(ptr)
  @ stdcall RtlIsGenericTableEmpty(ptr)
  # @ stub RtlIsGenericTableEmptyAvl
@@ -4210,7 +4598,11 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  @ stdcall RtlIsNameLegalDOS8Dot3(ptr ptr ptr)
  @ stdcall RtlIsNormalizedString(long wstr long ptr)
  @ stdcall RtlIsProcessorFeaturePresent(long)
-@@ -1051,6 +1059,7 @@
++@ stdcall RtlIsStateSeparationEnabled()
+ # @ stub RtlIsRangeAvailable
+ @ stdcall RtlIsTextUnicode(ptr long ptr)
+ # @ stub RtlIsThreadWithinLoaderCallout
+@@ -1051,6 +1060,7 @@
  @ stub RtlSetSecurityObject
  # @ stub RtlSetSecurityObjectEx
  @ stdcall RtlSetThreadErrorMode(long ptr)
@@ -4218,7 +4610,7 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  # @ stub RtlSetThreadIsCritical
  @ stdcall RtlSetThreadPreferredUILanguages(long ptr ptr)
  # @ stub RtlSetThreadPoolStartFunc
-@@ -1206,6 +1215,7 @@
+@@ -1206,6 +1216,7 @@
  @ stdcall TpSetPoolStackInformation(ptr ptr)
  @ stdcall TpSetTimer(ptr ptr long long)
  @ stdcall TpSetWait(ptr long ptr)
@@ -4226,7 +4618,7 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  @ stdcall TpSimpleTryPost(ptr ptr ptr)
  @ stdcall TpStartAsyncIoOperation(ptr)
  @ stdcall TpWaitForIoCompletion(ptr long)
-@@ -1429,6 +1439,7 @@
+@@ -1429,6 +1440,7 @@
  @ stdcall -private ZwQuerySystemInformation(long ptr long ptr) NtQuerySystemInformation
  @ stdcall -private ZwQuerySystemInformationEx(long ptr long ptr long ptr) NtQuerySystemInformationEx
  @ stdcall -private ZwQuerySystemTime(ptr) NtQuerySystemTime
@@ -4560,6 +4952,27 @@ diff -u a/dlls/ntdll/ntsyscalls.h b/dlls/ntdll/ntsyscalls.h
  #else
  #define ALL_SYSCALLS ALL_SYSCALLS32
  #endif
+diff -u a/dlls/ntdll/process.c b/dlls/ntdll/process.c
+--- a/dlls/ntdll/process.c
++++ b/dlls/ntdll/process.c
+@@ -48,6 +48,17 @@
+ 
+ 
+ /******************************************************************************
++ *              RtlIsStateSeparationEnabled  (NTDLL.@)
++ *
++ * State separation is a Windows Core OS feature; the Windows 11 desktop
++ * reference (build 26300) returns FALSE.
++ */
++BOOLEAN WINAPI RtlIsStateSeparationEnabled(void)
++{
++    return FALSE;
++}
++
++/******************************************************************************
+  *              RtlIsCurrentProcess  (NTDLL.@)
+  */
+ BOOLEAN WINAPI RtlIsCurrentProcess( HANDLE handle )
 diff -u a/dlls/ntdll/rtl.c b/dlls/ntdll/rtl.c
 --- a/dlls/ntdll/rtl.c
 +++ b/dlls/ntdll/rtl.c
@@ -4783,6 +5196,109 @@ diff -u a/dlls/ntdll/sec.c b/dlls/ntdll/sec.c
 +    if (sandboxed) *is_sandboxed = TRUE;
 +    return STATUS_SUCCESS;
 +}
+diff -u a/dlls/ntdll/tests/alpc.c b/dlls/ntdll/tests/alpc.c
+--- a/dlls/ntdll/tests/alpc.c
++++ b/dlls/ntdll/tests/alpc.c
+@@ -2703,6 +2703,89 @@
+     ret = CloseHandle(comm_port);
+     ok(ret, "CloseHandle failed, error %ld.\n", GetLastError());
+     winetest_pop_context();
++}
++
++static void test_server_send_lpc_requests(ULONG client_flags)
++{
++    static const WCHAR name_fmt[] = L"\\BaseNamedObjects\\wine_alpc_lpc_req_%lu_%lx";
++    HANDLE conn_port = NULL, comm_port = NULL, client_port = NULL;
++    ALPC_PORT_ATTRIBUTES port_attr;
++    TEST_ALPC_MESSAGE msg, recv_msg;
++    LARGE_INTEGER timeout;
++    OBJECT_ATTRIBUTES attr;
++    UNICODE_STRING name;
++    WCHAR buffer[96];
++    SIZE_T size;
++    NTSTATUS status;
++
++    swprintf(buffer, ARRAY_SIZE(buffer), name_fmt, GetCurrentProcessId(), client_flags);
++    RtlInitUnicodeString(&name, buffer);
++    InitializeObjectAttributes(&attr, &name, 0, NULL, NULL);
++    init_port_attr(&port_attr, ALPC_PORTFLG_ALLOW_LPC_REQUESTS | ALPC_PORTFLG_NON_BLOCKING_RECEIVE,
++                   sizeof(TEST_ALPC_MESSAGE));
++    status = pNtAlpcCreatePort(&conn_port, &attr, &port_attr);
++    ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
++
++    init_port_attr(&port_attr, client_flags, sizeof(TEST_ALPC_MESSAGE));
++    fill_msg(&msg, "connect", sizeof("connect"), 0);
++    size = sizeof(msg);
++    status = pNtAlpcConnectPort(&client_port, &name, NULL, &port_attr, 0, NULL,
++                                (ALPC_PORT_MESSAGE *)&msg, &size, NULL, NULL, NULL);
++    ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
++
++    timeout.QuadPart = -10000 * 1000;
++    memset(&recv_msg, 0, sizeof(recv_msg));
++    size = sizeof(recv_msg);
++    status = pNtAlpcSendWaitReceivePort(conn_port, 0, NULL, NULL, (ALPC_PORT_MESSAGE *)&recv_msg,
++                                        &size, NULL, &timeout);
++    ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
++    init_port_attr(&port_attr, 0, sizeof(TEST_ALPC_MESSAGE));
++    status = pNtAlpcAcceptConnectPort(&comm_port, conn_port, 0, NULL, &port_attr, NULL,
++                                      (ALPC_PORT_MESSAGE *)&recv_msg, NULL, TRUE);
++    ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
++    memset(&recv_msg, 0, sizeof(recv_msg));
++    size = sizeof(recv_msg);
++    status = pNtAlpcSendWaitReceivePort(client_port, 0, NULL, NULL, (ALPC_PORT_MESSAGE *)&recv_msg,
++                                        &size, NULL, &timeout);
++    ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
++    ok(get_message_type(recv_msg.header.Type) == ALPC_MESSAGE_TYPE_CONNECTION_REPLY, "Got unexpected type %#x.\n",
++       recv_msg.header.Type);
++
++    /* A server communication port can only start a message when the client allows LPC requests */
++    fill_msg(&msg, "datagram", sizeof("datagram"), 0);
++    status = pNtAlpcSendWaitReceivePort(comm_port, ALPC_MSGFLG_REPLY_MESSAGE, (ALPC_PORT_MESSAGE *)&msg,
++                                        NULL, NULL, NULL, NULL, NULL);
++    if (!(client_flags & ALPC_PORTFLG_ALLOW_LPC_REQUESTS))
++    {
++        ok(status == STATUS_LPC_REQUESTS_NOT_ALLOWED, "Got unexpected status %#lx.\n", status);
++        goto done;
++    }
++    ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
++    memset(&recv_msg, 0, sizeof(recv_msg));
++    size = sizeof(recv_msg);
++    status = pNtAlpcSendWaitReceivePort(client_port, 0, NULL, NULL, (ALPC_PORT_MESSAGE *)&recv_msg,
++                                        &size, NULL, &timeout);
++    ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
++    ok(get_message_type(recv_msg.header.Type) == ALPC_MESSAGE_TYPE_DATAGRAM, "Got unexpected type %#x.\n",
++       recv_msg.header.Type);
++    ok(!strcmp(recv_msg.data, "datagram"), "Got unexpected data %s.\n", debugstr_a(recv_msg.data));
++
++    fill_msg(&msg, "request", sizeof("request"), 0);
++    status = pNtAlpcSendWaitReceivePort(comm_port, 0, (ALPC_PORT_MESSAGE *)&msg, NULL, NULL, NULL, NULL, NULL);
++    ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
++    memset(&recv_msg, 0, sizeof(recv_msg));
++    size = sizeof(recv_msg);
++    status = pNtAlpcSendWaitReceivePort(client_port, 0, NULL, NULL, (ALPC_PORT_MESSAGE *)&recv_msg,
++                                        &size, NULL, &timeout);
++    ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
++    ok(recv_msg.header.Type == (0x2000 | ALPC_MESSAGE_TYPE_REQUEST), "Got unexpected type %#x.\n",
++       recv_msg.header.Type);
++    ok(!strcmp(recv_msg.data, "request"), "Got unexpected data %s.\n", debugstr_a(recv_msg.data));
++
++done:
++    CloseHandle(client_port);
++    CloseHandle(comm_port);
++    CloseHandle(conn_port);
+ }
+ 
+ static void test_NtAlpcSendWaitReceivePort(char **argv)
+@@ -2753,6 +2836,9 @@
+ 
+     /* Synchronously send and receive message attributes */
+     test_NtAlpcSendWaitReceivePort_attributes(argv);
++
++    test_server_send_lpc_requests(0);
++    test_server_send_lpc_requests(ALPC_PORTFLG_ALLOW_LPC_REQUESTS);
+ }
+ 
+ static void test_NtAlpcConnectPort_no_msg_server(void)
 diff -u a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
 --- a/dlls/ntdll/thread.c
 +++ b/dlls/ntdll/thread.c
@@ -4909,12 +5425,12 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
 +    if (attr->AllocatedAttributes & ~ALPC_MESSAGE_ATTRIBUTE_ALL)
 +    {
 +        WARN( "unsupported allocated attributes %#x\n", (unsigned int)attr->AllocatedAttributes );
-+        return STATUS_NOT_SUPPORTED;
+         return STATUS_NOT_SUPPORTED;
 +    }
 +    if (sending && (attr->ValidAttributes & ~send_allowed))
 +    {
 +        WARN( "unsupported valid send attributes %#x\n", (unsigned int)attr->ValidAttributes );
-         return STATUS_NOT_SUPPORTED;
++        return STATUS_NOT_SUPPORTED;
 +    }
      if (sending && (attr->ValidAttributes & ALPC_MESSAGE_SECURITY_ATTRIBUTE))
      {
@@ -4939,7 +5455,25 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
          dst->ticket = 0;
      }
  
-@@ -357,8 +368,24 @@
+@@ -336,7 +347,8 @@
+ 
+ static NTSTATUS alpc_receive_port( HANDLE port_handle, ULONG flags, ALPC_PORT_MESSAGE *recv_msg,
+                                    SIZE_T *recv_buffer_size, ALPC_MESSAGE_ATTRIBUTES *recv_msg_attr,
+-                                   void *reply_data, data_size_t reply_data_size, BOOL *wait)
++                                   void *reply_data, data_size_t reply_data_size, BOOL *wait,
++                                   unsigned int reply_id )
+ {
+     NTSTATUS status;
+ 
+@@ -348,6 +360,7 @@
+         req->flags = flags;
+         req->msg_size = recv_buffer_size ? *recv_buffer_size : 65535;
+         req->msg_attributes = recv_msg_attr ? recv_msg_attr->AllocatedAttributes : 0;
++        req->reply_id = reply_id;
+         wine_server_set_reply( req, reply_data, reply_data_size );
+         if (!(status = wine_server_call( req )))
+         {
+@@ -357,8 +370,24 @@
              server_recv_msg_attr = (struct alpc_msg_attr_t *)((unsigned char *)server_recv_msg
                                     + sizeof(*server_recv_msg) + server_recv_msg->data_len);
              get_alpc_msg_from_server( recv_msg, server_recv_msg );
@@ -4966,7 +5500,7 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
          }
          else if (status == STATUS_BUFFER_TOO_SMALL)
          {
-@@ -390,7 +417,7 @@
+@@ -390,7 +419,7 @@
             (unsigned int)flags, obj_attr, port_attr, port_context, send_msg, send_msg_attr, accept );
  
      if ((status = validate_message( send_msg )) ||
@@ -4975,7 +5509,7 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
      if ((flags & ~ALPC_SYNC_CONNECTION) || (port_attr && (port_attr->Flags & ~ALPC_PORTFLG_SUPPORTED)))
          return STATUS_NOT_SUPPORTED;
      if (!communication_port || !send_msg)
-@@ -461,8 +488,8 @@
+@@ -461,8 +490,8 @@
             connect_msg, connect_msg_size, send_msg_attr, recv_msg_attr, timeout );
  
      if ((status = validate_message( connect_msg )) ||
@@ -4986,10 +5520,21 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
      if ((flags & ~ALPC_SYNC_CONNECTION) ||
          (port_attr && (port_attr->Flags & ~ALPC_PORTFLG_SUPPORTED)))
          return STATUS_NOT_SUPPORTED;
-@@ -634,6 +661,47 @@
-     return status;
- }
+@@ -557,7 +586,7 @@
+     }
  
+     status = alpc_receive_port( ret_handle, flags, recv_msg, connect_msg_size, recv_msg_attr,
+-                                reply_data, reply_data_size, NULL );
++                                reply_data, reply_data_size, NULL , 0);
+     if (!status)
+         *port_handle = ret_handle;
+     else
+@@ -632,6 +661,47 @@
+     SERVER_END_REQ;
+     free( server_obj_attr );
+     return status;
++}
++
 +/***********************************************************************
 + *             NtAlpcQueryInformation  (NTDLL.@)
 + */
@@ -5029,12 +5574,15 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
 +    if (length < sizeof(info)) return STATUS_INFO_LENGTH_MISMATCH;
 +    memcpy( buffer, &info, sizeof(info) );
 +    return STATUS_SUCCESS;
-+}
-+
+ }
+ 
  NTSTATUS WINAPI NtAlpcDisconnectPort( HANDLE port_handle, ULONG flags )
- {
-     NTSTATUS status;
-@@ -673,9 +741,12 @@
+@@ -669,13 +739,17 @@
+     void *reply_data = NULL;
+     NTSTATUS status = STATUS_SUCCESS;
+     BOOL wait = FALSE;
++    unsigned int sent_id = 0;
+ 
      TRACE( "%p, %#x, %p, %p, %p, %p, %p, %p.\n", port_handle, (unsigned int)flags, send_msg,
             send_msg_attr, recv_msg, recv_buffer_size, recv_msg_attr, timeout );
  
@@ -5049,7 +5597,7 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
      if (flags & ~(ALPC_MSGFLG_REPLY_MESSAGE | ALPC_MSGFLG_SYNC_REQUEST))
          return STATUS_NOT_SUPPORTED;
  
-@@ -705,6 +776,13 @@
+@@ -705,8 +779,16 @@
              req->flags = flags;
              req->msg_size = wine_server_add_alpc_msg(req, send_msg, &server_msg);
              req->msg_attr_size = wine_server_add_alpc_msg_attr(req, send_msg_attr, ALPC_MESSAGE_ATTRIBUTE_ALL, &server_msg_attr);
@@ -5062,8 +5610,57 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
 +            }
              status = req->msg_size == ~0u || req->msg_attr_size == ~0u
                  ? STATUS_NO_MEMORY : wine_server_call(req);
++            if (!status) sent_id = reply->msg_id;
          }
-@@ -773,5 +851,6 @@
+         SERVER_END_REQ;
+         free( server_msg );
+@@ -722,19 +804,28 @@
+     if (!recv_msg)
+         return status;
+ 
+-    if (flags & ALPC_MSGFLG_SYNC_REQUEST)
+-    {
+-        status = NtWaitForSingleObject(port_handle, FALSE, timeout);
+-        if (status) return status;
+-    }
+-
+     reply_data_size = recv_buffer_size ? *recv_buffer_size : 65535;
+     if (recv_msg_attr)
+         reply_data_size += wine_server_alpc_get_header_size(recv_msg_attr->AllocatedAttributes);
+     if (!(reply_data = calloc(1, reply_data_size))) return STATUS_NO_MEMORY;
+ 
+-    status = alpc_receive_port(port_handle, flags, recv_msg, recv_buffer_size, recv_msg_attr,
+-                               reply_data, reply_data_size, &wait);
++    if (flags & ALPC_MSGFLG_SYNC_REQUEST)
++    {
++        /* the port is only signaled for this thread once the reply to its request is queued */
++        do
++        {
++            if ((status = NtWaitForSingleObject(port_handle, FALSE, timeout)))
++            {
++                free( reply_data );
++                return status;
++            }
++            status = alpc_receive_port(port_handle, flags, recv_msg, recv_buffer_size, recv_msg_attr,
++                                       reply_data, reply_data_size, &wait, sent_id);
++        } while (status == STATUS_UNSUCCESSFUL && wait);
++    }
++    else
++        status = alpc_receive_port(port_handle, flags, recv_msg, recv_buffer_size, recv_msg_attr,
++                                   reply_data, reply_data_size, &wait, 0);
+ 
+     if (wait && !(flags & ALPC_MSGFLG_SYNC_REQUEST) && status != STATUS_BUFFER_TOO_SMALL)
+     {
+@@ -747,7 +838,7 @@
+         }
+ 
+         status = alpc_receive_port( port_handle, flags, recv_msg, recv_buffer_size, recv_msg_attr,
+-                                    reply_data, reply_data_size, &wait );
++                                    reply_data, reply_data_size, &wait, 0 );
+     }
+ 
+     free( reply_data );
+@@ -773,5 +864,6 @@
          status = wine_server_call( req );
      }
      SERVER_END_REQ;
@@ -5195,91 +5792,6 @@ diff -u a/dlls/profapi/Makefile.in b/dlls/profapi/Makefile.in
 +
 +SOURCES = \
 +	main.c
-diff -u a/dlls/profapi/main.c b/dlls/profapi/main.c
---- /dev/null
-+++ b/dlls/profapi/main.c
-@@ -0,0 +1,80 @@
-+/*
-+ * Profile API
-+ *
-+ * Copyright 2026 Xodus contributors
-+ *
-+ * This library is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU Lesser General Public
-+ * License as published by the Free Software Foundation; either
-+ * version 2.1 of the License, or (at your option) any later version.
-+ *
-+ * This library is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * Lesser General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU Lesser General Public
-+ * License along with this library; if not, write to the Free Software
-+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
-+ */
-+
-+#include <stdarg.h>
-+
-+#include "windef.h"
-+#include "winbase.h"
-+#include "winreg.h"
-+#include "winerror.h"
-+
-+#include "wine/debug.h"
-+
-+WINE_DEFAULT_DEBUG_CHANNEL(profapi);
-+
-+static const WCHAR storage_key[] = L"Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows"
-+                                   L"\\CurrentVersion\\AppContainer\\Storage\\";
-+
-+/***********************************************************************
-+ *           GetAppContainerRegistryHandleFromName (PROFAPI.114)
-+ *
-+ * Semantics measured on native Windows 11 with appcontainer-registry-handle-probe.c
-+ * (acrh-native.txt, acrh-pkg-native-vm.txt).
-+ */
-+HRESULT WINAPI GetAppContainerRegistryHandleFromName( const WCHAR *name, const WCHAR *child,
-+                                                      const WCHAR *subkey, REGSAM access, HKEY *ret )
-+{
-+    HKEY user;
-+    WCHAR *path;
-+    size_t len;
-+    LSTATUS status;
-+
-+    TRACE( "%s %s %s %#lx %p\n", debugstr_w(name), debugstr_w(child), debugstr_w(subkey), access, ret );
-+
-+    if (!name) return E_INVALIDARG;
-+
-+    if ((status = RegOpenCurrentUser( KEY_READ, &user ))) return HRESULT_FROM_WIN32( status );
-+
-+    len = wcslen( storage_key ) + wcslen( name ) + 1;
-+    if (child) len += wcslen( L"\\Children\\" ) + wcslen( child );
-+    if (subkey) len += 1 + wcslen( subkey );
-+    if (!(path = HeapAlloc( GetProcessHeap(), 0, len * sizeof(WCHAR) )))
-+    {
-+        RegCloseKey( user );
-+        return E_OUTOFMEMORY;
-+    }
-+    wcscpy( path, storage_key );
-+    wcscat( path, name );
-+    if (child)
-+    {
-+        wcscat( path, L"\\Children\\" );
-+        wcscat( path, child );
-+    }
-+    if (subkey)
-+    {
-+        wcscat( path, L"\\" );
-+        wcscat( path, subkey );
-+    }
-+
-+    status = RegOpenKeyExW( user, path, 0, access, ret );
-+    HeapFree( GetProcessHeap(), 0, path );
-+    RegCloseKey( user );
-+    return HRESULT_FROM_WIN32( status );
-+}
-\ No newline at end of file
 diff -u a/dlls/profapi/profapi.spec b/dlls/profapi/profapi.spec
 --- a/dlls/profapi/profapi.spec
 +++ b/dlls/profapi/profapi.spec
@@ -5729,6 +6241,33 @@ diff -u a/dlls/rpcrt4/rpcrt4.spec b/dlls/rpcrt4/rpcrt4.spec
  @ stdcall NdrStubCall(ptr ptr ptr ptr)
  @ stdcall NdrStubForwardingFunction(ptr ptr ptr ptr)
  @ stdcall NdrStubGetBuffer(ptr ptr ptr)
+diff -u a/dlls/sechost/Makefile.in b/dlls/sechost/Makefile.in
+--- a/dlls/sechost/Makefile.in
++++ b/dlls/sechost/Makefile.in
+@@ -1,9 +1,10 @@
+ MODULE    = sechost.dll
+ IMPORTLIB = sechost
+-IMPORTS   = kernelbase
++IMPORTS   = kernelbase ntdll
+ DELAYIMPORTS = rpcrt4
+ 
+ SOURCES = \
++	capability.c \
+ 	plugplay.idl \
+ 	security.c \
+ 	service.c \
+diff -u a/dlls/sechost/sechost.spec b/dlls/sechost/sechost.spec
+--- a/dlls/sechost/sechost.spec
++++ b/dlls/sechost/sechost.spec
+@@ -17,7 +17,7 @@
+ @ stub AuditSetSystemPolicy
+ @ stub BuildSecurityDescriptorForSharingAccess
+ @ stub BuildSecurityDescriptorForSharingAccessEx
+-@ stub CapabilityCheck
++@ stdcall CapabilityCheck(long wstr ptr)
+ @ stub CapabilityCheckForSingleSessionSku
+ @ stdcall ChangeServiceConfig2A(long long ptr)
+ @ stdcall ChangeServiceConfig2W(long long ptr)
 diff -u a/dlls/shcore/main.c b/dlls/shcore/main.c
 --- a/dlls/shcore/main.c
 +++ b/dlls/shcore/main.c
@@ -5858,11 +6397,20 @@ diff -u a/dlls/urlmon/urlmon.spec b/dlls/urlmon/urlmon.spec
 diff -u a/dlls/user32/misc.c b/dlls/user32/misc.c
 --- a/dlls/user32/misc.c
 +++ b/dlls/user32/misc.c
-@@ -542,4 +542,16 @@
- {
+@@ -23,6 +23,9 @@
+ 
+ #include <stdarg.h>
+ 
++#include "ntstatus.h"
++#define WIN32_NO_STATUS
++
+ #include "windef.h"
+ #include "wine/windef16.h"
+ #include "winbase.h"
+@@ -543,3 +546,29 @@
      if (!imm_ime_wnd_proc) return DefWindowProcW(hwnd, msg, wParam, lParam);
      return imm_ime_wnd_proc( hwnd, msg, wParam, lParam, FALSE );
-+}
+ }
 +
 +/**********************************************************************
 + *              IsOneCoreTransformMode (USER32.@)
@@ -5874,11 +6422,33 @@ diff -u a/dlls/user32/misc.c b/dlls/user32/misc.c
 +BOOL WINAPI IsOneCoreTransformMode(void)
 +{
 +    return FALSE;
- }
++}
++
++/**********************************************************************
++ *              CitSetInfo (USER32.2597)
++ *
++ * Computer Interaction Tracking is not implemented. Native returns
++ * STATUS_PROFILING_NOT_STARTED for every request when tracking is not
++ * running in the caller's session (measured on Windows 11 26100, session 0),
++ * before validating the class or the buffer, and leaves the last error alone.
++ */
++NTSTATUS WINAPI CitSetInfo( ULONG info_class, void *info )
++{
++    FIXME( "(%lu, %p): interaction tracking not running\n", info_class, info );
++    return STATUS_PROFILING_NOT_STARTED;
++}
 diff -u a/dlls/user32/user32.spec b/dlls/user32/user32.spec
 --- a/dlls/user32/user32.spec
 +++ b/dlls/user32/user32.spec
-@@ -52,7 +52,7 @@
+@@ -45,14 +45,14 @@
+ 2531 stub -noname SetCalibrationData  # NtUserSetCalibrationData
+ 2532 stub -noname SetDisplayMapping  # NtUserSetDisplayMapping
+ 2533 stub -noname CanBrokerForceForeground  # NtUserCanBrokerForceForeground
+-2534 stub @
++2534 stdcall -noname InternalClipCursor(long long ptr)
+ 2535 stub @
+ 2536 stub @
+ 2537 stub -noname SendEventMessage  # NtUserSendEventMessage
  2538 stub -noname LayoutCompleted  # NtUserLayoutCompleted
  2539 stub -noname HidePointerContactVisualization  # NtUserHidePointerContactVisualization
  2540 stub -noname SetCancelRotationDelayHintWindow  # NtUserSetCancelRotationDelayHintWindow
@@ -5887,6 +6457,52 @@ diff -u a/dlls/user32/user32.spec b/dlls/user32/user32.spec
  2542 stub SetCoveredWindowStates  # NtUserSetCoveredWindowStates
  
  2544 stub -noname EnableTouchPad  # NtUserEnableTouchPad
+@@ -82,7 +82,7 @@
+ 2568 stub -noname SetModernAppWindow  # NtUserSetModernAppWindow
+ 2569 stub -noname GetModernAppWindow  # NtUserGetModernAppWindow
+ 2570 stub @
+-2571 stub SetCoreWindow  # NtUserSetCoreWindow
++2571 stdcall SetCoreWindow(long long)
+ 2572 stub @
+ 2573 stub @
+ 2574 stub @
+@@ -108,7 +108,7 @@
+ 2594 stub -noname SetInteractiveCtrlRotationAngle  # NtUserSetInteractiveCtrlRotationAngle
+ 2595 stub -noname SetProcessInteractionFlags  # NtUserSetProcessInteractionFlags
+ 
+-2597 stub -noname CitSetInfo  # NtUserCitSetInfo
++2597 stdcall -noname CitSetInfo(long ptr)  # NtUserCitSetInfo
+ 2598 stub @
+ 2599 stub @
+ 2600 stub -noname ForceEnableNumpadTranslation  # NtUserForceEnableNumpadTranslation
+@@ -133,7 +133,7 @@
+ 
+ 2627 stub -noname SetBridgeWindowChild  # NtUserSetBridgeWindowChild
+ 
+-2633 stub -noname CreateActivationObject  # NtUserCreateActivationObject
++2633 stdcall -noname CreateActivationObject(long ptr ptr)
+ 2634 stub -noname SetTSFEventState  # NtUserSetTSFEventState
+ 2635 stub @
+ 2636 stub @
+@@ -147,15 +147,15 @@
+ 2644 stub -noname DeferWindowDpiChanges  # NtUserDeferWindowDpiChanges
+ 2645 stub @
+ 
+-2647 stub -noname ConfigureActivationObject  # NtUserConfigureActivationObject
+-2648 stub -noname DestroyActivationObject  # NtUserDestroyActivationObject
++2647 stdcall -noname ConfigureActivationObject(ptr long long long long)
++2648 stdcall -noname DestroyActivationObject(ptr)
+ 2649 stub -noname SetForegroundWindowForApplication  # NtUserSetForegroundWindowForApplication
+ 2650 stub -noname GetInputContainerId  # NtUserGetInputContainerId
+ 2651 stub -noname DownlevelTouchpad  # NtUserDownlevelTouchpad
+ 2652 stub -noname GetUniformSpaceMapping  # NtUserGetUniformSpaceMapping
+ 2653 stub -noname GetPointerProprietaryId  # NtUserGetPointerProprietaryId
+ 
+-2656 stub -noname EnableMouseInPointerForWindow  # NtUserEnableMouseInPointerForWindow
++2656 stdcall -noname EnableMouseInPointerForWindow(long long)
+ 2657 stub -noname SetProcessMousewheelRoutingMode  # NtUserSetProcessMousewheelRoutingMode
+ 2658 stub -noname SetDesktopVisualInputSink  # NtUserSetDesktopVisualInputSink
+ 2659 stub @
 @@ -168,8 +168,8 @@
  2666 stub RegisterForTooltipDismissNotification  # NtUserRegisterForTooltipDismissNotification
  2667 stub RegisterForCustomDockTargets  # NtUserRegisterForCustomDockTargets
@@ -5898,6 +6514,26 @@ diff -u a/dlls/user32/user32.spec b/dlls/user32/user32.spec
  2671 stub ShellRegisterHotKey  # NtUserShellRegisterHotKey
  2672 stub SetUserObjectCapability  # NtUserSetUserObjectCapability
  2673 stub SetWindowMessageCapability  # NtUserSetWindowMessageCapability
+@@ -339,8 +339,8 @@
+ # @ stub CreateSystemThreads
+ @ stdcall CreateWindowExA(long str str long long long long long long long long ptr)
+ @ stdcall CreateWindowExW(long wstr wstr long long long long long long long long ptr)
+-# @ stub CreateWindowInBand
+-# @ stub CreateWindowInBandEx
++@ stdcall CreateWindowInBand(long wstr wstr long long long long long long long long ptr long)
++@ stdcall CreateWindowInBandEx(long wstr wstr long long long long long long long long ptr long long)
+ # @ stub CreateWindowIndirect
+ @ stdcall CreateWindowStationA(str long long ptr)
+ @ stdcall CreateWindowStationW(wstr long long ptr)
+@@ -704,7 +704,7 @@
+ @ stdcall GetWindowDisplayAffinity(long ptr) NtUserGetWindowDisplayAffinity
+ @ stdcall GetWindowDpiAwarenessContext(long)
+ @ stdcall GetWindowDpiHostingBehavior(long)
+-# @ stub GetWindowFeedbackSetting
++@ stdcall GetWindowFeedbackSetting(long long long ptr ptr)
+ @ stdcall GetWindowInfo(long ptr)
+ @ stdcall GetWindowLongA(long long)
+ @ stdcall -arch=win64 GetWindowLongPtrA(long long)
 @@ -790,7 +790,7 @@
  @ stdcall IsMenu(long)
  @ stdcall IsMouseInPointerEnabled() NtUserIsMouseInPointerEnabled
@@ -5907,6 +6543,274 @@ diff -u a/dlls/user32/user32.spec b/dlls/user32/user32.spec
  @ stdcall IsProcessDPIAware()
  @ stdcall IsRectEmpty(ptr)
  # @ stub IsSETEnabled
+@@ -1043,7 +1043,7 @@
+ @ stdcall SetDoubleClickTime(long)
+ # @ stub SetFeatureReportResponse
+ @ stdcall SetFocus(long) NtUserSetFocus
+-# @ stub SetForegroundRedirectionForActivationObject
++@ stdcall SetForegroundRedirectionForActivationObject(ptr ptr)
+ @ stdcall SetForegroundWindow(long) NtUserSetForegroundWindow
+ # @ stub SetFullscreenMagnifierOffsetsDWMUpdated
+ @ stdcall SetGestureConfig(ptr long long ptr long)
+@@ -1108,7 +1108,7 @@
+ # @ stub SetWindowCompositionTransition
+ @ stdcall SetWindowContextHelpId(long long) NtUserSetWindowContextHelpId
+ @ stdcall SetWindowDisplayAffinity(long long)
+-# @ stub SetWindowFeedbackSetting
++@ stdcall SetWindowFeedbackSetting(long long long long ptr)
+ @ stdcall SetWindowLongA(long long long)
+ @ stdcall -arch=win64 SetWindowLongPtrA(long long long)
+ @ stdcall -arch=win64 SetWindowLongPtrW(long long long)
+diff -u a/dlls/user32/win.c b/dlls/user32/win.c
+--- a/dlls/user32/win.c
++++ b/dlls/user32/win.c
+@@ -21,6 +21,7 @@
+ #include "ntstatus.h"
+ #define WIN32_NO_STATUS
+ #include "user_private.h"
++#include "appmodel.h"
+ #include "controls.h"
+ #include "winver.h"
+ #include "wine/asm.h"
+@@ -453,10 +454,238 @@
+     /* Note: we rely on the fact that CREATESTRUCTA and */
+     /* CREATESTRUCTW have the same layout. */
+     return wow_handlers.create_window( (CREATESTRUCTW *)&cs, (LPCWSTR)className, instance, FALSE );
++}
++
++
++/***********************************************************************
++ *		CreateWindowInBandEx (USER32.@)
++ *
++ * Wine does not model z-order bands; only the default and desktop bands,
++ * which are the ones an ordinary process may use, are supported.
++ */
++HWND WINAPI CreateWindowInBandEx( DWORD exStyle, LPCWSTR className, LPCWSTR windowName, DWORD style,
++                                  INT x, INT y, INT width, INT height, HWND parent, HMENU menu,
++                                  HINSTANCE instance, LPVOID data, DWORD band, DWORD type )
++{
++    TRACE( "band %lu type %#lx class %s\n", band, type, debugstr_w(IS_INTRESOURCE(className) ? NULL : className) );
++
++    if (type & ~7)
++    {
++        SetLastError( ERROR_INVALID_PARAMETER );
++        return 0;
++    }
++    /* Native denies type 1 (core window) to unpackaged desktop processes; the
++     * packaged Windows.UI CoreWindow path relies on it, so key it on package identity. */
++    if (type == 1)
++    {
++        UINT32 len = 0;
++        if (GetCurrentPackageFullName( &len, NULL ) != ERROR_INSUFFICIENT_BUFFER)
++        {
++            SetLastError( ERROR_ACCESS_DENIED );
++            return 0;
++        }
++    }
++    else if (type && type != 4)
++    {
++        SetLastError( ERROR_ACCESS_DENIED );
++        return 0;
++    }
++    if (band == 15 /* ZBID_IMMERSIVE_INACTIVEDOCK */)
++    {
++        SetLastError( ERROR_INVALID_PARAMETER );
++        return 0;
++    }
++    if (band > 1 /* ZBID_DESKTOP */)
++    {
++        FIXME( "band %lu not supported\n", band );
++        SetLastError( ERROR_ACCESS_DENIED );
++        return 0;
++    }
++    if (type) FIXME( "ignoring type %#lx\n", type );
++    return CreateWindowExW( exStyle, className, windowName, style, x, y, width, height,
++                            parent, menu, instance, data );
++}
++
++
++/***********************************************************************
++ *		EnableMouseInPointerForWindow (USER32.2656)
++ */
++BOOL WINAPI EnableMouseInPointerForWindow( HWND hwnd, BOOL enable )
++{
++    return NtUserCallHwndParam( hwnd, enable, NtUserCallHwndParam_EnableMouseInPointer );
+ }
+ 
+ 
++/* Windows 11 26100 accepts FEEDBACK_TYPE values 1 to 13; 12 and 13 are not in the SDK enum. */
++#define FEEDBACK_MAX_MEASURED 13
++
+ /***********************************************************************
++ *		SetWindowFeedbackSetting (USER32.@)
++ */
++BOOL WINAPI SetWindowFeedbackSetting( HWND hwnd, FEEDBACK_TYPE type, DWORD flags, UINT32 size, const void *config )
++{
++    struct window_feedback_params params = { .type = type };
++
++    TRACE( "%p %u %#lx %u %p\n", hwnd, type, flags, size, config );
++
++    if (type < FEEDBACK_TOUCH_CONTACTVISUALIZATION || type > FEEDBACK_MAX_MEASURED || flags)
++    {
++        SetLastError( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    if (!size) params.reset = TRUE;
++    else if (size != sizeof(BOOL) || !config)
++    {
++        SetLastError( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    else params.value = *(const BOOL *)config != 0;
++    return NtUserCallHwndParam( hwnd, (UINT_PTR)&params, NtUserCallHwndParam_SetWindowFeedbackSetting );
++}
++
++
++/***********************************************************************
++ *		GetWindowFeedbackSetting (USER32.@)
++ */
++BOOL WINAPI GetWindowFeedbackSetting( HWND hwnd, FEEDBACK_TYPE type, DWORD flags, UINT32 *size, void *config )
++{
++    struct window_feedback_params params = { .type = type, .include_ancestors = flags & GWFS_INCLUDE_ANCESTORS };
++    BOOL ret;
++
++    TRACE( "%p %u %#lx %p %p\n", hwnd, type, flags, size, config );
++
++    if (!size || (flags & ~GWFS_INCLUDE_ANCESTORS) ||
++        ((type < FEEDBACK_TOUCH_CONTACTVISUALIZATION || type > FEEDBACK_MAX_MEASURED) && type != FEEDBACK_MAX))
++    {
++        SetLastError( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    if (*size < sizeof(BOOL))
++    {
++        *size = sizeof(BOOL);
++        SetLastError( ERROR_INSUFFICIENT_BUFFER );
++        return FALSE;
++    }
++    *size = sizeof(BOOL);
++    ret = NtUserCallHwndParam( hwnd, (UINT_PTR)&params, NtUserCallHwndParam_GetWindowFeedbackSetting );
++    if (config && !params.invalid) *(BOOL *)config = params.value;
++    return ret;
++}
++
++
++/***********************************************************************
++ *		InternalClipCursor (USER32.2534)
++ *
++ * Native forwards to NtUserLockCursor, which fails with ERROR_ACCESS_DENIED for every
++ * argument combination measured from a desktop process. Core-window cursor locking is not
++ * modelled, so report the same failure.
++ */
++BOOL WINAPI InternalClipCursor( HWND hwnd, BOOL clip, const RECT *rect )
++{
++    FIXME( "%p %d %s: cursor locking not supported\n", hwnd, clip, wine_dbgstr_rect( rect ));
++    SetLastError( ERROR_ACCESS_DENIED );
++    return FALSE;
++}
++
++
++/***********************************************************************
++ *		CreateActivationObject (USER32.2633)
++ */
++BOOL WINAPI CreateActivationObject( HWND hwnd, const UINT64 *id, HANDLE *handle )
++{
++    struct create_activation_object_params params;
++
++    if (!id || !handle)
++    {
++        SetLastError( ERROR_NOACCESS );
++        return FALSE;
++    }
++    params.id = *id;
++    params.handle = 0;
++    if (!NtUserCallHwndParam( hwnd, (DWORD_PTR)&params, NtUserCallHwndParam_CreateActivationObject )) return FALSE;
++    *handle = params.handle;
++    return TRUE;
++}
++
++
++/***********************************************************************
++ *		DestroyActivationObject (USER32.2648)
++ */
++BOOL WINAPI DestroyActivationObject( HANDLE *handle )
++{
++    if (!handle)
++    {
++        SetLastError( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    return NtUserCallTwoParam( (ULONG_PTR)*handle, 0, NtUserCallTwoParam_DestroyActivationObject );
++}
++
++
++/***********************************************************************
++ *		ConfigureActivationObject (USER32.2647)
++ */
++BOOL WINAPI ConfigureActivationObject( HANDLE *handle, INT_PTR arg2, INT_PTR arg3, UINT mask, UINT value )
++{
++    struct configure_activation_object_params params = { arg2, arg3, mask, value };
++
++    if (!handle)
++    {
++        SetLastError( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    return NtUserCallTwoParam( (ULONG_PTR)*handle, (ULONG_PTR)&params, NtUserCallTwoParam_ConfigureActivationObject );
++}
++
++
++/***********************************************************************
++ *		SetForegroundRedirectionForActivationObject (USER32.@)
++ */
++BOOL WINAPI SetForegroundRedirectionForActivationObject( HANDLE *handle, HWND *hwnd )
++{
++    if (!handle || !hwnd)
++    {
++        SetLastError( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    return NtUserCallTwoParam( (ULONG_PTR)*handle, (ULONG_PTR)*hwnd,
++                               NtUserCallTwoParam_SetActivationObjectForegroundRedirection );
++}
++
++
++/***********************************************************************
++ *		SetCoreWindow (USER32.2571)
++ */
++BOOL WINAPI SetCoreWindow( HWND hwnd, DWORD flags )
++{
++    DWORD pid;
++
++    TRACE( "%p %#lx\n", hwnd, flags );
++
++    if (!hwnd || hwnd == GetDesktopWindow() || !GetWindowThreadProcessId( hwnd, &pid ) ||
++        pid != GetCurrentProcessId())
++    {
++        SetLastError( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    FIXME( "%p %#lx: core window input routing is not modelled\n", hwnd, flags );
++    return TRUE;
++}
++
++
++/***********************************************************************
++ *		CreateWindowInBand (USER32.@)
++ */
++HWND WINAPI CreateWindowInBand( DWORD exStyle, LPCWSTR className, LPCWSTR windowName, DWORD style,
++                                INT x, INT y, INT width, INT height, HWND parent, HMENU menu,
++                                HINSTANCE instance, LPVOID data, DWORD band )
++{
++    return CreateWindowInBandEx( exStyle, className, windowName, style, x, y, width, height,
++                                 parent, menu, instance, data, band, 0 );
++}
++
++
++/***********************************************************************
+  *		CreateWindowExW (USER32.@)
+  */
+ HWND WINAPI DECLSPEC_HOTPATCH CreateWindowExW( DWORD exStyle, LPCWSTR className,
 diff -u a/dlls/uxtheme/system.c b/dlls/uxtheme/system.c
 --- a/dlls/uxtheme/system.c
 +++ b/dlls/uxtheme/system.c
@@ -6111,11 +7015,56 @@ diff -u a/dlls/win32u/input.c b/dlls/win32u/input.c
          wine_server_call( req );
          ret = MAKELONG( reply->changed_bits & flags, reply->wake_bits & flags );
      }
-@@ -2852,4 +2876,94 @@
-         return 2;
+@@ -2649,9 +2673,44 @@
+ 
+ BOOL is_mouse_in_pointer_enabled( HWND hwnd )
+ {
+-    return ReadNoFence( &enable_mouse_in_pointer ) == 1;
++    WND *win;
++    BOOL ret;
++
++    if (ReadNoFence( &enable_mouse_in_pointer ) == 1) return TRUE;
++    if (!hwnd || !(win = get_win_ptr( hwnd )) || win == WND_OTHER_PROCESS || win == WND_DESKTOP) return FALSE;
++    ret = !!(win->flags & WIN_MOUSE_IN_POINTER);
++    release_win_ptr( win );
++    return ret;
+ }
+ 
++/* EnableMouseInPointerForWindow: per-window and one-way, like native. */
++BOOL enable_mouse_in_pointer_for_window( HWND hwnd, UINT enable )
++{
++    WND *win;
++
++    TRACE( "hwnd %p enable %u\n", hwnd, enable );
++
++    if (!hwnd || !is_window( hwnd ))
++    {
++        RtlSetLastWin32Error( ERROR_INVALID_WINDOW_HANDLE );
++        return FALSE;
++    }
++    if (enable > 1)
++    {
++        RtlSetLastWin32Error( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    if (!(win = get_win_ptr( hwnd )) || win == WND_OTHER_PROCESS || win == WND_DESKTOP || !enable)
++    {
++        if (win && win != WND_OTHER_PROCESS && win != WND_DESKTOP) release_win_ptr( win );
++        RtlSetLastWin32Error( ERROR_ACCESS_DENIED );
++        return FALSE;
++    }
++    win->flags |= WIN_MOUSE_IN_POINTER;
++    release_win_ptr( win );
++    return TRUE;
++}
++
+ static BOOL is_captured_by_system(void)
+ {
+     GUITHREADINFO info;
+@@ -2853,3 +2912,253 @@
  
      return 0;
-+}
+ }
 +
 +/* A thread owns one CoreMessaging completion port, shared by at most two of
 + * its windows; a slot is released when its window is destroyed. */
@@ -6124,6 +7073,58 @@ diff -u a/dlls/win32u/input.c b/dlls/win32u/input.c
 +    if (info->coremsg_hwnd[slot] && !is_current_thread_window( info->coremsg_hwnd[slot] ))
 +        info->coremsg_hwnd[slot] = 0;
 +    return info->coremsg_hwnd[slot];
++}
++
++/* CoreMessaging keeps a tagCoreMessagingTebEntry pointer in the last Win32ClientInfo slot
++ * (TEB+0x9e8 on x64): [0] notification callback, [1 + slot] singly linked list of signaled
++ * wait nodes whose first pointer is the link. */
++static ULONG_PTR *coremsg_teb_entry(void)
++{
++    return (ULONG_PTR *)NtCurrentTeb()->Win32ClientInfo[COREMSG_TEB_ENTRY_INDEX];
++}
++
++static UINT coremsg_first_slot( struct user_thread_info *info )
++{
++    UINT i;
++    for (i = 0; i < ARRAY_SIZE(info->coremsg_hwnd); i++) if (coremsg_slot_window( info, i )) return i;
++    return 0;
++}
++
++/* Remove one packet from the thread's CoreMessaging port, as measured on Windows 11 26100:
++ * - 32-bit ApcContext with bit 31 set: consumed silently (COREMSG_MARKER);
++ * - ApcContext 0 on a thread with a CoreMessaging TEB entry: the key is a wait node that is
++ *   pushed on the entry's list for the first slot (COREMSG_LINKED);
++ * - ApcContext 0 otherwise: message 0x60 (wparam 3, lparam 0) is sent to every registered
++ *   window and a message wait keeps waiting (COREMSG_NOWAKE);
++ * - any other ApcContext: message 0x60 (wparam 8, lparam ApcContext) is sent to every
++ *   registered window (COREMSG_DELIVERED). */
++int coremsg_dispatch_packet(void)
++{
++    struct user_thread_info *info = get_user_thread_info();
++    HWND hwnds[ARRAY_SIZE(info->coremsg_hwnd)];
++    ULONG_PTR key, apc, *entry;
++    IO_STATUS_BLOCK io;
++    LARGE_INTEGER zero;
++    WPARAM wparam = 8;
++    UINT i;
++
++    if (!info->coremsg_iocp) return COREMSG_EMPTY;
++    zero.QuadPart = 0;
++    if (NtRemoveIoCompletion( info->coremsg_iocp, &key, &apc, &io, &zero )) return COREMSG_EMPTY;
++    TRACE( "packet key %p apc %p status %#x info %p\n", (void *)key, (void *)apc, (UINT)io.Status, (void *)io.Information );
++    if ((ULONG)apc & 0x80000000) return COREMSG_MARKER;
++    if (!apc && (entry = coremsg_teb_entry()) && key)
++    {
++        UINT slot = coremsg_first_slot( info );
++        *(ULONG_PTR *)key = entry[1 + slot];
++        entry[1 + slot] = key;
++        return COREMSG_LINKED;
++    }
++    if (!apc) wparam = 3;
++    for (i = 0; i < ARRAY_SIZE(hwnds); i++) hwnds[i] = coremsg_slot_window( info, i );
++    for (i = 0; i < ARRAY_SIZE(hwnds); i++)
++        if (hwnds[i]) send_message( hwnds[i], WM_COREMSG_COMPLETION, wparam, (LPARAM)apc );
++    return apc ? COREMSG_DELIVERED : COREMSG_NOWAKE;
 +}
 +
 +/**********************************************************************
@@ -6176,14 +7177,13 @@ diff -u a/dlls/win32u/input.c b/dlls/win32u/input.c
 +    info->coremsg_hwnd[free_slot] = hwnd;
 +    *slot = free_slot;
 +    return info->coremsg_iocp;
- }
++}
 +
 +/**********************************************************************
 + *       NtUserDrainThreadCoreMessagingCompletions2    (win32u.@)
 + */
 +BOOL WINAPI NtUserDrainThreadCoreMessagingCompletions2( HWND hwnd )
 +{
-+    static LONG once;
 +    struct user_thread_info *info = get_user_thread_info();
 +    UINT i;
 +
@@ -6196,15 +7196,124 @@ diff -u a/dlls/win32u/input.c b/dlls/win32u/input.c
 +        return FALSE;
 +    }
 +    hwnd = get_full_window_handle( hwnd );
-+    /* win32u never queues packets to the port, so a registered window has none pending */
 +    for (i = 0; i < ARRAY_SIZE(info->coremsg_hwnd); i++)
 +    {
 +        if (coremsg_slot_window( info, i ) != hwnd) continue;
-+        if (!once++) FIXME( "hwnd %p: message-arrival packets are not queued to the port\n", hwnd );
++        /* native links every pending wait node, or delivers one packet and then re-queues a
++         * wake marker */
++        int res;
++        while ((res = coremsg_dispatch_packet()) == COREMSG_LINKED) ;
++        if (res == COREMSG_DELIVERED || res == COREMSG_NOWAKE)
++            NtSetIoCompletion( info->coremsg_iocp, 0, (ULONG_PTR)(LONG_PTR)(LONG)COREMSG_WAKE_MARKER, 0, 0 );
 +        return TRUE;
 +    }
 +    RtlSetLastWin32Error( ERROR_INVALID_PARAMETER );
 +    return FALSE;
++}
++
++
++/* Input activation objects (NtUserCreateActivationObject and friends), used by InputHost.dll
++ * for CoreWindow input sites. Semantics follow measurements of native Windows 11 26100: the
++ * handle is a USER handle, the id is opaque caller data, Destroy is idempotent. */
++struct activation_object
++{
++    HWND   hwnd;
++    UINT64 id;
++    UINT   flags;
++};
++
++static struct activation_object *get_activation_object_ptr( HANDLE handle )
++{
++    struct activation_object *obj = get_user_handle_ptr( handle, NTUSER_OBJ_ACTIVATION );
++
++    if (obj && obj != OBJ_OTHER_PROCESS) return obj;
++    if (obj) FIXME( "other process handle %p\n", handle );
++    RtlSetLastWin32Error( ERROR_NOT_FOUND );
++    return NULL;
++}
++
++BOOL create_activation_object( HWND hwnd, struct create_activation_object_params *params )
++{
++    struct activation_object *obj;
++    HANDLE handle;
++
++    TRACE( "hwnd %p id %s\n", hwnd, wine_dbgstr_longlong( params->id ));
++
++    if (!hwnd || !is_window( hwnd ))
++    {
++        RtlSetLastWin32Error( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    if (!(obj = malloc( sizeof(*obj) ))) return FALSE;
++    obj->hwnd = get_full_window_handle( hwnd );
++    obj->id = params->id;
++    obj->flags = 0;
++    if (!(handle = alloc_user_handle( obj, NTUSER_OBJ_ACTIVATION )))
++    {
++        free( obj );
++        return FALSE;
++    }
++    params->handle = handle;
++    TRACE( "returning %p\n", handle );
++    return TRUE;
++}
++
++BOOL destroy_activation_object( HANDLE handle )
++{
++    struct activation_object *obj;
++
++    TRACE( "%p\n", handle );
++
++    /* native returns TRUE for any handle, including already destroyed ones */
++    obj = free_user_handle( handle, NTUSER_OBJ_ACTIVATION );
++    if (obj == OBJ_OTHER_PROCESS) FIXME( "other process handle %p\n", handle );
++    else free( obj );
++    return TRUE;
++}
++
++BOOL configure_activation_object( HANDLE handle, const struct configure_activation_object_params *params )
++{
++    struct activation_object *obj;
++
++    TRACE( "%p %lx %lx mask %#x value %#x\n", handle, (long)params->arg2, (long)params->arg3,
++           params->mask, params->value );
++
++    /* native rejects a nonzero second argument with ERROR_ACCESS_DENIED and a nonzero third
++     * argument with ERROR_INVALID_PARAMETER for an ordinary desktop process */
++    if (params->arg2)
++    {
++        FIXME( "unsupported arg2 %lx\n", (long)params->arg2 );
++        RtlSetLastWin32Error( ERROR_ACCESS_DENIED );
++        return FALSE;
++    }
++    if (params->arg3)
++    {
++        FIXME( "unsupported arg3 %lx\n", (long)params->arg3 );
++        RtlSetLastWin32Error( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    if (!(obj = get_activation_object_ptr( handle ))) return FALSE;
++    obj->flags = (obj->flags & ~params->mask) | (params->value & params->mask);
++    release_user_handle_ptr( obj );
++    return TRUE;
++}
++
++BOOL set_activation_object_foreground_redirection( HANDLE handle, HWND hwnd )
++{
++    struct activation_object *obj;
++
++    TRACE( "%p %p\n", handle, hwnd );
++
++    if (!(obj = get_activation_object_ptr( handle ))) return FALSE;
++    release_user_handle_ptr( obj );
++    if (hwnd)
++    {
++        /* native rejects a redirection target window from an ordinary desktop process */
++        FIXME( "redirection to %p not supported\n", hwnd );
++        RtlSetLastWin32Error( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    return TRUE;
 +}
 diff -u a/dlls/win32u/main.c b/dlls/win32u/main.c
 --- a/dlls/win32u/main.c
@@ -6238,10 +7347,82 @@ diff -u a/dlls/win32u/main.c b/dlls/win32u/main.c
  BOOL SYSCALL_API NtUserScrollDC( HDC hdc, INT dx, INT dy, const RECT *scroll, const RECT *clip,
                                   HRGN ret_update_rgn, RECT *update_rect )
  {
+diff -u a/dlls/win32u/message.c b/dlls/win32u/message.c
+--- a/dlls/win32u/message.c
++++ b/dlls/win32u/message.c
+@@ -3473,7 +3473,9 @@
+                                                 DWORD timeout, DWORD mask, DWORD flags )
+ {
+     HANDLE wait_handles[MAXIMUM_WAIT_OBJECTS];
+-    DWORD i;
++    HANDLE iocp = get_user_thread_info()->coremsg_iocp;
++    DWORD i, extra = 0, ret;
++    ULONGLONG end_time = NtGetTickCount() + timeout;
+ 
+     if (count > MAXIMUM_WAIT_OBJECTS-1)
+     {
+@@ -3483,10 +3485,37 @@
+ 
+     /* add the queue to the handle list */
+     for (i = 0; i < count; i++) wait_handles[i] = normalize_std_handle( handles[i] );
+-    wait_handles[count] = get_server_queue_handle();
++    /* a message wait also wakes for the thread's CoreMessaging completion port; the queue
++     * handle must stay last for wait_message() */
++    if (iocp && !(flags & MWMO_WAITALL) && count < MAXIMUM_WAIT_OBJECTS-1) wait_handles[count + extra++] = iocp;
++    wait_handles[count + extra] = get_server_queue_handle();
+ 
+-    return wait_objects( count+1, wait_handles, timeout,
+-                         (flags & MWMO_INPUTAVAILABLE) ? mask : 0, mask, flags );
++    for (;;)
++    {
++        ret = wait_objects( count+extra+1, wait_handles, timeout,
++                            (flags & MWMO_INPUTAVAILABLE) ? mask : 0, mask, flags );
++        if (!extra || ret != count) break;
++        switch (coremsg_dispatch_packet())
++        {
++        case COREMSG_LINKED:
++            /* native wakes the waiter and leaves a marker for CoreMessaging's own drain */
++            NtSetIoCompletion( iocp, 0, (ULONG_PTR)(LONG_PTR)(LONG)COREMSG_LINKED_MARKER, 0, 0 );
++            return count;
++        case COREMSG_DELIVERED:
++        case COREMSG_MARKER:
++            return count;
++        default:
++            if (timeout != INFINITE)
++            {
++                LONGLONG left = end_time - NtGetTickCount();
++                if (left <= 0) return WAIT_TIMEOUT;
++                timeout = left;
++            }
++            continue;
++        }
++    }
++    if (extra && ret == count + 1) return count;
++    return ret;
+ }
+ 
+ /***********************************************************************
 diff -u a/dlls/win32u/ntuser_private.h b/dlls/win32u/ntuser_private.h
 --- a/dlls/win32u/ntuser_private.h
 +++ b/dlls/win32u/ntuser_private.h
-@@ -130,6 +130,8 @@
+@@ -78,6 +78,8 @@
+     DWORD_PTR          userdata;      /* User private data */
+     int                private_off;   /* offset of private extra bytes range */
+     int                private_len;   /* length of private extra bytes range */
++    UINT               feedback_set;  /* FEEDBACK_TYPE bits set with SetWindowFeedbackSetting */
++    UINT               feedback_value; /* FEEDBACK_TYPE bits enabled */
+     DWORD              wExtra[1];     /* Window extra bytes */
+ } WND;
+ 
+@@ -90,6 +92,7 @@
+ #define WIN_NEEDS_SHOW_OWNEDPOPUP 0x0020 /* WM_SHOWWINDOW:SC_SHOW must be sent in the next ShowOwnedPopup call */
+ #define WIN_CHILDREN_MOVED        0x0040 /* children may have moved, ignore stored positions */
+ #define WIN_HAS_IME_WIN           0x0080 /* the window has been registered with imm32 */
++#define WIN_MOUSE_IN_POINTER      0x0100 /* mouse input is promoted to pointer messages */
+ 
+ #define WND_OTHER_PROCESS ((WND *)1)  /* returned by get_win_ptr on unknown window handles */
+ #define WND_DESKTOP       ((WND *)2)  /* returned by get_win_ptr on the desktop window */
+@@ -130,9 +133,12 @@
      DWORD                         clipping_reset;         /* time when clipping was last reset */
      struct session_thread_data   *session_data;           /* shared session thread data */
      struct mouse_tracking_info   *mouse_tracking_info;    /* NtUserTrackMouseEvent handling */
@@ -6249,7 +7430,32 @@ diff -u a/dlls/win32u/ntuser_private.h b/dlls/win32u/ntuser_private.h
 +    HWND                          coremsg_hwnd[2];        /* windows registered with coremsg_iocp */
  };
  
- C_ASSERT( sizeof(struct user_thread_info) <= sizeof(((TEB *)0)->Win32ClientInfo) );
+-C_ASSERT( sizeof(struct user_thread_info) <= sizeof(((TEB *)0)->Win32ClientInfo) );
++/* the last slot belongs to CoreMessaging (see coremsg_teb_entry) */
++C_ASSERT( sizeof(struct user_thread_info) <= sizeof(((TEB *)0)->Win32ClientInfo) - sizeof(ULONG_PTR) );
+ 
+ static inline struct user_thread_info *get_user_thread_info(void)
+ {
+diff -u a/dlls/win32u/sysparams.c b/dlls/win32u/sysparams.c
+--- a/dlls/win32u/sysparams.c
++++ b/dlls/win32u/sysparams.c
+@@ -7612,7 +7612,16 @@
+     case NtUserCallTwoParam_GetVirtualScreenRect:
+         *(RECT *)arg1 = get_virtual_screen_rect( 0, arg2 );
+         return 1;
++
++    case NtUserCallTwoParam_DestroyActivationObject:
++        return destroy_activation_object( (HANDLE)arg1 );
+ 
++    case NtUserCallTwoParam_ConfigureActivationObject:
++        return configure_activation_object( (HANDLE)arg1, (const struct configure_activation_object_params *)arg2 );
++
++    case NtUserCallTwoParam_SetActivationObjectForegroundRedirection:
++        return set_activation_object_foreground_redirection( (HANDLE)arg1, (HWND)arg2 );
++
+     /* temporary exports */
+     case NtUserAllocWinProc:
+         return (UINT_PTR)alloc_winproc( (WNDPROC)arg1, arg2 );
 diff -u a/dlls/win32u/win32syscalls.h b/dlls/win32u/win32syscalls.h
 --- a/dlls/win32u/win32syscalls.h
 +++ b/dlls/win32u/win32syscalls.h
@@ -6361,6 +7567,131 @@ diff -u a/dlls/win32u/win32u.spec b/dlls/win32u/win32u.spec
  @ stub -syscall NtUserInitialize
  @ stdcall -syscall NtUserInitializeClientPfnArrays(ptr ptr ptr ptr)
  @ stub -syscall NtUserInitializeGenericHidInjection
+diff -u a/dlls/win32u/win32u_private.h b/dlls/win32u/win32u_private.h
+--- a/dlls/win32u/win32u_private.h
++++ b/dlls/win32u/win32u_private.h
+@@ -93,6 +93,10 @@
+ extern BOOL grab_fullscreen;
+ extern BOOL is_mouse_in_pointer_enabled( HWND hwnd );
+ extern BOOL enable_mouse_in_pointer_for_window( HWND hwnd, UINT enable );
++extern BOOL create_activation_object( HWND hwnd, struct create_activation_object_params *params );
++extern BOOL destroy_activation_object( HANDLE handle );
++extern BOOL configure_activation_object( HANDLE handle, const struct configure_activation_object_params *params );
++extern BOOL set_activation_object_foreground_redirection( HANDLE handle, HWND hwnd );
+ extern HWND get_active_window(void);
+ extern HWND get_capture(void);
+ extern HWND get_focus(void);
+@@ -132,6 +136,14 @@
+                                               LPARAM lparam, UINT flags, UINT timeout,
+                                               PDWORD_PTR res_ptr );
+ extern LRESULT send_message( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam );
++
++/* CoreMessaging completion port delivery (input.c) */
++#define WM_COREMSG_COMPLETION 0x0060
++#define COREMSG_WAKE_MARKER   0x80000001
++#define COREMSG_LINKED_MARKER 0x80000000
++#define COREMSG_TEB_ENTRY_INDEX 61
++enum { COREMSG_EMPTY, COREMSG_DELIVERED, COREMSG_MARKER, COREMSG_LINKED, COREMSG_NOWAKE };
++extern int coremsg_dispatch_packet(void);
+ extern BOOL send_notify_message( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, BOOL ansi );
+ extern LRESULT send_message_timeout( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam,
+                                      UINT flags, UINT timeout, BOOL ansi );
+diff -u a/dlls/win32u/window.c b/dlls/win32u/window.c
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -6215,6 +6215,73 @@
+     }
+ }
+ 
++/* SetWindowFeedbackSetting / GetWindowFeedbackSetting state is per window and per process. */
++static BOOL set_window_feedback_setting( HWND hwnd, const struct window_feedback_params *params )
++{
++    UINT bit = 1u << params->type;
++    WND *win;
++
++    if (!(win = get_win_ptr( hwnd )))
++    {
++        RtlSetLastWin32Error( ERROR_INVALID_WINDOW_HANDLE );
++        return FALSE;
++    }
++    if (win == WND_OTHER_PROCESS || win == WND_DESKTOP)
++    {
++        if (win == WND_OTHER_PROCESS && !is_window( hwnd )) return FALSE;
++        RtlSetLastWin32Error( 0 );
++        return FALSE;
++    }
++    if (params->reset) win->feedback_set &= ~bit;
++    else
++    {
++        win->feedback_set |= bit;
++        if (params->value) win->feedback_value |= bit;
++        else win->feedback_value &= ~bit;
++    }
++    release_win_ptr( win );
++    return TRUE;
++}
++
++static BOOL get_window_feedback_setting( HWND hwnd, struct window_feedback_params *params )
++{
++    UINT bit = params->type < 32 ? 1u << params->type : 0;
++    BOOL found = FALSE;
++    WND *win;
++
++    params->value = FALSE;
++    params->invalid = FALSE;
++    if (!hwnd)
++    {
++        RtlSetLastWin32Error( ERROR_INVALID_WINDOW_HANDLE );
++        params->invalid = TRUE;
++        return FALSE;
++    }
++    while (hwnd)
++    {
++        if (!(win = get_win_ptr( hwnd )))
++        {
++            RtlSetLastWin32Error( ERROR_INVALID_WINDOW_HANDLE );
++            params->invalid = TRUE;
++            return FALSE;
++        }
++        if (win == WND_OTHER_PROCESS || win == WND_DESKTOP)
++        {
++            if (win == WND_OTHER_PROCESS && !is_window( hwnd )) params->invalid = TRUE;
++            break;
++        }
++        if (win->feedback_set & bit)
++        {
++            params->value = !!(win->feedback_value & bit);
++            found = TRUE;
++        }
++        hwnd = win->parent;
++        release_win_ptr( win );
++        if (found || !params->include_ancestors) break;
++    }
++    return found;
++}
++
+ /*****************************************************************************
+  *           NtUserCallHwndParam (win32u.@)
+  */
+@@ -6350,6 +6417,18 @@
+         return set_window_long_internal( hwnd, params->offset, params->size, params->value, FALSE, TRUE );
+     }
+ 
++    case NtUserCallHwndParam_EnableMouseInPointer:
++        return enable_mouse_in_pointer_for_window( hwnd, param );
++
++    case NtUserCallHwndParam_CreateActivationObject:
++        return create_activation_object( hwnd, (struct create_activation_object_params *)param );
++
++    case NtUserCallHwndParam_SetWindowFeedbackSetting:
++        return set_window_feedback_setting( hwnd, (const struct window_feedback_params *)param );
++
++    case NtUserCallHwndParam_GetWindowFeedbackSetting:
++        return get_window_feedback_setting( hwnd, (struct window_feedback_params *)param );
++
+     default:
+         FIXME( "invalid code %u\n", code );
+         return 0;
 diff -u a/dlls/windows.applicationmodel/Makefile.in b/dlls/windows.applicationmodel/Makefile.in
 --- a/dlls/windows.applicationmodel/Makefile.in
 +++ b/dlls/windows.applicationmodel/Makefile.in
@@ -6807,142 +8138,6 @@ diff -u a/dlls/windows.applicationmodel/package.c b/dlls/windows.applicationmode
  }
  
  static HRESULT WINAPI package_get_InstalledLocation( IPackage *iface, IStorageFolder **value )
-diff -u a/dlls/windows.staterepositorycore/Makefile.in b/dlls/windows.staterepositorycore/Makefile.in
---- /dev/null
-+++ b/dlls/windows.staterepositorycore/Makefile.in
-@@ -0,0 +1,5 @@
-+MODULE    = windows.staterepositorycore.dll
-+IMPORTS   = advapi32
-+
-+SOURCES = \
-+	main.c
-diff -u a/dlls/windows.staterepositorycore/main.c b/dlls/windows.staterepositorycore/main.c
---- /dev/null
-+++ b/dlls/windows.staterepositorycore/main.c
-@@ -0,0 +1,116 @@
-+/*
-+ * StateRepository cache manager (Windows.StateRepositoryCore.dll)
-+ *
-+ * The cache is the registry tree HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\
-+ * AppModel\StateRepository\Cache that the StateRepository service maintains.
-+ * Behaviour follows Windows.StateRepositoryCore.dll 10.0.26100.9444.
-+ *
-+ * This library is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU Lesser General Public
-+ * License as published by the Free Software Foundation; either
-+ * version 2.1 of the License, or (at your option) any later version.
-+ *
-+ * This library is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * Lesser General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU Lesser General Public
-+ * License along with this library; if not, write to the Free Software
-+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
-+ */
-+
-+#include <stdarg.h>
-+
-+#include "windef.h"
-+#include "winbase.h"
-+#include "winreg.h"
-+#include "winerror.h"
-+
-+#include "wine/debug.h"
-+
-+WINE_DEFAULT_DEBUG_CHANNEL(srcache);
-+
-+#ifndef STATEREPOSITORY_E_CACHE_NOT_INIITALIZED
-+#define STATEREPOSITORY_E_CACHE_NOT_INIITALIZED _HRESULT_TYPEDEF_(0x80670015)
-+#endif
-+
-+#define SRCACHE_FLAG_WRITE 0x1
-+
-+struct sr_cache_manager
-+{
-+    HKEY root;
-+    HKEY metadata;
-+};
-+
-+static void free_manager( struct sr_cache_manager *mgr )
-+{
-+    if (mgr->metadata) RegCloseKey( mgr->metadata );
-+    if (mgr->root) RegCloseKey( mgr->root );
-+    HeapFree( GetProcessHeap(), 0, mgr );
-+}
-+
-+static HRESULT open_manager( struct sr_cache_manager *mgr, UINT32 flags )
-+{
-+    REGSAM access = KEY_READ | KEY_WOW64_64KEY;
-+    LSTATUS err;
-+
-+    if (flags & SRCACHE_FLAG_WRITE) access |= KEY_SET_VALUE | KEY_CREATE_SUB_KEY;
-+
-+    err = RegOpenKeyExW( HKEY_LOCAL_MACHINE,
-+                         L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModel\\StateRepository\\Cache",
-+                         0, access, &mgr->root );
-+    if (err) return HRESULT_FROM_WIN32( err );
-+
-+    if (flags & SRCACHE_FLAG_WRITE)
-+    {
-+        FIXME( "writable cache open is not implemented\n" );
-+        return E_NOTIMPL;
-+    }
-+
-+    err = RegOpenKeyExW( mgr->root, L"Metadata", 0, access, &mgr->metadata );
-+    if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
-+        return STATEREPOSITORY_E_CACHE_NOT_INIITALIZED;
-+    if (err) return HRESULT_FROM_WIN32( err );
-+
-+    FIXME( "reading an initialized cache is not implemented\n" );
-+    return E_NOTIMPL;
-+}
-+
-+/***********************************************************************
-+ *         SRCacheManager_Open   (windows.staterepositorycore.@)
-+ */
-+HRESULT WINAPI SRCacheManager_Open( UINT32 flags, struct sr_cache_manager **manager )
-+{
-+    struct sr_cache_manager *mgr;
-+    HRESULT hr;
-+
-+    TRACE( "(%#x %p)\n", flags, manager );
-+
-+    if (!manager) return E_INVALIDARG;
-+    *manager = NULL;
-+
-+    if (!(mgr = HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*mgr) ))) return E_OUTOFMEMORY;
-+    hr = open_manager( mgr, flags );
-+    if (hr == STATEREPOSITORY_E_CACHE_NOT_INIITALIZED)
-+        /* Windows asks the StateRepository service to build the cache here;
-+         * there is no such service, so the cache stays uninitialized. */
-+        WARN( "StateRepository cache is not initialized\n" );
-+    if (FAILED(hr))
-+    {
-+        free_manager( mgr );
-+        return hr;
-+    }
-+    *manager = mgr;
-+    return S_OK;
-+}
-+
-+/***********************************************************************
-+ *         SRCacheManager_Close   (windows.staterepositorycore.@)
-+ */
-+void WINAPI SRCacheManager_Close( struct sr_cache_manager *manager )
-+{
-+    TRACE( "(%p)\n", manager );
-+
-+    if (manager) free_manager( manager );
-+}
-\ No newline at end of file
-diff -u a/dlls/windows.staterepositorycore/windows.staterepositorycore.spec b/dlls/windows.staterepositorycore/windows.staterepositorycore.spec
---- /dev/null
-+++ b/dlls/windows.staterepositorycore/windows.staterepositorycore.spec
-@@ -0,0 +1,2 @@
-+@ stdcall SRCacheManager_Close(ptr)
-+@ stdcall SRCacheManager_Open(long ptr)
 diff -u a/dlls/windows.ui/Makefile.in b/dlls/windows.ui/Makefile.in
 --- a/dlls/windows.ui/Makefile.in
 +++ b/dlls/windows.ui/Makefile.in
@@ -9930,7 +11125,7 @@ diff -u a/include/appmodel.h b/include/appmodel.h
  #define APPLICATION_USER_MODEL_ID_MIN_LENGTH 21
  
  typedef enum AppPolicyMediaFoundationCodecLoading
-@@ -87,6 +89,50 @@
+@@ -87,6 +89,51 @@
  }
  PACKAGE_ID;
  
@@ -9962,6 +11157,7 @@ diff -u a/include/appmodel.h b/include/appmodel.h
 +}
 +PACKAGE_INFO;
 +
++LONG WINAPI GetCurrentPackageFullName(UINT32*,WCHAR*);
 +LONG WINAPI GetCurrentPackageInfo(const UINT32,UINT32*,BYTE*,UINT32*);
 +LONG WINAPI GetCurrentPackageInfo2(const UINT32,PackagePathType,UINT32*,BYTE*,UINT32*);
 +
@@ -9981,10 +11177,172 @@ diff -u a/include/appmodel.h b/include/appmodel.h
  LONG WINAPI AppPolicyGetMediaFoundationCodecLoading(HANDLE token, AppPolicyMediaFoundationCodecLoading *policy);
  LONG WINAPI AppPolicyGetProcessTerminationMethod(HANDLE token, AppPolicyProcessTerminationMethod *policy);
  LONG WINAPI AppPolicyGetShowDeveloperDiagnostic(HANDLE token, AppPolicyShowDeveloperDiagnostic *policy);
+@@ -99,3 +146,153 @@
+ #endif
+ 
+ #endif /* _APPMODEL_H_ */
++LONG WINAPI ParseApplicationUserModelId(const WCHAR*,UINT32*,WCHAR*,UINT32*,WCHAR*);
++
++/*
++ * Copyright (C) 2017 Alistair Leslie-Hughes
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++#ifndef _APPMODEL_H_
++#define _APPMODEL_H_
++
++#if defined(__cplusplus)
++extern "C" {
++#endif
++
++#define APPLICATION_USER_MODEL_ID_MAX_LENGTH 130
++#define PACKAGE_FAMILY_NAME_MAX_LENGTH 64
++#define PACKAGE_FULL_NAME_MAX_LENGTH 127
++#define APPLICATION_USER_MODEL_ID_MIN_LENGTH 21
++
++typedef enum AppPolicyMediaFoundationCodecLoading
++{
++    AppPolicyMediaFoundationCodecLoading_All       = 0,
++    AppPolicyMediaFoundationCodecLoading_InboxOnly = 1,
++} AppPolicyMediaFoundationCodecLoading;
++
++typedef enum AppPolicyProcessTerminationMethod
++{
++    AppPolicyProcessTerminationMethod_ExitProcess      = 0,
++    AppPolicyProcessTerminationMethod_TerminateProcess = 1,
++} AppPolicyProcessTerminationMethod;
++
++typedef enum AppPolicyThreadInitializationType
++{
++    AppPolicyThreadInitializationType_None            = 0,
++    AppPolicyThreadInitializationType_InitializeWinRT = 1,
++} AppPolicyThreadInitializationType;
++
++typedef enum AppPolicyShowDeveloperDiagnostic
++{
++    AppPolicyShowDeveloperDiagnostic_None   = 0,
++    AppPolicyShowDeveloperDiagnostic_ShowUI = 1,
++} AppPolicyShowDeveloperDiagnostic;
++
++typedef enum AppPolicyWindowingModel
++{
++    AppPolicyWindowingModel_None           = 0,
++    AppPolicyWindowingModel_Universal      = 1,
++    AppPolicyWindowingModel_ClassicDesktop = 2,
++    AppPolicyWindowingModel_ClassicPhone   = 3
++} AppPolicyWindowingModel;
++
++typedef struct PACKAGE_VERSION
++{
++    union
++    {
++        UINT64 Version;
++        struct
++        {
++            USHORT Revision;
++            USHORT Build;
++            USHORT Minor;
++            USHORT Major;
++        }
++        DUMMYSTRUCTNAME;
++    }
++    DUMMYUNIONNAME;
++}
++PACKAGE_VERSION;
++
++typedef struct PACKAGE_ID
++{
++    UINT32 reserved;
++    UINT32 processorArchitecture;
++    PACKAGE_VERSION version;
++    WCHAR *name;
++    WCHAR *publisher;
++    WCHAR *resourceId;
++    WCHAR *publisherId;
++}
++PACKAGE_ID;
++
++#define PACKAGE_PROPERTY_FRAMEWORK          0x00000001
++#define PACKAGE_FILTER_HEAD                 0x00000010
++#define PACKAGE_FILTER_DIRECT               0x00000020
++#define PACKAGE_FILTER_RESOURCE             0x00000040
++#define PACKAGE_FILTER_BUNDLE               0x00000080
++#define PACKAGE_FILTER_OPTIONAL             0x00020000
++#define PACKAGE_FILTER_IS_IN_RELATED_SET    0x00040000
++#define PACKAGE_FILTER_STATIC               0x00080000
++#define PACKAGE_FILTER_DYNAMIC              0x00100000
++
++typedef enum PackagePathType
++{
++    PackagePathType_Install   = 0,
++    PackagePathType_Mutable   = 1,
++    PackagePathType_Effective = 2,
++} PackagePathType;
++
++typedef struct PACKAGE_INFO
++{
++    UINT32 reserved;
++    UINT32 flags;
++    WCHAR *path;
++    WCHAR *packageFullName;
++    WCHAR *packageFamilyName;
++    PACKAGE_ID packageId;
++}
++PACKAGE_INFO;
++
++LONG WINAPI GetCurrentPackageFullName(UINT32*,WCHAR*);
++LONG WINAPI GetCurrentPackageInfo(const UINT32,UINT32*,BYTE*,UINT32*);
++LONG WINAPI GetCurrentPackageInfo2(const UINT32,PackagePathType,UINT32*,BYTE*,UINT32*);
++
++typedef enum PackageInfo3Type
++{
++    PackageInfo3Type_PackageInfoGeneration = 16,
++} PackageInfo3Type;
++
++HRESULT WINAPI GetCurrentPackageInfo3(UINT32,PackageInfo3Type,UINT32*,void*,UINT32*);
++DECLARE_HANDLE(PACKAGE_GLOBALIZATION_CONTEXT_REFERENCE);
++LONG WINAPI GetCurrentPackageGlobalizationContext(UINT32,UINT32,PACKAGE_GLOBALIZATION_CONTEXT_REFERENCE*);
++LONG WINAPI GetPackageGlobalizationProperty(PACKAGE_GLOBALIZATION_CONTEXT_REFERENCE,UINT32,UINT32*,BYTE*);
++LONG WINAPI GetStagedPackagePathByFullName(const WCHAR*,UINT32*,WCHAR*);
++LONG WINAPI GetStagedPackagePathByFullName2(const WCHAR*,PackagePathType,UINT32*,WCHAR*);
++LONG WINAPI FindPackagesByPackageFamily(const WCHAR*,UINT32,UINT32*,WCHAR**,UINT32*,WCHAR*,UINT32*);
++
++LONG WINAPI AppPolicyGetMediaFoundationCodecLoading(HANDLE token, AppPolicyMediaFoundationCodecLoading *policy);
++LONG WINAPI AppPolicyGetProcessTerminationMethod(HANDLE token, AppPolicyProcessTerminationMethod *policy);
++LONG WINAPI AppPolicyGetShowDeveloperDiagnostic(HANDLE token, AppPolicyShowDeveloperDiagnostic *policy);
++LONG WINAPI AppPolicyGetThreadInitializationType(HANDLE token, AppPolicyThreadInitializationType *policy);
++LONG WINAPI AppPolicyGetWindowingModel(HANDLE processToken, AppPolicyWindowingModel *policy);
++LONG WINAPI PackageIdFromFullName(const WCHAR *full_name, UINT32 flags, UINT32 *buffer_length, BYTE *buffer);
++
++#if defined(__cplusplus)
++}
++#endif
++
++#endif /* _APPMODEL_H_ */
 diff -u a/include/ntuser.h b/include/ntuser.h
 --- a/include/ntuser.h
 +++ b/include/ntuser.h
-@@ -910,6 +910,7 @@
+@@ -480,6 +480,7 @@
+ #define NTUSER_OBJ_ACCEL    0x08
+ #define NTUSER_OBJ_HOOK     0x0f
+ #define NTUSER_OBJ_IMC      0x11
++#define NTUSER_OBJ_ACTIVATION 0x1c
+ 
+ /* NtUserScrollWindowEx flag */
+ #define SW_NODCCACHE  0x8000
+@@ -910,6 +911,7 @@
  W32KAPI HWINSTA WINAPI NtUserGetProcessWindowStation(void);
  W32KAPI HANDLE  WINAPI NtUserGetProp( HWND hwnd, const WCHAR *str );
  W32KAPI DWORD   WINAPI NtUserGetQueueStatus( UINT flags );
@@ -9992,7 +11350,7 @@ diff -u a/include/ntuser.h b/include/ntuser.h
  W32KAPI UINT    WINAPI NtUserGetRawInputBuffer( RAWINPUT *data, UINT *data_size, UINT header_size );
  W32KAPI UINT    WINAPI NtUserGetRawInputData( HRAWINPUT rawinput, UINT command, void *data, UINT *data_size, UINT header_size );
  W32KAPI UINT    WINAPI NtUserGetRawInputDeviceInfo( HANDLE handle, UINT command, void *data, UINT *data_size );
-@@ -988,6 +989,8 @@
+@@ -988,6 +990,8 @@
  W32KAPI HANDLE  WINAPI NtUserRemoveProp( HWND hwnd, const WCHAR *str );
  W32KAPI BOOL    WINAPI NtUserReplyMessage( LRESULT result );
  W32KAPI INT     WINAPI NtUserScheduleDispatchNotification( HWND hwnd );
@@ -10001,6 +11359,50 @@ diff -u a/include/ntuser.h b/include/ntuser.h
  W32KAPI BOOL    WINAPI NtUserScrollDC( HDC hdc, INT dx, INT dy, const RECT *scroll, const RECT *clip,
                                         HRGN ret_update_rgn, RECT *update_rect );
  W32KAPI INT     WINAPI NtUserScrollWindowEx( HWND hwnd, INT dx, INT dy, const RECT *rect,
+@@ -1236,6 +1240,9 @@
+     NtUserCallTwoParam_SetIMECompositionRect,
+     NtUserCallTwoParam_AdjustWindowRect,
+     NtUserCallTwoParam_GetVirtualScreenRect,
++    NtUserCallTwoParam_DestroyActivationObject,
++    NtUserCallTwoParam_ConfigureActivationObject,
++    NtUserCallTwoParam_SetActivationObjectForegroundRedirection,
+     /* temporary exports */
+     NtUserAllocWinProc,
+ };
+@@ -1441,6 +1448,33 @@
+     NtUserCallHwndParam_SetRawWindowPos,
+     NtUserCallHwndParam_GetPrivateData,
+     NtUserCallHwndParam_SetPrivateData,
++    NtUserCallHwndParam_EnableMouseInPointer,
++    NtUserCallHwndParam_CreateActivationObject,
++    NtUserCallHwndParam_SetWindowFeedbackSetting,
++    NtUserCallHwndParam_GetWindowFeedbackSetting,
++};
++
++struct window_feedback_params
++{
++    UINT type;
++    BOOL include_ancestors;
++    BOOL reset;
++    BOOL value;
++    BOOL invalid;
++};
++
++struct create_activation_object_params
++{
++    UINT64 id;
++    HANDLE handle;
++};
++
++struct configure_activation_object_params
++{
++    INT_PTR arg2;
++    INT_PTR arg3;
++    UINT    mask;
++    UINT    value;
+ };
+ 
+ struct get_window_rects_params
 diff -u a/include/objbase.h b/include/objbase.h
 --- a/include/objbase.h
 +++ b/include/objbase.h
@@ -10175,7 +11577,7 @@ diff -u a/programs/wineboot/wineboot.c b/programs/wineboot/wineboot.c
 diff -u a/server/alpc.c b/server/alpc.c
 --- a/server/alpc.c
 +++ b/server/alpc.c
-@@ -78,6 +78,10 @@
+@@ -78,8 +78,21 @@
      struct alpc_port        *peer_port;    /* weak paired endpoint; cleared before either disconnects */
      client_ptr_t             port_context; /* opaque port context set by NtAlpcAcceptConnectPort() */
      struct alpc_port_attr_t  port_attr;    /* port attributes */
@@ -10183,10 +11585,29 @@ diff -u a/server/alpc.c b/server/alpc.c
 +    int                      server_side;  /* communication port created by NtAlpcAcceptConnectPort() */
 +    client_ptr_t             accept_context; /* context passed to NtAlpcAcceptConnectPort() */
 +    obj_handle_t             client_handle;  /* handle returned by NtAlpcConnectPort() */
++    struct token            *client_token;   /* client security context captured at connect (static tracking) */
++    struct list              sync_waits;     /* threads waiting for the reply to a synchronous request */
  };
  
++struct alpc_sync_wait
++{
++    struct list    entry;
++    struct thread *thread;                       /* thread that sent the synchronous request */
++    unsigned int   id;                           /* message ID of the request */
++};
++
  struct alpc_msg_entry
-@@ -104,6 +108,8 @@
+ {
+     struct list entry;
+@@ -92,6 +105,7 @@
+     struct alpc_token_attr_t *token_attr;
+     struct alpc_direct_attr_t *direct_attr;
+     struct alpc_work_on_behalf_attr_t *work_on_behalf_attr;
++    unsigned int reply_to;                       /* request message ID answered by this reply */
+ };
+ 
+ #define ALPC_MSG_ID_OFFSET 1                     /* offset for first msg ID value */
+@@ -104,6 +118,8 @@
      int delivered;
      struct token *security_token;
      struct alpc_port *completed_receiver;
@@ -10195,7 +11616,59 @@ diff -u a/server/alpc.c b/server/alpc.c
      unsigned int next;                           /* next free entry */
  };
  
-@@ -253,6 +259,8 @@
+@@ -154,10 +170,41 @@
+     fprintf( stderr, "ALPC Port type=%d status=%d\n", port->type, port->status );
+ }
+ 
++static struct alpc_sync_wait *find_sync_wait( struct alpc_port *port, struct thread *thread )
++{
++    struct alpc_sync_wait *wait;
++
++    LIST_FOR_EACH_ENTRY( wait, &port->sync_waits, struct alpc_sync_wait, entry )
++        if (wait->thread == thread) return wait;
++    return NULL;
++}
++
++static void remove_sync_wait( struct alpc_port *port, struct thread *thread )
++{
++    struct alpc_sync_wait *wait = find_sync_wait( port, thread );
++
++    if (!wait) return;
++    list_remove( &wait->entry );
++    release_object( wait->thread );
++    free( wait );
++}
++
++static struct alpc_msg_entry *find_sync_reply( struct alpc_port *port, unsigned int id )
++{
++    struct alpc_msg_entry *record;
++
++    LIST_FOR_EACH_ENTRY( record, &port->msg_list, struct alpc_msg_entry, entry )
++        if ((record->msg->type & 0xff) == ALPC_MESSAGE_TYPE_REPLY && record->reply_to == id) return record;
++    return NULL;
++}
++
+ static int alpc_port_signaled( struct object *obj, struct wait_queue_entry *entry )
+ {
+     struct alpc_port *port = (struct alpc_port *)obj;
++    struct alpc_sync_wait *wait = entry ? find_sync_wait( port, get_wait_queue_thread( entry ) ) : NULL;
+ 
++    /* a synchronous request only completes with its own reply; other messages stay queued */
++    if (wait) return port->status == DISCONNECTED || find_sync_reply( port, wait->id ) != NULL;
+     return !list_empty( &port->msg_list );
+ }
+ 
+@@ -210,6 +257,9 @@
+     struct alpc_port *port = (struct alpc_port *)obj;
+     assert( obj->ops == &alpc_port_ops );
+     alpc_port_disconnect( port );
++    while (!list_empty( &port->sync_waits ))
++        remove_sync_wait( port, LIST_ENTRY( list_head( &port->sync_waits ), struct alpc_sync_wait, entry )->thread );
++    if (port->client_token) release_object( port->client_token );
+     release_object( port->thread );
+ }
+ 
+@@ -253,6 +303,8 @@
      entry->delivered = 0;
      entry->security_token = NULL;
      entry->completed_receiver = NULL;
@@ -10204,7 +11677,7 @@ diff -u a/server/alpc.c b/server/alpc.c
      return id;
  }
  
-@@ -271,6 +279,8 @@
+@@ -271,6 +323,8 @@
      entry->src_port = NULL;
      entry->dst_port = NULL;
      entry->delivered = 0;
@@ -10213,7 +11686,7 @@ diff -u a/server/alpc.c b/server/alpc.c
      entry->next = 0;
  
      /* append to end of free list so that we don't reuse it too early */
-@@ -349,7 +359,7 @@
+@@ -349,7 +403,7 @@
  
  static int add_msg_attr_to_record( struct alpc_msg_entry *record, const struct alpc_port *port,
                                     const struct alpc_msg_attr_t *msg_attr, unsigned int id,
@@ -10222,7 +11695,7 @@ diff -u a/server/alpc.c b/server/alpc.c
  {
      record->msg_attr.attributes = 0;
  
-@@ -359,6 +369,7 @@
+@@ -359,6 +413,7 @@
          if (!(record->context_attr = calloc( 1, sizeof(*record->context_attr) ))) goto failed;
  
          record->context_attr->port_context = port_context;
@@ -10230,7 +11703,7 @@ diff -u a/server/alpc.c b/server/alpc.c
          record->context_attr->msg_id = id;
          record->msg_attr.attributes |= ALPC_MESSAGE_CONTEXT_ATTRIBUTE;
      }
-@@ -416,12 +427,12 @@
+@@ -416,12 +471,12 @@
  
      if (msg_attr->attributes & ALPC_MESSAGE_WORK_ON_BEHALF_ATTRIBUTE)
      {
@@ -10246,12 +11719,10 @@ diff -u a/server/alpc.c b/server/alpc.c
      }
  
      return 1;
-@@ -442,12 +453,24 @@
-     free( record->direct_attr );
-     free( record->work_on_behalf_attr );
+@@ -444,10 +499,22 @@
      return 0;
-+}
-+
+ }
+ 
 +/* Windows counts a delivered message against the endpoint it is meant for; client requests
 + * are queued on the connection port but counted on the server communication port */
 +static struct alpc_port *get_seq_owner( struct alpc_port *dst_port, struct alpc_port *src_port,
@@ -10261,8 +11732,8 @@ diff -u a/server/alpc.c b/server/alpc.c
 +        src_port && src_port != dst_port && src_port->type == COMMUNICATION_PORT && src_port->peer_port)
 +        return src_port->peer_port;
 +    return dst_port;
- }
- 
++}
++
  static int add_msg_record( struct alpc_port *dst_port, struct alpc_port *src_port,
                             unsigned short msg_type, const struct alpc_msg_t *msg,
                             data_size_t msg_size, const struct alpc_msg_attr_t *msg_attr,
@@ -10272,7 +11743,7 @@ diff -u a/server/alpc.c b/server/alpc.c
  {
      struct alpc_msg_entry *entry = NULL;
      unsigned int id = 0;
-@@ -458,6 +481,11 @@
+@@ -458,8 +525,25 @@
      if (!(dst_port->status == REFUSED || dst_port->status == DISCONNECTED) &&
          !(id = alloc_msg_id( src_port, dst_port, msg_type )))
          return 0;
@@ -10283,8 +11754,22 @@ diff -u a/server/alpc.c b/server/alpc.c
 +    }
      if (id && msg_attr && (msg_attr->attributes & ALPC_MESSAGE_SECURITY_ATTRIBUTE))
      {
++        int level = src_port->port_attr.qos.impersonation_level == SecurityIdentification
++                    ? SecurityIdentification : SecurityImpersonation;
++        struct token *token = token_duplicate( thread_get_impersonation_token( current ), 0,
++                                               level, NULL, NULL, 0, NULL, 0 );
++        if (!token) goto failed;
++        msg_id_entries[id - ALPC_MSG_ID_OFFSET].security_token = token;
++    }
++    else if (id && src_port->type == COMMUNICATION_PORT && !src_port->server_side &&
++             msg_type != ALPC_MESSAGE_TYPE_CONNECTION_REQUEST &&
++             src_port->port_attr.qos.context_tracking_mode == SECURITY_DYNAMIC_TRACKING)
++    {
++        /* dynamic tracking: the client's effective context at the time of the request */
          int level = src_port->port_attr.qos.impersonation_level == SecurityIdentification
-@@ -488,7 +516,7 @@
+                     ? SecurityIdentification : SecurityImpersonation;
+         struct token *token = token_duplicate( thread_get_impersonation_token( current ), 0,
+@@ -488,20 +572,22 @@
      }
  
      memcpy( entry->msg, msg, msg_size );
@@ -10293,7 +11778,16 @@ diff -u a/server/alpc.c b/server/alpc.c
      {
          set_error( STATUS_NO_MEMORY );
          goto failed;
-@@ -502,6 +530,7 @@
+     }
+     entry->msg->type = msg_type;
++    if (msg_type == ALPC_MESSAGE_TYPE_REPLY) entry->reply_to = msg->id;
+     /* Add tests for this */
+-    if (dst_port->type == CONNECTION_PORT && (entry->msg->type == ALPC_MESSAGE_TYPE_REQUEST
+-        || entry->msg->type == ALPC_MESSAGE_TYPE_CONNECTION_REQUEST))
++    if (entry->msg->type == ALPC_MESSAGE_TYPE_REQUEST ||
++        (dst_port->type == CONNECTION_PORT && entry->msg->type == ALPC_MESSAGE_TYPE_CONNECTION_REQUEST))
+         entry->msg->type |= 0x2000;
+     entry->msg->id = id;
      entry->msg->client_pid = current->process->id;
      entry->msg->client_tid = current->id;
      list_add_tail( &dst_port->msg_list, &entry->entry );
@@ -10301,7 +11795,12 @@ diff -u a/server/alpc.c b/server/alpc.c
      wake_up( &dst_port->obj, 1 );
      return 1;
  
-@@ -553,9 +582,15 @@
+@@ -549,13 +635,21 @@
+             port->status = UNINITIALIZED;
+             port->thread = (struct thread *)grab_object( current );
+             list_init( &port->msg_list );
++            list_init( &port->sync_waits );
+             port->dst_port = NULL;
              port->peer_port = NULL;
              port->port_context = 0;
              port->port_attr = *port_attr;
@@ -10309,6 +11808,7 @@ diff -u a/server/alpc.c b/server/alpc.c
 +            port->server_side = 0;
 +            port->accept_context = 0;
 +            port->client_handle = 0;
++            port->client_token = NULL;
          }
          else
          {
@@ -10317,7 +11817,7 @@ diff -u a/server/alpc.c b/server/alpc.c
              release_object( port );
              return NULL;
          }
-@@ -570,7 +605,8 @@
+@@ -570,7 +664,8 @@
  }
  
  
@@ -10327,7 +11827,7 @@ diff -u a/server/alpc.c b/server/alpc.c
  {
      const struct alpc_msg_t *msg;
      const struct alpc_msg_attr_t *attr;
-@@ -585,7 +621,7 @@
+@@ -585,7 +680,7 @@
      {
          if (attr_size < sizeof(*attr)) goto invalid;
          attr = (const struct alpc_msg_attr_t *)((const char *)msg + msg_size);
@@ -10336,7 +11836,7 @@ diff -u a/server/alpc.c b/server/alpc.c
          { set_error( STATUS_NOT_SUPPORTED ); return 0; }
          if (attr_size != wine_server_alpc_get_header_size( attr->attributes )) goto invalid;
          if (attr->attributes & ALPC_MESSAGE_SECURITY_ATTRIBUTE)
-@@ -646,7 +682,8 @@
+@@ -646,7 +741,8 @@
  
      if ((alpc_port = alpc_create_port( root, &obj_attr_name, obj_attr->attributes, sd, CONNECTION_PORT, port_attr )))
      {
@@ -10346,7 +11846,7 @@ diff -u a/server/alpc.c b/server/alpc.c
          release_object( alpc_port );
      }
  
-@@ -681,7 +718,7 @@
+@@ -681,7 +777,7 @@
      data_ptr += req->connection_attr_size + req->server_sd_size;
      if (!validate_request( req->connection_attr_size + req->server_sd_size + req->name_size +
                             req->obj_attr_size + sizeof(struct alpc_port_attr_t) + req->sid_size,
@@ -10355,18 +11855,26 @@ diff -u a/server/alpc.c b/server/alpc.c
      name.str = (const WCHAR *)data_ptr;
      name.len = (req->name_size / sizeof(WCHAR)) * sizeof(WCHAR);
      data_ptr += req->name_size;
-@@ -788,8 +825,9 @@
+@@ -788,8 +884,17 @@
      }
  
      reply->handle = alloc_handle( current->process, communication_port, ALPC_PORT_ALL_ACCESS, objattr->attributes );
 +    communication_port->client_handle = reply->handle;
++    if (reply->handle && alpc_port_attr->qos.context_tracking_mode != SECURITY_DYNAMIC_TRACKING)
++    {
++        /* static tracking: the client's context is captured once, at connect */
++        int level = alpc_port_attr->qos.impersonation_level == SecurityIdentification
++                    ? SecurityIdentification : SecurityImpersonation;
++        communication_port->client_token = token_duplicate( thread_get_impersonation_token( current ), 0,
++                                                            level, NULL, NULL, 0, NULL, 0 );
++    }
      if (reply->handle && !add_msg_record( connection_port, communication_port, ALPC_MESSAGE_TYPE_CONNECTION_REQUEST,
 -                                        send_msg, req->msg_size, send_msg_attr, 0, 0 ))
 +                                        send_msg, req->msg_size, send_msg_attr, 0, 0, 0, NULL ))
      {
          close_handle( current->process, reply->handle );
          reply->handle = 0;
-@@ -819,7 +857,7 @@
+@@ -819,7 +924,7 @@
      if ((layout_status = alpc_validate_accept_layout( req, get_req_data_size() )))
      { set_error( layout_status ); return; }
      if (!validate_request( req->obj_attr_size + sizeof(struct alpc_port_attr_t),
@@ -10375,7 +11883,7 @@ diff -u a/server/alpc.c b/server/alpc.c
      objattr = get_req_object_attributes_data( data_ptr, req->obj_attr_size, &sd, &objattr_name, &root );
      if (!objattr) return;
      data_ptr += req->obj_attr_size;
-@@ -865,7 +903,7 @@
+@@ -865,7 +970,7 @@
  
      if (req->accept == 0)
      {
@@ -10384,7 +11892,7 @@ diff -u a/server/alpc.c b/server/alpc.c
          {
              dst_port->status = REFUSED;
              msg_id_entries[msg->id - ALPC_MSG_ID_OFFSET].completed_receiver = connection_port;
-@@ -885,7 +923,7 @@
+@@ -885,7 +990,7 @@
          }
          reply->handle = alloc_handle( current->process, communication_port, ALPC_PORT_ALL_ACCESS, objattr->attributes );
          if (reply->handle && add_msg_record( dst_port, connection_port, ALPC_MESSAGE_TYPE_CONNECTION_REPLY, msg,
@@ -10393,7 +11901,7 @@ diff -u a/server/alpc.c b/server/alpc.c
          {
              communication_port->dst_port = (struct alpc_port *)grab_object(dst_port);
              communication_port->peer_port = dst_port;
-@@ -894,6 +932,8 @@
+@@ -894,6 +999,8 @@
              dst_port->dst_port = (struct alpc_port *)grab_object(connection_port);
              dst_port->status = CONNECTED;
              dst_port->port_context = req->port_context;
@@ -10402,7 +11910,7 @@ diff -u a/server/alpc.c b/server/alpc.c
              msg_id_entries[msg->id - ALPC_MSG_ID_OFFSET].completed_receiver = connection_port;
              free_msg_id( msg->id );
          }
-@@ -910,6 +950,27 @@
+@@ -910,6 +1017,27 @@
      release_object( connection_port );
  }
  
@@ -10430,7 +11938,7 @@ diff -u a/server/alpc.c b/server/alpc.c
  /* Send a message and attributes to an ALPC object */
  DECL_HANDLER(alpc_send_port)
  {
-@@ -917,11 +978,13 @@
+@@ -917,11 +1045,13 @@
      const struct alpc_msg_t *msg = NULL;
      const struct alpc_msg_attr_t *msg_attr = NULL;
      const unsigned char *data_ptr = get_req_data();
@@ -10445,7 +11953,25 @@ diff -u a/server/alpc.c b/server/alpc.c
      port = get_alpc_port_obj( current->process, req->handle, ALPC_PORT_QUERY_STATE);
      if (!port) return;
  
-@@ -993,7 +1056,12 @@
+@@ -965,8 +1095,10 @@
+             set_error( STATUS_PORT_DISCONNECTED );
+             goto failed;
+         }
+-        /* If sending with the server side communication port and no valid message ID */
+-        else if (dst_port->type == COMMUNICATION_PORT && !msg->id && dst_port == port->dst_port)
++        /* If sending with the server side communication port and no valid message ID, Windows
++         * only delivers it when the client connected with ALPC_PORTFLG_ALLOW_LPC_REQUESTS */
++        else if (dst_port->type == COMMUNICATION_PORT && !msg->id && dst_port == port->dst_port &&
++                 !(dst_port->port_attr.flags & ALPC_PORTFLG_ALLOW_LPC_REQUESTS))
+         {
+             set_error( STATUS_LPC_REQUESTS_NOT_ALLOWED );
+             goto failed;
+@@ -989,12 +1121,33 @@
+     }
+ 
+     if (req->flags & ALPC_MSGFLG_REPLY_MESSAGE)
+-        msg_type = dst_port->type == CONNECTION_PORT ? ALPC_MESSAGE_TYPE_DATAGRAM : ALPC_MESSAGE_TYPE_REPLY;
++        msg_type = dst_port->type == CONNECTION_PORT || !msg->id ? ALPC_MESSAGE_TYPE_DATAGRAM : ALPC_MESSAGE_TYPE_REPLY;
      else
          msg_type = ALPC_MESSAGE_TYPE_REQUEST;
  
@@ -10456,10 +11982,27 @@ diff -u a/server/alpc.c b/server/alpc.c
 +
 +    if (add_msg_record(dst_port, port, msg_type, msg, req->msg_size, msg_attr, 1, port->port_context,
 +                       reply_msg_context, req->msg_context_valid ? &req->msg_context : NULL))
++    {
++        reply->msg_id = LIST_ENTRY( list_tail( &dst_port->msg_list ), struct alpc_msg_entry, entry )->msg->id;
          free_msg_id(msg->id);
++        if (req->flags & ALPC_MSGFLG_SYNC_REQUEST)
++        {
++            struct alpc_sync_wait *wait;
++
++            remove_sync_wait( port, current );
++            if ((wait = malloc( sizeof(*wait) )))
++            {
++                wait->thread = (struct thread *)grab_object( current );
++                wait->id = reply->msg_id;
++                list_add_tail( &port->sync_waits, &wait->entry );
++            }
++            else set_error( STATUS_NO_MEMORY );
++        }
++    }
  
  failed:
-@@ -1011,7 +1079,8 @@
+     if (port->type == CONNECTION_PORT && dst_port) release_object( dst_port );
+@@ -1011,7 +1164,8 @@
  
      if (req->flags & ~(ALPC_MSGFLG_REPLY_MESSAGE | ALPC_MSGFLG_SYNC_REQUEST))
      { set_error( STATUS_NOT_SUPPORTED ); return; }
@@ -10469,6 +12012,100 @@ diff -u a/server/alpc.c b/server/alpc.c
      { set_error( STATUS_NOT_SUPPORTED ); return; }
      port = get_alpc_port_obj( current->process, req->handle, ALPC_PORT_QUERY_STATE );
      if (!port) return;
+@@ -1045,16 +1199,36 @@
+         }
+     }
+ 
+-    if (list_empty( &port->msg_list ))
++    if (req->reply_id)
+     {
+-        reply->wait = !(port->port_attr.flags & ALPC_PORTFLG_NON_BLOCKING_RECEIVE);
+-        set_error( STATUS_UNSUCCESSFUL );
+-        goto failed;
++        if (!(record = find_sync_reply( port, req->reply_id )))
++        {
++            if (port->status == DISCONNECTED)
++            {
++                remove_sync_wait( port, current );
++                set_error( STATUS_PORT_DISCONNECTED );
++            }
++            else
++            {
++                reply->wait = TRUE;
++                set_error( STATUS_UNSUCCESSFUL );
++            }
++            goto failed;
++        }
+     }
++    else
++    {
++        remove_sync_wait( port, current );
++        if (list_empty( &port->msg_list ))
++        {
++            reply->wait = !(port->port_attr.flags & ALPC_PORTFLG_NON_BLOCKING_RECEIVE);
++            set_error( STATUS_UNSUCCESSFUL );
++            goto failed;
++        }
++        /* receive message */
++        record = LIST_ENTRY( list_head( &port->msg_list ), struct alpc_msg_entry, entry );
++    }
+ 
+-    /* receive message */
+-    record = LIST_ENTRY( list_head( &port->msg_list ), struct alpc_msg_entry, entry );
+-
+     size = sizeof(ALPC_PORT_MESSAGE) + record->msg->data_len;
+     if (req->msg_size  < size)
+     {
+@@ -1092,6 +1266,7 @@
+         msg_id_entries[record->msg->id - ALPC_MSG_ID_OFFSET].delivered = 1;
+     list_remove( &record->entry );
+     free_msg_record( port, record );
++    if (req->reply_id) remove_sync_wait( port, current );
+ 
+ failed:
+     release_object( port );
+@@ -1119,6 +1294,18 @@
+     port = get_alpc_port_obj( current->process, req->handle, ALPC_PORT_QUERY_STATE );
+     if (!port) return;
+     sender = get_alpc_msg_id_entry( req->id, port, 0 );
++    /* the server communication port of a client also identifies that client's messages, which
++     * are queued on the connection port */
++    if (!sender && port->type == COMMUNICATION_PORT && port->server_side && port->dst_port &&
++        port->dst_port->peer_port == port && port->dst_port->dst_port)
++    {
++        sender = get_alpc_msg_id_entry( req->id, port->dst_port->dst_port, 0 );
++        if (sender && sender != port->dst_port)
++        {
++            release_object( sender );
++            sender = NULL;
++        }
++    }
+     if (!sender)
+     {
+         set_error( STATUS_REPLY_MESSAGE_MISMATCH );
+@@ -1126,6 +1313,7 @@
+         return;
+     }
+     token = msg_id_entries[req->id - ALPC_MSG_ID_OFFSET].security_token;
++    if (!token) token = sender->client_token;
+     if (!token) set_error( STATUS_NOT_SUPPORTED );
+     else if ((handle = alloc_handle_no_access_check( current->process, token, TOKEN_IMPERSONATE, 0 )))
+     {
+diff -u a/server/file.h b/server/file.h
+--- a/server/file.h
++++ b/server/file.h
+@@ -147,7 +147,10 @@
+ 
+ static inline abstime_t timeout_to_abstime( timeout_t timeout )
+ {
+-    return timeout > 0 ? timeout : timeout - monotonic_time;
++    if (timeout > 0) return timeout;
++    /* relative timeouts too far in the future to represent never expire */
++    if (timeout < (timeout_t)0x8000000000000001ll + monotonic_time) return -(abstime_t)0x7fffffffffffffffll;
++    return timeout - monotonic_time;
+ }
+ 
+ static inline timeout_t abstime_to_timeout( abstime_t abstime )
 diff -u a/server/protocol.def b/server/protocol.def
 --- a/server/protocol.def
 +++ b/server/protocol.def
@@ -10488,13 +12125,10 @@ diff -u a/server/protocol.def b/server/protocol.def
  
  
  /* Suspend a thread */
-@@ -4482,6 +4484,16 @@
- @REQ(alpc_impersonate_client)
-     obj_handle_t handle;                      /* actual receiving port */
-     unsigned int id;                         /* delivered message identity */
-+@END
-+
-+
+@@ -4485,6 +4487,16 @@
+ @END
+ 
+ 
 +/* Query basic information about an ALPC port */
 +@REQ(alpc_query_port)
 +    obj_handle_t  handle;                     /* ALPC port handle */
@@ -10502,10 +12136,13 @@ diff -u a/server/protocol.def b/server/protocol.def
 +    unsigned int  flags;                      /* port flags */
 +    unsigned int  seq_no;                     /* messages delivered for this endpoint */
 +    client_ptr_t  port_context;               /* port context */
- @END
- 
- 
-@@ -4498,6 +4510,8 @@
++@END
++
++
+ /* Disconnect an ALPC port */
+ @REQ(alpc_disconnect_port)
+     obj_handle_t  handle;                     /* ALPC port handle */
+@@ -4498,8 +4510,12 @@
      unsigned int  flags;                      /* flags */
      unsigned int  msg_size;                   /* size of the message to be sent, including message data */
      unsigned int  msg_attr_size;              /* size of the message attributes to be sent */
@@ -10513,7 +12150,19 @@ diff -u a/server/protocol.def b/server/protocol.def
 +    client_ptr_t  msg_context;                /* sender message context, returned with the reply */
      /* VARARG(msg,alpc_msg_t); */                   /* message to be sent */
      /* VARARG(msg_attr,alpc_msg_attr_t); */   /* optional, message attributes to be sent */
++@REPLY
++    unsigned int  msg_id;                     /* ID assigned to the sent message */
  @END
+ 
+ 
+@@ -4509,6 +4525,7 @@
+     unsigned int  flags;                      /* flags */
+     data_size_t   msg_size;                   /* receive message buffer size, including message data */
+     unsigned int  msg_attributes;             /* flags for which message attributes to receive */
++    unsigned int  reply_id;                   /* only receive the reply to this message ID (sync request) */
+ @REPLY
+     data_size_t   required_size;              /* required message buffer size for receiving the message */
+     unsigned int  wait;                       /* whether caller should wait for the port to be signaled */
 diff -u a/server/thread.c b/server/thread.c
 --- a/server/thread.c
 +++ b/server/thread.c
@@ -10597,6 +12246,18 @@ diff -u a/server/thread.h b/server/thread.h
  extern struct thread *get_thread_from_handle( obj_handle_t handle, unsigned int access );
  extern struct thread *get_thread_from_tid( int tid );
  extern struct thread *get_thread_from_pid( int pid );
+diff -u a/server/timer.c b/server/timer.c
+--- a/server/timer.c
++++ b/server/timer.c
+@@ -191,7 +191,7 @@
+         timer->signaled = 0;
+         reset_sync( timer->sync );
+     }
+-    timer->when     = (expire <= 0) ? expire - monotonic_time : max( expire, current_time );
++    timer->when     = (expire <= 0) ? timeout_to_abstime( expire ) : max( expire, current_time );
+     timer->period   = period;
+     timer->callback = callback;
+     timer->arg      = arg;
 diff -u a/server/token.c b/server/token.c
 --- a/server/token.c
 +++ b/server/token.c
@@ -10611,6 +12272,17 @@ diff -u a/server/token.c b/server/token.c
  
      ret = token_access_check_pass( token, FALSE, sd, desired_access, privs, priv_count,
                                    mapping, granted_access, status );
+diff -u a/server/user.c b/server/user.c
+--- a/server/user.c
++++ b/server/user.c
+@@ -209,6 +209,7 @@
+         case NTUSER_OBJ_WINPOS:
+         case NTUSER_OBJ_ACCEL:
+         case NTUSER_OBJ_IMC:
++        case NTUSER_OBJ_ACTIVATION:
+             if (entry->pid == pid) free_user_entry( entry );
+             break;
+         case NTUSER_OBJ_HOOK:
 diff -u a/configure.ac b/configure.ac
 --- a/configure.ac
 +++ b/configure.ac

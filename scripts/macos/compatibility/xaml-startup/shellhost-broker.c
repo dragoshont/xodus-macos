@@ -18,24 +18,55 @@
  * type are this host's choices and are logged. Methods whose native contract was not measured fail
  * with E_NOTIMPL.
  *
- * usage: shellhost-broker.exe [seconds=240] [width=1280] [height=800] [window_type=6] */
+ * usage: shellhost-broker.exe [seconds=240] [width=1280] [height=800] [window_type=6]
+ *                             [factory=coreui|twinapi] [aumid] [contract=Windows.Launch] [viewId|-] [flags=0x140]
+ *                             [nav|nonav]
+ *
+ * nav (default): also host the genuine CoreUIComponents navigation server the way sihost.exe does (see
+ * start_nav_server below); nonav reproduces br43-br60, where no process served it.
+ *
+ * factory=coreui (default): like native ActivationManager (ViewActivator::CreateCoreWindowFactory, measured live
+ * in sihost on 26100), slot 5 returns CoreUIComponents' own CoreWindowFactory from
+ * CoreUICreateICoreWindowFactoryEx(aumid, GUID 0, id, contract, "", h1, h2, flags) (MsgString arguments). Native passed two equal
+ * handle-like values (h1 = h2) whose meaning was not resolved; this host passes 0. The factory marshals itself
+ * (handler {B243A9FD-C57A-4D3E-A7CF-21CAED64CB5A}) and its proxy attaches the CoreUI NavigationClient.
+ * factory=twinapi: the earlier host factory below (br35-br42), kept for reproduction. */
 #define COBJMACROS
 #include <windows.h>
 #include <objbase.h>
+#include <sddl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <inspectable.h>
+#include <hstring.h>
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+#endif
 
 static const CLSID CLSID_Broker = {0x3480a401,0xbde9,0x4407,{0xbc,0x02,0x79,0x8a,0x86,0x6a,0xc0,0x51}};
 static const IID IID_ServiceHostBrokerProvider = {0x0f4accb1,0xd8f9,0x4011,{0xba,0x37,0x25,0x57,0x92,0x5a,0x78,0xcf}};
 static const IID IID_ApplicationActivationBroker = {0xd98fd14a,0x522a,0x4d59,{0xb8,0x75,0x81,0x1e,0x83,0x91,0x9a,0x9e}};
 static const CLSID CLSID_WindowFactoryProxy = {0x14de3806,0x5d5b,0x405c,{0xab,0x89,0x4a,0xc9,0x36,0xbc,0xbf,0x48}};
+/* Windows.Internal.ApplicationModel.WindowingEnvironment.IPresenterBroker: CoreUIComponents
+ * NavigationClientPresenterClientAdapter::RuntimeClassInitialize asks the ShellServiceHostBrokerProvider for it
+ * (service == riid) and fails NavigationClient init without it. Native server: WindowManagement.dll PresenterBroker;
+ * slots 6 TryApplyAsync, 7 RevertAsync, 8 GetAppliedPresenter(WindowId, &kind) resolve the WindowId in the shell's
+ * WindowManagement data model, which this broker does not have; they stay E_NOTIMPL until measured callers need them. */
+static const IID IID_PresenterBroker = {0x4d79a826,0xbc52,0x4374,{0x9f,0xa2,0x5c,0x9a,0x5a,0x68,0x44,0x32}};
 static const IID IID_ConfigureWindowFactory = {0x601d51e3,0x801e,0x49c9,{0xbb,0xfa,0xfe,0x29,0xa6,0x62,0xae,0xad}};
 static const IID IID_Inspectable = {0xaf86e2e0,0xb12d,0x4c6a,{0x9c,0x5a,0xd7,0xaa,0x65,0x10,0x1e,0x90}};
 static const IID IID_CoreWindowFactory = {0xcd292360,0x2763,0x4085,{0x8a,0x9f,0x74,0xb2,0x24,0xa2,0x91,0x75}};
 
 static LONG width = 1280, height = 800, window_type = 6;
+/* CoreUI factory inputs: defaults are the values measured natively in sihost
+ * (ActivationManager ViewActivator::CreateCoreWindowFactory -> CoreUICreateICoreWindowFactoryEx). */
+static BOOL use_coreui = TRUE;
+static WCHAR coreui_aumid[256] = L"Microsoft.GamingApp_8wekyb3d8bbwe!Microsoft.Xbox.AppL";
+static WCHAR coreui_contract[128] = L"Windows.Launch";
+static DWORD coreui_flags = 0x140;
+static UINT64 coreui_view_id = ~(UINT64)0;
 
 static void blog(const char *fmt, ...)
 {
@@ -364,7 +395,7 @@ static ULONG WINAPI obj_Release(struct object *o) { return InterlockedDecrement(
 NOTIMPL(3) NOTIMPL(4) NOTIMPL(5) NOTIMPL(6) NOTIMPL(7) NOTIMPL(8) NOTIMPL(9) NOTIMPL(10)
 NOTIMPL(11) NOTIMPL(12) NOTIMPL(13) NOTIMPL(14) NOTIMPL(15)
 
-static struct object broker;
+static struct object broker, presenter_broker;
 
 /* IServiceHostBrokerProvider slot 3: QueryService-shaped (guidService, riid, ppv) */
 static HRESULT WINAPI provider_QueryService(struct object *o, REFGUID service, REFIID riid, void **out)
@@ -374,6 +405,8 @@ static HRESULT WINAPI provider_QueryService(struct object *o, REFGUID service, R
     *out = NULL;
     if (IsEqualGUID(service, &IID_ApplicationActivationBroker))
         hr = obj_QueryInterface(&broker, riid, out);
+    else if (IsEqualGUID(service, &IID_PresenterBroker))
+        hr = obj_QueryInterface(&presenter_broker, riid, out);
     else
         hr = E_NOINTERFACE;
     blog("provider slot3 service=%s riid=%s -> %#lx", guidstr(service, g1), guidstr(riid, g2), hr);
@@ -383,12 +416,73 @@ static HRESULT WINAPI provider_QueryService(struct object *o, REFGUID service, R
 /* IApplicationActivationBroker slot 5: (UINT64 aamId, out 32-byte results, out IUnknown **factory)
  * The layout of the 32-byte results block was not measured natively; it is zero-filled as an explicit
  * host assumption (recorded in README "Recorded deviations"), not a reproduction of native content. */
+/* CoreUICreateICoreWindowFactoryEx takes CoreMessaging MsgString handles (CoreUIComponents MsgStringGetData), not
+ * HSTRINGs; native ActivationManager creates them with CoreMessaging!MsgStringCreateShared(str, -1, &out) and frees
+ * them with MsgRelease after the call. */
+static HRESULT coreui_factory(UINT64 id, IUnknown **out)
+{
+    typedef HRESULT (WINAPI *msg_create_fn)(const WCHAR *, INT32, void **);
+    typedef void (WINAPI *msg_release_fn)(void *);
+    typedef HRESULT (WINAPI *create_ex_fn)(void *, const GUID *, UINT64, void *, void *, UINT64, UINT64,
+                                           DWORD, IUnknown **);
+    typedef HRESULT (WINAPI *set_view_fn)(IUnknown *, UINT64);
+    static const IID IID_CoreWindowFactoryViewConfig =
+        {0x118b4ce1,0xee64,0x4f90,{0xb4,0xc2,0x45,0x28,0x0a,0xfb,0xf3,0x8b}};
+    HMODULE msg = LoadLibraryW(L"CoreMessaging.dll"), coreui = LoadLibraryW(L"CoreUIComponents.dll");
+    msg_create_fn msg_create = msg ? (void *)GetProcAddress(msg, "MsgStringCreateShared") : NULL;
+    msg_release_fn msg_release = msg ? (void *)GetProcAddress(msg, "MsgRelease") : NULL;
+    create_ex_fn create_ex = coreui ? (void *)GetProcAddress(coreui, "CoreUICreateICoreWindowFactoryEx") : NULL;
+    void *aumid = NULL, *contract = NULL, *empty = NULL;
+    IUnknown *config = NULL;
+    GUID zero = {0};
+    HRESULT hr;
+
+    *out = NULL;
+    if (!msg_create || !msg_release || !create_ex)
+    {
+        blog("coreui: CoreMessaging=%p CoreUIComponents=%p MsgStringCreateShared=%p CoreUICreateICoreWindowFactoryEx=%p (err %lu)",
+             msg, coreui, msg_create, create_ex, GetLastError());
+        return E_NOTIMPL;
+    }
+    if (FAILED(hr = msg_create(coreui_aumid, -1, &aumid)) || FAILED(hr = msg_create(coreui_contract, -1, &contract))
+        || FAILED(hr = msg_create(L"", -1, &empty)))
+    {
+        blog("MsgStringCreateShared -> %#lx", hr);
+        goto done;
+    }
+    hr = create_ex(aumid, &zero, id, contract, empty, 0, 0, coreui_flags, out);
+    blog("CoreUICreateICoreWindowFactoryEx(aumid=%ls, guid=0, id=%#llx, contract=%ls, \"\", 0, 0, flags=%#lx) -> %#lx factory=%p",
+         coreui_aumid, (unsigned long long)id, coreui_contract, coreui_flags, hr, *out);
+    if (SUCCEEDED(hr) && coreui_view_id != ~(UINT64)0)
+    {
+        HRESULT hr2 = IUnknown_QueryInterface(*out, &IID_CoreWindowFactoryViewConfig, (void **)&config);
+        if (SUCCEEDED(hr2))
+        {
+            hr2 = ((set_view_fn)(*(void ***)config)[3])(config, coreui_view_id);
+            IUnknown_Release(config);
+        }
+        blog("factory {118B4CE1} vtbl[3](viewId=%#llx) -> %#lx", (unsigned long long)coreui_view_id, hr2);
+        if (FAILED(hr2)) { IUnknown_Release(*out); *out = NULL; hr = hr2; }
+    }
+done:
+    if (aumid) msg_release(aumid);
+    if (contract) msg_release(contract);
+    if (empty) msg_release(empty);
+    return hr;
+}
+
 static HRESULT WINAPI broker_GetWindowFactory(struct object *o, UINT64 id, BYTE *results, IUnknown **out)
 {
     struct factory *f;
     blog("broker slot5 aamId=%#llx results=%p out=%p", (unsigned long long)id, results, out);
     if (results) memset(results, 0, 32);
     if (!out) return E_POINTER;
+    if (use_coreui)
+    {
+        HRESULT hr = coreui_factory(id, out);
+        blog("broker slot5 (CoreUI factory) -> %#lx factory=%p", hr, *out);
+        return hr;
+    }
     if (!(f = calloc(1, sizeof(*f)))) return E_OUTOFMEMORY;
     f->IUnknown_iface.lpVtbl = &factory_vtbl;
     f->IMarshal_iface.lpVtbl = &factory_marshal_vtbl;
@@ -401,9 +495,10 @@ static HRESULT WINAPI broker_GetWindowFactory(struct object *o, UINT64 id, BYTE 
     return S_OK;
 }
 
-static void *provider_vtbl[NSLOTS], *broker_vtbl[NSLOTS];
+static void *provider_vtbl[NSLOTS], *broker_vtbl[NSLOTS], *presenter_broker_vtbl[NSLOTS];
 static struct object provider = { provider_vtbl, 1, &IID_ServiceHostBrokerProvider, "provider" };
 static struct object broker = { broker_vtbl, 1, &IID_ApplicationActivationBroker, "broker" };
+static struct object presenter_broker = { presenter_broker_vtbl, 1, &IID_PresenterBroker, "presenterbroker" };
 
 static void fill(void **v)
 {
@@ -432,27 +527,122 @@ static HRESULT WINAPI cf_LockServer(IClassFactory *iface, BOOL lock) { return S_
 static const IClassFactoryVtbl cf_vtbl = { cf_QueryInterface, cf_AddRef, cf_Release, cf_CreateInstance, cf_LockServer };
 static IClassFactory cf = { &cf_vtbl };
 
+/* ---- CoreUI navigation server ----
+ * Native Windows 11 26100 hosts the CoreUI navigation server ("System\NavigationServer_ClientViewCreator", which
+ * CoreUIComponents!CreateServerTaskEx looks up through the CoreMessaging registrar from the app's
+ * CoreWindowFactoryProxy::CreateCoreWindow) inside sihost.exe. Measured sihost.exe 10.0.26100.9278 sequence
+ * (CNavigationServerComponent::v_PublishServices / NavigationServerThread):
+ *   CreateEventW(SDDL "D:(A;;GA;;;SY)(A;;0x001F0003;;;WD)(A;;0x001F0003;;;AC)", manual reset, unsignaled,
+ *                L"NavigationServer Started") and the same for L"Stop NavigationServer";
+ *   CreateThread -> SetThreadPriority(THREAD_PRIORITY_HIGHEST), CoreUICreate(&p) [CoreMessaging], CoreUIFactoryCreate(&p),
+ *                   CoreUIServerCreate(&server), server->vtbl[3] (IExportServerFactory::RunNavigationServer)
+ *                   (L"NavigationServer Started", L"Stop NavigationServer"), which runs until the stop event is set;
+ *   WaitForMultipleObjects({started, thread}, any, INFINITE).
+ * All of the server logic is the genuine CoreUIComponents.dll; this only reproduces the host sequence. */
+static HANDLE nav_started, nav_stop, nav_thread;
+
+static DWORD WINAPI nav_server_thread(void *arg)
+{
+    typedef HRESULT (WINAPI *create_fn)(IUnknown **);
+    typedef HRESULT (WINAPI *run_fn)(IUnknown *, const WCHAR *, const WCHAR *);
+    /* sihost imports CoreUICreate from CoreMessaging.dll and the other two from CoreUIComponents.dll. */
+    HMODULE msg = LoadLibraryW(L"CoreMessaging.dll"), coreui = LoadLibraryW(L"CoreUIComponents.dll");
+    create_fn coreui_create = msg ? (void *)GetProcAddress(msg, "CoreUICreate") : NULL;
+    create_fn factory_create = coreui ? (void *)GetProcAddress(coreui, "CoreUIFactoryCreate") : NULL;
+    create_fn server_create = coreui ? (void *)GetProcAddress(coreui, "CoreUIServerCreate") : NULL;
+    IUnknown *core = NULL, *factory = NULL, *server = NULL;
+    HRESULT hr;
+
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+    if (!coreui_create || !factory_create || !server_create)
+    {
+        blog("navserver: CoreMessaging=%p CoreUIComponents=%p CoreUICreate=%p CoreUIFactoryCreate=%p CoreUIServerCreate=%p (err %lu)",
+             msg, coreui, coreui_create, factory_create, server_create, GetLastError());
+        return E_NOTIMPL;
+    }
+    if (FAILED(hr = coreui_create(&core))) { blog("navserver: CoreUICreate -> %#lx", hr); goto done; }
+    if (FAILED(hr = factory_create(&factory))) { blog("navserver: CoreUIFactoryCreate -> %#lx", hr); goto done; }
+    if (FAILED(hr = server_create(&server))) { blog("navserver: CoreUIServerCreate -> %#lx", hr); goto done; }
+    blog("navserver: RunNavigationServer start");
+    hr = ((run_fn)(*(void ***)server)[3])(server, L"NavigationServer Started", L"Stop NavigationServer");
+    blog("navserver: RunNavigationServer -> %#lx", hr);
+done:
+    if (server) IUnknown_Release(server);
+    if (factory) IUnknown_Release(factory);
+    if (core) IUnknown_Release(core);
+    return hr;
+}
+
+static void start_nav_server(void)
+{
+    SECURITY_ATTRIBUTES sa = { sizeof(sa), NULL, FALSE };
+    HANDLE wait[2];
+    DWORD ret, code = 0;
+
+    if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(L"D:(A;;GA;;;SY)(A;;0x001F0003;;;WD)(A;;0x001F0003;;;AC)",
+                                                              SDDL_REVISION_1, &sa.lpSecurityDescriptor, NULL))
+    {
+        blog("navserver: SDDL conversion failed %lu", GetLastError());
+        return;
+    }
+    nav_started = CreateEventW(&sa, TRUE, FALSE, L"NavigationServer Started");
+    nav_stop = CreateEventW(&sa, TRUE, FALSE, L"Stop NavigationServer");
+    LocalFree(sa.lpSecurityDescriptor);
+    if (!nav_started || !nav_stop)
+    {
+        blog("navserver: CreateEventW failed %lu", GetLastError());
+        return;
+    }
+    if (!(nav_thread = CreateThread(NULL, 0, nav_server_thread, NULL, 0, NULL)))
+    {
+        blog("navserver: CreateThread failed %lu", GetLastError());
+        return;
+    }
+    wait[0] = nav_started;
+    wait[1] = nav_thread;
+    ret = WaitForMultipleObjects(2, wait, FALSE, 60000);
+    if (ret == WAIT_OBJECT_0 + 1) GetExitCodeThread(nav_thread, &code);
+    blog("navserver: wait -> %lu (0=started, 1=thread exited code %#lx, %lu=timeout)", ret, code, WAIT_TIMEOUT);
+}
+
+static void stop_nav_server(void)
+{
+    if (!nav_thread) return;
+    SetEvent(nav_stop);
+    blog("navserver: stop -> wait %lu", WaitForSingleObject(nav_thread, 10000));
+}
+
 int main(int argc, char **argv)
 {
     int seconds = argc > 1 ? atoi(argv[1]) : 240;
+    BOOL nav_server = TRUE;
     DWORD cookie;
     HRESULT hr;
 
     if (argc > 2) width = atol(argv[2]);
     if (argc > 3) height = atol(argv[3]);
     if (argc > 4) window_type = atol(argv[4]);
+    if (argc > 5) use_coreui = strcmp(argv[5], "twinapi") != 0;
+    if (argc > 6) MultiByteToWideChar(CP_UTF8, 0, argv[6], -1, coreui_aumid, ARRAY_SIZE(coreui_aumid));
+    if (argc > 7) MultiByteToWideChar(CP_UTF8, 0, argv[7], -1, coreui_contract, ARRAY_SIZE(coreui_contract));
+    if (argc > 8 && strcmp(argv[8], "-")) coreui_view_id = _strtoui64(argv[8], NULL, 0);
+    if (argc > 9) coreui_flags = strtoul(argv[9], NULL, 0);
+    if (argc > 10) nav_server = strcmp(argv[10], "nonav") != 0;
     fill(provider_vtbl);
     fill(broker_vtbl);
+    fill(presenter_broker_vtbl);
     provider_vtbl[3] = provider_QueryService;
     broker_vtbl[5] = broker_GetWindowFactory;
 
     hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
     blog("start pid=%lu CoInitializeEx -> %#lx seconds=%d", GetCurrentProcessId(), hr, seconds);
+    if (nav_server) start_nav_server();
     hr = CoRegisterClassObject(&CLSID_Broker, (IUnknown *)&cf, CLSCTX_LOCAL_SERVER, REGCLS_MULTIPLEUSE, &cookie);
     blog("CoRegisterClassObject {3480A401-BDE9-4407-BC02-798A866AC051} -> %#lx", hr);
     if (FAILED(hr)) return 1;
     Sleep(seconds * 1000);
     CoRevokeClassObject(cookie);
+    stop_nav_server();
     blog("exit");
     CoUninitialize();
     return 0;

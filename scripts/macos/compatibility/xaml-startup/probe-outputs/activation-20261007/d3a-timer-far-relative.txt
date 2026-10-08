@@ -1,0 +1,54 @@
+D3a: CoreMessaging notification-timer spin (2026-10-08, real clock +03:00)
+
+Stage: ~/xodus-runs/xbox-service-principal-20261007-001 (Wine 11.0 tree + sprint patch)
+
+Observation (br88 14:00, br89, br90 14:23-14:27; trace+win,trace+sync)
+- View thread "ApplicationView ASTA" (0338) spins ~68% CPU from its first
+  NtUserDrainThreadCoreMessagingCompletions2.
+- br90: NtAssociateWaitCompletionPacket(packet 0x174, iocp 0xf8, target 0x16c)
+  repeated 1,117,213 times; target 0x16c = NtCreateTimer type 0
+  (NotificationTimer) created on 0338.
+- Timer history (temporary NtSetTimer due-time trace, since reverted):
+    0354 NtSetTimer(0x16c, due 0)                     -> fires immediately (correct)
+    0338 NtSetTimer(0x16c, due 0x8000000000000001)    -> relative ~29,000 years
+  After the second set, every re-association completes at once.
+
+Cause
+- server/file.h timeout_to_abstime() and server/timer.c set_timer() compute
+  `timeout - monotonic_time`. For timeout = INT64_MIN+1 this overflows to a
+  value that is treated as already due, so the timer is signaled at once.
+- Upstream Wine master (gitlab.winehq.org, checked 2026-10-08) has the same
+  code; no upstream fix to reuse.
+
+Standalone reproduction (mingw x64 exe under the stage Wine)
+  before fix:
+    INT64_MIN+1  notification   wait200 = 0   (signaled)
+    INT64_MIN    notification   wait200 = 0
+    -1e15 (3 y)  notification   wait200 = 258
+    INT64_MAX    absolute       wait200 = 258
+    INT64_MIN+1  synchronization wait200 = 0
+  after fix: all 258 (WAIT_TIMEOUT)
+  kernel32-style check (CreateWaitableTimerW/SetWaitableTimer, cases
+  INT64_MIN+1 and INT64_MIN after a due-0 fire): PASS after fix.
+
+Fix (in wine-xbox-original-app-sprint.patch)
+- timeout_to_abstime(): a relative timeout below INT64_MIN+1+monotonic_time
+  becomes -INT64_MAX (never reached; -when stays representable).
+- set_timer(): uses timeout_to_abstime() for relative due times.
+- dlls/kernel32/tests/timer.c: test_far_relative_due_time. Wine tests are
+  disabled in the stage build tree, so the standalone equivalent was run.
+- Native Windows confirmation: PENDING (VM host not running at the time).
+  Inference: native CoreMessaging uses this value deliberately and does not
+  spin on Windows, so native treats it as far future.
+
+App rerun br91 (14:38-14:42, headless, trace+combase,+loaddll,trace+win)
+- Log 33,075 lines (br88 3.0M, br90 5.6M): spin gone.
+- 0338 idles: periodic WM_TIMER on the CoreWindow HWND 0x1005e plus Drain2.
+- 0338 connected to the broker's [CoreUI]-PID(636)-TID(644) port (0x3a8),
+  received datagrams id 117 (184 bytes) and 118 (360 bytes), then idled.
+- Main thread 0320 last: SetWaitableTimerEx (60 s relative), then waits.
+- No ShowWindow, no Windows.UI.Composition / dcomp activation, no fail-fast.
+- ORIGINAL_APP_EXIT=92 (launcher 60 s timeout).
+
+Candidate hashes (sha256 prefixes): wineserver 8454506c, win32u a0317441,
+user32 503cf345, ntdll.so b004c9fd.

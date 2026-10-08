@@ -497,6 +497,27 @@ Review follow-ups (independent R3 review of `b1102ef`, verdict REVISE):
   the fixes, `br42` reproduces the br38/br39 boundary signature
   (`wine-conformance-tests-review.txt`).
 
+## Navigation-client continuation: br43–br91 (2026-10-08)
+
+The owner lifted the navigation-client stop. Each row is one change, then the
+original app was rerun. "Implemented" means it is in the candidate tree and
+passes its probe. "Verified" means an app run showed the predicted change.
+
+| Runs | Change | Evidence | State |
+|---|---|---|---|
+| br43–br60 (approx.) | Broker hosts a CoreUI navigation server and sets the factory nav flag/id; IPresenterBroker; ParseApplicationUserModelId | broker logs; activation proceeds past the br38 E_NOTIMPL into the view ASTA's CoreMessaging loop | verified |
+| br61–br80 (approx.) | win32u CoreMessaging IOCP model (`NtUserInitThreadCoreMessagingIocp2`, `NtUserDrainThreadCoreMessagingCompletions2`) measured natively (`audit-cmiocp*.c`) | native case table; app's view ASTA runs CoreMessaging | verified |
+| br81–br86 | wineserver ALPC: LPC-request rule, sync-reply matching, NULL-entry guard in `alpc_port_signaled`; ntdll test `test_server_send_lpc_requests` | native case O matches under Wine (`alpcprobe2.c`) | implemented; app reaches the CoreUI exchange |
+| br87 | user32 `CitSetInfo` with the native "CIT not running" result (0xC00000B7) | `citprobe` native vs Wine | implemented; broker no longer dies |
+| br88–br90 | diagnosis only | view thread 0338 busy-spins: CoreMessaging arms its NotificationTimer with relative due `0x8000000000000001`; Wine signals it at once and the wait packet re-fires (br90: 1,117,213 associations in 60 s) | reproduced |
+| br91 | wineserver: a relative timeout too far ahead to represent never expires (`server/file.h` `timeout_to_abstime`, `server/timer.c` `set_timer`); kernel32 test `test_far_relative_due_time` | standalone equivalent fails before, passes after; upstream master has the same overflow; br91 log 33K lines vs 5.6M, view thread idles on WM_TIMER | verified (Wine); native confirmation pending |
+
+At br91 the view thread receives two datagrams from the broker's CoreUI port
+and then idles. The main thread waits behind a 60 s timer and the CoreWindow is
+never shown. XAML has not yet asked for `Windows.UI.Composition` or `dcomp`.
+The launcher still ends the app at 60 s (exit 92). Details:
+`probe-outputs/activation-20261007/d3a-timer-far-relative.txt`.
+
 ## Status
 
 These are candidates for an experimental runtime. Nothing is upstreamed,

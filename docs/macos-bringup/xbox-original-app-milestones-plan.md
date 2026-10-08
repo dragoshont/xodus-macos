@@ -602,7 +602,7 @@ investigation calls). Full handoff, kept by reference:
 | D3a | The view thread spins on CoreMessaging's NotificationTimer: the wait packet re-fires about 1.27M times in 60 s; one `NtSetTimer` after the first fire. Cause hypothesis: due-time or clock-base mismatch (ALPC not implicated) | REPRODUCED spin; HYPOTHESIS cause | Log due-time against the Wine clock; one native timer + wait-packet re-arm probe | 1-3 h |
 | D3b | Whether activation completes once the spin stops | HYPOTHESIS | Single rerun after D3a | 0.5-4 h or UNKNOWN |
 | D4 | HWND exists (131x34 placeholder); showing it needs activation | HYPOTHESIS | winemac run after D3b | UNKNOWN |
-| D5/D6 | **Main frame risk.** XAML renders through dcomp and Windows.UI.Composition. Wine 11.0 dcomp is a stub returning E_NOTIMPL, with no Compositor registered; native dcomp talks to the DWM kernel channel (55 win32u NtDComposition/NtFlipObject calls). App stack: React Native for Windows + WinUI2 + WebView2 | Gap VERIFIED; XAML fallback behavior UNKNOWN (believed fail-fast) | Observe Compositor activation after D3/D4 | Emulating DWM or writing Windows.UI.Composition: weeks, not feasible before the freeze |
+| D5/D6 | **Potential frame risk, not a reached blocker.** Inspected Wine 11.0 dcomp entry points are stubs; no Compositor registration was found. Native dcomp imports DWM-related calls, but the imports do not prove which behavior this app needs. Static stack: React Native for Windows + WinUI2 + WebView2 | Inspected source gap; original rendering path, fallback and required backend UNKNOWN | Observe the actual rendering API/IID and failure after D3/D4; compare narrow reuse candidates | UNKNOWN; broad implementation is not authorized |
 | D8/D9 | Static only: WAM, Microsoft.XboxIdentityProvider, XblAuthManager, Gaming Services, catalog.gamepass.com; none present in Wine or the prefix | Static VERIFIED; runtime UNKNOWN | No credential actions | Multi-day or UNKNOWN |
 
 Unknowns: U1 early timer fire cause; U2 activation after D3a; U3 XAML
@@ -674,8 +674,8 @@ PARK the frame goal and move to qualification and wrap-up (S14). The
 coordinator decides after the slice; the owner is not assumed to approve a
 multi-week composition project.
 
-**U5 result (upstream composition check, 14:35, read-only; sources opened
-by the research agent, not search summaries).**
+**U5 preliminary result (upstream composition check, 14:35, read-only;
+reported source inspection, not independently qualified for funding).**
 - `wine/wine` master and Proton `proton_11.0`: dcomp is still the
   `E_NOTIMPL` stub, same as our Wine 11.0 tree. No `Windows.UI.Composition`
   directory exists in Wine at all; `windows.ui.xaml` is a color-helper stub.
@@ -691,18 +691,31 @@ by the research agent, not search summaries).**
 - The CodeWeavers dev branch also stubs `NtCreateCompositionInputSink`;
   that is input routing, not the `NtDComposition*` command channel.
 - CrossOver source drops, ReactOS: UNKNOWN (not source-verified).
-- **Conclusion:** no implementation of `Windows.UI.Composition`,
-  XAML hosting or the DWM kernel channel exists anywhere. A backport of the
-  staging/fork dcomp layer is weeks of backport-and-stabilize work and covers
-  COM `dcomp.dll` only.
+- **Qualified conclusion (18:50 correction):** the bounded search did not
+  establish a working implementation for this app's rendering path. It does
+  not prove universal absence of `Windows.UI.Composition`, XAML hosting or
+  DWM-related behavior. Classic COM DirectComposition patches are partial
+  reuse candidates, distinct from WinRT Composition. The prior "weeks"
+  backport estimate had no measured scope or staffing basis and is withdrawn.
 - **Open question (HYPOTHESIS):** the app uses the genuine Microsoft
   `Windows.UI.Xaml` / `Windows.UI.Composition` DLLs (already how this lane
   runs `windows.ui`), so the research agent's "write XAML from scratch" cost
   may not apply; the likely missing piece is the DWM kernel-channel backend
   those DLLs call through dcomp. That reading is unverified and is the
   first thing to test once D3/D4 are cleared.
-- **Effect on the decision:** the PARK criterion above still stands; U5 found
-  no reusable implementation that makes XAML paint a frame in this window.
+- **Effect on the decision:** broad composition implementation remains outside
+  the current grant. No candidate was demonstrated to make this original app
+  paint a frame; that is not proof that no narrow reusable solution exists.
+
+**Owner-requested feasibility review (18:50).** Separate private repository:
+[wine-composition-research](https://github.com/dragoshont/wine-composition-research).
+The dedicated research session owns source-backed feasibility and one independent
+adversarial review for roadmap/funding, including Mono/MAUI relevance and the
+distinction between source porting and unchanged Windows binary compatibility.
+Research tool approvals are currently being resolved; no reviewed report or
+funding estimate is available. Genuine Microsoft XAML DLL reuse and narrower
+backend work remain hypotheses to examine, not a commitment to rewrite XAML.
+The original startup lane, D3c stop, product freeze and final deadline are unchanged.
 
 This is an evidence-qualified map, not a complete Windows compatibility
 specification. The statuses below use checkpoint 19 and later dashboard

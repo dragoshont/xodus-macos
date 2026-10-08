@@ -477,12 +477,17 @@ boundary".
 | 2026-10-07 13:39 | 24-hour sprint started | 2026-10-08 13:39 |
 | 2026-10-08 ~07:58 | Owner lifted the navigation-client stop; work continues on branch `dragoshont-xbox-app-shell-navigation-client`, merging back here (never `main`) | unchanged |
 | 2026-10-08 08:48 | Budget +6 h | 2026-10-08 19:39 |
-| 2026-10-08 13:48 | Owner review of progress, budget +12 h from 19:39 | **2026-10-09 07:39** |
+| 2026-10-08 13:48 | Owner review of progress, budget +12 h from 19:39 | 2026-10-09 07:39 |
+| 2026-10-08 ~14:07 | Owner sets final deadline to tomorrow at 08:00 | **2026-10-09 08:00 (+03:00)** |
 
-**Progress assessment at 13:48 (not a milestone PASS).**
-- **Pace.** Runs br38–br86 took about 5 h. Each run reached a distinct,
-  deeper failure, and each fix was measured on the native Windows 11 ARM64 VM.
-- **Fixes in this stretch:**
+**Progress assessment at 13:48, qualified by the independent plan review
+at 13:57 (not a milestone PASS).**
+- **Established progress.** The br38 boundary and the later navigation/ALPC
+  failures demonstrate progress through prerequisites, not a visible frame.
+  Run numbers are identifiers, not a measure of distance to completion.
+  The assertions that every run went deeper, every fix was native-measured,
+  and no failure repeated were not established and are withdrawn.
+- **Candidate changes in this stretch (not an integrated qualification):**
   - a CoreUI navigation server in the broker;
   - the win32u CoreMessaging IOCP model;
   - `ParseApplicationUserModelId`;
@@ -490,15 +495,180 @@ boundary".
   - CoreWindow HWND creation (band/type rules, `SetCoreWindow`,
     `EnableMouseInPointerForWindow`);
   - wineserver ALPC LPC-request and sync-reply semantics.
-- **Not stuck.** No failure repeated across runs.
+- **Specific evidence.** The navigation child's frozen checkpoint
+  `019-alpc-lpc-requests-and-sync-rep.md` records a native/Wine probe match
+  for LPC-request flags. It records sync-reply matching as implemented but
+  still awaiting a verified rebuild, probe case O, and original-app retry.
+  Later dashboard reports must link those results before this is treated
+  as verified. The br55-br83 range is summarized, not individually audited
+  by this plan review.
+- **Assessment.** Continue on a bounded causal hypothesis, not a claim
+  that the entire run history is free of stalls.
 - **Risk.** It is still unknown how many more prerequisites lie before the
   first visible frame. Sign-in and library may need more services.
   XBOX-APP-STARTUP stays UNTESTED.
 - **Revisit when:** the deadline is reached, or three consecutive runs
-  produce no new, deeper failure.
+  produce no new, deeper failure. The same failure fingerprint twice
+  without new evidence requires an earlier reassessment.
 - **Run API.** The durable Run API refused to record this extension
   (`HOST_PAUSE_REQUIRED`), and the Run state was not edited by hand. This
-  table is the ledger of record for the extension.
+  table records the owner's decision; it does not replace canonical Run
+  policy, settle host ownership, or authorize blocked operations.
+
+**Reviewed continuation strategy (13:57).**
+- **Plan review: REVISE.** Correct overbroad progress claims, distinguish
+  implemented from verified work, expose the canonical-recording block,
+  and reserve enough time for candidate-specific verification.
+- **Bounded options comparison:** parking, a smallest-viable ALPC-to-frame
+  slice, and broad/unbounded shell work. Prefer the smallest-viable slice:
+  it tests the reached failure using existing measured semantics without
+  replacing the engine or adding speculative services. This comparison is
+  advisory and adds no mutation permissions.
+- **Next checkpoint (at most three hours).** Confirm the matched runtime
+  actually rebuilt; preserve binary/source identities and upstream links;
+  verify native case O plus a queue/lifecycle edge case; immediately retry
+  the original app. If that reaches window readiness, try the existing
+  winemac path with coordinated foreground ownership and capture a
+  meaningful original-app frame. A hidden HWND or blank frame is not PASS.
+  Follow-up prerequisite work needs a new causal hypothesis, not unchanged
+  retries. Sign-in/account acceptance/library remain later milestones,
+  not prerequisites to claim window success.
+- **Protected wrap-up:** freeze new product changes by
+  **2026-10-09 06:00 +03:00**, preserving two hours before the final
+  **08:00** deadline for focused Wine regression checks, removal and
+  revalidation of diagnostic changes, evidence, patch regeneration,
+  review, configured gates, and a qualified report.
+- **Qualification debt:** the 27 older Wine-test failures are not all
+  attributed to this candidate. Only the marshal failure was compared
+  with its unpatched implementation. Classify failures relevant to the
+  changed contract and mandatory gates; do not open unrelated API work
+  merely to clear a number. The earlier Cargo gate at `52777af` does not
+  qualify new Wine source, protocol, or broker changes.
+- **Integration:** merge into `dragoshont-xbox-pc-app-in-crossover` only
+  when the exact candidate meets required gates and independent review.
+  Otherwise preserve the side branch and report the blocking evidence;
+  do not promise an automatic merge and never merge this lane to `main`.
+
+**Intentional execution contract (owner-directed, 2026-10-08).**
+
+### Remaining dependency map
+
+**Owner-directed look-ahead checkpoint (up to one hour).** Pause new
+navigation implementation at the actual owner's next safe boundary,
+preserving candidates and any already-running owned jobs. Do not report
+the lane paused until the owner confirms it. The bounded analysis begins
+after that boundary, within the existing Oct 9 08:00 deadline; it does
+not reset the sprint clock.
+
+| Exploratory group | Question to resolve before assigning implementation | Expected output |
+|---|---|---|
+| Activation and navigation | Which handshake, registration or lifetime dependencies remain after the current IPC fixes? | Existing native/Wine sequence and first unsupported step, or a specific evidence gap |
+| Rendering and composition | What must connect the original HWND to a meaningful frame through the existing winemac, presenter and graphics path? | Native-path evidence where available; candidate compositor/graphics dependencies explicitly marked hypotheses |
+| Window lifecycle and input | Which ownership, activation, repaint or foreground behaviors are actually on the reached path? | Separate first-frame requirements from later interaction polish |
+| Sign-in host and provider | Does the original app use an embedded web surface, WAM or another observed provider path? | Read-only evidence and cheapest identification test; no credential or token actions |
+| Account and library | Which real provider/catalog/network dependencies follow account acceptance? | Conditional downstream dependencies and unknowns; no fabricated service results |
+
+For each item record: dependency links; VERIFIED / REPRODUCED /
+HYPOTHESIS label with source and scope; unresolved assumptions; upstream
+reuse provenance or UNKNOWN; cheapest discriminating test with expected
+observation; impact on the first-frame path; and a time range or UNKNOWN.
+Use existing successful native-app evidence to look ahead, not only Wine
+failure traces. Missing telemetry is unknown, not proof of absence.
+
+The output is one prioritized dependency/unknowns register in this plan
+and a CONTINUE / BOUNDED_GO / PIVOT / PARK recommendation. Exploratory
+items do not become implementation tasks until supported by a reached
+failure or a verified necessary first-frame dependency. Reassess allocation
+after the analysis, within the same deadline. A partial map is valid;
+do not extend the analysis automatically or repeat the review/tournament.
+The navigation owner returns the analysis before new implementation
+resumes; the coordinator then selects one evidence-grounded next slice.
+
+This is an evidence-qualified map, not a complete Windows compatibility
+specification. The statuses below use checkpoint 19 and later dashboard
+reports; dashboard-only results still need linked build/probe/app evidence.
+Dependencies express what must be established to advance, not how many
+hours the work will take.
+
+| ID | Dependency / deliverable | Depends on | Evidence-qualified status / exit test |
+|---|---|---|---|
+| D0 | Owned, matched experimental runtime and rollback | Existing stage; source/build inventory | Stage exists. Capture source and loader/wineserver/NTDLL identities for each candidate, especially after protocol changes |
+| D1 | ALPC server-to-client LPC requests | D0 | Native flags probe matched in checkpoint 19; preserve its focused regression control |
+| D2 | ALPC request-specific reply selection | D0 | Implemented in checkpoint 19; later dashboard reports native case O parity and br86 progress. Link actual relink, queue-preservation and app evidence before verified classification |
+| D3 | CoreMessaging dispatch and CoreUI navigation session | D1, D2, reached IOCP/presenter contracts | Candidate broker/IOCP/presenter work exists. Session completion is not established by loading a DLL or avoiding one fail-fast; retry unchanged app and identify first remaining failure |
+| D4 | Original CoreWindow/HWND path | D0, existing activation/factory contract | Object/HWND creation reported. Verify thread/ownership and activation behavior; no visible-frame claim |
+| D5 | Matched winemac graphics path and shared foreground allocation | D0, D4, foreground free at test time | Graphics-null headless controls do not prove this. Coordinate GUI ownership; launch only the owned stage |
+| U | Newly reached prerequisite, if any | A failing real-app call in D3-D6 | Unknown, not pre-built. Trace, check upstream, measure native semantics, patch minimally, and retest the same path. Use discovery contingency |
+| D6 | Meaningful original Xbox frame and repaint | D3, D4, D5; U only if observed | Not proven. Require original child PID/window and real rendered app content; a blank surface is insufficient |
+| D7 | Genuine sign-in surface | D6, actual auth host identified | Not started/proven. WebView2/WAM/provider requirements remain conditional until observed |
+| D8 | Genuine account acceptance | D7, owner's credential entry and actual provider response | Not proven. A sign-in page is not account acceptance |
+| D9 | Account-backed library | D8, actual catalog/network response and UI rendering | Not proven. Do not infer entitlement, installation or gameplay |
+| Q | Candidate qualification and consolidation | Frozen candidate; relevant regression tests; configured gates; independent review | Separate from D7-D9. A qualified partial candidate can be preserved without claiming full app acceptance; merge only if required gates pass |
+
+```mermaid
+flowchart TD
+  D0["Matched runtime and rollback"] --> D1["LPC-request semantics"]
+  D0 --> D2["Sync-reply semantics"]
+  D1 --> D3["CoreMessaging / navigation"]
+  D2 --> D3
+  D0 --> D4["CoreWindow / HWND path"]
+  D4 --> D5["winemac + foreground allocation"]
+  D3 --> D6["Meaningful original Xbox frame"]
+  D4 --> D6
+  D5 --> D6
+  D6 --> D7["Genuine sign-in surface"]
+  D7 --> D8["Owner login + account acceptance"]
+  D8 --> D9["Real library"]
+  U["Unknowns: only when reached"] -.-> D3
+  U -.-> D6
+  U -.-> D7
+  F["Freeze exact candidate at 06:00"] --> Q["Tests + review + conditional merge by 08:00"]
+```
+
+The immediate critical path is D0/D2 evidence closure -> D3 ->
+D5/D6, while preserving D1 and D4. D4's reported HWND is not a substitute
+for D6. Sign-in/library work is downstream; qualification Q does not
+require pretending downstream milestones have passed. Evidence collation
+and focused tests may overlap implementation within the one owned lane,
+but no competing edits or product launches may share the Mac source tree.
+
+| Priority | Action | Evidence required to advance |
+|---|---|---|
+| 1 | Close the current ALPC/navigation hypothesis, using the existing candidate rather than a replacement | Matched rebuilt binary identities; native case O parity; retained queued datagram and a waiter/disconnect edge case; unchanged-app retry demonstrating whether the same failure is gone |
+| 2 | Follow only the first remaining failure that prevents a meaningful frame | Name the failing call and thread, upstream decision, measured contract, proposed minimal change, and predicted app observation before implementation |
+| 3 | As soon as readiness allows, try the existing winemac path in the owned stage | Original Xbox PID owns the captured window; meaningful app content draws and repaints; neither a hidden HWND nor a blank surface qualifies |
+| 4 | Only after the meaningful-frame criterion is met, investigate genuine sign-in | Identify the app's actual auth host; owner enters credentials; no copied tokens or fabricated acceptance; account acceptance is distinct from a visible sign-in page |
+| 5 | Only after genuine account acceptance, try library rendering | Original app shows real account-backed library content; no entitlement or install/play claims inferred |
+| 6 | Freeze new product work at 06:00 Oct 9 and qualify/report by 08:00 | Exact-candidate tests and review, remaining failures explicitly dispositioned, evidence and rollback preserved; merge only if qualified |
+
+The navigation child owns the only implementation lane. The coordinator
+owns the review, deadline, foreground coordination, ledger/canvas and
+conditional integration; it must not launch competing fixes in the same
+Mac source tree. Native measurements feed that same product slice.
+
+**Discovery contingency.** Leave at least two hours of the remaining
+pre-06:00 window unallocated to named features, for newly reached blockers:
+focused tracing, upstream research, native ABI measurement, rollback and
+retest. This is separate from the two-hour final verification reserve.
+Spend it only when the real app exposes a new issue; do not invent APIs
+to fill it. At each checkpoint update the uncertainty and remaining
+contingency. If discovery takes longer, defer sign-in/library before
+consuming final verification time. Estimates are planning allowances,
+not a promise that the frame or later milestones will be reached.
+
+At each checkpoint report: last proven original-app observation, current
+first failing call, hypothesis, expected observable change, exact next
+test, and time spent on this blocker. Review after at most three hours
+on one blocker, or earlier after the same failure repeats without new
+evidence. Reaching another private API is diagnostic progress, not product
+acceptance. Preserve the known working reference and rollback before a
+new runtime change.
+
+KEEP the reached prerequisite and smallest useful regression test. CUT
+unsupported progress claims and automatic-merge promises. DEFER broad
+shell reconstruction, unrelated conformance cleanup, auth/library before
+the frame, and all original-app install/play work. If a prerequisite
+cannot be justified on the current frame path, do not implement it.
 
 ## Xodus-backed substitutes for Windows dependencies (owner question, 2026-10-07)
 

@@ -629,6 +629,12 @@ Wine source delta for these cycles: `wine-xbox-br113-br118-delta.patch`.
 | br129 | Wine IJsonValueStatics2::CreateNullValue in windows.web | **XboxPcAppFT served**; HttpClient still class_not_registered |
 | br130 | Native Windows.Web.Http.dll + 30 measured activation rows | **HttpClient activates**; UI thread hits ntdll.RtlQueryPackageClaims stub |
 | br131 | Wine ntdll RtlQueryPackageClaims from token identity attributes | app continues on packaged path; AV after ApplicationData QI for IApplicationData2 (LocalCacheFolder) |
+| br132 | Wine ApplicationData package folders (Local/Roaming/Temp/LocalCache) | folders resolve; next: settings container |
+| br133 | Wine ApplicationDataContainer / LocalSettings | settings work; FEEEFEEE use-after-free in winrt hresult_error copy |
+| br134 | Wine msvcp/msvcrt exception_ptr rethrow copies object (native excptptr.cpp) | UAF gone; AV after JsonObject IMap QI |
+| br135 | Wine JsonObject IMap/IIterable | AV gone; GetView stub, then RoFailFastWithErrorContext unimplemented |
+| br136 | Wine JsonObject GetView + combase RoFailFastWithErrorContext | readable fail-fast 0x80004001 (c0000602) |
+| br137 | Wine StorageFolder.CreateFolderAsync | fixme gone; fail-fast unchanged (async E_NOTIMPL rethrown at XboxPcApp+0x850263) |
 **Status at br123:** ShowWindow reached and the app survives XAML startup (headless, alive until the harness alarm). Activated and rendering calls (dcomp/Composition) are not yet observed. Earlier status at br118:
 - Reached: ConnectionComplete, ActivateViewComplete, ReadyToNavigate, presentation deferral and SetWindow.
 - Not reached: Activated, ShowWindow and any rendering call.

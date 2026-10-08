@@ -204,3 +204,52 @@ br132        Wine fix: dlls/windows.storage.applicationdata/applicationdata.c re
              calls LocalCacheFolder.CreateFolderAsync("ImageCache") (still a stub). UI thread 033c still lands
              in catch(...) at XboxPcApp+0x211C33: the last original throw follows get_LocalSettings E_NOTIMPL
              (rethrown). RNW_UIThread / ReactNative / dcomp: NO.
+br133        Wine fix: real ApplicationDataContainer (IApplicationDataContainer: Name, Locality, Values = real
+             wintypes PropertySet, CreateContainer Always/Existing, DeleteContainer; Containers = E_NOTIMPL
+             FIXME). LocalSettings/RoamingSettings are per-process singletons, NOT persisted (documented gap).
+             windows.storage.applicationdata.dll sha256
+             41f4d2a87e93002320405189bcffa8b9dd643c2e0e26026e9125519f9e2c977a.
+             RESULT: catch(...) at XboxPcApp+0x211C33 no longer hit (LocalSettings works). NEW crash
+             ORIGINAL_APP_EXIT 3221225477: threadpool thread 0458 page fault reading FEEEFEEEFEEEFEEE at
+             XboxPcApp+0x2280E (winrt hresult_error copy ctor). Root cause = Wine bug: msvcp140
+             __ExceptionPtrRethrow raises the exception_ptr's SHARED heap object; the coroutine promise frees
+             it during unwind, then the catch copies freed memory. Native STL (stl/src/excptptr.cpp) copies the
+             object to an alloca'd stack buffer before RaiseException. RN / dcomp: NO.
+br134        Wine fix: msvcp90/exception.c exception_ptr_rethrow (used by msvcp140 __ExceptionPtrRethrow and
+             _Rethrow_future_exception) and the msvcrt/exception_ptr.c twin now rethrow a COPY of a C++
+             exception object built in an _alloca'd buffer on the rethrowing stack (native STL excptptr.cpp
+             behaviour), so destroying the exception_ptr during unwind no longer frees the in-flight object.
+             msvcp140.dll sha256 c575bf00718b607ea9764be7c8a5b9495bf99293b5d617aee4618782944db967.
+             RESULT: FEEEFEEE use-after-free at XboxPcApp+0x2280E GONE. New: ORIGINAL_APP_EXIT 3221225477,
+             null read at XboxPcApp+0x21329 (thread 03d0, rax=0x80004002) right after
+             "json_object_QueryInterface {c9d9a725-786b-5113-b4b7-9b61764c220b} not implemented"
+             = IMap<HSTRING,IJsonValue> (key "grts-catalog-provider"). RN / dcomp: NO.
+br135        Wine fix: dlls/windows.web/json_object.c implements IMap<HSTRING,IJsonValue> (Lookup->E_BOUNDS when
+             missing [INFERRED from the IMap contract], Size, HasKey, Insert/Remove/Clear on top of the
+             ordered key list + member map) and IIterable<IKeyValuePair<HSTRING,IJsonValue>> (iterator +
+             key/value pair objects); GetView left an explicit E_NOTIMPL FIXME. windows.web.dll sha256
+             b11f6b59e495991f3343bd9776cf5b56c0976b4f94894dc6d291ff56ae66c3b6.
+             RESULT: no AV. App now hits json_object_map_GetView (thread 033c) and later dies with
+             ORIGINAL_APP_EXIT 2147483904: "Call ... to unimplemented function
+             combase.dll.RoFailFastWithErrorContext" on threadpool thread 03d0 (rdi=0x80004001 E_NOTIMPL).
+             RN / dcomp: NO.
+br136        Wine fixes: windows.web JsonObject IMap.GetView (live IMapView<HSTRING,IJsonValue> + IIterable,
+             Split -> null/null as the IMapView contract allows); combase RoFailFastWithErrorContext(HRESULT)
+             export (ERR with the HRESULT, then RaiseFailFastException like native; was an unimplemented
+             stub). windows.web.dll sha256 427bcc5cfd3117202081f24f72c3f13c5d18dbf0872ffffbc207851c57baaec9,
+             combase.dll 5cf2e9f0c75bb5a5f09184e5ed8c4567b44c95ebf501d450b737ca00df60729d.
+             RESULT: GetView no longer a fixme. App still fail-fasts, now readable:
+             "03c8:err:combase:RoFailFastWithErrorContext fail fast, error 0x80004001" ->
+             "Unhandled exception code c0000602 ... addr 0x1400503bb" (ORIGINAL_APP_EXIT 3221227010), right after
+             an error-telemetry JSON Stringify + EtwEventWriteTransfer. The only remaining E_NOTIMPL in the
+             log is storage_folder_CreateFolderAsync("ImageCache", OpenIfExists) on 03cc. RN / dcomp: NO.
+br137        Wine fix: windows.storage.applicationdata StorageFolder.CreateFolderAsync (both overloads; real
+             threadpool IAsyncOperation<StorageFolder>; OpenIfExists/FailIfExists/ReplaceExisting/
+             GenerateUniqueName; invalid name -> E_INVALIDARG is INFERRED). DLL sha256
+             2b789928 (see delta patch wine-xbox-br134-br137-delta.patch).
+             RESULT: CreateFolderAsync fixme gone; fail-fast UNCHANGED: "0368:err:combase:RoFailFastWithErrorContext
+             fail fast, error 0x80004001" -> c0000602 at XboxPcApp+0x503bb (ORIGINAL_APP_EXIT 3221227010).
+             Trace: winrt::hresult_not_implemented thrown at XboxPcApp+0x850263 (coroutine await_resume rethrowing
+             a failed async operation's E_NOTIMPL), caught at +0x2050d2, rethrown, then winrt terminate ->
+             RoFailFastWithErrorContext. Source async op still unidentified (next cycle).
+             RN / hermes: NO. dcomp / Composition: NO. Visible window: NO.

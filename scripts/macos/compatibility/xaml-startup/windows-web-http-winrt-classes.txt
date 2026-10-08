@@ -1,0 +1,33 @@
+# Measured on the Windows 10.0.26300 host (HKLM\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId, rows whose
+# DllPath is System32\Windows.Web.Http.dll). Format: class|DllPath|ActivationType|Threading|TrustLevel.
+# The DLL itself is the genuine host Windows.Web.Http.dll 10.0.26100.3323 (sha256 beba2c3b...dd0ce2).
+Windows.Web.Http.Filters.HttpBaseProtocolFilter|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpChallengeHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpConnectionOptionHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpContentCodingHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpContentCodingWithQualityHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpContentDispositionHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpContentHeaderCollection|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpContentRangeHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpCookiePairHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpCredentialsHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpDateOrDeltaHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpExpectationHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpLanguageRangeWithQualityHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpMediaTypeHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpMediaTypeWithQualityHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpNameValueHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpProductHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpProductInfoHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.Headers.HttpTransferCodingHeaderValue|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.HttpBufferContent|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.HttpClient|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.HttpCookie|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.HttpFormUrlEncodedContent|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.HttpMethod|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.HttpMultipartContent|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.HttpMultipartFormDataContent|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.HttpRequestMessage|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.HttpResponseMessage|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.HttpStreamContent|C:\Windows\System32\Windows.Web.Http.dll|0|0|0
+Windows.Web.Http.HttpStringContent|C:\Windows\System32\Windows.Web.Http.dll|0|0|0

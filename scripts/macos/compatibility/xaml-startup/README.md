@@ -624,7 +624,11 @@ Wine source delta for these cycles: `wine-xbox-br113-br118-delta.patch`.
 | br121-br122 | DIAGNOSTIC breakpoints (ReportUnhandledError, wil capture) | hr E_NOTIMPL from RefreshRateInfo::WaitForRefreshInterval -> Wine dxgi_output_WaitForVBlank stub |
 | br123 | dxgi WaitForVBlank waits to the next refresh boundary (as DXVK does) | **no FailFast; app stays alive in its UI loop for the whole 420 s run**; app startup code runs; no dcomp/Composition yet |
 | br124-br125 | DIAGNOSTIC winedbg breakpoints on XAML entry points | FrameworkView::OnActivated HIT (XAML view gets Activated); debugger perturbs the run; app is React Native for Windows and Microsoft.ReactNative.dll is never loaded (no root content yet); packaged COM ExeServer XboxPcAppFT is "class not registered" |
-
+| br126-br127 | Prefix LocalServer32 rows for the manifest com:ExeServer CLSIDs (XboxPcAppFT, GameInterop) | XboxPcAppFT.exe starts with -Embedding and registers its class factory; FT then hits missing Wine Package APIs |
+| br128 | Wine IPackage3/PackageStatus in windows.applicationmodel | FT reads package status; next abort on missing IJsonValueStatics2 |
+| br129 | Wine IJsonValueStatics2::CreateNullValue in windows.web | **XboxPcAppFT served**; HttpClient still class_not_registered |
+| br130 | Native Windows.Web.Http.dll + 30 measured activation rows | **HttpClient activates**; UI thread hits ntdll.RtlQueryPackageClaims stub |
+| br131 | Wine ntdll RtlQueryPackageClaims from token identity attributes | app continues on packaged path; AV after ApplicationData QI for IApplicationData2 (LocalCacheFolder) |
 **Status at br123:** ShowWindow reached and the app survives XAML startup (headless, alive until the harness alarm). Activated and rendering calls (dcomp/Composition) are not yet observed. Earlier status at br118:
 - Reached: ConnectionComplete, ActivateViewComplete, ReadyToNavigate, presentation deferral and SetWindow.
 - Not reached: Activated, ShowWindow and any rendering call.

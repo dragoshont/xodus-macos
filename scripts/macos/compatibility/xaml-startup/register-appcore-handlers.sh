@@ -33,7 +33,13 @@ done
 "$WINE" reg add 'HKLM\Software\Classes\CLSID\{4d3bd4b7-ad22-4dc4-b889-311dae0d8aeb}' /ve /d 'WindowServerFactory' /f
 "$WINE" reg add 'HKLM\Software\Classes\CLSID\{4d3bd4b7-ad22-4dc4-b889-311dae0d8aeb}\InProcServer32' /ve /d 'C:\Windows\System32\Windows.UI.dll' /f
 "$WINE" reg add 'HKLM\Software\Classes\CLSID\{4d3bd4b7-ad22-4dc4-b889-311dae0d8aeb}\InProcServer32' /v ThreadingModel /d Both /f
-for IHC in "$(dirname "$0")/inputhost-winrt-classes.txt" "$(dirname "$0")/windows-ui-winrt-classes.txt" "$(dirname "$0")/wintypes-winrt-classes.txt"; do
+# XboxPcAppFT.exe is the package's com:ExeServer (AppxManifest.xml) for XboxPcAppFT {2DE3095A-...} and
+# GameInterop {B0B875DB-...}. Native resolves it via HKLM\SOFTWARE\Classes\PackagedCom; the Wine analogue is
+# LocalServer32 -> the package exe, which COM starts with -Embedding so it registers its own class factory.
+FTEXE=${XBOX_PACKAGE_WINPATH:-'Y:\xodus-runs\xbox-app-crossover-20261005-001\official-package-code\Microsoft.GamingApp'}'\XboxPcAppFT.exe'
+for c in '{2DE3095A-B49E-418F-B5C1-69D2CCF62A8F}' '{B0B875DB-EFB6-4F7F-B86E-8A2DB2C612F1}'; do
+    "$WINE" reg add "HKLM\\Software\\Classes\\CLSID\\$c\\LocalServer32" /ve /d "$FTEXE" /f
+donefor IHC in "$(dirname "$0")/inputhost-winrt-classes.txt" "$(dirname "$0")/windows-ui-winrt-classes.txt" "$(dirname "$0")/wintypes-winrt-classes.txt" "$(dirname "$0")/windows-web-http-winrt-classes.txt"; do
 IREG=$(mktemp -t inputhost-classes).reg
 python3 - "$IHC" "$WINEPREFIX/system.reg" "$IREG" <<'EOF'
 import sys

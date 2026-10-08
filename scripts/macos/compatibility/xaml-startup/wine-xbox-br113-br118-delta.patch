@@ -199,3 +199,478 @@
  }
  
  static HRESULT STDMETHODCALLTYPE dxgi_output_TakeOwnership(IDXGIOutput6 *iface, IUnknown *device, BOOL exclusive)
+--- a/dlls/windows.applicationmodel/package.c
++++ b/dlls/windows.applicationmodel/package.c
+@@ -770,11 +770,130 @@
+     WARN( "Failed to create package id, hr %#lx.\n", hr );
+     IPackageId_Release( &impl->IPackageId_iface );
+     return hr;
++}
++
++struct package_status
++{
++    IPackageStatus IPackageStatus_iface;
++    LONG ref;
++};
++
++static inline struct package_status *impl_from_IPackageStatus( IPackageStatus *iface )
++{
++    return CONTAINING_RECORD( iface, struct package_status, IPackageStatus_iface );
++}
++
++static HRESULT WINAPI package_status_QueryInterface( IPackageStatus *iface, REFIID iid, void **out )
++{
++    struct package_status *impl = impl_from_IPackageStatus( iface );
++
++    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
++
++    if (IsEqualGUID( iid, &IID_IUnknown ) ||
++        IsEqualGUID( iid, &IID_IInspectable ) ||
++        IsEqualGUID( iid, &IID_IAgileObject ) ||
++        IsEqualGUID( iid, &IID_IPackageStatus ))
++    {
++        *out = &impl->IPackageStatus_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
++    *out = NULL;
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI package_status_AddRef( IPackageStatus *iface )
++{
++    struct package_status *impl = impl_from_IPackageStatus( iface );
++    return InterlockedIncrement( &impl->ref );
++}
++
++static ULONG WINAPI package_status_Release( IPackageStatus *iface )
++{
++    struct package_status *impl = impl_from_IPackageStatus( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref );
++    if (!ref) free( impl );
++    return ref;
++}
++
++static HRESULT WINAPI package_status_GetIids( IPackageStatus *iface, ULONG *iid_count, IID **iids )
++{
++    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI package_status_GetRuntimeClassName( IPackageStatus *iface, HSTRING *class_name )
++{
++    static const WCHAR name[] = L"Windows.ApplicationModel.PackageStatus";
++    TRACE( "iface %p, class_name %p.\n", iface, class_name );
++    return WindowsCreateString( name, ARRAY_SIZE(name) - 1, class_name );
++}
++
++static HRESULT WINAPI package_status_GetTrustLevel( IPackageStatus *iface, TrustLevel *trust_level )
++{
++    FIXME( "iface %p, trust_level %p stub!\n", iface, trust_level );
++    return E_NOTIMPL;
++}
++
++/* The package is registered and its files are present; no servicing, licensing,
++ * tamper or deployment state is tracked, so every problem flag is FALSE. */
++static HRESULT WINAPI package_status_VerifyIsOK( IPackageStatus *iface, boolean *value )
++{
++    TRACE( "iface %p, value %p.\n", iface, value );
++    if (!value) return E_POINTER;
++    *value = TRUE;
++    return S_OK;
++}
++
++#define PACKAGE_STATUS_FALSE_GETTER( name ) \
++static HRESULT WINAPI package_status_get_##name( IPackageStatus *iface, boolean *value ) \
++{ \
++    TRACE( "iface %p, value %p.\n", iface, value ); \
++    if (!value) return E_POINTER; \
++    *value = FALSE; \
++    return S_OK; \
+ }
+ 
++PACKAGE_STATUS_FALSE_GETTER( NotAvailable )
++PACKAGE_STATUS_FALSE_GETTER( PackageOffline )
++PACKAGE_STATUS_FALSE_GETTER( DataOffline )
++PACKAGE_STATUS_FALSE_GETTER( Disabled )
++PACKAGE_STATUS_FALSE_GETTER( NeedsRemediation )
++PACKAGE_STATUS_FALSE_GETTER( LicenseIssue )
++PACKAGE_STATUS_FALSE_GETTER( Modified )
++PACKAGE_STATUS_FALSE_GETTER( Tampered )
++PACKAGE_STATUS_FALSE_GETTER( DependencyIssue )
++PACKAGE_STATUS_FALSE_GETTER( Servicing )
++PACKAGE_STATUS_FALSE_GETTER( DeploymentInProgress )
++
++static const struct IPackageStatusVtbl package_status_vtbl =
++{
++    package_status_QueryInterface,
++    package_status_AddRef,
++    package_status_Release,
++    package_status_GetIids,
++    package_status_GetRuntimeClassName,
++    package_status_GetTrustLevel,
++    package_status_VerifyIsOK,
++    package_status_get_NotAvailable,
++    package_status_get_PackageOffline,
++    package_status_get_DataOffline,
++    package_status_get_Disabled,
++    package_status_get_NeedsRemediation,
++    package_status_get_LicenseIssue,
++    package_status_get_Modified,
++    package_status_get_Tampered,
++    package_status_get_DependencyIssue,
++    package_status_get_Servicing,
++    package_status_get_DeploymentInProgress,
++};
++
+ struct package
+ {
+     IPackage IPackage_iface;
++    IPackage3 IPackage3_iface;
+     LONG ref;
+ };
+ 
+@@ -799,6 +918,13 @@
+         return S_OK;
+     }
+ 
++    if (IsEqualGUID( iid, &IID_IPackage3 ))
++    {
++        *out = &impl->IPackage3_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
+     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
+     *out = NULL;
+     return E_NOINTERFACE;
+@@ -896,6 +1022,47 @@
+     package_get_Dependencies,
+ };
+ 
++DEFINE_IINSPECTABLE( package3, IPackage3, struct package, IPackage_iface )
++
++static HRESULT WINAPI package3_get_Status( IPackage3 *iface, IPackageStatus **value )
++{
++    struct package_status *impl;
++
++    TRACE( "iface %p, value %p.\n", iface, value );
++
++    if (!value) return E_POINTER;
++    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
++    impl->IPackageStatus_iface.lpVtbl = &package_status_vtbl;
++    impl->ref = 1;
++    *value = &impl->IPackageStatus_iface;
++    return S_OK;
++}
++
++static HRESULT WINAPI package3_get_InstalledDate( IPackage3 *iface, DateTime *value )
++{
++    FIXME( "iface %p, value %p stub!\n", iface, value );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI package3_GetAppListEntriesAsync( IPackage3 *iface, IAsyncOperation_IVectorView_AppListEntry **operation )
++{
++    FIXME( "iface %p, operation %p stub!\n", iface, operation );
++    return E_NOTIMPL;
++}
++
++static const struct IPackage3Vtbl package3_vtbl =
++{
++    package3_QueryInterface,
++    package3_AddRef,
++    package3_Release,
++    package3_GetIids,
++    package3_GetRuntimeClassName,
++    package3_GetTrustLevel,
++    package3_get_Status,
++    package3_get_InstalledDate,
++    package3_GetAppListEntriesAsync,
++};
++
+ DEFINE_IINSPECTABLE( package_statics, IPackageStatics, struct package_statics, IActivationFactory_iface )
+ 
+ static HRESULT WINAPI package_statics_get_Current( IPackageStatics *iface, IPackage **value )
+@@ -908,6 +1075,7 @@
+     if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
+ 
+     impl->IPackage_iface.lpVtbl = &package_vtbl;
++    impl->IPackage3_iface.lpVtbl = &package3_vtbl;
+     impl->ref = 1;
+ 
+     *value = &impl->IPackage_iface;
+--- a/include/windows.data.json.idl
++++ b/include/windows.data.json.idl
+@@ -129,6 +129,16 @@
+     }
+ 
+     [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.Data.Json.JsonValue),
++        uuid(1d9ecbe4-3fe8-4335-8392-93d8e36865f0)
++    ]
++    interface IJsonValueStatics2 : IInspectable
++    {
++        HRESULT CreateNullValue([out, retval] Windows.Data.Json.JsonValue **value);
++    }
++
++    [
+         activatable(Windows.Foundation.UniversalApiContract, 1.0),
+         contract(Windows.Foundation.UniversalApiContract, 1.0),
+         marshaling_behavior(agile),
+@@ -165,7 +175,7 @@
+         contract(Windows.Foundation.UniversalApiContract, 1.0),
+         marshaling_behavior(agile),
+         static(Windows.Data.Json.IJsonValueStatics, Windows.Foundation.UniversalApiContract, 1.0),
+-        /* static(Windows.Data.Json.IJsonValueStatics2, Windows.Foundation.UniversalApiContract, 1.0), */
++        static(Windows.Data.Json.IJsonValueStatics2, Windows.Foundation.UniversalApiContract, 1.0),
+         threading(both)
+     ]
+     runtimeclass JsonValue
+--- a/dlls/windows.web/json_value.c
++++ b/dlls/windows.web/json_value.c
+@@ -33,6 +33,7 @@
+ {
+     IActivationFactory IActivationFactory_iface;
+     IJsonValueStatics IJsonValueStatics_iface;
++    IJsonValueStatics2 IJsonValueStatics2_iface;
+     LONG ref;
+ };
+ 
+@@ -60,6 +61,13 @@
+     if (IsEqualGUID( iid, &IID_IJsonValueStatics ))
+     {
+         *out = &impl->IJsonValueStatics_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    if (IsEqualGUID( iid, &IID_IJsonValueStatics2 ))
++    {
++        *out = &impl->IJsonValueStatics2_iface;
+         IInspectable_AddRef( *out );
+         return S_OK;
+     }
+@@ -866,12 +874,46 @@
+     json_value_statics_CreateBooleanValue,
+     json_value_statics_CreateNumberValue,
+     json_value_statics_CreateStringValue,
++};
++
++DEFINE_IINSPECTABLE( json_value_statics2, IJsonValueStatics2, struct json_value_statics, IActivationFactory_iface )
++
++static HRESULT WINAPI json_value_statics2_CreateNullValue( IJsonValueStatics2 *iface, IJsonValue **value )
++{
++    struct json_value *impl;
++
++    TRACE( "iface %p, value %p\n", iface, value );
++
++    if (!value) return E_POINTER;
++    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
++
++    impl->IJsonValue_iface.lpVtbl = &json_value_vtbl;
++    impl->ref = 1;
++    impl->json_value_type = JsonValueType_Null;
++
++    *value = &impl->IJsonValue_iface;
++    TRACE( "created IJsonValue %p.\n", *value );
++    return S_OK;
++}
++
++static const struct IJsonValueStatics2Vtbl json_value_statics2_vtbl =
++{
++    json_value_statics2_QueryInterface,
++    json_value_statics2_AddRef,
++    json_value_statics2_Release,
++    /* IInspectable methods */
++    json_value_statics2_GetIids,
++    json_value_statics2_GetRuntimeClassName,
++    json_value_statics2_GetTrustLevel,
++    /* IJsonValueStatics2 methods */
++    json_value_statics2_CreateNullValue,
+ };
+ 
+ static struct json_value_statics json_value_statics =
+ {
+     {&factory_vtbl},
+     {&json_value_statics_vtbl},
++    {&json_value_statics2_vtbl},
+     1,
+ };
+ 
+
+# br131: RtlQueryPackageClaims (dlls/ntdll)
+--- a/dlls/ntdll/rtl.c
++++ b/dlls/ntdll/rtl.c
+@@ -1620,16 +1620,156 @@
+ {
+     FIXME("(%p, %p) stub!\n", table, buffer);
+     return NULL;
++}
++
++/* Package identity lives in the token security attributes WIN://SYSAPPID (strings: package full name,
++ * application id, family name) and WIN://PKG (one integer: claim flags in the low 32 bits, origin in
++ * the high 32 bits), as provisioned by the package activation path. */
++struct package_claim_attribute
++{
++    UNICODE_STRING name;
++    USHORT type, reserved;
++    ULONG flags, count;
++    union { ULONG64 *integers; UNICODE_STRING *strings; void *pointer; } values;
++};
++struct package_claim_attributes
++{
++    USHORT version, reserved;
++    ULONG count;
++    struct package_claim_attribute *attributes;
++};
++typedef struct { ULONG Flags; ULONG Origin; } PS_PKG_CLAIM;
++#define PKG_ATTR_UINT64 2
++#define PKG_ATTR_STRING 3
++
++static NTSTATUS query_token_attribute( HANDLE token, const WCHAR *name, USHORT type, ULONG min_count,
++                                       struct package_claim_attributes **info,
++                                       struct package_claim_attribute **attribute )
++{
++    UNICODE_STRING str;
++    ULONG bytes = 0;
++    NTSTATUS status;
++    ULONG_PTR base, end, address;
++
++    *info = NULL;
++    RtlInitUnicodeString( &str, name );
++    status = NtQuerySecurityAttributesToken( token, &str, 1, NULL, 0, &bytes );
++    if (status != STATUS_BUFFER_TOO_SMALL) return status ? status : STATUS_INVALID_PARAMETER;
++    if (bytes < sizeof(**info) || bytes > 1024 * 1024) return STATUS_INVALID_PARAMETER;
++    if (!(*info = RtlAllocateHeap( GetProcessHeap(), 0, bytes ))) return STATUS_NO_MEMORY;
++    if ((status = NtQuerySecurityAttributesToken( token, &str, 1, *info, bytes, &bytes ))) goto fail;
++    status = STATUS_INVALID_PARAMETER;
++    base = (ULONG_PTR)*info;
++    end = base + bytes;
++    address = (ULONG_PTR)(*info)->attributes;
++    if ((*info)->version != 1 || (*info)->count != 1 ||
++        address < base || address > end || sizeof(**attribute) > end - address) goto fail;
++    *attribute = (*info)->attributes;
++    address = (ULONG_PTR)(*attribute)->values.pointer;
++    if ((*attribute)->type != type || (*attribute)->count < min_count ||
++        address < base || address > end) goto fail;
++    if (type == PKG_ATTR_STRING)
++    {
++        ULONG i;
++        if ((*attribute)->count > (end - address) / sizeof(UNICODE_STRING)) goto fail;
++        for (i = 0; i < (*attribute)->count; i++)
++        {
++            UNICODE_STRING *v = &(*attribute)->values.strings[i];
++            address = (ULONG_PTR)v->Buffer;
++            if (v->Length % sizeof(WCHAR) || address < base || address > end || v->Length > end - address)
++                goto fail;
++        }
++    }
++    else if ((*attribute)->count > (end - address) / sizeof(ULONG64)) goto fail;
++    return STATUS_SUCCESS;
++fail:
++    RtlFreeHeap( GetProcessHeap(), 0, *info );
++    *info = NULL;
++    return status;
++}
++
++static NTSTATUS copy_claim_string( const UNICODE_STRING *value, WCHAR *buffer, SIZE_T *size )
++{
++    SIZE_T required = value->Length + sizeof(WCHAR);
++
++    if (!size) return STATUS_SUCCESS;
++    if (*size < required || !buffer)
++    {
++        *size = required;
++        return STATUS_BUFFER_TOO_SMALL;
++    }
++    memcpy( buffer, value->Buffer, value->Length );
++    buffer[value->Length / sizeof(WCHAR)] = 0;
++    *size = required;
++    return STATUS_SUCCESS;
+ }
+ 
+ /*********************************************************************
++ *           RtlQueryPackageClaims [NTDLL.@]
++ *
++ * Sizes are in bytes including the terminating null. Returns STATUS_NOT_FOUND for a token without
++ * package identity (measured natively for unpackaged sihost/explorer).
++ */
++NTSTATUS WINAPI RtlQueryPackageClaims( HANDLE token, WCHAR *fullname, SIZE_T *fullname_size,
++                                       WCHAR *appid, SIZE_T *appid_size, GUID *dynamic_id,
++                                       PS_PKG_CLAIM *claim, ULONG64 *attributes_present )
++{
++    struct package_claim_attributes *ids = NULL, *pkg = NULL;
++    struct package_claim_attribute *ids_attr, *pkg_attr;
++    HANDLE opened = NULL;
++    NTSTATUS status, ret;
++    ULONG64 present = 0;
++
++    TRACE( "(%p, %p, %p, %p, %p, %p, %p, %p)\n", token, fullname, fullname_size, appid, appid_size,
++           dynamic_id, claim, attributes_present );
++
++    if (token == GetCurrentProcessToken() || token == GetCurrentThreadToken() ||
++        token == GetCurrentThreadEffectiveToken())
++    {
++        if ((status = NtOpenProcessToken( GetCurrentProcess(), TOKEN_QUERY, &opened ))) return status;
++        token = opened;
++    }
++    status = query_token_attribute( token, L"WIN://SYSAPPID", PKG_ATTR_STRING, 2,
++                                    &ids, &ids_attr );
++    if (!status)
++    {
++        present |= 1;
++        if (!query_token_attribute( token, L"WIN://PKG", PKG_ATTR_UINT64, 1,
++                                    &pkg, &pkg_attr ))
++            present |= 2;
++    }
++    if (opened) NtClose( opened );
++    if (status) return status == STATUS_NOT_FOUND ? STATUS_NOT_FOUND : status;
++
++    ret = copy_claim_string( &ids_attr->values.strings[0], fullname, fullname_size );
++    status = copy_claim_string( &ids_attr->values.strings[1], appid, appid_size );
++    if (!ret) ret = status;
++    if (dynamic_id) memset( dynamic_id, 0, sizeof(*dynamic_id) );
++    if (claim)
++    {
++        ULONG64 value = pkg ? pkg_attr->values.integers[0] : 0;
++        claim->Flags = (ULONG)value;
++        claim->Origin = (ULONG)(value >> 32);
++    }
++    if (attributes_present) *attributes_present = present;
++    RtlFreeHeap( GetProcessHeap(), 0, ids );
++    RtlFreeHeap( GetProcessHeap(), 0, pkg );
++    return ret;
++}
++
++/*********************************************************************
+  *           RtlQueryPackageIdentity [NTDLL.@]
+  */
+ NTSTATUS WINAPI RtlQueryPackageIdentity(HANDLE token, WCHAR *fullname, SIZE_T *fullname_size,
+                                         WCHAR *appid, SIZE_T *appid_size, BOOLEAN *packaged)
+ {
+-    FIXME("(%p, %p, %p, %p, %p, %p): stub\n", token, fullname, fullname_size, appid, appid_size, packaged);
+-    return STATUS_NOT_FOUND;
++    PS_PKG_CLAIM claim;
++    NTSTATUS status;
++
++    TRACE("(%p, %p, %p, %p, %p, %p)\n", token, fullname, fullname_size, appid, appid_size, packaged);
++    status = RtlQueryPackageClaims( token, fullname, fullname_size, appid, appid_size, NULL, &claim, NULL );
++    if (packaged && status != STATUS_NOT_FOUND) *packaged = TRUE;
++    return status;
+ }
+ 
+ /*********************************************************************
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -969,6 +969,7 @@
+ @ stdcall RtlQueryInformationActivationContext(long long ptr long ptr long ptr)
+ @ stdcall RtlQueryInformationActiveActivationContext(long ptr long ptr)
+ @ stub RtlQueryInterfaceMemoryStream
++@ stdcall RtlQueryPackageClaims(long ptr ptr ptr ptr ptr ptr ptr)
+ @ stdcall RtlQueryPackageIdentity(long ptr ptr ptr ptr ptr)
+ @ stdcall RtlQueryPerformanceCounter(ptr)
+ @ stdcall RtlQueryPerformanceFrequency(ptr)

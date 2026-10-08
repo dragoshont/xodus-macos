@@ -137,3 +137,70 @@ br125        DIAGNOSTIC (same, without 0x610360/0xa87910): breakpoints on put_Co
              CoCreateInstance({2de3095a-b49e-418f-b5c1-69d2ccf62a8f} XboxPcAppFT, CLSCTX_LOCAL_SERVER,
              IActivationFactory) -> "class not registered" (it is a packaged com:ExeServer of
              XboxPcAppFT.exe in AppxManifest.xml) and throws on that thread.
+
+br126        Baseline with APP_DEBUG_EXTRA=trace-ole (smaller log, 5 MB). Original app ORIGINAL_EXIT=0 after
+             about one minute (not explained; the next runs return to the usual 420 s alarm exit). Before any
+             FT fix: CoCreateInstance({2de3095a-...} XboxPcAppFT, CLSCTX_LOCAL_SERVER, IActivationFactory) ->
+             class not registered. No change from br123 on the ladder.
+br127        Prefix change (not a Wine change): HKCR\CLSID\{2DE3095A-B49E-418F-B5C1-69D2CCF62A8F} and
+             {B0B875DB-...} (GameInterop) LocalServer32 = the package's XboxPcAppFT.exe, both from the
+             AppxManifest com:ExeServer entry. Wine's COM launches XboxPcAppFT.exe -Embedding. FT then
+             crashes: access violation at XboxPcAppFT.exe+0x15FE9D after a QueryInterface for IPackage3
+             returned E_NOINTERFACE (Wine's Package object did not implement IPackage3).
+br128        Wine fix: dlls/windows.applicationmodel/package.c implements IPackage3 (get_Status returns a
+             PackageStatus object). PackageStatus answers VerifyIsOK=TRUE and every problem flag FALSE,
+             because Wine tracks no servicing, licensing or tamper state; InstalledDate and
+             GetAppListEntriesAsync return E_NOTIMPL. windows.applicationmodel.dll sha256
+             27184dd03297cb1e8686f9973a676422aceec65a78e6c8d7bffbc1d1cf7835cc.
+             RESULT: FT calls get_Status, NotAvailable, NeedsRemediation, Servicing (no crash), then aborts
+             (raise(22)) after the JsonValue factory QI for IJsonValueStatics2
+             {1d9ecbe4-3fe8-4335-8392-93d8e36865f0} returns E_NOINTERFACE.
+br129        Wine fix: include/windows.data.json.idl adds IJsonValueStatics2 to JsonValue's statics;
+             dlls/windows.web/json_value.c implements CreateNullValue (a JsonValueType_Null value, the same
+             object the parser produces for "null"). windows.web.dll sha256
+             cef12078af6ead9eb4be8784193cc1ee7f4c1947857df355fdb2d1e388f7f6de.
+             RESULT: FT threads 03c4/03e0 call CreateNullValue; no FT abort; the app no longer logs
+             "no class object {2de3095a...}", so the packaged ExeServer activation now completes; FT then
+             idles. Ladder: ConnectionComplete YES, ShowWindow YES, survives XAML startup YES, XboxPcAppFT
+             served YES (new). Microsoft.ReactNative.dll / hermes.dll / dcomp.dll loads: NO. ORIGINAL_APP_EXIT
+             92 (harness alarm, as br123+). No change in what is drawn.
+             Remaining activation failures in br129: Windows.Web.Http.HttpClient, PackageCatalog,
+             ExtendedExecutionForegroundSession, ProcessDiagnosticInfo, RegionPolicyEvaluator,
+             AsyncCausalityTracer, Microsoft.GamePlatform.Services.PlatformStatus (four threads retry loading
+             gameplatformservices.dll from the Gaming Services package, which is not installed), and
+             XboxPcAppFT.RequestFetchIfNeededResult in-proc (no manifest row, so it probably fails natively too).
+             Static (XboxPcApp.exe): RN is not a PE import; it is activated by class name
+             ("Microsoft.ReactNative.ReactNativeHost"). The function at 0x20dbc4 names its thread "RNW_UIThread"
+             and creates the ReactRootView and then the RN host. It is called from 0x20bdcc at 0x20c42d, which
+             runs inside the wrapper 0x211c00 whose catch(...) at 0x211c2f is where br123 caught the
+             HttpClient class_not_registered. Hypothesis for br130: the HttpClient throw unwinds 0x20bdcc before
+             it reaches the RN init. "RNW_UIThread" never appears in any br123-br129 log.
+br130        Prefix: native x64 Windows.Web.Http.dll 10.0.26100.3323 (sha256
+             beba2c3b048170d23dd5f3d00babd92fdf247c0f0d1f640ec3faeb8613dd0ce2) copied to system32 and the 30
+             measured ActivatableClassId rows (windows-web-http-winrt-classes.txt) imported.
+             RESULT: HttpClient factory found and the object created. The UI thread then died on
+             EXCEPTION_WINE_STUB ntdll.RtlQueryPackageClaims (imported by Windows.Web.Http.dll).
+             ORIGINAL_APP_EXIT 2147483904 (0x80000100). Change from br129: HttpClient no longer
+             class_not_registered; new first failure is the ntdll stub.
+br131        Wine fix: dlls/ntdll/rtl.c implements RtlQueryPackageClaims from the token security attributes
+             the server provisions (WIN://SYSAPPID full name/app id, WIN://PKG flags/origin); STATUS_NOT_FOUND
+             for unpackaged tokens, STATUS_BUFFER_TOO_SMALL with required byte sizes. Native measurement on
+             XboxPcApp: flags 0x1, origin 3, attributes 0x3. ntdll.dll sha256
+             fa9e1d4c6caaa581454daeeb592a92cd34c28d996d337acf4be6d88f9495a407.
+             RESULT: the app continues on its packaged path (windows.storage.applicationdata, windows.web,
+             Microsoft.GamePlatform.Services load). New crash: ORIGINAL_APP_EXIT 3221225477 (c0000005), thread
+             03d4 AV at XboxPcApp.exe+0xA441D (rax=0x80004002) right after
+             "application_data_QueryInterface {9e65cd69-0ba3-4e32-be29-b02de6607638} not implemented"
+             (IApplicationData2.LocalCacheFolder). LocalFolder/TemporaryFolder/LocalSettings were E_NOTIMPL stubs.
+             Ladder: ConnectionComplete YES, ShowWindow YES, FT YES, HttpClient YES (new); RNW_UIThread NO,
+             dcomp NO.
+br132        Wine fix: dlls/windows.storage.applicationdata/applicationdata.c returns real package folders for
+             LocalFolder/RoamingFolder/TemporaryFolder and new IApplicationData2.LocalCacheFolder:
+             %LOCALAPPDATA%\Packages\<family>\{LocalState,RoamingState,TempState,LocalCache} (native layout;
+             created on demand), as a StorageFolder with real Name/Path. include/appmodel.h declares
+             GetCurrentPackageFamilyName. windows.storage.applicationdata.dll sha256
+             7c392e812a45f877982959894f11da5a50eb3d13c32a88cb89c0aeb186bc1381.
+             RESULT: no AV at XboxPcApp+0xA441D; app alive for the whole run (ORIGINAL_APP_EXIT 92). The app
+             calls LocalCacheFolder.CreateFolderAsync("ImageCache") (still a stub). UI thread 033c still lands
+             in catch(...) at XboxPcApp+0x211C33: the last original throw follows get_LocalSettings E_NOTIMPL
+             (rethrown). RNW_UIThread / ReactNative / dcomp: NO.

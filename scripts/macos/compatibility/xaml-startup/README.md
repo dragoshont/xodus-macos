@@ -638,6 +638,10 @@ Wine source delta for these cycles: `wine-xbox-br113-br118-delta.patch`.
 | br138 | Wine combase IContextCallback::ContextCallback (apartment-aware) | no E_NOTIMPL; XAML loads XboxPcApp.xaml; shcore #270 unimplemented |
 | br139 | Wine shcore #270 SHCreateMemoryStreamOnSharedBuffer + 561 measured Xaml activation rows | Xaml.Window activates; fail-fast E_NOINTERFACE after stream QI {ed3071e9...} |
 | br140 | shared-buffer stream exposes IAccessPrivateBuffer (IID from shcore.pdb) | see outcomes file |
+| br141 | native resource-only Windows.UI.Xaml.Resources*.dll deployed; fail-fast gone | next: bcp47langs GetApplicationLanguages unimplemented |
+| br142 | bcp47langs GetApplicationLanguages (measured @0x85b0) | next: LanguageListAsMuiForm unimplemented |
+| br143 | bcp47langs LanguageListAsMuiForm (measured @0x5620) + GetUserLanguages real output | passes; app coroutine fails E_NOINTERFACE -> RoFailFast; standard marshal of pinterface {b05f4313-...} has no PSFactory |
+| br144 | DIAGNOSTIC combase marshal_object backtrace + bcp47 Bcp47GetNlsForm/FromLcid/FromHkl | see outcomes file |
 **Status at br123:** ShowWindow reached and the app survives XAML startup (headless, alive until the harness alarm). Activated and rendering calls (dcomp/Composition) are not yet observed. Earlier status at br118:
 - Reached: ConnectionComplete, ActivateViewComplete, ReadyToNavigate, presentation deferral and SetWindow.
 - Not reached: Activated, ShowWindow and any rendering call.

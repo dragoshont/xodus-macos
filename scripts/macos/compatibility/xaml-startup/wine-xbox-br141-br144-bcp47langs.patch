@@ -1,0 +1,223 @@
+--- a/dlls/bcp47langs/main.c
++++ b/dlls/bcp47langs/main.c
+@@ -22,11 +22,15 @@
+ #include "winbase.h"
+ #include "winnls.h"
+ #include "winstring.h"
++#include "appmodel.h"
++#include "winerror.h"
+ 
+ #include "wine/debug.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(bcp47langs);
+ 
++LONG WINAPI GetCurrentPackageId(UINT32 *length, BYTE *buffer);
++
+ HRESULT WINAPI GetFontFallbackLanguageList(const WCHAR *lang, size_t buffer_length, WCHAR *buffer,
+                                            size_t *required_buffer_length)
+ {
+@@ -57,8 +61,153 @@
+     return S_OK;
+ }
+ 
++static HRESULT get_preferred_languages(WCHAR delim, HSTRING *langs)
++{
++    ULONG count = 0, size = 0, len;
++    WCHAR *buffer, *p;
++    HRESULT hr;
++
++    if (!GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &count, NULL, &size))
++        return HRESULT_FROM_WIN32(GetLastError());
++    if (!(buffer = malloc(size * sizeof(WCHAR)))) return E_OUTOFMEMORY;
++    if (!GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &count, buffer, &size))
++    {
++        free(buffer);
++        return HRESULT_FROM_WIN32(GetLastError());
++    }
++
++    /* MULTI_SZ -> delimited list */
++    for (p = buffer; *p; p += wcslen(p) + 1)
++        if (p[wcslen(p) + 1]) p[wcslen(p)] = delim;
++    len = wcslen(buffer);
++    hr = WindowsCreateString(buffer, len, langs);
++    free(buffer);
++    return hr;
++}
++
+ HRESULT WINAPI GetUserLanguages(WCHAR delim, HSTRING *langs)
+ {
+-    FIXME("%lc, %p\n", delim, langs);
+-    return S_OK;
++    TRACE("%#x, %p\n", delim, langs);
++
++    if (!langs) return E_INVALIDARG;
++    *langs = NULL;
++    return get_preferred_languages(delim, langs);
+ }
++
++/* Native bcp47langs!LanguageListAsMuiForm(in_delim, HSTRING list, out_delim, HSTRING *out):
++ * *out = NULL; NULL list -> E_POINTER; split on in_delim, map each tag through
++ * Bcp47GetMuiForm, drop empty strings and duplicates, empty result -> E_INVALIDARG,
++ * else join with out_delim.  The MUI form of a tag is returned unchanged here; native
++ * derives it from its subtag tables (not reproduced). */
++HRESULT WINAPI LanguageListAsMuiForm(WCHAR in_delim, HSTRING list, WCHAR out_delim, HSTRING *out)
++{
++    const WCHAR *src, *tok, *end;
++    WCHAR *buffer, *dst;
++    UINT32 src_len;
++    HRESULT hr;
++
++    TRACE("%#x, %s, %#x, %p\n", in_delim, debugstr_hstring(list), out_delim, out);
++
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (!list) return E_POINTER;
++
++    src = WindowsGetStringRawBuffer(list, &src_len);
++    if (!(buffer = malloc((src_len + 1) * sizeof(WCHAR)))) return E_OUTOFMEMORY;
++    dst = buffer;
++    for (tok = src; tok <= src + src_len; tok = end + 1)
++    {
++        const WCHAR *q;
++        size_t n;
++        BOOL dup = FALSE;
++
++        for (end = tok; end < src + src_len && *end != in_delim; end++) ;
++        if (!(n = end - tok)) continue;
++        for (q = buffer; q < dst; )
++        {
++            const WCHAR *e = q;
++            while (e < dst && *e != out_delim) e++;
++            if ((size_t)(e - q) == n && !wcsnicmp(q, tok, n)) { dup = TRUE; break; }
++            q = e + 1;
++        }
++        if (dup) continue;
++        if (dst != buffer) *dst++ = out_delim;
++        memcpy(dst, tok, n * sizeof(WCHAR));
++        dst += n;
++    }
++    if (dst == buffer)
++    {
++        free(buffer);
++        return E_INVALIDARG;
++    }
++    hr = WindowsCreateString(buffer, dst - buffer, out);
++    free(buffer);
++    return hr;
++}
++
++/* Native bcp47langs!GetApplicationLanguages(id, delimiter, HSTRING *): with a NULL
++ * id the caller must have package identity (GetCurrentPackageId, else
++ * APPMODEL_ERROR_NO_PACKAGE).  Native ranks the user languages against the
++ * package ManifestLanguagesList through the application language registrar;
++ * like windows.globalization ApplicationLanguages.Languages, this returns the
++ * user preferred UI languages without the manifest intersection. */
++HRESULT WINAPI GetApplicationLanguages(const WCHAR *id, WCHAR delim, HSTRING *langs)
++{
++    TRACE("%s, %#x, %p\n", debugstr_w(id), delim, langs);
++
++    if (!langs) return E_INVALIDARG;
++    *langs = NULL;
++
++    if (!id)
++    {
++        UINT32 id_len = 0;
++        if (GetCurrentPackageId(&id_len, NULL) != ERROR_INSUFFICIENT_BUFFER)
++            return HRESULT_FROM_WIN32(APPMODEL_ERROR_NO_PACKAGE);
++    }
++
++    return get_preferred_languages(delim, langs);
++}
++
++/* Native Bcp47FromLcid(LCID, HSTRING *): *out = NULL; LCID 0, LOCALE_INVARIANT and
++ * LOCALE_CUSTOM_UNSPECIFIED, or an LCID without a locale, give E_INVALIDARG. */
++HRESULT WINAPI Bcp47FromLcid(LCID lcid, HSTRING *out)
++{
++    WCHAR name[LOCALE_NAME_MAX_LENGTH];
++    int len;
++
++    TRACE("%#lx, %p\n", lcid, out);
++
++    *out = NULL;
++    if (!lcid || lcid == LOCALE_INVARIANT || lcid == LOCALE_CUSTOM_UNSPECIFIED) return E_INVALIDARG;
++    if (!(len = LCIDToLocaleName(lcid, name, ARRAY_SIZE(name), 0)) || len <= 1) return E_INVALIDARG;
++    return WindowsCreateString(name, len - 1, out);
++}
++
++/* Native Bcp47FromHkl(HKL, HSTRING *): same CLanguage(HKL) construction, the language
++ * id is the low word of the layout handle. */
++HRESULT WINAPI Bcp47FromHkl(HKL hkl, HSTRING *out)
++{
++    TRACE("%p, %p\n", hkl, out);
++
++    return Bcp47FromLcid(MAKELCID(LOWORD((ULONG_PTR)hkl), SORT_DEFAULT), out);
++}
++
++/* Native Bcp47GetNlsForm(HSTRING tag, HSTRING *): *out = NULL, parses the tag and returns
++ * its NLS locale-name form.  Here: the locale name NLS resolves the tag to, else the tag. */
++HRESULT WINAPI Bcp47GetNlsForm(HSTRING tag, HSTRING *out)
++{
++    WCHAR name[LOCALE_NAME_MAX_LENGTH], buf[LOCALE_NAME_MAX_LENGTH];
++    const WCHAR *str;
++    UINT32 len;
++
++    TRACE("%s, %p\n", debugstr_hstring(tag), out);
++
++    *out = NULL;
++    str = WindowsGetStringRawBuffer(tag, &len);
++    if (!len || len >= ARRAY_SIZE(buf)) return E_INVALIDARG;
++    memcpy(buf, str, len * sizeof(WCHAR));
++    buf[len] = 0;
++    if (ResolveLocaleName(buf, name, ARRAY_SIZE(name)) > 1 && !wcsicmp(name, buf))
++        return WindowsCreateString(name, wcslen(name), out);
++    return WindowsCreateString(buf, len, out);
++}
+--- a/dlls/bcp47langs/bcp47langs.spec
++++ b/dlls/bcp47langs/bcp47langs.spec
+@@ -5,8 +5,8 @@
+ @ stub Bcp47BufferFromLcid
+ @ stub Bcp47FindClosestLanguage
+ @ stub Bcp47FromCompactTagInternal
+-@ stub Bcp47FromHkl
+-@ stub Bcp47FromLcid
++@ stdcall Bcp47FromHkl(long ptr)
++@ stdcall Bcp47FromLcid(long ptr)
+ @ stub Bcp47GetAbbreviation
+ @ stub Bcp47GetDirectionality
+ @ stub Bcp47GetDistance
+@@ -17,7 +17,7 @@
+ @ stub Bcp47GetLanguageName
+ @ stub Bcp47GetMuiForm
+ @ stub Bcp47GetNeutralForm
+-@ stub Bcp47GetNlsForm
++@ stdcall Bcp47GetNlsForm(ptr ptr)
+ @ stub Bcp47GetSubtagMapInternal
+ @ stub Bcp47GetUnIsoRegionCode
+ @ stub Bcp47IsWellFormed
+@@ -31,7 +31,7 @@
+ @ stub DllGetActivationFactory
+ @ stub DllGetClassObject
+ @ stub GetApplicationLanguageOverride
+-@ stub GetApplicationLanguages
++@ stdcall GetApplicationLanguages(wstr long ptr)
+ @ stub GetApplicationManifestLanguages
+ @ stub GetAppropriateUserLocaleForUserLanguages
+ @ stub GetAppropriateUserPreferredAndDisplayLanguagesForUser
+@@ -53,7 +53,7 @@
+ @ stub GetUserLanguagesForUser
+ @ stub GetUserLocaleFromLanguageProfileOptOut
+ @ stub IsTransientLcid
+-@ stub LanguageListAsMuiForm
++@ stdcall LanguageListAsMuiForm(long ptr long ptr)
+ @ stub LcidFromBcp47
+ @ stub RemoveInputsForAllLanguagesInternal
+ @ stub RemoveUserLanguageInputMethods
+--- a/dlls/bcp47langs/Makefile.in
++++ b/dlls/bcp47langs/Makefile.in
+@@ -1,5 +1,6 @@
+ MODULE    = bcp47langs.dll
+ IMPORTLIB = bcp47langs
++IMPORTS   = combase
+ 
+ SOURCES = \
+ 	main.c

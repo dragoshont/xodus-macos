@@ -277,3 +277,48 @@ br140        IID identified from shcore.pdb public symbols (_GUID_ed3071e9...) +
              the whole buffer length + data pointer, E_UNEXPECTED when no data (CMemStream::GetPrivateBuffer @0x47800).
              Native object is created by CMemStream::CreateReadOnlyInstanceOverSharedBuffer. Wine fix: shared-buffer
              stream exposes IAccessPrivateBuffer. shcore.dll sha256 9fef343d. RESULT: (pending, see next entry)
+             br140 RESULT: shstream QI warning GONE (0 hits). New fail-fast on UI thread 0340:
+             "RaiseFailFastException (0000000000000000, 0000000000000000, 0)" -> c0000602 (ORIGINAL_APP_EXIT 3221227010)
+             immediately after XAML probes for "Windows.UI.Xaml.Resources.21H1.dll" (not found in package dir,
+             system32, wbem, WindowsPowershell). RN / hermes: NO. dcomp: NO.
+br141        Prefix: deployed the 11 native resource-only Windows.UI.Xaml.Resources*.dll (19h1, 21h1, Common, rs1-rs5,
+             th, win81, win8rtm; no imports) from the 26300 host System32, same provenance as Windows.UI.Xaml.dll.
+             RESULT: theme resource DLL found, fail-fast GONE. New abort ORIGINAL_APP_EXIT 2147483904:
+             "wine: Call from 00006FFFFF34DBF7 to unimplemented function bcp47langs.dll.GetApplicationLanguages"
+             (UI thread 0340; imported by Windows.UI.Xaml.dll and Windows.Globalization.dll). Also seen before it:
+             "fixme:win:GetResizeDCompositionSynchronizationObject ... no DWM resize synchronisation object".
+             RN / hermes: NO. dcomp: NO.
+br142        Wine fix: bcp47langs GetApplicationLanguages(PCWSTR id, WCHAR delim, HSTRING *out). Native contract
+             measured from bcp47langs.dll export @0x85b0 + PDB (GetApplicationLanguagesFromRegistrarAsDelimitedString):
+             NULL id requires package identity (GetCurrentPackageId != ERROR_INSUFFICIENT_BUFFER ->
+             APPMODEL_ERROR_NO_PACKAGE 0x80073d54). Native ranks user languages against ManifestLanguagesList via the
+             registrar; Wine returns the user preferred UI languages (same simplification as upstream
+             windows.globalization ApplicationLanguages.Languages; INFERRED equal here: user en-US, manifest has EN-US).
+             bcp47langs.dll sha256 acc117eb. RESULT: (next entry)
+             br142 RESULT: GetApplicationLanguages call passes (no abort there). New abort ORIGINAL_APP_EXIT
+             2147483904: "Call from ... to unimplemented function bcp47langs.dll.LanguageListAsMuiForm".
+             RN / hermes: NO. dcomp: NO.
+br143        Native bcp47langs!LanguageListAsMuiForm @0x5620 (PDB names): (WCHAR in_delim, HSTRING list,
+             WCHAR out_delim, HSTRING *out); *out=NULL; NULL list -> E_POINTER; WstringContainerFromDelimitedString,
+             transform(LanguageTagAsMuiForm -> Bcp47GetMuiForm, a pure BCP-47 parser), RemoveEmptyStrings,
+             RemoveDuplicates; empty -> E_INVALIDARG; else DelimitedStringFromItems(out_delim) + WindowsDuplicateString.
+             Wine fix implements that; per-tag MUI form = tag unchanged (INFERRED; native subtag tables not reproduced).
+             Also: GetUserLanguages was an upstream FIXME returning S_OK with *out unset -> now returns the user
+             preferred UI languages (shared helper with GetApplicationLanguages).
+             bcp47langs.dll sha256 (br143) built 01:37. RESULT: LanguageListAsMuiForm passes, no unimplemented
+             bcp47langs call. ORIGINAL_APP_EXIT 3221227010: "0340:err:combase:RoFailFastWithErrorContext fail fast,
+             error 0x80004002" (line 40166, RaiseFailFastException from XboxPcApp+0x503bb). Chain: first winrt
+             throw on 0340 at line 37628 right after IsErrorPropagationEnabled, caught in XboxPcApp 0x5f49f0 =
+             winrt promise_base::GetResults (GameCatalogExtensionInterface generated code) rethrowing the coroutine's
+             stored error; to_hresult -> E_NOINTERFACE; telemetry (JsonObject Stringify + EtwEventWriteTransfer) then
+             fail fast. Earlier evidence: "0340:warn:ole:ClientIdentity_QueryMultipleInterfaces
+             IRemUnknown_RemQueryInterface failed with error 0x80004002" (line 18159) and on threadpool threads
+             041c/03f0/0420: "CoGetPSClsid No PSFactoryBuffer object is registered for IID
+             {b05f4313-8bb4-582e-b7df-96fa5b183ff3}" + "marshal_object couldn't get IPSFactory buffer" (pinterface,
+             not in the package proxyStub list). INFERRED: a non-agile object (no IMarshal/IAgileObject; C++/WinRT
+             objects are FTM-agile natively) is standard-marshaled. RN / hermes: NO. dcomp: NO.
+br144        DIAGNOSTIC only: combase marshal_object logs "xodus-psdiag" iid/object vtable module + backtrace when
+             no PSFactory exists (combase cf12b5e9; baseline combase a7325a0f kept as .pre-psdiag).
+             Candidate: bcp47langs Bcp47FromLcid (measured @0x17060: 0/0x7f/0x1400 -> E_INVALIDARG),
+             Bcp47FromHkl (@0xb950, same CLanguage(HKL) path), Bcp47GetNlsForm (@0x37b0, (HSTRING, HSTRING*)).
+             bcp47langs sha256 7e9c9d40.

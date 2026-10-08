@@ -610,6 +610,29 @@ without a Compositor; U4 meaning of dcomp #1045; U5 upstream composition
 work newer than Wine 11.0 (a separate read-only check is running);
 U6 WAM provider path; U7 whether Gaming Services gates UI before sign-in.
 
+**Slice D3a result (14:44, child handoff; evidence by reference in the
+child session).** Root cause REPRODUCED: the app arms the CoreMessaging
+notification timer with relative due time 0x8000000000000001; the Wine server
+computed `timeout - monotonic_time` and overflowed (`server/file.h`
+`timeout_to_abstime`, `server/timer.c` `set_timer`), so the timer was
+signaled at once. Upstream master has the identical code (no reuse). Fix:
+clamp an unrepresentable relative timeout so it never expires. Standalone
+control fails before and passes after; the in-tree test
+`test_far_relative_due_time` (kernel32/tests/timer.c) is added but in-tree
+tests are disabled in this build. Native VM confirmation is PENDING
+(Parallels not running). Rerun br91 (headless): spin gone (33K log lines
+against 3.0M); app still exits at the launcher's 60 s timeout, no fail-fast.
+Next boundary D3b: the view thread connects to the broker's CoreUI port,
+receives two datagrams (ids 117/118), then idles; the main thread waits
+with a 60 s timer and no activation or ShowWindow. U3 (Compositor
+activation) not reached. Hypothesis: the app waits for a reply from the
+broker's navigation server that our broker never sends.
+
+**Decision (14:50): second narrow BOUNDED_GO, D3b only**, 3 h real-clock
+box (hard stop 17:50): decode the CoreUI exchange, implement only a reply the
+native contract evidences, one rerun. Composition, sign-in and library stay
+out of scope; PARK criteria unchanged.
+
 **Decision (14:20): BOUNDED_GO, narrow.** One implementation slice: D3a only,
 3 h real-clock box (hard stop 17:20), then one rerun to learn D3b/D4 and U3.
 No composition, sign-in or library implementation. If U3 shows XAML fail-fasts

@@ -121,3 +121,43 @@ step/HTTP reason, never success-shaped empty arrays.
 - Engine downloads/removal, per-game runner migration and redistribution rights.
 - Full onboarding/first login and second-M5 acceptance, explicitly deferred by
   the user.
+
+## Integrated follow-up: source PASS, visual acceptance held
+
+App `39fd687adc65398442c76b0f3bdfffa183af7ae9`, exact CI `37854735645`,
+is pushed and installed. A separate bounded host-native integration review
+returned **PASS** for resolving the specific REVISE findings and named
+contracts, not for every original release gate or every Xbox feature.
+
+- Both access badges render on all live surfaces; overlapping filters pass.
+  Acquisition kind remains explicitly unknown; Owned does not mean paid purchase.
+- Native Profile, Achievements, My Consoles and Engines are reachable from the
+  Account hub and menu/keyboard commands. Library/Discover/Downloads remain the
+  primary tabs. Actual Xbox game-service identity is distinct from PC Store
+  sign-in.
+- Current account hashes, section failures, partial achievement results and
+  late-result invalidation are enforced. Activity is not used as ownership.
+- Exact Xbox avatar/icon origin is guarded. No console wake/power actions,
+  guessed console deep links or unsupported engine execution controls exist.
+- Specific safe backend failure-progress messages reach the install UI.
+
+Runtime evidence: Hogwarts HLS reached advancing playback at 0.341709 seconds,
+paused at rate zero and released its player item. Lara's package check returned
+supported with 3,226,315,134 bytes; no repair/download was confirmed. Private
+companion reads returned the profile, one console, four friends, 100 recent
+activity records and 45 complete Hogwarts achievements.
+
+Root independently verified the exact CI SHA, strict signatures and all
+22 installed files against the package receipt
+`eba5c729f2ba85e92ce019cb8290287005b6c1353b7c65b6b6e5d9a1e360c499`.
+C8 `c8fe69a3...` and broker `2c40354c...` remain byte-preserved. Evidence is
+under `~/xodus-app-tooling/app-parity-39fd687-20261009/`, including
+`root-independent-admission.json` and `runtime-receipt.json`.
+
+**Remaining P7 gate:** macOS independently reports
+`CGSSessionScreenIsLocked = true`, and the app has zero AX-visible windows.
+Do not bypass the lock or claim screenshots of Profile/Consoles/Engines that
+were not taken. The installed app is running on its default Library route;
+the all-view native walkthrough and manual accessibility check await the user
+unlocking the Mac. This is a human visibility gate, not another implementation
+or signing hold.

@@ -74,8 +74,9 @@ returns. The separate M5 acceptance test remains deferred.
 
 ## Current baseline
 
-Installed app source `1d721c2`; exact CI `37846438226` passed. Native action
-refinement is installed. C8 is byte-preserved at `c8fe69a3...`; the stable
+Original intake baseline was `1d721c2`; the integrated parity successor
+`39fd687` is now pushed and installed, with exact CI `37854735645` green.
+C8 is byte-preserved at `c8fe69a3...`; the stable
 credential broker is byte-preserved at `2c40354c...`. This is a baseline for
 comparison, not full parity.
 
@@ -132,8 +133,9 @@ the REVISE verdict, original-spec gaps, exact public references and live
 read-only companion results. Profile, one actual console, friends and a full
 Hogwarts achievement list are feasible through the existing credential owner.
 The backend contract is implemented/tested at private commit `8cfcbaf`.
-App integration remains in progress; those reads do not certify installed
-native pages until P4/P5 runtime acceptance.
+App integration is implemented, source-reviewed and installed at `39fd687`.
+The final on-screen P7 review is held because the Mac is locked; those reads
+and source checks do not substitute for captures of the installed new pages.
 
 Social writes, purchase flows, remote console commands and experimental engine
 execution alternatives have no new capability claim. The six-hour slice

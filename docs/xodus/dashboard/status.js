@@ -2,7 +2,7 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-09T01:18:18+03:00",
+  updatedAt: "2026-10-09T02:09:38+03:00",
   phase: "Phase 4 — Xbox feature parity, independent review and native companion views",
   budget: { totalHours: 48, spentHours: 43.25, note: "42 h baseline + 6 h user-approved Xbox parity extension; onboarding and second-Mac testing deferred" },
 
@@ -46,28 +46,28 @@ window.XODUS_STATUS = {
         { id: "D9", title: "Game stats from Xbox", hours: 1.0, status: "done", done: "Play time, achievements and friends who play shown on Library and detail", evidence: "Account-bound Xbox stats and 15-minute refresh installed. Full profile and achievement-detail views are new parity scope below." },
         { id: "P1", title: "Xbox inventory and adversarial review", hours: 0.75, status: "done", done: "Source-backed 1:1 feature inventory, every-view review, uncovered original specs and one consolidated verdict", evidence: "REVISE: dual-access bug, missing companion/Engines pages, incomplete acquisition semantics and generic install errors. Original release-spec gaps catalogued." },
         { id: "P2", title: "Parity contracts and tomorrow triage", hours: 0.5, status: "done", done: "Ordered native/browser/unavailable plan; research-only extras separated from approved implementation", evidence: "Private backend 8cfcbaf: real profile, one console, four friends and 45 Hogwarts achievements; 13 parser/account-cache regressions pass. No console mutation." },
-        { id: "P3", title: "Owned and Game Pass clarity", hours: 0.75, status: "now", done: "Both badges can coexist; free access, installed state, active subscription and Mac support remain separate" },
-        { id: "P4", title: "Xbox profile and achievements", hours: 1.25, status: "next", done: "Real profile, gamer identity/G score and achievement views with account-safe paging/cache/errors", evidence: "Real account-bound caches ready; native app views being integrated, not yet installed." },
-        { id: "P5", title: "Consoles and browser remote play", hours: 0.75, status: "planned", done: "Actual console inventory where supported; verified official browser handoff, never invented devices or deep links" },
-        { id: "P6", title: "Native Engines page", hours: 0.75, status: "planned", done: "CrossOver and configured alternatives, observed components/readiness, safe defaults and honest experimental states" },
-        { id: "P7", title: "Integrated parity fixes and shipping", hours: 1.25, status: "planned", done: "Consolidated all-view fixes, independent review, exact CI, package/runtime acceptance and preserved saves/auth/C8" }
+        { id: "P3", title: "Owned and Game Pass clarity", hours: 0.75, status: "done", done: "Both badges can coexist; free access, installed state, active subscription and Mac support remain separate", evidence: "39fd687 installed: dual badges across all live views, overlapping filters, acquisition type explicitly unknown; no paid-purchase inference." },
+        { id: "P4", title: "Xbox profile and achievements", hours: 1.25, status: "done", done: "Real profile, gamer identity/G score and achievement views with account-safe paging/cache/errors", evidence: "39fd687 installed with real account-bound profile, friends and achievement pages; independent source review PASS. Final visual walkthrough waits for Mac unlock." },
+        { id: "P5", title: "Consoles and browser remote play", hours: 0.75, status: "done", done: "Actual console inventory where supported; verified official browser handoff, never invented devices or deep links", evidence: "Actual console shown from backend cache; publisher's browser Remote Play and setup links wired. No native streaming, wake commands or invented device links." },
+        { id: "P6", title: "Native Engines page", hours: 0.75, status: "done", done: "CrossOver and configured alternatives, observed components/readiness, safe defaults and honest experimental states", evidence: "Dedicated native Engines destination installed via Account, Settings and keyboard/menu; existing governed runtime section reused." },
+        { id: "P7", title: "Integrated parity fixes and shipping", hours: 1.25, status: "blocked", done: "Consolidated all-view fixes, independent review, exact CI, package/runtime acceptance and preserved saves/auth/C8", evidence: "Source PASS, exact CI 37854735645 green, all 22 installed files independently matched. Real trailer and Lara package check pass. Final new-page captures blocked by confirmed macOS screen lock." }
       ],
 
   capabilityInventory: [
     { feature: "Purchased PC library", xbox: "Owned library", xodus: "Paged PC collection exists; paid/free acquisition semantics need review", mode: "Native", state: "review" },
-    { feature: "Owned and Game Pass together", xbox: "Independent access filters", xodus: "Current single badge can hide membership overlap", mode: "Native fix", state: "planned" },
+    { feature: "Owned and Game Pass together", xbox: "Independent access filters", xodus: "Both badges now render; filters overlap; acquisition type remains explicitly unknown", mode: "Native", state: "implemented" },
     { feature: "Installed, recent and imported games", xbox: "My Library and recent play", xodus: "Local registry and Xodus sessions working", mode: "Native", state: "implemented" },
     { feature: "Game Pass status and catalogue", xbox: "Subscription and catalogue", xodus: "Active status/feed implemented; stale/revoked state review pending", mode: "Native", state: "review" },
     { feature: "Browse, search and editions", xbox: "Store discovery and edition selection", xodus: "Search implemented; paging/edition gaps need comparison", mode: "Native", state: "review" },
-    { feature: "Artwork, trailers and screenshots", xbox: "Media gallery", xodus: "Gallery/player implemented; live playback/detail-loading reliability being closed", mode: "Native", state: "review" },
+    { feature: "Artwork, trailers and screenshots", xbox: "Media gallery", xodus: "Optional metadata defects fixed; real Hogwarts HLS starts, pauses and releases cleanly", mode: "Native", state: "implemented" },
     { feature: "Install, cancel and progress", xbox: "Install queue", xodus: "Working backend; durable queue/pause/recovery boundaries need review", mode: "Native", state: "review" },
     { feature: "Update, repair and uninstall", xbox: "Manage game", xodus: "Check/repair and save-preserving uninstall working; automation/rollback review pending", mode: "Native", state: "review" },
-    { feature: "Profile and gamer identity", xbox: "Avatar, gamertag, bio, gamer score", xodus: "Live read succeeds: tag/avatar/G score; bio/location absent. Native view in progress", mode: "Native addition", state: "planned" },
-    { feature: "Achievements", xbox: "Per-game list and progress", xodus: "Live full Hogwarts list: 45 achievements, 1 earned; native detail integration pending", mode: "Native addition", state: "planned" },
+    { feature: "Profile and gamer identity", xbox: "Avatar, gamertag, bio, gamer score", xodus: "Native page installed with real tag/avatar/G score; absent bio/location hidden. Visual review awaits unlock", mode: "Native", state: "implemented" },
+    { feature: "Achievements", xbox: "Per-game list and progress", xodus: "Native list installed; real 45-entry Hogwarts cache, 1 earned, account-bound partial/error semantics", mode: "Native", state: "implemented" },
     { feature: "Friends and recently played", xbox: "Social/profile activity", xodus: "Friends-who-play stats exist; broader social/profile inventory needed", mode: "Research/triage", state: "research" },
-    { feature: "Console inventory", xbox: "Where I play / console list", xodus: "Live account enumeration returned 1 actual console; native view pending", mode: "Native read-only addition", state: "planned" },
-    { feature: "Console remote play", xbox: "Play from my console", xodus: "Official page's PLAY NOW link verified; no per-console deep link or native stream claim", mode: "Browser handoff", state: "planned" },
-    { feature: "Engine/runtime management", xbox: "Gaming Services diagnostics", xodus: "Runtime presets exist; dedicated Engines page missing", mode: "Native addition", state: "planned" },
+    { feature: "Console inventory", xbox: "Where I play / console list", xodus: "Native page installed with 1 actual console and supplied readiness/storage; visual review awaits unlock", mode: "Native read-only", state: "implemented" },
+    { feature: "Console remote play", xbox: "Play from my console", xodus: "Publisher's exact PLAY NOW and setup links wired; no per-console deep link/native stream", mode: "Browser handoff", state: "implemented" },
+    { feature: "Engine/runtime management", xbox: "Gaming Services diagnostics", xodus: "Dedicated Engines page installed; observed components and experimental configurations remain distinct", mode: "Native", state: "implemented" },
     { feature: "Cloud gaming", xbox: "Stream eligible games", xodus: "No native streaming claim; official browser option needs triage", mode: "Research/triage", state: "research" },
     { feature: "Party, chat and invites", xbox: "Social communications", xodus: "Not implemented; auth/privacy/write capabilities require research", mode: "Tomorrow triage", state: "deferred" },
     { feature: "DLC, mods and language components", xbox: "Manage add-ons/content", xodus: "No complete management UX; existing package support needs inventory", mode: "Tomorrow triage", state: "deferred" },
@@ -144,6 +144,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-09T02:10:00+03:00", text: "39fd687 parity build installed and independently source-reviewed PASS; exact CI and all 22 files verified. Final native walkthrough awaits Mac unlock" },
     { at: "2026-10-09T01:15:00+03:00", text: "Companion feasibility proven: actual profile, 1 console, 4 friends and 45 achievements; account-safe backend 8cfcbaf ready" },
     { at: "2026-10-09T01:10:00+03:00", text: "Independent Xbox parity review: REVISE; one consolidated native implementation batch underway" },
     { at: "2026-10-09T00:55:00+03:00", text: "User adds 6 h: full Xbox parity inventory/review; dual access badges, profile, achievements, consoles/browser remote play and Engines page" },

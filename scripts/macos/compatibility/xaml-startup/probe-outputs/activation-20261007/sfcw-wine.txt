@@ -1,0 +1,9 @@
+shcore=00006FFFFD270000 ord265=00006FFFFD274190
+null-window preset100: hr=0x00000000 scale=100
+null-window presetbad: hr=0x00000000 scale=0x64
+primary-monitor GetScaleFactorForMonitor: hr=0x00000000 scale=100
+system-dpi=96
+thread-desktop=0000000000000058
+null-window nullout: calling
+wine: Unhandled page fault on write access to 0000000000000000 at address 00006FFFFD2741B1 (thread 0024), starting debugger...
+GUARD: exit=5 reason=none base=     830 end=     838 winedbg=0

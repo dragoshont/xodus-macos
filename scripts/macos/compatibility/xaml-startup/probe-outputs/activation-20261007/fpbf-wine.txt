@@ -1,0 +1,26 @@
+wine: Call from 00006FFFFF34DB87 to unimplemented function coremessaging.dll.ServiceMain, aborting
+wine: Unimplemented function coremessaging.dll.ServiceMain called at address 00006FFFFF34DB87 (thread 009c), starting debugger...
+fpbpf=00006FFFFF361B30
+gaming: filter=0x10 ret=0 count=0 len=0
+gaming: filter=0x20 ret=0 count=0 len=0
+gaming: filter=0x30 ret=0 count=0 len=0
+gaming: filter=0x40 ret=0 count=0 len=0
+gaming: filter=0x80 ret=0 count=0 len=0
+gaming: filter=0x0 ret=87 count=8 len=1024
+gaming: filter=0x80010 ret=0 count=0 len=0
+gaming: filter=0x100010 ret=0 count=0 len=0
+gaming-bcp47: filter=0x10 ret=0 count=0 len=0
+gaming-sizeonly: filter=0x10 ret=0 count=0 len=0
+gaming-shortbuf: filter=0x10 ret=0 count=0 len=0
+gaming-zerocount: filter=0x10 ret=0 count=0 len=0
+gaming-lower: filter=0x10 ret=0 count=0 len=0
+xaml-head: filter=0x10 ret=0 count=0 len=0
+xaml-direct: filter=0x20 ret=0 count=0 len=0
+unknown: filter=0x10 ret=0 count=0 len=0
+fullname: filter=0x10 ret=0 count=0 len=0
+noseparator: filter=0x10 ret=87 count=8 len=1024
+empty: filter=0x10 ret=234 count=8 len=1024
+nullfamily: filter=0x10 ret=87 count=8 len=1024
+nullcount: filter=0x10 ret=87 count=8 len=1024
+nulllen: filter=0x10 ret=87 count=8 len=1024
+GUARD: exit=0 reason=none base=     829 end=     835 winedbg=0

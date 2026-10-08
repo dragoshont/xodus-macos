@@ -1,0 +1,10 @@
+ogusk=00006FFFFF3827F0
+CommonGlobUserSettings open=2
+read: st=0x0 key=0000000000000034
+read name=\REGISTRY\User\S-1-5-21-0-0-0-1000
+readwrite: st=0x0 key=set
+token: st=0x0 key=set
+token name=\REGISTRY\User\S-1-5-21-0-0-0-1000
+zeroaccess: st=0xc0000022 key=null
+nullout: st=0xc000000d
+GUARD: exit=0 reason=none base=     827 end=     831 winedbg=0

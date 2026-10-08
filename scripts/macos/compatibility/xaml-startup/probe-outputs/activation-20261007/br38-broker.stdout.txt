@@ -1,0 +1,25 @@
+[broker 03:47:21.021] start pid=524 CoInitializeEx -> 0 seconds=230
+[broker 03:47:21.088] CoRegisterClassObject {3480A401-BDE9-4407-BC02-798A866AC051} -> 0
+[broker 03:47:45.732] CreateInstance riid={0F4ACCB1-D8F9-4011-BA37-2557925A78CF} -> 0
+[broker 03:47:45.732] provider QI {00000003-0000-0000-C000-000000000046} -> E_NOINTERFACE
+[broker 03:47:45.732] provider QI {00000003-0000-0000-C000-000000000046} -> E_NOINTERFACE
+[broker 03:47:45.732] provider QI {00000019-0000-0000-C000-000000000046} -> E_NOINTERFACE
+[broker 03:47:45.741] provider slot3 service={D98FD14A-522A-4D59-B875-811E83919A9E} riid={D98FD14A-522A-4D59-B875-811E83919A9E} -> 0
+[broker 03:47:45.741] broker QI {00000003-0000-0000-C000-000000000046} -> E_NOINTERFACE
+[broker 03:47:45.741] broker QI {00000003-0000-0000-C000-000000000046} -> E_NOINTERFACE
+[broker 03:47:45.741] broker QI {00000019-0000-0000-C000-000000000046} -> E_NOINTERFACE
+[broker 03:47:45.744] broker slot5 aamId=0 results=0000000000AED360 out=0000000000AED390
+[broker 03:47:45.744] broker slot5 -> S_OK factory=0000000000AE0730
+[broker 03:47:45.744] factory GetClassForHandler ctx=0
+[broker 03:47:45.744] factory GetMarshalSizeMax -> 0 size=117
+[broker 03:47:45.745] factory GetClassForHandler ctx=0
+[broker 03:47:45.745] factory GetUnmarshalClass ctx=0 flags=0 -> 0 {00000027-0000-0008-C000-000000000046}
+[broker 03:47:45.745] factory GetClassForHandler ctx=0
+[broker 03:47:45.745] factory GetMarshalSizeMax -> 0 size=117
+[broker 03:47:45.745] factory GetClassForHandler ctx=0
+[broker 03:47:45.745] factory QI {00000019-0000-0000-C000-000000000046} -> E_NOINTERFACE
+[broker 03:47:45.745] factory std MarshalInterface riid={AF86E2E0-B12D-4C6A-9C5A-D7AA65101E90} ctx=0 flags=0 -> 0
+[broker 03:47:45.745] factory additional data rect=0,0,1280,800 type=6 nav=0 rot=none prop=none -> 0
+[broker 03:47:45.753] IConfigureWindowFactory::CreateSplashScreen flags=0 -> E_NOTIMPL (no splash surface)
+[broker 03:51:11.094] exit
+[broker 03:51:11.096] factory released

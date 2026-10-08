@@ -22,9 +22,13 @@ experimental Mac. Each run was the genuine `Microsoft.GamingApp`
 ## Files
 
 - `wine-xbox-original-app-sprint.patch`: the cumulative source delta for the
-  stage, 71 files. `make-sprint-patch.py` generates it: each file is diffed
-  from its earliest `.pre-*` (or `.base`) backup, and new files are diffed
-  against `/dev/null`.
+  stage: 84 files plus a `configure.ac` hunk, regenerated at br38.
+  `make-sprint-patch.py` generates it. Each file is diffed from its earliest
+  `.pre-*` (or `.base`) backup, and new files are diffed against `/dev/null`.
+  At br38 the new files were `dlls/profapi/main.c` and
+  `dlls/windows.staterepositorycore/*`, and `configure.ac` was appended by
+  hand. `probe-outputs/activation-20261007/built-dll-sha256-br38.txt` lists
+  the DLLs built at br38.
 - `built-dll-sha256.txt`: hashes of the built PE DLLs and `.so` files, the
   genuine `Windows.UI.Xaml.dll`, `CoreMessaging.dll`, `MrmCoreR.dll`,
   `bcp47mrm.dll` and `threadpoolwinrt.dll` that were exercised, and the patch
@@ -366,12 +370,99 @@ need the shell-hosted window broker to produce a window, which is the stop
   shell-host lane, implementing both the registrar and the window broker
   against the measured contract.
 
+## Shell-host lane: activator, window broker and the navigation-client stop (2026-10-07 22:00 – 2026-10-08 04:30)
+
+The owner approved the shell-host lane end to end. Its bounded stop rule:
+stop if the next step needs explorer, ApplicationFrameHost RPC or a window
+band. Runs `ac1` and `br7`–`br38` use `activate-app.c` (external activator)
+and `shellhost-broker.c` (window broker), through `guard.sh`. Logs stay on
+the stage (`brNN-*.log`). Selected outputs are in
+`probe-outputs/activation-20261007/`.
+
+Lane files:
+
+- `activate-app.c`: calls the app's published `Microsoft.Xbox.AppL` factory
+  through `IActivatableApplication::Activate`. The launch arguments are genuine
+  twinapi.appcore `LaunchActivatedEventArgs`, built through
+  `UnmarshalObjectFromPropertySet`. That is the native route, measured with
+  `args-propset-probe.c`; the shared code is in `launch-args-propset.h`.
+- `shellhost-broker.c`: a local server for
+  `ShellServiceHostBrokerProvider {3480A401}`. It implements
+  `IApplicationActivationBroker`, and an `ICoreWindowFactory` that is
+  handler-marshaled in the measured wire format
+  (`CImmersiveWindowFactoryBase::v_MarshalAdditionalData`).
+- `register-appcore-handlers.sh`: mirrors native `InProcHandler32` and
+  proxy/stub registrations owned by twinapi.appcore.
+- `patch-stdmex-handler.py`: OBJREF_HANDLER marshaling for combase, checked
+  against `handler-unmarshal-probe.c` (paired, native and Wine).
+- New paired probes for each slice:
+  - `current-package-*`, `os-max-version-tested`, `check-sandboxed-token`,
+    `staged-package-path`, `srcache`, `package-family-name`,
+    `appcontainer-registry-handle` and `package-globalization-context`;
+  - `scale-factor-core-window`, `find-packages-by-family`,
+    `globalization-user-settings-key` and `wnf-query-state`;
+  - `audit-alpc-impersonate-pending` and `audit-claims`.
+- `onecoreuap-proxystub-iids.txt`: the 6497 native OneCoreUAP proxy/stub IIDs
+  that were mirrored.
+
+| Run | Reached failure (original app) | Resolution | Evidence |
+|---|---|---|---|
+| ac1 | app waits for an external activator | `activate-app.c` calls the published factory; app asks for the broker | `ac1-activator-experiment.txt` |
+| br7–br8 | args NULL, then remote QI `{99FC44E3}` E_NOINTERFACE | genuine args via property set; PS registration mirrored | `launch-args-*` |
+| br9 | `PsmGetKeyFromToken` missing | honest `STATUS_NOT_IMPLEMENTED` export; twinapi continues as with reason 0 | — |
+| br10 | Activate E_NOINTERFACE | 6497 OneCoreUAP PS IIDs mirrored | `onecoreuap-proxystub-iids.txt` |
+| br11–br16 | CoreMessaging registrar refuses the view thread | ntdll: zero the receive CONTEXT of a connection request, as native does | `audit-alpc-impersonate-pending` |
+| br17–br29 | MRT package identity chain | `GetCurrentPackageId`, `GetCurrentPackageInfo2/3` (NULL count allowed), `AppXGetOSMaxVersionTested`, `RtlCheckSandboxedToken`, `GetStagedPackagePathByFullName2`, new `windows.staterepositorycore` cache (`SRCacheManager_Open` read path), `PackageFamilyNameFromFullName`, profapi #114, globalization context | paired probes listed above |
+| br29–br30 | `Windows.UI.Core.CoreWindow` statics missing | upstream Wine backport (`corewindow.c` and test) | — |
+| br30–br31 | shcore #265 (`GetScaleFactorForCoreWindow`, from MrmCoreR) | implemented against native results | `sfcw-*` |
+| br31–br32 | `FindPackagesByPackageFamily` | implemented (MAIN/FRAMEWORK only) | `fpbf-*` |
+| br32–br33 | `GetStagedPackagePathByFullName` | implemented (`staged-package-path-probe.c` covers v1 and v2) | — |
+| br33–br34 | `OpenGlobalizationUserSettingsKey` | implemented | `ogusk-*` |
+| br34–br35 | WNF state query | ntdll WNF model: measured unpublished names return size 0 | `wnf-*` |
+| br35–br36 | broker reached; handler re-marshal | broker `ICoreWindowFactory` mirrors the native base | `br38-broker.stdout.txt` |
+| br36–br37 | `NdrStubCall3`: "NDR64 server stubs are not supported" | rpcrt4: `NdrClientInitializeNew` sets `RpcMsg->TransferSyntax` to NDR 2.0, which every Wine client path marshals; in-process `NdrStubCall3` read a garbage pointer before | — |
+| br37–br38 | re-marshaled factory became a plain proxy, so `CreateCoreWindow` ran on the broker (E_NOTIMPL) | combase: a client handler identity re-marshals as OBJREF_HANDLER with its handler CLSID | — |
+| **br38** | CoreWindow created on the view ASTA; then `PrepareToActivateAsync` E_NOTIMPL and `ICoreApplicationViewInternal` method 7 E_FAIL | **stop rule (shell window manager)** | `navigation-client-boundary.txt` |
+
+**Why br38 is the stop.** On DESKTOP, `IsWindowClientBamoEnabled` is false and
+`IsApplicationActivationWatcherEnabled` is true. `PrepareToActivateAsync`
+therefore needs the CoreWindow's navigation client.
+
+- `CreateCoreWindow` attaches that client only when the factory data sets the
+  navigation flag and id: `Windows.Phone.UI.Core.ImmersiveNavigationClient`,
+  which is in-process in `CoreUIComponents.dll`.
+- That class is a client of the CoreUI shell server: WindowManager endpoint,
+  SessionLayer, ForegroundTaskManager. The navigation id is a window/task id
+  owned by that server.
+- `ActivateInternal` propagates the failure (Return_Hr line 0x215).
+- Providing the client means implementing the shell window manager, which
+  is explorer/ApplicationFrameHost territory. The broker keeps `nav=0`, and
+  no id or client is fabricated.
+
+**Recorded deviations and model gaps in this lane:**
+
+- low-IL token stub; source of the globalization flag;
+- shcore per-window scale is not modelled;
+- CoreWindow `GetForCurrentThread` returns NULL;
+- FPBF has no RESOURCE or BUNDLE support;
+- OGUSK multi-session redirection is not modelled;
+- WNF knows only the 2 measured names;
+- `RtlGetDeviceFamilyInfoEnum` is a DESKTOP stub;
+- `RtlQueryFeatureConfiguration` and `WilFailureNotifyWatchers` are absent,
+  so WIL uses compiled feature defaults;
+- the broker has no splash surface; its window type 6 and 1280x800
+  geometry are host choices;
+- the handler re-marshal rule is inferred from twinapi's delegation to the
+  inner standard marshaler, not measured natively.
+
 ## Status
 
 These are candidates for an experimental runtime. Nothing is upstreamed,
 pushed or signed. Passing probes and getting further along the headless chain
-are **not** app milestones. XBOX-APP-STARTUP remains UNTESTED: the original
-app stays alive about 70 s, but no window of its own appears.
+are **not** app milestones. XBOX-APP-STARTUP remains UNTESTED. At br38 the
+original app creates its CoreWindow under the Xodus broker. Activation then
+fails at the shell navigation-client boundary, so no window of its own was
+proven.
 
 Sprint budget: started 2026-10-07 13:39 +03:00, hard deadline 2026-10-08
 13:39 +03:00.

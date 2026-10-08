@@ -1,0 +1,7 @@
+shcore=00007FF921DA0000 ord265=00007FF921DA21B0
+null-window preset100: hr=0x00000000 scale=200
+null-window presetbad: hr=0x00000000 scale=0xc8
+primary-monitor GetScaleFactorForMonitor: hr=0x00000000 scale=200
+system-dpi=96
+thread-desktop=000000000000014C
+null-window nullout: calling

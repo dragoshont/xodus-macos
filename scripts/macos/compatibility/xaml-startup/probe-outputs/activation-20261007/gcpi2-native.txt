@@ -1,0 +1,156 @@
+sizeof(PACKAGE_INFO)=80
+GCPI(0) ret=122 len=3504 count=5
+GCPI(0,full) ret=0 len=3504 count=5
+  [0] reserved=0 flags=0x10 path=+400 C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+      full=+800 Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe fam=+912 Microsoft.GamingApp_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2609.1001.16.0 name=+570 pub=+638 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+610
+  [1] reserved=0 flags=0x21 path=+980 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+      full=+1392 Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe fam=+1508 Microsoft.VCLibs.140.00_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33519.0 name=+1154 pub=+1230 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1202
+  [2] reserved=0 flags=0x21 path=+1584 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+      full=+2040 Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe fam=+2178 Microsoft.VCLibs.140.00.UWPDesktop_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33728.0 name=+1780 pub=+1878 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1850
+  [3] reserved=0 flags=0x21 path=+2276 C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+      full=+2684 Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe fam=+2800 Microsoft.UI.Xaml.2.8_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=8.2511.26001.0 name=+2450 pub=+2522 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+2494
+  [4] reserved=0 flags=0x21 path=+2872 C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+      full=+3298 Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe fam=+3416 Microsoft.WindowsAppRuntime.2_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2.5.1.0 name=+3048 pub=+3136 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+3108
+GCPI2(flags=0,type=0,NULL) ret=122 len=3504 count=5
+  short ret=122 len=3504 count=5
+  full ret=0 len=3504 count=5
+  [0] reserved=0 flags=0x10 path=+400 C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+      full=+800 Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe fam=+912 Microsoft.GamingApp_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2609.1001.16.0 name=+570 pub=+638 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+610
+  [1] reserved=0 flags=0x21 path=+980 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+      full=+1392 Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe fam=+1508 Microsoft.VCLibs.140.00_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33519.0 name=+1154 pub=+1230 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1202
+  [2] reserved=0 flags=0x21 path=+1584 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+      full=+2040 Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe fam=+2178 Microsoft.VCLibs.140.00.UWPDesktop_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33728.0 name=+1780 pub=+1878 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1850
+  [3] reserved=0 flags=0x21 path=+2276 C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+      full=+2684 Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe fam=+2800 Microsoft.UI.Xaml.2.8_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=8.2511.26001.0 name=+2450 pub=+2522 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+2494
+  [4] reserved=0 flags=0x21 path=+2872 C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+      full=+3298 Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe fam=+3416 Microsoft.WindowsAppRuntime.2_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2.5.1.0 name=+3048 pub=+3136 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+3108
+GCPI2(flags=0x10,type=0,NULL) ret=122 len=660 count=1
+GCPI2(flags=0x20,type=0,NULL) ret=122 len=2844 count=4
+GCPI2(flags=0x30,type=0,NULL) ret=122 len=3504 count=5
+GCPI2(flags=0x40,type=0,NULL) ret=0 len=0 count=0
+GCPI2(flags=0x80,type=0,NULL) ret=0 len=0 count=0
+GCPI2(flags=0x20000,type=0,NULL) ret=0 len=0 count=0
+GCPI2(flags=0x40000,type=0,NULL) ret=0 len=0 count=0
+GCPI2(flags=0x80000,type=0,NULL) ret=122 len=3504 count=5
+GCPI2(flags=0x100000,type=0,NULL) ret=0 len=0 count=0
+GCPI2(flags=0xffffffff,type=0,NULL) ret=122 len=3504 count=5
+GCPI2(flags=0,type=1,NULL) ret=15707 len=0 count=77
+GCPI2(flags=0x10,type=1,NULL) ret=15707 len=0 count=77
+GCPI2(flags=0x20,type=1,NULL) ret=15707 len=0 count=77
+GCPI2(flags=0x30,type=1,NULL) ret=15707 len=0 count=77
+GCPI2(flags=0x40,type=1,NULL) ret=0 len=0 count=0
+GCPI2(flags=0x80,type=1,NULL) ret=0 len=0 count=0
+GCPI2(flags=0x20000,type=1,NULL) ret=0 len=0 count=0
+GCPI2(flags=0x40000,type=1,NULL) ret=0 len=0 count=0
+GCPI2(flags=0x80000,type=1,NULL) ret=15707 len=0 count=77
+GCPI2(flags=0x100000,type=1,NULL) ret=0 len=0 count=0
+GCPI2(flags=0xffffffff,type=1,NULL) ret=15707 len=0 count=77
+GCPI2(flags=0,type=2,NULL) ret=122 len=3504 count=5
+  short ret=122 len=3504 count=5
+  full ret=0 len=3504 count=5
+  [0] reserved=0 flags=0x10 path=+400 C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+      full=+800 Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe fam=+912 Microsoft.GamingApp_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2609.1001.16.0 name=+570 pub=+638 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+610
+  [1] reserved=0 flags=0x21 path=+980 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+      full=+1392 Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe fam=+1508 Microsoft.VCLibs.140.00_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33519.0 name=+1154 pub=+1230 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1202
+  [2] reserved=0 flags=0x21 path=+1584 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+      full=+2040 Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe fam=+2178 Microsoft.VCLibs.140.00.UWPDesktop_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33728.0 name=+1780 pub=+1878 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1850
+  [3] reserved=0 flags=0x21 path=+2276 C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+      full=+2684 Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe fam=+2800 Microsoft.UI.Xaml.2.8_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=8.2511.26001.0 name=+2450 pub=+2522 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+2494
+  [4] reserved=0 flags=0x21 path=+2872 C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+      full=+3298 Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe fam=+3416 Microsoft.WindowsAppRuntime.2_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2.5.1.0 name=+3048 pub=+3136 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+3108
+GCPI2(flags=0x10,type=2,NULL) ret=122 len=660 count=1
+  short ret=122 len=660 count=1
+  full ret=0 len=660 count=1
+  [0] reserved=0 flags=0x10 path=+80 C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+      full=+480 Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe fam=+592 Microsoft.GamingApp_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2609.1001.16.0 name=+250 pub=+318 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+290
+GCPI2(flags=0x20,type=2,NULL) ret=122 len=2844 count=4
+  short ret=122 len=2844 count=4
+  full ret=0 len=2844 count=4
+  [0] reserved=0 flags=0x21 path=+320 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+      full=+732 Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe fam=+848 Microsoft.VCLibs.140.00_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33519.0 name=+494 pub=+570 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+542
+  [1] reserved=0 flags=0x21 path=+924 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+      full=+1380 Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe fam=+1518 Microsoft.VCLibs.140.00.UWPDesktop_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33728.0 name=+1120 pub=+1218 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1190
+  [2] reserved=0 flags=0x21 path=+1616 C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+      full=+2024 Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe fam=+2140 Microsoft.UI.Xaml.2.8_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=8.2511.26001.0 name=+1790 pub=+1862 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1834
+  [3] reserved=0 flags=0x21 path=+2212 C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+      full=+2638 Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe fam=+2756 Microsoft.WindowsAppRuntime.2_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2.5.1.0 name=+2388 pub=+2476 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+2448
+GCPI2(flags=0x30,type=2,NULL) ret=122 len=3504 count=5
+  short ret=122 len=3504 count=5
+  full ret=0 len=3504 count=5
+  [0] reserved=0 flags=0x10 path=+400 C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+      full=+800 Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe fam=+912 Microsoft.GamingApp_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2609.1001.16.0 name=+570 pub=+638 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+610
+  [1] reserved=0 flags=0x21 path=+980 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+      full=+1392 Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe fam=+1508 Microsoft.VCLibs.140.00_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33519.0 name=+1154 pub=+1230 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1202
+  [2] reserved=0 flags=0x21 path=+1584 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+      full=+2040 Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe fam=+2178 Microsoft.VCLibs.140.00.UWPDesktop_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33728.0 name=+1780 pub=+1878 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1850
+  [3] reserved=0 flags=0x21 path=+2276 C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+      full=+2684 Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe fam=+2800 Microsoft.UI.Xaml.2.8_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=8.2511.26001.0 name=+2450 pub=+2522 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+2494
+  [4] reserved=0 flags=0x21 path=+2872 C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+      full=+3298 Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe fam=+3416 Microsoft.WindowsAppRuntime.2_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2.5.1.0 name=+3048 pub=+3136 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+3108
+GCPI2(flags=0x40,type=2,NULL) ret=0 len=0 count=0
+GCPI2(flags=0x80,type=2,NULL) ret=0 len=0 count=0
+GCPI2(flags=0x20000,type=2,NULL) ret=0 len=0 count=0
+GCPI2(flags=0x40000,type=2,NULL) ret=0 len=0 count=0
+GCPI2(flags=0x80000,type=2,NULL) ret=122 len=3504 count=5
+  short ret=122 len=3504 count=5
+  full ret=0 len=3504 count=5
+  [0] reserved=0 flags=0x10 path=+400 C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+      full=+800 Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe fam=+912 Microsoft.GamingApp_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2609.1001.16.0 name=+570 pub=+638 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+610
+  [1] reserved=0 flags=0x21 path=+980 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+      full=+1392 Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe fam=+1508 Microsoft.VCLibs.140.00_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33519.0 name=+1154 pub=+1230 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1202
+  [2] reserved=0 flags=0x21 path=+1584 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+      full=+2040 Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe fam=+2178 Microsoft.VCLibs.140.00.UWPDesktop_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33728.0 name=+1780 pub=+1878 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1850
+  [3] reserved=0 flags=0x21 path=+2276 C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+      full=+2684 Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe fam=+2800 Microsoft.UI.Xaml.2.8_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=8.2511.26001.0 name=+2450 pub=+2522 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+2494
+  [4] reserved=0 flags=0x21 path=+2872 C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+      full=+3298 Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe fam=+3416 Microsoft.WindowsAppRuntime.2_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2.5.1.0 name=+3048 pub=+3136 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+3108
+GCPI2(flags=0x100000,type=2,NULL) ret=0 len=0 count=0
+GCPI2(flags=0xffffffff,type=2,NULL) ret=122 len=3504 count=5
+  short ret=122 len=3504 count=5
+  full ret=0 len=3504 count=5
+  [0] reserved=0 flags=0x10 path=+400 C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+      full=+800 Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe fam=+912 Microsoft.GamingApp_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2609.1001.16.0 name=+570 pub=+638 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+610
+  [1] reserved=0 flags=0x21 path=+980 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+      full=+1392 Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe fam=+1508 Microsoft.VCLibs.140.00_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33519.0 name=+1154 pub=+1230 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1202
+  [2] reserved=0 flags=0x21 path=+1584 C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+      full=+2040 Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe fam=+2178 Microsoft.VCLibs.140.00.UWPDesktop_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=14.0.33728.0 name=+1780 pub=+1878 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+1850
+  [3] reserved=0 flags=0x21 path=+2276 C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+      full=+2684 Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe fam=+2800 Microsoft.UI.Xaml.2.8_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=8.2511.26001.0 name=+2450 pub=+2522 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+2494
+  [4] reserved=0 flags=0x21 path=+2872 C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+      full=+3298 Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe fam=+3416 Microsoft.WindowsAppRuntime.2_8wekyb3d8bbwe
+      id: res=0 arch=12 ver=2.5.1.0 name=+3048 pub=+3136 CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US resId=+-1 (null) pubId=+3108
+GCPI2_PROBE_DONE

@@ -1,0 +1,10 @@
+[Contoso.App_1.2.3.4_x64_~_8wekyb3d8bbwe]
+  big          len_in=300 ret=87   len=300 buf=untouched
+[Contoso.App_1.2.3.4_x64_~a_8wekyb3d8bbwe]
+  big          len_in=300 ret=87   len=300 buf=untouched
+[Contoso.App_1.2.3.4_x64_a~_8wekyb3d8bbwe]
+  big          len_in=300 ret=87   len=300 buf=untouched
+[Contoso.App_1.2.3.4_x64_ab_8wekyb3d8bbwe]
+  big          len_in=300 ret=0    len=26  buf=Contoso.App_8wekyb3d8bbwe
+[Contoso.App_1.2.3.4_neutral_~_8wekyb3d8bbwe]
+  big          len_in=300 ret=0    len=26  buf=Contoso.App_8wekyb3d8bbwe

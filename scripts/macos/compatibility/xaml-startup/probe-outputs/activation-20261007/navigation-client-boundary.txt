@@ -1,0 +1,25 @@
+Navigation-client boundary (br38, 2026-10-08). Static analysis of twinapi.appcore.dll (x64, public PDB) and
+CoreUIComponents.dll strings; native registration from the Windows 11 ARM64 VM.
+
+1. br38 (Wine): CImmersiveWindowFactoryProxy::CreateCoreWindow ran in the view ASTA (0320) and created the CoreWindow.
+   Then {f679dbef} method 6 = CoreApplicationView::PrepareToActivateAsync (RVA 0x1e6e0) returned E_NOTIMPL
+   (WIL Return_Hr line 0x5e4), and ICoreApplicationViewInternal {2e5500b6} method 7 returned E_FAIL to the MTA (02a4).
+2. PrepareToActivateAsync: IsWindowClientBamoEnabled (0x1e9a8) returns false for DeviceFamily 3 (DESKTOP), so it calls
+   GetCoreWindowNavigationClient (0x1e4dc): CoreWindow (this+0xe8) QI {0764019b-52c1-41f9-b6f2-9cc205973692}, method 6.
+   NULL client -> E_NOTIMPL (line 0x5e4). Non-NULL -> QI {075be329-825a-4f2a-a8af-cd2f9a8102ec}, method 6.
+3. Caller CoreApplicationViewAgileContainer::PrepareToActivateInternal (0x1f220) runs when
+   IsApplicationActivationWatcherEnabled (0x1ff8c) is true; for DESKTOP it is true (the WIL feature check only reports
+   usage). ActivateInternal (0x20a86) propagates the failure: Return_Hr line 0x215, then fails activation.
+4. The navigation client is attached in CImmersiveWindowFactoryProxy::CreateCoreWindow (0xdeb20) only when the
+   factory additional data sets the navigation flag (+0x7c / +0x90, feature LIACoreNavigationClient):
+   RoGetActivationFactory("Windows.Phone.UI.Core.ImmersiveNavigationClient"), then vtbl[6](nav id at +0x8c).
+5. Native registration: Windows.Phone.UI.Core.ImmersiveNavigationClient -> C:\Windows\System32\CoreUIComponents.dll,
+   in-process (immersive-navigation-client-registration-native.txt).
+6. CoreUIComponents implements CoreNavigationClient as a client of the CoreUI shell server: strings include
+   "CoreUI NavigationWindow ... WindowManager Endpoint Not Found", "CUI WindowManager", "CUI SessionLayer",
+   "CoreUI ForegroundTaskManager", "BrokerSessionManager - InitiateModernActivation". The nav id is a window/task id
+   owned by that server.
+
+Decision: supplying a navigation client requires the shell window-manager/session server (explorer /
+ApplicationFrameHost class). That is the declared bounded stop rule. No navigation id or client is fabricated.
+The broker keeps nav=0. XBOX-APP-STARTUP stays UNTESTED; no original window was proven.

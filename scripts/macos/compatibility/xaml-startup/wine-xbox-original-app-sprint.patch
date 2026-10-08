@@ -8,7 +8,15 @@ diff -u a/dlls/apisetschema/apisetschema.spec b/dlls/apisetschema/apisetschema.s
  apiset api-ms-win-audiocore-spatial-config-l1-1-0 = windows.media.devices.dll
  apiset api-ms-win-base-bootconfig-l1-1-0 = advapi32.dll
  apiset api-ms-win-base-util-l1-1-0 = advapi32.dll
-@@ -391,6 +392,7 @@
+@@ -332,6 +333,7 @@
+ apiset ext-ms-onecore-appmodel-emclient-l1-1-0 =
+ apiset ext-ms-onecore-appmodel-emsvcs-l1-1-0 =
+ apiset ext-ms-onecore-appmodel-pacmanclient-l1-1-0 =
++apiset ext-ms-onecore-appmodel-staterepository-cache-l1-1-0 = windows.staterepositorycore.dll
+ apiset ext-ms-onecore-comp-dwmmonitor-l1-1-0 =
+ apiset ext-ms-onecore-dcomp-l1-1-0 = dcomp.dll
+ apiset ext-ms-onecore-defaultdiscovery-l1-1-0 =
+@@ -391,6 +393,7 @@
  apiset ext-ms-win-com-ole32-l1-2-0 = ole32.dll
  apiset ext-ms-win-com-ole32-l1-3-0 = ole32.dll
  apiset ext-ms-win-com-ole32-l1-4-0 = ole32.dll
@@ -16,7 +24,7 @@ diff -u a/dlls/apisetschema/apisetschema.spec b/dlls/apisetschema/apisetschema.s
  apiset ext-ms-win-com-sta-l1-1-0 = ole32.dll
  apiset ext-ms-win-com-suspendresiliency-l1-1-0 =
  apiset ext-ms-win-composition-holographic-l1-1-0 =
-@@ -483,6 +485,7 @@
+@@ -483,6 +486,7 @@
  apiset ext-ms-win-mm-msacm-l1-1-0 = msacm32.dll
  apiset ext-ms-win-mm-pehelper-l1-1-0 = mf.dll
  apiset ext-ms-win-mm-wmvcore-l1-1-0 = wmvcore.dll
@@ -773,7 +781,33 @@ diff -u a/dlls/combase/combase.spec b/dlls/combase/combase.spec
 diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 --- a/dlls/combase/marshal.c
 +++ b/dlls/combase/marshal.c
-@@ -2277,4 +2277,252 @@
+@@ -564,6 +564,9 @@
+  * The function leaves the stream pointer at the start of the data written
+  * to the stream by the IMarshal* object.
+  */
++static const CLSID CLSID_AggStdMarshal_ = {0x00000027,0x0000,0x0008,{0xc0,0x00,0x00,0x00,0x00,0x00,0x00,0x46}};
++static HRESULT agg_std_unmarshaler_create(IMarshal **marshal);
++
+ static HRESULT get_unmarshaler_from_stream(IStream *stream, IMarshal **marshal, IID *iid)
+ {
+     OBJREF objref;
+@@ -608,9 +611,12 @@
+             return STG_E_READFAULT;
+         }
+         /* now create the marshaler specified in the stream */
+-        hr = CoCreateInstance(&objref.u_objref.u_custom.clsid, NULL,
+-                              CLSCTX_INPROC_SERVER, &IID_IMarshal,
+-                              (LPVOID*)marshal);
++        if (IsEqualCLSID(&objref.u_objref.u_custom.clsid, &CLSID_AggStdMarshal_))
++            hr = agg_std_unmarshaler_create(marshal);
++        else
++            hr = CoCreateInstance(&objref.u_objref.u_custom.clsid, NULL,
++                                  CLSCTX_INPROC_SERVER, &IID_IMarshal,
++                                  (LPVOID*)marshal);
+     }
+     else
+     {
+@@ -2277,4 +2283,892 @@
      TRACE("%s, %p, %lx, %p, %lx, %p\n", debugstr_guid(riid), pUnk, dwDestContext, dest_context, flags, marshal);
  
      return StdMarshalImpl_Construct(&IID_IMarshal, dwDestContext, dest_context, (void **)marshal);
@@ -882,10 +916,32 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +    return IUnknown_Release(marshal->outer);
 +}
 +
++/* An object exposing IStdMarshalInfo is marshaled for an in-process handler: OBJREF_CUSTOM for
++ * CLSID_AggStdMarshal wrapping an OBJREF_HANDLER that names the handler class. */
++static BOOL std_marshal_ex_get_handler(struct std_marshal_ex *marshal, DWORD dest_context,
++        void *dest_context_data, CLSID *clsid)
++{
++    IStdMarshalInfo *info;
++    HRESULT hr;
++
++    if (FAILED(IUnknown_QueryInterface(marshal->outer, &IID_IStdMarshalInfo, (void **)&info)))
++        return FALSE;
++    hr = IStdMarshalInfo_GetClassForHandler(info, dest_context, dest_context_data, clsid);
++    IStdMarshalInfo_Release(info);
++    return hr == S_OK;
++}
++
 +static HRESULT WINAPI std_marshal_ex_GetUnmarshalClass(IMarshal *iface, REFIID riid, void *pv,
 +        DWORD dest_context, void *dest_context_data, DWORD mshlflags, CLSID *clsid)
 +{
 +    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
++    CLSID handler;
++
++    if (std_marshal_ex_get_handler(marshal, dest_context, dest_context_data, &handler))
++    {
++        *clsid = CLSID_AggStdMarshal_;
++        return S_OK;
++    }
 +    return IMarshal_GetUnmarshalClass(marshal->std, riid, pv, dest_context, dest_context_data, mshlflags, clsid);
 +}
 +
@@ -893,21 +949,51 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +        DWORD dest_context, void *dest_context_data, DWORD mshlflags, DWORD *size)
 +{
 +    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
-+    return IMarshal_GetMarshalSizeMax(marshal->std, riid, pv, dest_context, dest_context_data, mshlflags, size);
++    CLSID handler;
++    HRESULT hr;
++
++    hr = IMarshal_GetMarshalSizeMax(marshal->std, riid, pv, dest_context, dest_context_data, mshlflags, size);
++    if (SUCCEEDED(hr) && std_marshal_ex_get_handler(marshal, dest_context, dest_context_data, &handler))
++        *size += sizeof(CLSID);
++    return hr;
 +}
 +
 +static HRESULT WINAPI std_marshal_ex_MarshalInterface(IMarshal *iface, IStream *stream, REFIID riid, void *pv,
 +        DWORD dest_context, void *dest_context_data, DWORD mshlflags)
 +{
 +    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
-+    return IMarshal_MarshalInterface(marshal->std, stream, riid, pv, dest_context, dest_context_data, mshlflags);
++    struct apartment *apt;
++    OBJREF objref;
++    CLSID handler;
++    HRESULT hr;
++    ULONG res;
++
++    if (!std_marshal_ex_get_handler(marshal, dest_context, dest_context_data, &handler))
++        return IMarshal_MarshalInterface(marshal->std, stream, riid, pv, dest_context, dest_context_data, mshlflags);
++
++    TRACE("handler %s\n", debugstr_guid(&handler));
++
++    if (!(apt = apartment_get_current_or_mta()))
++        return CO_E_NOTINITIALIZED;
++    rpc_start_remoting(apt);
++
++    objref.signature = OBJREF_SIGNATURE;
++    objref.flags = OBJREF_HANDLER;
++    objref.iid = *riid;
++    hr = marshal_object(apt, &objref.u_objref.u_handler.std, riid, pv, dest_context, dest_context_data, mshlflags);
++    apartment_release(apt);
++    if (hr != S_OK)
++        return hr;
++    objref.u_objref.u_handler.clsid = handler;
++    memset(&objref.u_objref.u_handler.saResAddr, 0, sizeof(objref.u_objref.u_handler.saResAddr));
++    return IStream_Write(stream, &objref, FIELD_OFFSET(OBJREF, u_objref.u_handler.saResAddr.aStringArray), &res);
 +}
 +
 +static HRESULT WINAPI std_marshal_ex_UnmarshalInterface(IMarshal *iface, IStream *stream, REFIID riid, void **obj)
 +{
 +    struct std_marshal_ex *marshal = std_marshal_ex_from_IMarshal(iface);
 +    return IMarshal_UnmarshalInterface(marshal->std, stream, riid, obj);
- }
++}
 +
 +static HRESULT WINAPI std_marshal_ex_ReleaseMarshalData(IMarshal *iface, IStream *stream)
 +{
@@ -951,6 +1037,583 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +    std_marshal_ex_DisconnectObject,
 +};
 +
++/* Reads the rest of an OBJREF_HANDLER and returns its standard part as a stream holding an OR_STANDARD. */
++static HRESULT handler_objref_to_std_stream(IStream *stream, CLSID *clsid, IStream **std_stream)
++{
++    LARGE_INTEGER zero = {{ 0 }};
++    struct OR_STANDARD std;
++    struct OR_HANDLER obj;
++    HRESULT hr;
++    ULONG res;
++
++    *std_stream = NULL;
++    hr = IStream_Read(stream, &obj, FIELD_OFFSET(struct OR_HANDLER, saResAddr.aStringArray), &res);
++    if (hr != S_OK || res != FIELD_OFFSET(struct OR_HANDLER, saResAddr.aStringArray))
++        return STG_E_READFAULT;
++    if (obj.saResAddr.wNumEntries)
++    {
++        ERR("unsupported size of DUALSTRINGARRAY\n");
++        return E_NOTIMPL;
++    }
++    if (clsid) *clsid = obj.clsid;
++
++    memset(&std, 0, sizeof(std));
++    std.std = obj.std;
++    if (FAILED(hr = CreateStreamOnHGlobal(NULL, TRUE, std_stream)))
++        return hr;
++    hr = IStream_Write(*std_stream, &std, FIELD_OFFSET(struct OR_STANDARD, saResAddr.aStringArray), NULL);
++    if (SUCCEEDED(hr))
++        hr = IStream_Seek(*std_stream, zero, STREAM_SEEK_SET, NULL);
++    if (FAILED(hr))
++    {
++        IStream_Release(*std_stream);
++        *std_stream = NULL;
++    }
++    return hr;
++}
++
++static HRESULT std_or_handler_unmarshal(IStream *stream, const OBJREF *objref, IUnknown **proxy, CLSID *handler)
++{
++    IStream *std_stream;
++    HRESULT hr;
++
++    if (handler) *handler = GUID_NULL;
++    if (objref->flags & OBJREF_HANDLER)
++    {
++        if (FAILED(hr = handler_objref_to_std_stream(stream, handler, &std_stream)))
++            return hr;
++        hr = std_unmarshal_interface(0, NULL, std_stream, &objref->iid, (void **)proxy, FALSE);
++        IStream_Release(std_stream);
++        return hr;
++    }
++    if (objref->flags & OBJREF_STANDARD)
++        return std_unmarshal_interface(0, NULL, stream, &objref->iid, (void **)proxy, FALSE);
++
++    FIXME("unsupported objref.flags = %lx\n", objref->flags);
++    return E_NOTIMPL;
++}
++
++static HRESULT std_or_handler_release_marshal_data(IStream *stream, const OBJREF *objref)
++{
++    IStream *std_stream;
++    HRESULT hr;
++
++    if (objref->flags & OBJREF_HANDLER)
++    {
++        if (FAILED(hr = handler_objref_to_std_stream(stream, NULL, &std_stream)))
++            return hr;
++        hr = std_release_marshal_data(std_stream);
++        IStream_Release(std_stream);
++        return hr;
++    }
++    if (objref->flags & OBJREF_STANDARD)
++        return std_release_marshal_data(stream);
++    return E_NOTIMPL;
++}
++
++static HRESULT read_objref_header(IStream *stream, OBJREF *objref)
++{
++    HRESULT hr;
++    ULONG res;
++
++    hr = IStream_Read(stream, objref, FIELD_OFFSET(OBJREF, u_objref), &res);
++    if (hr != S_OK || res != FIELD_OFFSET(OBJREF, u_objref))
++        return STG_E_READFAULT;
++    if (objref->signature != OBJREF_SIGNATURE)
++        return RPC_E_INVALID_OBJREF;
++    return S_OK;
++}
++
++/* Client half returned by CoGetStdMarshalEx(SMEXF_HANDLER). An in-process handler aggregates it and
++ * passes it the OBJREF_HANDLER written by the server's standard marshaler. The handler identity is
++ * what the caller receives; interfaces the handler does not implement itself are reached through
++ * the inner unknown, which forwards them to the standard proxy. */
++struct std_marshal_handler
++{
++    IUnknown IUnknown_inner;
++    IMarshal IMarshal_iface;
++    LONG refcount;
++    IUnknown *outer;
++    IUnknown *proxy;
++    CLSID handler_clsid;
++};
++
++static inline struct std_marshal_handler *std_marshal_handler_from_IUnknown(IUnknown *iface)
++{
++    return CONTAINING_RECORD(iface, struct std_marshal_handler, IUnknown_inner);
++}
++
++static inline struct std_marshal_handler *std_marshal_handler_from_IMarshal(IMarshal *iface)
++{
++    return CONTAINING_RECORD(iface, struct std_marshal_handler, IMarshal_iface);
++}
++
++static HRESULT WINAPI std_marshal_handler_inner_QueryInterface(IUnknown *iface, REFIID riid, void **obj)
++{
++    struct std_marshal_handler *handler = std_marshal_handler_from_IUnknown(iface);
++
++    TRACE("%p, %s, %p.\n", iface, debugstr_guid(riid), obj);
++
++    *obj = NULL;
++    if (IsEqualIID(riid, &IID_IUnknown))
++        *obj = &handler->IUnknown_inner;
++    else if (IsEqualIID(riid, &IID_IMarshal))
++        *obj = &handler->IMarshal_iface;
++    else if (handler->proxy)
++        return IUnknown_QueryInterface(handler->proxy, riid, obj);
++    else
++        return E_NOINTERFACE;
++
++    IUnknown_AddRef((IUnknown *)*obj);
++    return S_OK;
++}
++
++static ULONG WINAPI std_marshal_handler_inner_AddRef(IUnknown *iface)
++{
++    struct std_marshal_handler *handler = std_marshal_handler_from_IUnknown(iface);
++    return InterlockedIncrement(&handler->refcount);
++}
++
++static ULONG WINAPI std_marshal_handler_inner_Release(IUnknown *iface)
++{
++    struct std_marshal_handler *handler = std_marshal_handler_from_IUnknown(iface);
++    ULONG refcount = InterlockedDecrement(&handler->refcount);
++
++    if (!refcount)
++    {
++        if (handler->proxy) IUnknown_Release(handler->proxy);
++        free(handler);
++    }
++
++    return refcount;
++}
++
++static const IUnknownVtbl std_marshal_handler_inner_vtbl =
++{
++    std_marshal_handler_inner_QueryInterface,
++    std_marshal_handler_inner_AddRef,
++    std_marshal_handler_inner_Release,
++};
++
++static HRESULT WINAPI std_marshal_handler_QueryInterface(IMarshal *iface, REFIID riid, void **obj)
++{
++    struct std_marshal_handler *handler = std_marshal_handler_from_IMarshal(iface);
++    return IUnknown_QueryInterface(handler->outer, riid, obj);
++}
++
++static ULONG WINAPI std_marshal_handler_AddRef(IMarshal *iface)
++{
++    struct std_marshal_handler *handler = std_marshal_handler_from_IMarshal(iface);
++    return IUnknown_AddRef(handler->outer);
++}
++
++static ULONG WINAPI std_marshal_handler_Release(IMarshal *iface)
++{
++    struct std_marshal_handler *handler = std_marshal_handler_from_IMarshal(iface);
++    return IUnknown_Release(handler->outer);
++}
++
++/* Marshaling the handler again marshals its proxy. */
++static HRESULT std_marshal_handler_get_proxy_marshal(struct std_marshal_handler *handler, IMarshal **marshal)
++{
++    if (!handler->proxy)
++        return E_UNEXPECTED;
++    return IUnknown_QueryInterface(handler->proxy, &IID_IMarshal, (void **)marshal);
++}
++
++static HRESULT WINAPI std_marshal_handler_GetUnmarshalClass(IMarshal *iface, REFIID riid, void *pv,
++        DWORD dest_context, void *dest_context_data, DWORD mshlflags, CLSID *clsid)
++{
++    struct std_marshal_handler *handler = std_marshal_handler_from_IMarshal(iface);
++    IMarshal *marshal;
++    HRESULT hr;
++
++    if (FAILED(hr = std_marshal_handler_get_proxy_marshal(handler, &marshal)))
++        return hr;
++    hr = IMarshal_GetUnmarshalClass(marshal, riid, pv, dest_context, dest_context_data, mshlflags, clsid);
++    if (SUCCEEDED(hr) && !IsEqualGUID(&handler->handler_clsid, &GUID_NULL))
++        *clsid = CLSID_AggStdMarshal_;
++    IMarshal_Release(marshal);
++    return hr;
++}
++
++static HRESULT WINAPI std_marshal_handler_GetMarshalSizeMax(IMarshal *iface, REFIID riid, void *pv,
++        DWORD dest_context, void *dest_context_data, DWORD mshlflags, DWORD *size)
++{
++    struct std_marshal_handler *handler = std_marshal_handler_from_IMarshal(iface);
++    IMarshal *marshal;
++    HRESULT hr;
++
++    if (FAILED(hr = std_marshal_handler_get_proxy_marshal(handler, &marshal)))
++        return hr;
++    hr = IMarshal_GetMarshalSizeMax(marshal, riid, pv, dest_context, dest_context_data, mshlflags, size);
++    IMarshal_Release(marshal);
++    if (SUCCEEDED(hr) && !IsEqualGUID(&handler->handler_clsid, &GUID_NULL))
++        *size += sizeof(CLSID);
++    return hr;
+ }
++
++/* Re-marshaling a client identity that was unmarshaled with a handler keeps the handler: the proxy's
++ * OBJREF_STANDARD is rewritten as the OBJREF_HANDLER (inside CLSID_AggStdMarshal custom data) the
++ * server wrote, so the destination apartment loads the same in-process handler. */
++static HRESULT std_marshal_handler_write_handler_objref(struct std_marshal_handler *handler, IMarshal *marshal,
++        IStream *stream, REFIID riid, DWORD dest_context, void *dest_context_data, DWORD mshlflags)
++{
++    LARGE_INTEGER zero = {{ 0 }};
++    struct OR_STANDARD std;
++    IStream *std_stream;
++    OBJREF objref;
++    HRESULT hr;
++    ULONG res;
++
++    if (FAILED(hr = CreateStreamOnHGlobal(NULL, TRUE, &std_stream)))
++        return hr;
++    hr = IMarshal_MarshalInterface(marshal, std_stream, riid, handler->proxy, dest_context, dest_context_data, mshlflags);
++    if (SUCCEEDED(hr)) hr = IStream_Seek(std_stream, zero, STREAM_SEEK_SET, NULL);
++    if (SUCCEEDED(hr)) hr = read_objref_header(std_stream, &objref);
++    if (SUCCEEDED(hr) && !(objref.flags & OBJREF_STANDARD)) hr = E_UNEXPECTED;
++    if (SUCCEEDED(hr))
++    {
++        hr = IStream_Read(std_stream, &std, FIELD_OFFSET(struct OR_STANDARD, saResAddr.aStringArray), &res);
++        if (hr == S_OK && res != FIELD_OFFSET(struct OR_STANDARD, saResAddr.aStringArray)) hr = STG_E_READFAULT;
++    }
++    IStream_Release(std_stream);
++    if (FAILED(hr))
++        return hr;
++
++    TRACE("handler %s\n", debugstr_guid(&handler->handler_clsid));
++    objref.flags = OBJREF_HANDLER;
++    objref.u_objref.u_handler.std = std.std;
++    objref.u_objref.u_handler.clsid = handler->handler_clsid;
++    memset(&objref.u_objref.u_handler.saResAddr, 0, sizeof(objref.u_objref.u_handler.saResAddr));
++    return IStream_Write(stream, &objref, FIELD_OFFSET(OBJREF, u_objref.u_handler.saResAddr.aStringArray), &res);
++}
++
++static HRESULT WINAPI std_marshal_handler_MarshalInterface(IMarshal *iface, IStream *stream, REFIID riid,
++        void *pv, DWORD dest_context, void *dest_context_data, DWORD mshlflags)
++{
++    struct std_marshal_handler *handler = std_marshal_handler_from_IMarshal(iface);
++    IMarshal *marshal;
++    HRESULT hr;
++
++    if (FAILED(hr = std_marshal_handler_get_proxy_marshal(handler, &marshal)))
++        return hr;
++    if (!IsEqualGUID(&handler->handler_clsid, &GUID_NULL))
++        hr = std_marshal_handler_write_handler_objref(handler, marshal, stream, riid, dest_context, dest_context_data, mshlflags);
++    else
++        hr = IMarshal_MarshalInterface(marshal, stream, riid, handler->proxy, dest_context, dest_context_data, mshlflags);
++    IMarshal_Release(marshal);
++    return hr;
++}
++
++static HRESULT WINAPI std_marshal_handler_UnmarshalInterface(IMarshal *iface, IStream *stream, REFIID riid, void **obj)
++{
++    struct std_marshal_handler *handler = std_marshal_handler_from_IMarshal(iface);
++    IUnknown *proxy;
++    OBJREF objref;
++    HRESULT hr;
++
++    TRACE("%p, %p, %s, %p.\n", iface, stream, debugstr_guid(riid), obj);
++
++    *obj = NULL;
++    if (FAILED(hr = read_objref_header(stream, &objref)))
++        return hr;
++    if (FAILED(hr = std_or_handler_unmarshal(stream, &objref, &proxy, &handler->handler_clsid)))
++        return hr;
++
++    if (handler->proxy) IUnknown_Release(handler->proxy);
++    handler->proxy = proxy;
++
++    return IUnknown_QueryInterface(handler->outer, riid, obj);
++}
++
++static HRESULT WINAPI std_marshal_handler_ReleaseMarshalData(IMarshal *iface, IStream *stream)
++{
++    OBJREF objref;
++    HRESULT hr;
++
++    TRACE("%p, %p.\n", iface, stream);
++
++    if (FAILED(hr = read_objref_header(stream, &objref)))
++        return hr;
++    return std_or_handler_release_marshal_data(stream, &objref);
++}
++
++static HRESULT WINAPI std_marshal_handler_DisconnectObject(IMarshal *iface, DWORD reserved)
++{
++    struct std_marshal_handler *handler = std_marshal_handler_from_IMarshal(iface);
++    IUnknown *proxy;
++
++    TRACE("%p, %#lx.\n", iface, reserved);
++
++    if ((proxy = InterlockedExchangePointer((void **)&handler->proxy, NULL)))
++        IUnknown_Release(proxy);
++    return S_OK;
++}
++
++static const IMarshalVtbl std_marshal_handler_vtbl =
++{
++    std_marshal_handler_QueryInterface,
++    std_marshal_handler_AddRef,
++    std_marshal_handler_Release,
++    std_marshal_handler_GetUnmarshalClass,
++    std_marshal_handler_GetMarshalSizeMax,
++    std_marshal_handler_MarshalInterface,
++    std_marshal_handler_UnmarshalInterface,
++    std_marshal_handler_ReleaseMarshalData,
++    std_marshal_handler_DisconnectObject,
++};
++
++/* Identity that aggregates an in-process handler unmarshaled from OBJREF_HANDLER data. */
++struct handler_identity
++{
++    IUnknown IUnknown_iface;
++    LONG refcount;
++    IUnknown *handler;
++};
++
++static inline struct handler_identity *handler_identity_from_IUnknown(IUnknown *iface)
++{
++    return CONTAINING_RECORD(iface, struct handler_identity, IUnknown_iface);
++}
++
++static HRESULT WINAPI handler_identity_QueryInterface(IUnknown *iface, REFIID riid, void **obj)
++{
++    struct handler_identity *identity = handler_identity_from_IUnknown(iface);
++
++    TRACE("%p, %s, %p.\n", iface, debugstr_guid(riid), obj);
++
++    *obj = NULL;
++    if (IsEqualIID(riid, &IID_IUnknown))
++    {
++        *obj = &identity->IUnknown_iface;
++        IUnknown_AddRef(&identity->IUnknown_iface);
++        return S_OK;
++    }
++    if (identity->handler)
++        return IUnknown_QueryInterface(identity->handler, riid, obj);
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI handler_identity_AddRef(IUnknown *iface)
++{
++    struct handler_identity *identity = handler_identity_from_IUnknown(iface);
++    return InterlockedIncrement(&identity->refcount);
++}
++
++static ULONG WINAPI handler_identity_Release(IUnknown *iface)
++{
++    struct handler_identity *identity = handler_identity_from_IUnknown(iface);
++    ULONG refcount = InterlockedDecrement(&identity->refcount);
++
++    if (!refcount)
++    {
++        identity->refcount = 1;
++        if (identity->handler) IUnknown_Release(identity->handler);
++        free(identity);
++    }
++    return refcount;
++}
++
++static const IUnknownVtbl handler_identity_vtbl =
++{
++    handler_identity_QueryInterface,
++    handler_identity_AddRef,
++    handler_identity_Release,
++};
++
++static HRESULT handler_identity_create(const CLSID *clsid, struct handler_identity **out)
++{
++    struct class_reg_data regdata = { 0 };
++    struct handler_identity *identity;
++    struct apartment *apt;
++    IClassFactory *factory;
++    HKEY hkey;
++    HRESULT hr;
++
++    if (FAILED(hr = open_key_for_clsid(clsid, L"InprocHandler32", KEY_READ, &hkey)))
++    {
++        WARN("handler %s is not registered, hr %#lx.\n", debugstr_guid(clsid), hr);
++        return hr;
++    }
++    if (!(apt = apartment_get_current_or_mta()))
++    {
++        RegCloseKey(hkey);
++        return CO_E_NOTINITIALIZED;
++    }
++    regdata.u.hkey = hkey;
++    regdata.origin = CLASS_REG_REGISTRY;
++    /* the handler is created in the unmarshaling apartment whatever its threading model */
++    hr = apartment_get_inproc_class_object(apt, &regdata, clsid, &IID_IClassFactory,
++            CLSCTX_INPROC_HANDLER | CLSCTX_PS_DLL, (void **)&factory);
++    apartment_release(apt);
++    RegCloseKey(hkey);
++    if (FAILED(hr))
++        return hr;
++
++    if (!(identity = calloc(1, sizeof(*identity))))
++    {
++        IClassFactory_Release(factory);
++        return E_OUTOFMEMORY;
++    }
++    identity->IUnknown_iface.lpVtbl = &handler_identity_vtbl;
++    identity->refcount = 1;
++    hr = IClassFactory_CreateInstance(factory, &identity->IUnknown_iface, &IID_IUnknown, (void **)&identity->handler);
++    IClassFactory_Release(factory);
++    if (FAILED(hr))
++    {
++        WARN("handler %s CreateInstance failed, hr %#lx.\n", debugstr_guid(clsid), hr);
++        free(identity);
++        return hr;
++    }
++    *out = identity;
++    return S_OK;
++}
++
++/* Unmarshaler for CLSID_AggStdMarshal data. */
++struct agg_std_unmarshaler
++{
++    IMarshal IMarshal_iface;
++    LONG refcount;
++};
++
++static inline struct agg_std_unmarshaler *agg_std_unmarshaler_from_IMarshal(IMarshal *iface)
++{
++    return CONTAINING_RECORD(iface, struct agg_std_unmarshaler, IMarshal_iface);
++}
++
++static HRESULT WINAPI agg_std_unmarshaler_QueryInterface(IMarshal *iface, REFIID riid, void **obj)
++{
++    if (IsEqualIID(riid, &IID_IUnknown) || IsEqualIID(riid, &IID_IMarshal))
++    {
++        *obj = iface;
++        IMarshal_AddRef(iface);
++        return S_OK;
++    }
++    *obj = NULL;
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI agg_std_unmarshaler_AddRef(IMarshal *iface)
++{
++    return InterlockedIncrement(&agg_std_unmarshaler_from_IMarshal(iface)->refcount);
++}
++
++static ULONG WINAPI agg_std_unmarshaler_Release(IMarshal *iface)
++{
++    struct agg_std_unmarshaler *unmarshaler = agg_std_unmarshaler_from_IMarshal(iface);
++    ULONG refcount = InterlockedDecrement(&unmarshaler->refcount);
++
++    if (!refcount) free(unmarshaler);
++    return refcount;
++}
++
++static HRESULT WINAPI agg_std_unmarshaler_GetUnmarshalClass(IMarshal *iface, REFIID riid, void *pv,
++        DWORD dest_context, void *dest_context_data, DWORD mshlflags, CLSID *clsid)
++{
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI agg_std_unmarshaler_GetMarshalSizeMax(IMarshal *iface, REFIID riid, void *pv,
++        DWORD dest_context, void *dest_context_data, DWORD mshlflags, DWORD *size)
++{
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI agg_std_unmarshaler_MarshalInterface(IMarshal *iface, IStream *stream, REFIID riid,
++        void *pv, DWORD dest_context, void *dest_context_data, DWORD mshlflags)
++{
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI agg_std_unmarshaler_UnmarshalInterface(IMarshal *iface, IStream *stream, REFIID riid, void **obj)
++{
++    LARGE_INTEGER zero = {{ 0 }}, pos;
++    struct handler_identity *identity;
++    ULARGE_INTEGER start;
++    IStream *std_stream;
++    IMarshal *marshal;
++    IUnknown *unk;
++    OBJREF objref;
++    CLSID clsid;
++    HRESULT hr;
++
++    TRACE("%p, %p, %s, %p.\n", iface, stream, debugstr_guid(riid), obj);
++
++    *obj = NULL;
++    if (FAILED(hr = IStream_Seek(stream, zero, STREAM_SEEK_CUR, &start)))
++        return hr;
++    if (FAILED(hr = read_objref_header(stream, &objref)))
++        return hr;
++
++    if (!(objref.flags & OBJREF_HANDLER))
++    {
++        if (FAILED(hr = std_or_handler_unmarshal(stream, &objref, &unk, NULL)))
++            return hr;
++        hr = IUnknown_QueryInterface(unk, riid, obj);
++        IUnknown_Release(unk);
++        return hr;
++    }
++
++    if (FAILED(hr = handler_objref_to_std_stream(stream, &clsid, &std_stream)))
++        return hr;
++    IStream_Release(std_stream);
++    pos.QuadPart = start.QuadPart;
++    if (FAILED(hr = IStream_Seek(stream, pos, STREAM_SEEK_SET, NULL)))
++        return hr;
++
++    TRACE("handler %s\n", debugstr_guid(&clsid));
++    if (FAILED(hr = handler_identity_create(&clsid, &identity)))
++        return hr;
++    if (SUCCEEDED(hr = IUnknown_QueryInterface(identity->handler, &IID_IMarshal, (void **)&marshal)))
++    {
++        hr = IMarshal_UnmarshalInterface(marshal, stream, riid, obj);
++        IMarshal_Release(marshal);
++    }
++    IUnknown_Release(&identity->IUnknown_iface);
++    return hr;
++}
++
++static HRESULT WINAPI agg_std_unmarshaler_ReleaseMarshalData(IMarshal *iface, IStream *stream)
++{
++    OBJREF objref;
++    HRESULT hr;
++
++    if (FAILED(hr = read_objref_header(stream, &objref)))
++        return hr;
++    return std_or_handler_release_marshal_data(stream, &objref);
++}
++
++static HRESULT WINAPI agg_std_unmarshaler_DisconnectObject(IMarshal *iface, DWORD reserved)
++{
++    return S_OK;
++}
++
++static const IMarshalVtbl agg_std_unmarshaler_vtbl =
++{
++    agg_std_unmarshaler_QueryInterface,
++    agg_std_unmarshaler_AddRef,
++    agg_std_unmarshaler_Release,
++    agg_std_unmarshaler_GetUnmarshalClass,
++    agg_std_unmarshaler_GetMarshalSizeMax,
++    agg_std_unmarshaler_MarshalInterface,
++    agg_std_unmarshaler_UnmarshalInterface,
++    agg_std_unmarshaler_ReleaseMarshalData,
++    agg_std_unmarshaler_DisconnectObject,
++};
++
++static HRESULT agg_std_unmarshaler_create(IMarshal **marshal)
++{
++    struct agg_std_unmarshaler *unmarshaler;
++
++    if (!(unmarshaler = calloc(1, sizeof(*unmarshaler))))
++        return E_OUTOFMEMORY;
++    unmarshaler->IMarshal_iface.lpVtbl = &agg_std_unmarshaler_vtbl;
++    unmarshaler->refcount = 1;
++    *marshal = &unmarshaler->IMarshal_iface;
++    return S_OK;
++}
++
 +/***********************************************************************
 + *            CoGetStdMarshalEx        (combase.@)
 + */
@@ -974,9 +1637,20 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 +
 +    if (smexflags == SMEXF_HANDLER)
 +    {
-+        FIXME("SMEXF_HANDLER is not supported.\n");
++        struct std_marshal_handler *handler;
++
 +        apartment_release(apt);
-+        return E_NOTIMPL;
++        /* only the identity created while unmarshaling handler data can aggregate the client half */
++        if (outer->lpVtbl != &handler_identity_vtbl)
++            return E_INVALIDARG;
++        if (!(handler = calloc(1, sizeof(*handler))))
++            return E_OUTOFMEMORY;
++        handler->IUnknown_inner.lpVtbl = &std_marshal_handler_inner_vtbl;
++        handler->IMarshal_iface.lpVtbl = &std_marshal_handler_vtbl;
++        handler->refcount = 1;
++        handler->outer = outer;
++        *inner = &handler->IUnknown_inner;
++        return S_OK;
 +    }
 +
 +    if (!(object = malloc(sizeof(*object))))
@@ -1350,6 +2024,15 @@ diff -u a/dlls/iertutil/iertutil.spec b/dlls/iertutil/iertutil.spec
 diff -u a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
 --- a/dlls/kernelbase/kernelbase.spec
 +++ b/dlls/kernelbase/kernelbase.spec
+@@ -53,7 +53,7 @@
+ # @ stub AppXFreeMemory
+ # @ stub AppXGetApplicationData
+ # @ stub AppXGetDevelopmentMode
+-# @ stub AppXGetOSMaxVersionTested
++@ stdcall AppXGetOSMaxVersionTested(wstr ptr)
+ # @ stub AppXGetOSMinVersion
+ # @ stub AppXGetPackageCapabilities
+ # @ stub AppXGetPackageSid
 @@ -131,7 +131,7 @@
  @ stdcall CheckRemoteDebuggerPresent(long ptr)
  # @ stub CheckTokenCapability
@@ -1368,7 +2051,16 @@ diff -u a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
  # @ stub CloseStateAtom
  # @ stub CloseStateChangeNotification
  # @ stub CloseStateContainer
-@@ -488,14 +488,14 @@
+@@ -380,7 +380,7 @@
+ @ stdcall FindNextFileW(long ptr)
+ @ stdcall FindNextStreamW(long ptr)
+ @ stdcall FindNextVolumeW(long ptr long)
+-# @ stub FindPackagesByPackageFamily
++@ stdcall FindPackagesByPackageFamily(wstr long ptr ptr ptr ptr ptr)
+ @ stdcall FindResourceExW(long wstr wstr long)
+ @ stdcall FindResourceW(long wstr wstr)
+ @ stdcall FindStringOrdinal(long wstr long wstr long long)
+@@ -488,14 +488,17 @@
  @ stdcall GetCurrentDirectoryA(long ptr)
  @ stdcall GetCurrentDirectoryW(long ptr)
  # @ stub GetCurrentPackageApplicationContext
@@ -1377,15 +2069,25 @@ diff -u a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
  # @ stub GetCurrentPackageContext
  @ stdcall GetCurrentPackageFamilyName(ptr ptr)
  @ stdcall GetCurrentPackageFullName(ptr ptr)
++@ stdcall GetCurrentPackageGlobalizationContext(long long ptr)
  @ stdcall GetCurrentPackageId(ptr ptr)
  @ stdcall GetCurrentPackageInfo(long ptr ptr ptr)
++@ stdcall GetCurrentPackageInfo2(long long ptr ptr ptr)
++@ stdcall GetCurrentPackageInfo3(long long ptr ptr ptr)
  @ stdcall GetCurrentPackagePath(ptr ptr)
 -# @ stub GetCurrentPackageResourcesContext
 +@ stdcall GetCurrentPackageResourcesContext(long long ptr)
  # @ stub GetCurrentPackageSecurityContext
  @ stdcall -norelay GetCurrentProcess() kernelbase_GetCurrentProcess
  @ stdcall -norelay GetCurrentProcessId() kernelbase_GetCurrentProcessId
-@@ -642,7 +642,7 @@
+@@ -636,13 +639,14 @@
+ # @ stub GetPackageInfo
+ # @ stub GetPackageInstallTime
+ # @ stub GetPackageOSMaxVersionTested
++@ stdcall GetPackageGlobalizationProperty(ptr long ptr ptr)
+ # @ stub GetPackagePath
+ @ stdcall GetPackagePathByFullName(wstr ptr wstr)
+ # @ stub GetPackagePathOnVolume
  # @ stub GetPackageProperty
  # @ stub GetPackagePropertyString
  # @ stub GetPackageResourcesContext
@@ -1394,13 +2096,15 @@ diff -u a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
  # @ stub GetPackageSecurityContext
  # @ stub GetPackageSecurityProperty
  # @ stub GetPackageStatus
-@@ -699,11 +699,11 @@
+@@ -699,11 +703,12 @@
  @ stdcall GetSidLengthRequired(long)
  @ stdcall GetSidSubAuthority(ptr long)
  @ stdcall GetSidSubAuthorityCount(ptr)
 -# @ stub GetStagedPackageOrigin
+-# @ stub GetStagedPackagePathByFullName
 +@ stdcall GetStagedPackageOrigin(wstr ptr)
- # @ stub GetStagedPackagePathByFullName
++@ stdcall GetStagedPackagePathByFullName(wstr ptr ptr)
++@ stdcall GetStagedPackagePathByFullName2(wstr long ptr ptr)
  @ stdcall GetStartupInfoW(ptr)
  # @ stub GetStateContainerDepth
 -# @ stub GetStateFolder
@@ -1408,7 +2112,16 @@ diff -u a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
  # @ stub GetStateRootFolder
  # @ stub GetStateRootFolderBase
  # @ stub GetStateSettingsFolder
-@@ -1037,7 +1037,7 @@
+@@ -1028,7 +1033,7 @@
+ @ stdcall OpenFileById(long ptr long long ptr long)
+ @ stdcall OpenFileMappingFromApp(long long wstr)
+ @ stdcall OpenFileMappingW(long long wstr)
+-# @ stub OpenGlobalizationUserSettingsKey
++@ stdcall OpenGlobalizationUserSettingsKey(long ptr ptr)
+ @ stdcall OpenMutexW(long long wstr)
+ # @ stub OpenPackageInfoByFullName
+ # @ stub OpenPackageInfoByFullNameForUser
+@@ -1037,7 +1042,7 @@
  @ stdcall OpenProcessToken(long long ptr)
  @ stub OpenRegKey
  @ stdcall OpenSemaphoreW(long long wstr)
@@ -1417,7 +2130,22 @@ diff -u a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
  # @ stub OpenStateAtom
  # @ stub OpenStateExplicit
  # @ stub OpenStateExplicitForUserSid
-@@ -1220,6 +1220,7 @@
+@@ -1048,7 +1053,7 @@
+ @ stdcall OutputDebugStringA(str)
+ @ stdcall OutputDebugStringW(wstr)
+ # @ stub OverrideRoamingDataModificationTimesInRange
+-# @ stub PackageFamilyNameFromFullName
++@ stdcall PackageFamilyNameFromFullName(wstr ptr ptr)
+ # @ stub PackageFamilyNameFromId
+ # @ stub PackageFamilyNameFromProductId
+ # @ stub PackageFullNameFromId
+@@ -1215,11 +1220,12 @@
+ # @ stub PsmEqualPackage
+ # @ stub PsmGetApplicationNameFromKey
+ # @ stub PsmGetKeyFromProcess
+-# @ stub PsmGetKeyFromToken
++@ stdcall PsmGetKeyFromToken(ptr ptr ptr long)
+ # @ stub PsmGetPackageFullNameFromKey
  # @ stub PsmIsChildKey
  # @ stub PsmIsDynamicKey
  # @ stub PsmIsValidKey
@@ -1425,6 +2153,30 @@ diff -u a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
  # @ stub PssCaptureSnapshot
  # @ stub PssDuplicateSnapshot
  # @ stub PssFreeSnapshot
+diff -u a/dlls/kernelbase/locale.c b/dlls/kernelbase/locale.c
+--- a/dlls/kernelbase/locale.c
++++ b/dlls/kernelbase/locale.c
+@@ -8374,3 +8374,20 @@
+     TRACE( "(%s,%lx,%p,%s,%p,%d)\n", debugstr_w(name), flags, systime, debugstr_w(format), buffer, len );
+     return get_time_format( locale, flags, systime, format, buffer, len );
+ }
++
++
++/***********************************************************************
++ *	OpenGlobalizationUserSettingsKey   (kernelbase.@)
++ *
++ * Private. Measured on Windows 11 26100 client, in and out of package context: without a
++ * CommonGlobUserSettings RedirectedKey this opens the current user's hive root with the requested
++ * access; the token argument does not change the result; a NULL output fails with
++ * STATUS_INVALID_PARAMETER. Multi-session SKU redirection is not modelled.
++ */
++NTSTATUS WINAPI OpenGlobalizationUserSettingsKey( ACCESS_MASK access, HANDLE token, HANDLE *key )
++{
++    TRACE( "(%#lx %p %p)\n", access, token, key );
++
++    if (!key) return STATUS_INVALID_PARAMETER;
++    return RtlOpenCurrentUser( access, key );
++}
 diff -u a/dlls/kernelbase/security.c b/dlls/kernelbase/security.c
 --- a/dlls/kernelbase/security.c
 +++ b/dlls/kernelbase/security.c
@@ -1550,7 +2302,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
      address = (ULONG_PTR)family->Buffer;
      if (!family->Length || family->Length % sizeof(WCHAR) ||
          family->MaximumLength < family->Length || address < base ||
-@@ -1671,23 +1670,825 @@
+@@ -1671,9 +1670,17 @@
      }
      *length = required;
  done:
@@ -1558,19 +2310,18 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    if (result == ERROR_INVALID_DATA) WARN( "Malformed package identity token attribute\n" );
      HeapFree( GetProcessHeap(), 0, info );
      return result;
- }
- 
++}
++
 +/***********************************************************************
 + *         GetCurrentPackageFamilyName   (kernelbase.@)
 + */
 +LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageFamilyName( UINT32 *length, WCHAR *name )
 +{
 +    return get_current_package_identity_string( 2, length, name );
-+}
+ }
  
-+
- /***********************************************************************
-  *         GetCurrentPackageFullName   (kernelbase.@)
+ 
+@@ -1682,18 +1689,874 @@
   */
  LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageFullName( UINT32 *length, WCHAR *name )
  {
@@ -1603,7 +2354,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    NTSTATUS status;
 +    HANDLE token;
 +    LONG result = ERROR_INVALID_DATA;
-+
+ 
 +    if ((status = NtOpenProcessToken( GetCurrentProcess(), TOKEN_QUERY, &token )))
 +        return RtlNtStatusToDosError( status );
 +    RtlInitUnicodeString( &attribute_name, L"WIN://PKG" );
@@ -1644,7 +2395,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    HeapFree( GetProcessHeap(), 0, info );
 +    return result;
 +}
- 
++
  /***********************************************************************
 + *         GetStagedPackageOrigin   (kernelbase.@)
 + */
@@ -1821,6 +2572,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +struct package_resources
 +{
 +    WCHAR root[MAX_PATH];
++    WCHAR *publisher;
 +    struct package_resources_context package;
 +    struct package_resources_context application;
 +};
@@ -1994,6 +2746,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    unsigned int i;
 +
 +    if (!res) return;
++    HeapFree( GetProcessHeap(), 0, res->publisher );
 +    for (i = 0; i <= RESCTX_MAX_PROPERTY; i++)
 +    {
 +        HeapFree( GetProcessHeap(), 0, res->package.values[i] );
@@ -2126,6 +2879,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +                }
 +                HeapFree( GetProcessHeap(), 0, value );
 +            }
++            if (!manifest_attribute( &tag, L"Publisher", &res->publisher ) || !res->publisher) goto done;
 +            identity = TRUE;
 +        }
 +        else if (depth == 2 && stack[1].name && manifest_local_name_is( stack[1].name, stack[1].len, L"Properties" ) &&
@@ -2320,6 +3074,19 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +}
 +
 +/***********************************************************************
++ *         PsmGetKeyFromToken   (kernelbase.@)
++ *
++ * The PSM_KEY layout is undocumented and not yet measured, so fail honestly
++ * instead of fabricating a process-state key. Callers such as
++ * RMCLIENT!HamQueryCallerTerminateReason propagate the status.
++ */
++NTSTATUS WINAPI PsmGetKeyFromToken( HANDLE token, void *key, ULONG *size, ULONG flags )
++{
++    FIXME( "(%p, %p, %p, %#lx): stub\n", token, key, size, flags );
++    return STATUS_NOT_IMPLEMENTED;
++}
++
++/***********************************************************************
 + *         PsmQueryBackgroundActivationType   (kernelbase.@)
 + *
 + * Follows kernel.appcore 10.0.26100.9278: the first value of the WIN://BGKD
@@ -2379,7 +3146,71 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
   *         GetCurrentPackageId   (kernelbase.@)
   */
  LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageId( UINT32 *len, BYTE *buffer )
-@@ -1710,8 +2511,8 @@
+ {
+-    FIXME( "(%p %p): stub\n", len, buffer );
+-    return APPMODEL_ERROR_NO_PACKAGE;
++    WCHAR full_name[PACKAGE_FULL_NAME_MAX_LENGTH + 1];
++    BYTE basic[sizeof(PACKAGE_ID) + sizeof(full_name)];
++    UINT32 name_len = ARRAY_SIZE(full_name), basic_len = sizeof(basic), size, n;
++    PACKAGE_ID *src = (PACKAGE_ID *)basic, *id = (PACKAGE_ID *)buffer;
++    struct package_resources *res;
++    const WCHAR *strings[3];
++    WCHAR **fields[3];
++    unsigned int i;
++    LONG ret;
++
++    TRACE( "(%p %p)\n", len, buffer );
++
++    if (!len || (*len && !buffer)) return ERROR_INVALID_PARAMETER;
++    /* Measured on Windows 11 26100: identical to PackageIdFromFullName(PACKAGE_INFORMATION_FULL)
++     * for the caller's package: name, publisherId, then the manifest Publisher; an empty
++     * resourceId is NULL. Without identity *len is left untouched. */
++    if ((ret = get_current_package_identity_string( 0, &name_len, full_name ))) return ret;
++    if ((ret = PackageIdFromFullName( full_name, 0, &basic_len, basic ))) return ret;
++    if ((ret = get_current_package_resources( &res ))) return ret;
++
++    strings[0] = src->name;
++    strings[1] = src->resourceId && src->resourceId[0] ? src->resourceId : NULL;
++    strings[2] = src->publisherId;
++    size = sizeof(*id) + (wcslen( res->publisher ) + 1) * sizeof(WCHAR);
++    for (i = 0; i < ARRAY_SIZE(strings); i++)
++        if (strings[i]) size += (wcslen( strings[i] ) + 1) * sizeof(WCHAR);
++
++    n = *len;
++    *len = size;
++    if (n < size) return ERROR_INSUFFICIENT_BUFFER;
++
++    *id = *src;
++    id->name = id->resourceId = id->publisherId = id->publisher = NULL;
++    fields[0] = &id->name;
++    fields[1] = &id->resourceId;
++    fields[2] = &id->publisherId;
++    buffer += sizeof(*id);
++    for (i = 0; i < ARRAY_SIZE(strings); i++)
++    {
++        if (!strings[i]) continue;
++        n = (wcslen( strings[i] ) + 1) * sizeof(WCHAR);
++        memcpy( buffer, strings[i], n );
++        *fields[i] = (WCHAR *)buffer;
++        buffer += n;
++    }
++    id->publisher = (WCHAR *)buffer;
++    wcscpy( id->publisher, res->publisher );
++    return ERROR_SUCCESS;
+ }
+ 
+ /***********************************************************************
+@@ -1701,8 +2564,7 @@
+  */
+ LONG WINAPI GetCurrentPackageInfo( const UINT32 flags, UINT32 *buffer_size, BYTE *buffer, UINT32 *count )
+ {
+-    FIXME( "(%#x %p %p %p): stub\n", flags, buffer_size, buffer, count );
+-    return APPMODEL_ERROR_NO_PACKAGE;
++    return GetCurrentPackageInfo2( flags, PackagePathType_Install, buffer_size, buffer, count );
+ }
+ 
+ /***********************************************************************
+@@ -1710,8 +2572,8 @@
   */
  LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackagePath( UINT32 *length, WCHAR *path )
  {
@@ -2390,6 +3221,817 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
  }
  
  
+@@ -1873,6 +2735,810 @@
+         return ERROR_INVALID_PARAMETER;
+     memcpy(id->publisherId, publisher_id, sizeof(*id->publisherId) * len);
+     id->publisherId[len] = 0;
++
++    return ERROR_SUCCESS;
++}
++
++#define MAX_PACKAGE_DEPENDENCIES 32
++
++struct package_node
++{
++    WCHAR root[MAX_PATH];
++    WCHAR name[PACKAGE_FULL_NAME_MAX_LENGTH + 1];
++    WCHAR publisher[512];
++    WCHAR arch[16];
++    PACKAGE_VERSION version;
++    PACKAGE_VERSION max_tested;
++    BOOL framework;
++    BOOL has_max_tested;
++};
++
++struct package_dependency
++{
++    WCHAR name[PACKAGE_FULL_NAME_MAX_LENGTH + 1];
++    WCHAR publisher[512];
++    PACKAGE_VERSION min_version;
++};
++
++static BOOL parse_package_version( const WCHAR *s, PACKAGE_VERSION *version )
++{
++    unsigned long part[4];
++    WCHAR *e = NULL;
++    unsigned int i;
++
++    for (i = 0; i < 4; i++)
++    {
++        part[i] = wcstoul( s, &e, 10 );
++        if (e == s || part[i] > 0xffff || (i < 3 && *e != '.')) return FALSE;
++        s = e + 1;
++    }
++    if (*e) return FALSE;
++    version->Major = part[0];
++    version->Minor = part[1];
++    version->Build = part[2];
++    version->Revision = part[3];
++    return TRUE;
++}
++
++static BOOL copy_manifest_attribute( const struct manifest_tag *tag, const WCHAR *attr, WCHAR *out, SIZE_T size )
++{
++    WCHAR *value = NULL;
++    BOOL ret = manifest_attribute( tag, attr, &value ) && value && wcslen( value ) < size;
++
++    if (ret) wcscpy( out, value );
++    HeapFree( GetProcessHeap(), 0, value );
++    return ret;
++}
++
++/* Reads Identity, Properties/Framework and Dependencies/PackageDependency from root\AppxManifest.xml. */
++static LONG read_package_node( const WCHAR *root, struct package_node *node,
++                               struct package_dependency *deps, unsigned int *dep_count )
++{
++    struct { const WCHAR *name; int len; } stack[8];
++    struct manifest_tag tag;
++    const WCHAR *end, *p, *content_end;
++    WCHAR path[MAX_PATH], version[64], *data, *value;
++    unsigned int depth = 0;
++    BOOL identity = FALSE;
++    LONG ret = ERROR_BAD_FORMAT;
++
++    if (dep_count) *dep_count = 0;
++    if (wcslen( root ) + ARRAY_SIZE(L"\\AppxManifest.xml") > ARRAY_SIZE(path)) return ERROR_NOT_FOUND;
++    memset( node, 0, sizeof(*node) );
++    wcscpy( node->root, root );
++    wcscpy( path, root );
++    wcscat( path, L"\\AppxManifest.xml" );
++    if (!(data = read_manifest( path, &end ))) return ERROR_NOT_FOUND;
++    p = data;
++    while (manifest_next_tag( p, end, &tag ))
++    {
++        p = tag.next;
++        if (tag.closing)
++        {
++            if (!depth) goto done;
++            depth--;
++            continue;
++        }
++        if (!depth && !manifest_local_name_is( tag.name, tag.name_len, L"Package" )) goto done;
++        if (depth == 1 && !identity && manifest_local_name_is( tag.name, tag.name_len, L"Identity" ))
++        {
++            if (!copy_manifest_attribute( &tag, L"Name", node->name, ARRAY_SIZE(node->name) ) ||
++                !copy_manifest_attribute( &tag, L"Publisher", node->publisher, ARRAY_SIZE(node->publisher) ) ||
++                !copy_manifest_attribute( &tag, L"Version", version, ARRAY_SIZE(version) ) ||
++                !parse_package_version( version, &node->version )) goto done;
++            if (!copy_manifest_attribute( &tag, L"ProcessorArchitecture", node->arch, ARRAY_SIZE(node->arch) ))
++                wcscpy( node->arch, L"neutral" );
++            identity = TRUE;
++        }
++        else if (depth == 2 && !tag.empty && manifest_local_name_is( stack[1].name, stack[1].len, L"Properties" ) &&
++                 manifest_local_name_is( tag.name, tag.name_len, L"Framework" ))
++        {
++            for (content_end = tag.next; content_end < end && *content_end != '<'; content_end++);
++            if (!(value = manifest_decode( tag.next, content_end, TRUE ))) goto done;
++            node->framework = !wcsicmp( value, L"true" );
++            HeapFree( GetProcessHeap(), 0, value );
++        }
++        else if (depth == 2 && !node->has_max_tested &&
++                 manifest_local_name_is( stack[1].name, stack[1].len, L"Dependencies" ) &&
++                 manifest_local_name_is( tag.name, tag.name_len, L"TargetDeviceFamily" ))
++        {
++            if (!copy_manifest_attribute( &tag, L"MaxVersionTested", version, ARRAY_SIZE(version) ) ||
++                !parse_package_version( version, &node->max_tested )) goto done;
++            node->has_max_tested = TRUE;
++        }
++        else if (depth == 2 && dep_count && manifest_local_name_is( stack[1].name, stack[1].len, L"Dependencies" ) &&
++                 manifest_local_name_is( tag.name, tag.name_len, L"PackageDependency" ))
++        {
++            struct package_dependency *dep;
++
++            if (*dep_count >= MAX_PACKAGE_DEPENDENCIES) { ret = ERROR_NOT_SUPPORTED; goto done; }
++            dep = &deps[*dep_count];
++            if (!copy_manifest_attribute( &tag, L"Name", dep->name, ARRAY_SIZE(dep->name) ) ||
++                !copy_manifest_attribute( &tag, L"Publisher", dep->publisher, ARRAY_SIZE(dep->publisher) ) ||
++                !copy_manifest_attribute( &tag, L"MinVersion", version, ARRAY_SIZE(version) ) ||
++                !parse_package_version( version, &dep->min_version )) goto done;
++            ++*dep_count;
++        }
++        if (!tag.empty)
++        {
++            if (depth >= 64) goto done;
++            if (depth < ARRAY_SIZE(stack))
++            {
++                stack[depth].name = tag.name;
++                stack[depth].len = tag.name_len;
++            }
++            depth++;
++        }
++    }
++    if (identity) ret = ERROR_SUCCESS;
++done:
++    if (ret == ERROR_BAD_FORMAT) WARN( "Malformed package manifest %s\n", debugstr_w(path) );
++    HeapFree( GetProcessHeap(), 0, data );
++    return ret;
++}
++
++/* Wine stages packages as sibling directories of the caller's package root; pick the highest
++ * matching version like the deployment resolver does for a static PackageDependency. */
++static LONG resolve_package_dependency( const WCHAR *repository, const struct package_node *head,
++                                        const struct package_dependency *dep, struct package_node *out )
++{
++    WIN32_FIND_DATAW data;
++    WCHAR pattern[MAX_PATH], root[MAX_PATH];
++    struct package_node node;
++    BOOL found = FALSE;
++    HANDLE find;
++
++    if (wcslen( repository ) + 3 > ARRAY_SIZE(pattern)) return APPMODEL_ERROR_PACKAGE_NOT_AVAILABLE;
++    wcscpy( pattern, repository );
++    wcscat( pattern, L"\\*" );
++    if ((find = FindFirstFileW( pattern, &data )) == INVALID_HANDLE_VALUE) return APPMODEL_ERROR_PACKAGE_NOT_AVAILABLE;
++    do
++    {
++        if (!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || data.cFileName[0] == '.') continue;
++        if (wcslen( repository ) + 1 + wcslen( data.cFileName ) >= ARRAY_SIZE(root)) continue;
++        wcscpy( root, repository );
++        wcscat( root, L"\\" );
++        wcscat( root, data.cFileName );
++        if (read_package_node( root, &node, NULL, NULL )) continue;
++        if (wcsicmp( node.name, dep->name ) || wcscmp( node.publisher, dep->publisher )) continue;
++        if (wcsicmp( node.arch, head->arch ) && wcsicmp( node.arch, L"neutral" )) continue;
++        if (node.version.Version < dep->min_version.Version) continue;
++        if (found && node.version.Version <= out->version.Version) continue;
++        *out = node;
++        found = TRUE;
++    } while (FindNextFileW( find, &data ));
++    FindClose( find );
++    return found ? ERROR_SUCCESS : APPMODEL_ERROR_PACKAGE_NOT_AVAILABLE;
++}
++
++static BOOL format_package_names( const struct package_node *node, const WCHAR *publisher_id,
++                                  WCHAR *full, WCHAR *family )
++{
++    WCHAR arch[16];
++    unsigned int i;
++
++    for (i = 0; node->arch[i] && i < ARRAY_SIZE(arch) - 1; i++)
++        arch[i] = node->arch[i] >= 'A' && node->arch[i] <= 'Z' ? node->arch[i] + 32 : node->arch[i];
++    arch[i] = 0;
++    if (full && _snwprintf( full, PACKAGE_FULL_NAME_MAX_LENGTH, L"%s_%u.%u.%u.%u_%s__%s", node->name,
++                            node->version.Major, node->version.Minor, node->version.Build,
++                            node->version.Revision, arch, publisher_id ) < 0) return FALSE;
++    if (family && _snwprintf( family, PACKAGE_FAMILY_NAME_MAX_LENGTH, L"%s_%s", node->name, publisher_id ) < 0)
++        return FALSE;
++    return TRUE;
++}
++
++/* Finds a package by full name in Wine's staged package graph: the caller's catalog-registered
++ * package and the packages staged beside it. Packages from other publishers are not matched
++ * because publisher id derivation is not implemented. */
++static LONG find_staged_package( const WCHAR *full_name, struct package_node *out )
++{
++    WCHAR current[PACKAGE_FULL_NAME_MAX_LENGTH + 1], name[PACKAGE_FULL_NAME_MAX_LENGTH + 1];
++    WCHAR repository[MAX_PATH], pattern[MAX_PATH], root[MAX_PATH], *slash;
++    BYTE basic[sizeof(PACKAGE_ID) + sizeof(current)];
++    UINT32 length = ARRAY_SIZE(current), basic_len = sizeof(basic);
++    PACKAGE_ID *head_id = (PACKAGE_ID *)basic;
++    struct package_resources *res;
++    struct package_node head;
++    WIN32_FIND_DATAW data;
++    HANDLE find;
++    LONG ret = ERROR_NOT_FOUND;
++
++    if (get_current_package_identity_string( 0, &length, current ) ||
++        PackageIdFromFullName( current, 0, &basic_len, basic ) ||
++        get_current_package_resources( &res )) return ERROR_NOT_FOUND;
++    if (!wcsicmp( full_name, current )) return read_package_node( res->root, out, NULL, NULL );
++    if (read_package_node( res->root, &head, NULL, NULL )) return ERROR_NOT_FOUND;
++
++    wcscpy( repository, res->root );
++    if (!(slash = wcsrchr( repository, '\\' )) || slash - repository + 3 > ARRAY_SIZE(pattern)) return ERROR_NOT_FOUND;
++    *slash = 0;
++    wcscpy( pattern, repository );
++    wcscat( pattern, L"\\*" );
++    if ((find = FindFirstFileW( pattern, &data )) == INVALID_HANDLE_VALUE) return ERROR_NOT_FOUND;
++    do
++    {
++        if (!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || data.cFileName[0] == '.') continue;
++        if (wcslen( repository ) + 1 + wcslen( data.cFileName ) >= ARRAY_SIZE(root)) continue;
++        wcscpy( root, repository );
++        wcscat( root, L"\\" );
++        wcscat( root, data.cFileName );
++        if (read_package_node( root, out, NULL, NULL ) || wcscmp( out->publisher, head.publisher )) continue;
++        if (!format_package_names( out, head_id->publisherId, name, NULL ) || wcsicmp( name, full_name )) continue;
++        ret = ERROR_SUCCESS;
++        break;
++    } while (FindNextFileW( find, &data ));
++    FindClose( find );
++    return ret;
++}
++
++/***********************************************************************
++ *         FindPackagesByPackageFamily   (kernelbase.@)
++ *
++ * Measured on Windows 11 26100 (in and out of package context): PACKAGE_FILTER_HEAD returns the
++ * main package, PACKAGE_FILTER_DIRECT the framework packages (PACKAGE_PROPERTY_FRAMEWORK); the
++ * family is matched case-insensitively and an unknown family or a full name yields count 0. A
++ * filter without HEAD/DIRECT/RESOURCE/BUNDLE, a NULL family/count/length or a family without a
++ * '_' separator fail with ERROR_INVALID_PARAMETER and an empty family with ERROR_MORE_DATA,
++ * leaving the outputs untouched. A short buffer fails with ERROR_INSUFFICIENT_BUFFER and reports
++ * the required count and length; a NULL name array with a sufficient buffer succeeds.
++ */
++LONG WINAPI FindPackagesByPackageFamily( const WCHAR *family_name, UINT32 filters, UINT32 *count,
++                                         WCHAR **full_names, UINT32 *buffer_len, WCHAR *buffer,
++                                         UINT32 *properties )
++{
++    static WCHAR names[MAX_PACKAGE_DEPENDENCIES + 1][PACKAGE_FULL_NAME_MAX_LENGTH + 1];
++    UINT32 props[MAX_PACKAGE_DEPENDENCIES + 1];
++    WCHAR current[PACKAGE_FULL_NAME_MAX_LENGTH + 1], family[PACKAGE_FAMILY_NAME_MAX_LENGTH + 1];
++    WCHAR repository[MAX_PATH], pattern[MAX_PATH], root[MAX_PATH], *slash;
++    BYTE basic[sizeof(PACKAGE_ID) + sizeof(current)];
++    UINT32 length = ARRAY_SIZE(current), basic_len = sizeof(basic), found = 0, needed = 0, i;
++    PACKAGE_ID *head_id = (PACKAGE_ID *)basic;
++    struct package_resources *res;
++    struct package_node head, node;
++    WIN32_FIND_DATAW data;
++    HANDLE find;
++
++    TRACE( "(%s %#x %p %p %p %p %p)\n", debugstr_w(family_name), filters, count, full_names,
++           buffer_len, buffer, properties );
++
++    if (!family_name || !count || !buffer_len) return ERROR_INVALID_PARAMETER;
++    if (!(filters & (PACKAGE_FILTER_HEAD | PACKAGE_FILTER_DIRECT | PACKAGE_FILTER_RESOURCE | PACKAGE_FILTER_BUNDLE)))
++        return ERROR_INVALID_PARAMETER;
++    if (!family_name[0]) return ERROR_MORE_DATA;
++    if (!wcschr( family_name, '_' )) return ERROR_INVALID_PARAMETER;
++    if (filters & (PACKAGE_FILTER_RESOURCE | PACKAGE_FILTER_BUNDLE))
++        FIXME( "resource and bundle packages are not staged, filters %#x\n", filters );
++
++    if (!get_current_package_identity_string( 0, &length, current ) &&
++        !PackageIdFromFullName( current, 0, &basic_len, basic ) &&
++        !get_current_package_resources( &res ) && !read_package_node( res->root, &head, NULL, NULL ) &&
++        (slash = wcsrchr( wcscpy( repository, res->root ), '\\' )) && slash - repository + 3 <= ARRAY_SIZE(pattern))
++    {
++        *slash = 0;
++        wcscpy( pattern, repository );
++        wcscat( pattern, L"\\*" );
++        if ((find = FindFirstFileW( pattern, &data )) != INVALID_HANDLE_VALUE)
++        {
++            do
++            {
++                if (!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || data.cFileName[0] == '.') continue;
++                if (wcslen( repository ) + 1 + wcslen( data.cFileName ) >= ARRAY_SIZE(root)) continue;
++                wcscpy( root, repository );
++                wcscat( root, L"\\" );
++                wcscat( root, data.cFileName );
++                if (read_package_node( root, &node, NULL, NULL ) || wcscmp( node.publisher, head.publisher )) continue;
++                if (!(filters & (node.framework ? PACKAGE_FILTER_DIRECT : PACKAGE_FILTER_HEAD))) continue;
++                if (!format_package_names( &node, head_id->publisherId, names[found], family )) continue;
++                if (wcsicmp( family, family_name )) continue;
++                props[found] = node.framework ? PACKAGE_PROPERTY_FRAMEWORK : 0;
++                needed += wcslen( names[found] ) + 1;
++                if (++found == ARRAY_SIZE(names)) break;
++            } while (FindNextFileW( find, &data ));
++            FindClose( find );
++        }
++    }
++    else FIXME( "no staged package graph outside package context\n" );
++
++    if (*buffer_len < needed || (full_names && *count < found))
++    {
++        *count = found;
++        *buffer_len = needed;
++        return ERROR_INSUFFICIENT_BUFFER;
++    }
++    for (i = 0, length = 0; i < found; i++)
++    {
++        if (buffer) wcscpy( buffer + length, names[i] );
++        if (full_names) full_names[i] = buffer ? buffer + length : NULL;
++        if (properties) properties[i] = props[i];
++        length += wcslen( names[i] ) + 1;
++    }
++    *count = found;
++    *buffer_len = needed;
++    return ERROR_SUCCESS;
++}
++
++/***********************************************************************
++ *         AppXGetOSMaxVersionTested   (kernelbase.@)
++ *
++ * Private; HRESULT (PCWSTR full_name, UINT64 *version) per MrmCoreR call sites. Measured on
++ * Windows 11 26100 in and out of package context: returns TargetDeviceFamily MaxVersionTested
++ * as a PACKAGE_VERSION value for any installed full name; unknown or malformed names fail with
++ * HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), an empty name with HRESULT_FROM_WIN32(ERROR_MORE_DATA),
++ * NULL arguments with E_INVALIDARG. The output is untouched on failure.
++ */
++HRESULT WINAPI AppXGetOSMaxVersionTested( const WCHAR *full_name, UINT64 *version )
++{
++    struct package_node node;
++
++    TRACE( "(%s %p)\n", debugstr_w(full_name), version );
++
++    if (!full_name || !version) return E_INVALIDARG;
++    if (!full_name[0]) return HRESULT_FROM_WIN32( ERROR_MORE_DATA );
++    if (find_staged_package( full_name, &node )) return HRESULT_FROM_WIN32( ERROR_FILE_NOT_FOUND );
++    if (!node.has_max_tested)
++    {
++        FIXME( "%s has no TargetDeviceFamily MaxVersionTested\n", debugstr_w(full_name) );
++        return HRESULT_FROM_WIN32( ERROR_NOT_FOUND );
++    }
++    *version = node.max_tested.Version;
++    return S_OK;
++}
++
++/***********************************************************************
++ *         GetStagedPackagePathByFullName   (kernelbase.@)
++ *
++ * Native kernelbase performs the same argument checks and internal lookup as
++ * GetStagedPackagePathByFullName2 with PackagePathType_Install.
++ */
++LONG WINAPI GetStagedPackagePathByFullName( const WCHAR *full_name, UINT32 *length, WCHAR *path )
++{
++    TRACE( "(%s %p %p)\n", debugstr_w(full_name), length, path );
++    return GetStagedPackagePathByFullName2( full_name, PackagePathType_Install, length, path );
++}
++
++/***********************************************************************
++ *         GetStagedPackagePathByFullName2   (kernelbase.@)
++ */
++LONG WINAPI GetStagedPackagePathByFullName2( const WCHAR *full_name, PackagePathType type,
++                                             UINT32 *length, WCHAR *path )
++{
++    struct package_node node;
++    UINT32 id_size = 0, needed;
++    LONG ret;
++
++    TRACE( "(%s %d %p %p)\n", debugstr_w(full_name), type, length, path );
++
++    if (!full_name || !length || (*length && !path)) return ERROR_INVALID_PARAMETER;
++    if ((UINT32)type > 5) return ERROR_INVALID_PARAMETER;
++    if (!full_name[0]) return ERROR_MORE_DATA;
++    ret = PackageIdFromFullName( full_name, 0, &id_size, NULL );
++    if (ret != ERROR_INSUFFICIENT_BUFFER) return ERROR_INVALID_PARAMETER;
++    if (find_staged_package( full_name, &node )) return ERROR_NOT_FOUND;
++
++    switch (type)
++    {
++    case PackagePathType_Install:
++    case PackagePathType_Effective:
++        break;
++    case PackagePathType_Mutable:
++        /* Staged packages here never declare a mutable location. */
++        return APPMODEL_ERROR_NO_MUTABLE_DIRECTORY;
++    default:
++        /* Machine/User/Effective external locations are not modelled. */
++        return ERROR_NOT_FOUND;
++    }
+ 
++    needed = wcslen( node.root ) + 1;
++    if (*length < needed)
++    {
++        *length = needed;
++        return ERROR_INSUFFICIENT_BUFFER;
++    }
++    memcpy( path, node.root, needed * sizeof(WCHAR) );
++    *length = needed;
+     return ERROR_SUCCESS;
+ }
++/***********************************************************************
++ *         PackageFamilyNameFromFullName   (kernelbase.@)
++ */
++LONG WINAPI PackageFamilyNameFromFullName( const WCHAR *full_name, UINT32 *length, WCHAR *family_name )
++{
++    UINT32 size = 0, needed;
++    PACKAGE_ID *id;
++    LONG ret;
++
++    TRACE( "(%s %p %p)\n", debugstr_w(full_name), length, family_name );
++
++    if (!full_name || !length || (*length && !family_name)) return ERROR_INVALID_PARAMETER;
++
++    if ((ret = PackageIdFromFullName( full_name, 0, &size, NULL )) != ERROR_INSUFFICIENT_BUFFER)
++        return ret ? ret : ERROR_INVALID_PARAMETER;
++    if (!(id = HeapAlloc( GetProcessHeap(), 0, size ))) return ERROR_OUTOFMEMORY;
++    if ((ret = PackageIdFromFullName( full_name, 0, &size, (BYTE *)id )))
++    {
++        HeapFree( GetProcessHeap(), 0, id );
++        return ret;
++    }
++
++    /* "~" is only valid as the whole resource id of a neutral bundle. */
++    if (id->resourceId && wcschr( id->resourceId, L'~' )
++            && (wcscmp( id->resourceId, L"~" ) || id->processorArchitecture != PROCESSOR_ARCHITECTURE_NEUTRAL))
++    {
++        HeapFree( GetProcessHeap(), 0, id );
++        return ERROR_INVALID_PARAMETER;
++    }
++
++    needed = wcslen( id->name ) + 1 + wcslen( id->publisherId ) + 1;
++    if (*length < needed)
++    {
++        *length = needed;
++        HeapFree( GetProcessHeap(), 0, id );
++        return ERROR_INSUFFICIENT_BUFFER;
++    }
++    swprintf( family_name, needed, L"%s_%s", id->name, id->publisherId );
++    *length = needed;
++    HeapFree( GetProcessHeap(), 0, id );
++    return ERROR_SUCCESS;
++}
++/* Globalization contexts: one per Application element of the main package manifest, in
++ * manifest order. Measured on Windows 11 26100 for Microsoft.GamingApp (Applications
++ * Microsoft.Xbox.App, Microsoft.Xbox.AppL, Microsoft.Xbox.WidgetsApp): kind 0 selects the
++ * current application (case-insensitive id match), any other kind is an index into the list,
++ * out-of-range or unresolved selections fail with ERROR_NOT_FOUND and flags are ignored.
++ * Properties 1 and 2 report bits 0 and 1 of per-application flags as a BOOL. Every Xbox app
++ * entry reports 0 natively; Wine does not know a manifest source that sets these bits. */
++#define MAX_PACKAGE_APPLICATIONS 64
++
++struct package_globalization_context
++{
++    WCHAR id[256];
++    DWORD flags;
++};
++
++struct package_globalization_list
++{
++    UINT32 count;
++    struct package_globalization_context apps[MAX_PACKAGE_APPLICATIONS];
++};
++
++static struct package_globalization_list *current_globalization_list;
++
++static LONG read_package_applications( const WCHAR *root, struct package_globalization_list *list )
++{
++    struct { const WCHAR *name; int len; } stack[8];
++    struct manifest_tag tag;
++    const WCHAR *end, *p;
++    WCHAR path[MAX_PATH], *data;
++    unsigned int depth = 0;
++    LONG ret = ERROR_BAD_FORMAT;
++
++    list->count = 0;
++    if (wcslen( root ) + ARRAY_SIZE(L"\\AppxManifest.xml") > ARRAY_SIZE(path)) return ERROR_NOT_FOUND;
++    wcscpy( path, root );
++    wcscat( path, L"\\AppxManifest.xml" );
++    if (!(data = read_manifest( path, &end ))) return ERROR_NOT_FOUND;
++    p = data;
++    while (manifest_next_tag( p, end, &tag ))
++    {
++        p = tag.next;
++        if (tag.closing)
++        {
++            if (!depth) goto done;
++            depth--;
++            continue;
++        }
++        if (!depth && !manifest_local_name_is( tag.name, tag.name_len, L"Package" )) goto done;
++        if (depth == 2 && manifest_local_name_is( stack[1].name, stack[1].len, L"Applications" ) &&
++            manifest_local_name_is( tag.name, tag.name_len, L"Application" ))
++        {
++            if (list->count >= MAX_PACKAGE_APPLICATIONS) { ret = ERROR_NOT_SUPPORTED; goto done; }
++            if (!copy_manifest_attribute( &tag, L"Id", list->apps[list->count].id,
++                                          ARRAY_SIZE(list->apps[list->count].id) )) goto done;
++            list->apps[list->count++].flags = 0;
++        }
++        if (!tag.empty)
++        {
++            if (depth >= 64) goto done;
++            if (depth < ARRAY_SIZE(stack))
++            {
++                stack[depth].name = tag.name;
++                stack[depth].len = tag.name_len;
++            }
++            depth++;
++        }
++    }
++    ret = ERROR_SUCCESS;
++done:
++    if (ret == ERROR_BAD_FORMAT) WARN( "Malformed package manifest %s\n", debugstr_w(path) );
++    HeapFree( GetProcessHeap(), 0, data );
++    return ret;
++}
++
++static LONG get_package_globalization_list( struct package_globalization_list **out )
++{
++    struct package_globalization_list *list;
++    struct package_resources *res;
++    LONG ret;
++
++    if ((list = ReadPointerAcquire( (void **)&current_globalization_list ))) goto done;
++    if ((ret = get_current_package_resources( &res ))) return ret;
++    if (!(list = HeapAlloc( GetProcessHeap(), 0, sizeof(*list) ))) return ERROR_NOT_ENOUGH_MEMORY;
++    if ((ret = read_package_applications( res->root, list )))
++    {
++        HeapFree( GetProcessHeap(), 0, list );
++        return ret;
++    }
++    if (InterlockedCompareExchangePointer( (void **)&current_globalization_list, list, NULL ))
++    {
++        HeapFree( GetProcessHeap(), 0, list );
++        list = current_globalization_list;
++    }
++done:
++    *out = list;
++    return ERROR_SUCCESS;
++}
++
++/***********************************************************************
++ *         GetCurrentPackageGlobalizationContext   (kernelbase.@)
++ */
++LONG WINAPI GetCurrentPackageGlobalizationContext( UINT32 kind, UINT32 flags,
++                                                   PACKAGE_GLOBALIZATION_CONTEXT_REFERENCE *context )
++{
++    WCHAR full_name[PACKAGE_FULL_NAME_MAX_LENGTH + 1], app_id[256];
++    UINT32 len = ARRAY_SIZE(full_name), index;
++    struct package_globalization_list *list;
++    LONG ret;
++
++    TRACE( "(%u %#x %p)\n", kind, flags, context );
++
++    if (!context) return ERROR_INVALID_PARAMETER;
++    if ((ret = get_current_package_identity_string( 0, &len, full_name ))) return ret;
++    if (get_package_globalization_list( &list )) return ERROR_NOT_FOUND;
++    if (kind)
++        index = kind;
++    else
++    {
++        len = ARRAY_SIZE(app_id);
++        if (get_current_package_identity_string( 1, &len, app_id )) return ERROR_NOT_FOUND;
++        for (index = 0; index < list->count; index++)
++            if (!wcsicmp( list->apps[index].id, app_id )) break;
++    }
++    if (index >= list->count) return ERROR_NOT_FOUND;
++    *context = (PACKAGE_GLOBALIZATION_CONTEXT_REFERENCE)&list->apps[index];
++    return ERROR_SUCCESS;
++}
++
++/***********************************************************************
++ *         GetPackageGlobalizationProperty   (kernelbase.@)
++ */
++LONG WINAPI GetPackageGlobalizationProperty( PACKAGE_GLOBALIZATION_CONTEXT_REFERENCE context, UINT32 property,
++                                             UINT32 *size, BYTE *buffer )
++{
++    const struct package_globalization_context *app = (const struct package_globalization_context *)context;
++    BOOL value;
++
++    TRACE( "(%p %u %p %p)\n", context, property, size, buffer );
++
++    if (!app || !size || (*size && !buffer)) return ERROR_INVALID_PARAMETER;
++    if (property == 1) value = !!(app->flags & 1);
++    else if (property == 2) value = !!(app->flags & 2);
++    else return ERROR_INVALID_PARAMETER;
++    if (*size < sizeof(value))
++    {
++        *size = sizeof(value);
++        return ERROR_INSUFFICIENT_BUFFER;
++    }
++    memset( buffer, 0, *size );
++    memcpy( buffer, &value, sizeof(value) );
++    *size = sizeof(value);
++    return ERROR_SUCCESS;
++}
++static WCHAR *put_package_string( BYTE **cursor, const WCHAR *s )
++{
++    SIZE_T bytes = (wcslen( s ) + 1) * sizeof(WCHAR);
++    WCHAR *ret = (WCHAR *)*cursor;
++
++    memcpy( ret, s, bytes );
++    *cursor += bytes;
++    return ret;
++}
++
++/***********************************************************************
++ *         GetCurrentPackageInfo2   (kernelbase.@)
++ *
++ * Measured on Windows 11 26100 for Microsoft.GamingApp with four framework dependencies:
++ * the PACKAGE_INFO array is followed, per package and without padding, by path, name,
++ * publisherId, publisher, full name and family name; an empty resourceId is NULL. The head has
++ * flags 0x10, static framework dependencies 0x21. Filter 0, HEAD, DIRECT or STATIC select
++ * packages; other filters succeed with an empty result. Install and Effective paths are the
++ * install directory; Mutable fails with APPMODEL_ERROR_NO_MUTABLE_DIRECTORY. A short buffer
++ * fails with ERROR_INSUFFICIENT_BUFFER after setting the length and count.
++ */
++LONG WINAPI GetCurrentPackageInfo2( const UINT32 flags, PackagePathType type, UINT32 *buffer_length,
++                                    BYTE *buffer, UINT32 *count )
++{
++    struct package_graph
++    {
++        struct package_node nodes[MAX_PACKAGE_DEPENDENCIES + 1];
++        struct package_dependency deps[MAX_PACKAGE_DEPENDENCIES];
++        WCHAR full[MAX_PACKAGE_DEPENDENCIES + 1][PACKAGE_FULL_NAME_MAX_LENGTH + 1];
++        WCHAR family[MAX_PACKAGE_DEPENDENCIES + 1][PACKAGE_FAMILY_NAME_MAX_LENGTH + 1];
++    } *graph;
++    WCHAR full_name[PACKAGE_FULL_NAME_MAX_LENGTH + 1], repository[MAX_PATH], *slash;
++    BYTE basic[sizeof(PACKAGE_ID) + sizeof(full_name)];
++    UINT32 name_len = ARRAY_SIZE(full_name), basic_len = sizeof(basic), size, available, first, last, i;
++    PACKAGE_ID *head_id = (PACKAGE_ID *)basic;
++    struct package_resources *res;
++    unsigned int dep_count = 0;
++    PACKAGE_INFO *info;
++    BOOL head, direct;
++    BYTE *cursor;
++    LONG ret;
++
++    TRACE( "(%#x %d %p %p %p)\n", flags, type, buffer_length, buffer, count );
++
++    if (!buffer_length || !count || (*buffer_length && !buffer)) return ERROR_INVALID_PARAMETER;
++    if (type != PackagePathType_Install && type != PackagePathType_Mutable && type != PackagePathType_Effective)
++        return ERROR_INVALID_PARAMETER;
++    if ((ret = get_current_package_identity_string( 0, &name_len, full_name ))) return ret;
++    if ((ret = PackageIdFromFullName( full_name, 0, &basic_len, basic ))) return ret;
++    if ((ret = get_current_package_resources( &res ))) return ret;
++
++    head = !flags || (flags & (PACKAGE_FILTER_HEAD | PACKAGE_FILTER_STATIC));
++    direct = !flags || (flags & (PACKAGE_FILTER_DIRECT | PACKAGE_FILTER_STATIC));
++    if (!(graph = HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*graph) ))) return ERROR_NOT_ENOUGH_MEMORY;
++    if ((ret = read_package_node( res->root, &graph->nodes[0], graph->deps, &dep_count ))) goto done;
++    wcscpy( graph->full[0], full_name );
++    if (wcslen( graph->nodes[0].name ) + 1 + wcslen( head_id->publisherId ) >= ARRAY_SIZE(graph->family[0]))
++    {
++        ret = ERROR_INVALID_DATA;
++        goto done;
++    }
++    wcscpy( graph->family[0], graph->nodes[0].name );
++    wcscat( graph->family[0], L"_" );
++    wcscat( graph->family[0], head_id->publisherId );
++
++    if (!direct) dep_count = 0;
++    if (dep_count)
++    {
++        wcscpy( repository, res->root );
++        if (!(slash = wcsrchr( repository, '\\' )))
++        {
++            ret = APPMODEL_ERROR_PACKAGE_NOT_AVAILABLE;
++            goto done;
++        }
++        *slash = 0;
++    }
++    for (i = 0; i < dep_count; i++)
++    {
++        struct package_node *node = &graph->nodes[i + 1];
++
++        if (wcscmp( graph->deps[i].publisher, graph->nodes[0].publisher ))
++        {
++            FIXME( "Dependency %s has a different publisher; publisher id derivation is not implemented\n",
++                   debugstr_w(graph->deps[i].name) );
++            ret = ERROR_NOT_SUPPORTED;
++            goto done;
++        }
++        if ((ret = resolve_package_dependency( repository, &graph->nodes[0], &graph->deps[i], node )))
++        {
++            WARN( "Dependency %s of %s is not staged\n", debugstr_w(graph->deps[i].name), debugstr_w(full_name) );
++            goto done;
++        }
++        if (!format_package_names( node, head_id->publisherId, graph->full[i + 1], graph->family[i + 1] ))
++        {
++            ret = ERROR_INVALID_DATA;
++            goto done;
++        }
++    }
++
++    first = head ? 0 : 1;
++    last = dep_count + 1;
++    if (first >= last)
++    {
++        *buffer_length = 0;
++        *count = 0;
++        ret = ERROR_SUCCESS;
++        goto done;
++    }
++    if (type == PackagePathType_Mutable)
++    {
++        ret = APPMODEL_ERROR_NO_MUTABLE_DIRECTORY;
++        goto done;
++    }
++
++    size = (last - first) * sizeof(PACKAGE_INFO);
++    for (i = first; i < last; i++)
++    {
++        size += (wcslen( graph->nodes[i].root ) + 1 + wcslen( graph->nodes[i].name ) + 1 +
++                 wcslen( head_id->publisherId ) + 1 + wcslen( graph->nodes[i].publisher ) + 1 +
++                 wcslen( graph->full[i] ) + 1 + wcslen( graph->family[i] ) + 1) * sizeof(WCHAR);
++        if (!i && head_id->resourceId && head_id->resourceId[0])
++            size += (wcslen( head_id->resourceId ) + 1) * sizeof(WCHAR);
++    }
++    available = *buffer_length;
++    *buffer_length = size;
++    *count = last - first;
++    if (available < size)
++    {
++        ret = ERROR_INSUFFICIENT_BUFFER;
++        goto done;
++    }
++
++    info = (PACKAGE_INFO *)buffer;
++    memset( info, 0, (last - first) * sizeof(PACKAGE_INFO) );
++    cursor = buffer + (last - first) * sizeof(PACKAGE_INFO);
++    for (i = first; i < last; i++, info++)
++    {
++        const struct package_node *node = &graph->nodes[i];
++
++        info->flags = (i ? PACKAGE_FILTER_DIRECT : PACKAGE_FILTER_HEAD) |
++                      (node->framework ? PACKAGE_PROPERTY_FRAMEWORK : 0);
++        info->packageId.processorArchitecture = i ? processor_arch_from_string( node->arch, wcslen( node->arch ) )
++                                                  : head_id->processorArchitecture;
++        info->packageId.version = node->version;
++        info->path = put_package_string( &cursor, node->root );
++        info->packageId.name = put_package_string( &cursor, node->name );
++        if (!i && head_id->resourceId && head_id->resourceId[0])
++            info->packageId.resourceId = put_package_string( &cursor, head_id->resourceId );
++        info->packageId.publisherId = put_package_string( &cursor, head_id->publisherId );
++        info->packageId.publisher = put_package_string( &cursor, node->publisher );
++        info->packageFullName = put_package_string( &cursor, graph->full[i] );
++        info->packageFamilyName = put_package_string( &cursor, graph->family[i] );
++    }
++    ret = ERROR_SUCCESS;
++done:
++    HeapFree( GetProcessHeap(), 0, graph );
++    return ret;
++}
++
++/***********************************************************************
++ *         GetCurrentPackageInfo3   (kernelbase.@)
++ *
++ * Measured on Windows 11 26100. PackageInfoGeneration (16) needs no package: it reports the
++ * dynamic dependency generation as a UINT32 (0 without dynamic dependencies), sets *length to 4
++ * and *count to 0; a length below 4 fails with HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER)
++ * without updating it. Other types require package identity (HRESULT_FROM_WIN32(NO_PACKAGE)
++ * otherwise). Types 0-2 are GetCurrentPackageInfo2 path types with HRESULT results; type 17
++ * lists dynamic dependencies and is empty for every filter in a static package graph; the
++ * remaining types fail with E_INVALIDARG. Wine has no dynamic package dependency APIs.
++ */
++HRESULT WINAPI GetCurrentPackageInfo3( UINT32 flags, PackageInfo3Type type, UINT32 *length, void *buffer,
++                                       UINT32 *count )
++{
++    WCHAR name[PACKAGE_FULL_NAME_MAX_LENGTH + 1];
++    UINT32 name_len = ARRAY_SIZE(name);
++    UINT32 scratch_count;
++    LONG ret;
++
++    TRACE( "(%#x %d %p %p %p)\n", flags, type, length, buffer, count );
++
++    if (type == PackageInfo3Type_PackageInfoGeneration)
++    {
++        if (!length || (*length && !buffer)) return E_INVALIDARG;
++        if (count) *count = 0;
++        if (*length < sizeof(UINT32)) return HRESULT_FROM_WIN32( ERROR_INSUFFICIENT_BUFFER );
++        *(UINT32 *)buffer = 0;
++        *length = sizeof(UINT32);
++        return S_OK;
++    }
++    if ((ret = get_current_package_identity_string( 0, &name_len, name ))) return HRESULT_FROM_WIN32( ret );
++    switch ((UINT32)type)
++    {
++    case PackagePathType_Install:
++    case PackagePathType_Mutable:
++    case PackagePathType_Effective:
++        /* Native accepts a NULL count only for a sizing call (*length == 0). */
++        if (!length || (*length && (!buffer || !count))) return E_INVALIDARG;
++        return HRESULT_FROM_WIN32( GetCurrentPackageInfo2( flags, (PackagePathType)type, length, buffer,
++                                                           count ? count : &scratch_count ) );
++    case 17:
++        if (!length || (*length && (!buffer || !count))) return E_INVALIDARG;
++        *length = 0;
++        if (count) *count = 0;
++        return S_OK;
++    default:
++        return E_INVALIDARG;
++    }
++}
 diff -u a/dlls/msctf/msctf.c b/dlls/msctf/msctf.c
 --- a/dlls/msctf/msctf.c
 +++ b/dlls/msctf/msctf.c
@@ -2434,7 +4076,28 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  @ stdcall -arch=win64 -syscall NtAlpcSendWaitReceivePort(long long ptr ptr ptr ptr ptr ptr)
  @ stdcall -arch=win64 -syscall NtAlpcConnectPortEx(ptr ptr ptr ptr long ptr ptr ptr ptr ptr ptr)
  @ stub -syscall=0x004c NtApphelpCacheControl
-@@ -747,6 +748,7 @@
+@@ -356,6 +357,7 @@
+ @ stdcall -syscall=0x0036 NtQuerySystemInformation(long ptr long ptr)
+ @ stdcall -syscall NtQuerySystemInformationEx(long ptr long ptr long ptr)
+ @ stdcall -syscall=0x005a NtQuerySystemTime(ptr)
++@ stdcall NtQueryWnfStateData(ptr ptr ptr ptr ptr ptr)
+ @ stdcall -syscall=0x0038 NtQueryTimer(ptr long ptr long ptr)
+ @ stdcall -syscall NtQueryTimerResolution(ptr ptr ptr)
+ @ stdcall -syscall=0x0017 NtQueryValueKey(long ptr long ptr long ptr)
+@@ -551,6 +553,7 @@
+ # @ stub RtlCheckForOrphanedCriticalSections
+ # @ stub RtlCheckProcessParameters
+ @ stdcall RtlCheckRegistryKey(long ptr)
++@ stdcall RtlCheckSandboxedToken(long ptr)
+ @ stdcall RtlClearAllBits(ptr)
+ @ stdcall RtlClearBits(ptr long long)
+ # @ stub RtlCloneMemoryStream
+@@ -744,9 +747,12 @@
+ @ stdcall RtlFreeUnicodeString(ptr)
+ @ stdcall RtlFreeUserStack(ptr)
+ @ stdcall RtlGetDeviceFamilyInfoEnum(ptr ptr ptr)
++@ stdcall RtlSubscribeWnfStateChangeNotification(ptr int64 long ptr ptr ptr long long)
++@ stdcall RtlUnsubscribeWnfStateChangeNotification(ptr)
  @ stdcall RtlGUIDFromString(ptr ptr)
  @ stub RtlGenerate8dot3Name
  @ stdcall RtlGetAce(ptr long ptr)
@@ -2442,7 +4105,7 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  @ stdcall RtlGetActiveActivationContext(ptr)
  @ stdcall RtlGetCallersAddress(ptr ptr)
  @ stdcall RtlGetCompressionWorkSpaceSize(long ptr ptr)
-@@ -791,6 +793,7 @@
+@@ -791,6 +797,7 @@
  @ stdcall RtlGetSystemPreferredUILanguages(long long ptr ptr ptr)
  @ stdcall -ret64 RtlGetSystemTimePrecise()
  @ stdcall RtlGetThreadErrorMode()
@@ -2450,7 +4113,7 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  @ stdcall RtlGetThreadPreferredUILanguages(long ptr ptr ptr)
  @ stdcall RtlGetUnloadEventTrace()
  @ stdcall RtlGetUnloadEventTraceEx(ptr ptr ptr)
-@@ -877,6 +880,7 @@
+@@ -877,6 +884,7 @@
  @ stdcall -arch=x86_64 -norelay RtlIsEcCode(ptr)
  @ stdcall RtlIsGenericTableEmpty(ptr)
  # @ stub RtlIsGenericTableEmptyAvl
@@ -2458,7 +4121,7 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  @ stdcall RtlIsNameLegalDOS8Dot3(ptr ptr ptr)
  @ stdcall RtlIsNormalizedString(long wstr long ptr)
  @ stdcall RtlIsProcessorFeaturePresent(long)
-@@ -1051,6 +1055,7 @@
+@@ -1051,6 +1059,7 @@
  @ stub RtlSetSecurityObject
  # @ stub RtlSetSecurityObjectEx
  @ stdcall RtlSetThreadErrorMode(long ptr)
@@ -2466,7 +4129,7 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  # @ stub RtlSetThreadIsCritical
  @ stdcall RtlSetThreadPreferredUILanguages(long ptr ptr)
  # @ stub RtlSetThreadPoolStartFunc
-@@ -1206,6 +1211,7 @@
+@@ -1206,6 +1215,7 @@
  @ stdcall TpSetPoolStackInformation(ptr ptr)
  @ stdcall TpSetTimer(ptr ptr long long)
  @ stdcall TpSetWait(ptr long ptr)
@@ -2474,6 +4137,14 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  @ stdcall TpSimpleTryPost(ptr ptr ptr)
  @ stdcall TpStartAsyncIoOperation(ptr)
  @ stdcall TpWaitForIoCompletion(ptr long)
+@@ -1429,6 +1439,7 @@
+ @ stdcall -private ZwQuerySystemInformation(long ptr long ptr) NtQuerySystemInformation
+ @ stdcall -private ZwQuerySystemInformationEx(long ptr long ptr long ptr) NtQuerySystemInformationEx
+ @ stdcall -private ZwQuerySystemTime(ptr) NtQuerySystemTime
++@ stdcall -private ZwQueryWnfStateData(ptr ptr ptr ptr ptr ptr) NtQueryWnfStateData
+ @ stdcall -private ZwQueryTimer(ptr long ptr long ptr) NtQueryTimer
+ @ stdcall -private ZwQueryTimerResolution(ptr ptr ptr) NtQueryTimerResolution
+ @ stdcall -private ZwQueryValueKey(long ptr long ptr long ptr) NtQueryValueKey
 diff -u a/dlls/ntdll/ntsyscalls.h b/dlls/ntdll/ntsyscalls.h
 --- a/dlls/ntdll/ntsyscalls.h
 +++ b/dlls/ntdll/ntsyscalls.h
@@ -2803,10 +4474,12 @@ diff -u a/dlls/ntdll/ntsyscalls.h b/dlls/ntdll/ntsyscalls.h
 diff -u a/dlls/ntdll/rtl.c b/dlls/ntdll/rtl.c
 --- a/dlls/ntdll/rtl.c
 +++ b/dlls/ntdll/rtl.c
-@@ -1679,3 +1679,14 @@
+@@ -1677,5 +1677,99 @@
+ 
+     memcpy(device_family, windows_desktop, family_length);
      memcpy(device_form, unknown_form, form_length);
-     return STATUS_SUCCESS;
- }
++    return STATUS_SUCCESS;
++}
 +
 +/******************************************************************************
 + *  RtlIsMultiSessionSku   (NTDLL.@)
@@ -2818,16 +4491,96 @@ diff -u a/dlls/ntdll/rtl.c b/dlls/ntdll/rtl.c
 +{
 +    return user_shared_data->DbgMultiSessionSku;
 +}
++
++/* Windows Notification Facility. Wine has no WNF publishers, so only state names measured as
++ * registered but never published on Windows 11 26100 are modelled: they have no data and change
++ * stamp 0, and subscriptions to them are never notified. Other names are reported as not found. */
++static const ULONGLONG unpublished_wnf_state_names[] =
++{
++    0x41950223a3bc1035, /* NLS scope, queried by MrmCoreR LanguageChangeNotifyThreadProc */
++    0x41950223a3bc2035, /* NLS scope, queried by MrmCoreR LanguageChangeNotifyThreadProc */
++};
++
++struct wnf_subscription
++{
++    ULONGLONG state_name;
++    void *callback;
++    void *context;
++};
++
++static BOOL is_unpublished_wnf_state_name( ULONGLONG name )
++{
++    unsigned int i;
++
++    for (i = 0; i < ARRAY_SIZE(unpublished_wnf_state_names); i++)
++        if (unpublished_wnf_state_names[i] == name) return TRUE;
++    return FALSE;
++}
++
++/***********************************************************************
++ *           NtQueryWnfStateData   (NTDLL.@)
++ */
++NTSTATUS WINAPI NtQueryWnfStateData( const ULONGLONG *name, const GUID *type_id, const void *scope,
++                                     ULONG *change_stamp, void *buffer, ULONG *size )
++{
++    TRACE( "(%p %p %p %p %p %p)\n", name, type_id, scope, change_stamp, buffer, size );
++
++    if (!name) return STATUS_ACCESS_VIOLATION;
++    if (!is_unpublished_wnf_state_name( *name ))
++    {
++        FIXME( "state name %s is not modelled\n", wine_dbgstr_longlong( *name ) );
++        return STATUS_OBJECT_NAME_NOT_FOUND;
++    }
++    *change_stamp = 0;
++    *size = 0;
+     return STATUS_SUCCESS;
+ }
++
++/***********************************************************************
++ *           RtlSubscribeWnfStateChangeNotification   (NTDLL.@)
++ */
++NTSTATUS WINAPI RtlSubscribeWnfStateChangeNotification( void **subscription, ULONGLONG name,
++                                                        ULONG change_stamp, void *callback, void *context,
++                                                        const GUID *type_id, ULONG serialization_group,
++                                                        ULONG flags )
++{
++    struct wnf_subscription *sub;
++
++    TRACE( "(%p %s %lu %p %p %p %lu %#lx)\n", subscription, wine_dbgstr_longlong( name ), change_stamp,
++           callback, context, type_id, serialization_group, flags );
++
++    if (!subscription || !callback) return STATUS_INVALID_PARAMETER;
++    if (!is_unpublished_wnf_state_name( name ))
++    {
++        FIXME( "state name %s is not modelled\n", wine_dbgstr_longlong( name ) );
++        return STATUS_OBJECT_NAME_NOT_FOUND;
++    }
++    if (!(sub = RtlAllocateHeap( GetProcessHeap(), 0, sizeof(*sub) ))) return STATUS_NO_MEMORY;
++    sub->state_name = name;
++    sub->callback = callback;
++    sub->context = context;
++    *subscription = sub;
++    return STATUS_SUCCESS;
++}
++
++/***********************************************************************
++ *           RtlUnsubscribeWnfStateChangeNotification   (NTDLL.@)
++ */
++NTSTATUS WINAPI RtlUnsubscribeWnfStateChangeNotification( void *subscription )
++{
++    TRACE( "(%p)\n", subscription );
++
++    if (!subscription) return STATUS_INVALID_PARAMETER;
++    RtlFreeHeap( GetProcessHeap(), 0, subscription );
++    return STATUS_SUCCESS;
++}
 diff -u a/dlls/ntdll/sec.c b/dlls/ntdll/sec.c
 --- a/dlls/ntdll/sec.c
 +++ b/dlls/ntdll/sec.c
-@@ -1943,6 +1943,98 @@
-     sid->SubAuthorityCount = 1 + ARRAY_SIZE(hash);
-     sid->SubAuthority[0] = SECURITY_BUILTIN_DOMAIN_RID;
-     memcpy( sid->SubAuthority + 1, hash, sizeof(hash) );
-+
-+    return STATUS_SUCCESS;
-+}
+@@ -1946,3 +1946,116 @@
+ 
+     return STATUS_SUCCESS;
+ }
 +
 +/******************************************************************************
 + * RtlGetAppContainerNamedObjectPath   [NTDLL.@]
@@ -2873,7 +4626,7 @@ diff -u a/dlls/ntdll/sec.c b/dlls/ntdll/sec.c
 +            status = NtQueryInformationToken( query, TokenAppContainerSid, container_buf, sizeof(container_buf), &len );
 +        if (query != token) NtClose( query );
 +        if (status) return status;
- 
++
 +        path->Length = path->MaximumLength = 0;
 +        path->Buffer = NULL;
 +        if (!is_container) return STATUS_SUCCESS;
@@ -2918,8 +4671,29 @@ diff -u a/dlls/ntdll/sec.c b/dlls/ntdll/sec.c
 +    path->Buffer[(len - wcslen( child ) * sizeof(WCHAR)) / sizeof(WCHAR)] = 0;
 +    wcscat( path->Buffer, child );
 +    RtlFreeUnicodeString( &parent );
-     return STATUS_SUCCESS;
- }
++    return STATUS_SUCCESS;
++}
++
++/******************************************************************************
++ *              RtlCheckSandboxedToken  [NTDLL.@]
++ *
++ * Native: a NULL token means the current thread's effective token; the result is the
++ * kernel's TokenIsSandboxed answer.
++ */
++NTSTATUS WINAPI RtlCheckSandboxedToken( HANDLE token, BOOLEAN *is_sandboxed )
++{
++    ULONG sandboxed = 0, size;
++    NTSTATUS status;
++
++    TRACE( "(%p, %p)\n", token, is_sandboxed );
++
++    *is_sandboxed = FALSE;
++    if (!token) token = GetCurrentThreadEffectiveToken();
++    if ((status = NtQueryInformationToken( token, TokenIsSandboxed, &sandboxed, sizeof(sandboxed), &size )))
++        return status;
++    if (sandboxed) *is_sandboxed = TRUE;
++    return STATUS_SUCCESS;
++}
 diff -u a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
 --- a/dlls/ntdll/thread.c
 +++ b/dlls/ntdll/thread.c
@@ -3046,12 +4820,12 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
 +    if (attr->AllocatedAttributes & ~ALPC_MESSAGE_ATTRIBUTE_ALL)
 +    {
 +        WARN( "unsupported allocated attributes %#x\n", (unsigned int)attr->AllocatedAttributes );
-         return STATUS_NOT_SUPPORTED;
++        return STATUS_NOT_SUPPORTED;
 +    }
 +    if (sending && (attr->ValidAttributes & ~send_allowed))
 +    {
 +        WARN( "unsupported valid send attributes %#x\n", (unsigned int)attr->ValidAttributes );
-+        return STATUS_NOT_SUPPORTED;
+         return STATUS_NOT_SUPPORTED;
 +    }
      if (sending && (attr->ValidAttributes & ALPC_MESSAGE_SECURITY_ATTRIBUTE))
      {
@@ -3076,7 +4850,34 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
          dst->ticket = 0;
      }
  
-@@ -390,7 +401,7 @@
+@@ -357,8 +368,24 @@
+             server_recv_msg_attr = (struct alpc_msg_attr_t *)((unsigned char *)server_recv_msg
+                                    + sizeof(*server_recv_msg) + server_recv_msg->data_len);
+             get_alpc_msg_from_server( recv_msg, server_recv_msg );
+-            if (recv_msg_attr && wine_server_reply_size(reply) > sizeof(*server_recv_msg) + server_recv_msg->data_len)
+-                get_alpc_msg_attr_from_server( recv_msg_attr, server_recv_msg_attr );
++            if (recv_msg_attr)
++            {
++                ALPC_CONTEXT_ATTR *context;
++
++                if (wine_server_reply_size(reply) > sizeof(*server_recv_msg) + server_recv_msg->data_len)
++                    get_alpc_msg_attr_from_server( recv_msg_attr, server_recv_msg_attr );
++                else
++                    recv_msg_attr->ValidAttributes = 0;
++                /* Native overwrites an allocated context attribute even when it is not delivered as valid
++                 * (e.g. connection requests: NULL port and message context), so stale contexts never leak. */
++                if ((recv_msg_attr->AllocatedAttributes & ALPC_MESSAGE_CONTEXT_ATTRIBUTE)
++                    && !(recv_msg_attr->ValidAttributes & ALPC_MESSAGE_CONTEXT_ATTRIBUTE)
++                    && (context = alpc_get_message_attribute( recv_msg_attr, ALPC_MESSAGE_CONTEXT_ATTRIBUTE )))
++                {
++                    memset( context, 0, sizeof(*context) );
++                    context->MessageId = recv_msg->MessageId;
++                }
++            }
+         }
+         else if (status == STATUS_BUFFER_TOO_SMALL)
+         {
+@@ -390,7 +417,7 @@
             (unsigned int)flags, obj_attr, port_attr, port_context, send_msg, send_msg_attr, accept );
  
      if ((status = validate_message( send_msg )) ||
@@ -3085,7 +4886,7 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
      if ((flags & ~ALPC_SYNC_CONNECTION) || (port_attr && (port_attr->Flags & ~ALPC_PORTFLG_SUPPORTED)))
          return STATUS_NOT_SUPPORTED;
      if (!communication_port || !send_msg)
-@@ -461,8 +472,8 @@
+@@ -461,8 +488,8 @@
             connect_msg, connect_msg_size, send_msg_attr, recv_msg_attr, timeout );
  
      if ((status = validate_message( connect_msg )) ||
@@ -3096,12 +4897,10 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
      if ((flags & ~ALPC_SYNC_CONNECTION) ||
          (port_attr && (port_attr->Flags & ~ALPC_PORTFLG_SUPPORTED)))
          return STATUS_NOT_SUPPORTED;
-@@ -632,6 +643,47 @@
-     SERVER_END_REQ;
-     free( server_obj_attr );
+@@ -634,6 +661,47 @@
      return status;
-+}
-+
+ }
+ 
 +/***********************************************************************
 + *             NtAlpcQueryInformation  (NTDLL.@)
 + */
@@ -3141,10 +4940,12 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
 +    if (length < sizeof(info)) return STATUS_INFO_LENGTH_MISMATCH;
 +    memcpy( buffer, &info, sizeof(info) );
 +    return STATUS_SUCCESS;
- }
- 
++}
++
  NTSTATUS WINAPI NtAlpcDisconnectPort( HANDLE port_handle, ULONG flags )
-@@ -673,9 +725,12 @@
+ {
+     NTSTATUS status;
+@@ -673,9 +741,12 @@
      TRACE( "%p, %#x, %p, %p, %p, %p, %p, %p.\n", port_handle, (unsigned int)flags, send_msg,
             send_msg_attr, recv_msg, recv_buffer_size, recv_msg_attr, timeout );
  
@@ -3159,7 +4960,7 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
      if (flags & ~(ALPC_MSGFLG_REPLY_MESSAGE | ALPC_MSGFLG_SYNC_REQUEST))
          return STATUS_NOT_SUPPORTED;
  
-@@ -705,6 +760,13 @@
+@@ -705,6 +776,13 @@
              req->flags = flags;
              req->msg_size = wine_server_add_alpc_msg(req, send_msg, &server_msg);
              req->msg_attr_size = wine_server_add_alpc_msg_attr(req, send_msg_attr, ALPC_MESSAGE_ATTRIBUTE_ALL, &server_msg_attr);
@@ -3173,6 +4974,78 @@ diff -u a/dlls/ntdll/unix/alpc.c b/dlls/ntdll/unix/alpc.c
              status = req->msg_size == ~0u || req->msg_attr_size == ~0u
                  ? STATUS_NO_MEMORY : wine_server_call(req);
          }
+@@ -773,5 +851,6 @@
+         status = wine_server_call( req );
+     }
+     SERVER_END_REQ;
++    TRACE( "%p, id %u -> %#x\n", port_handle, (unsigned int)msg->MessageId, (unsigned int)status );
+     return status;
+ }
+diff -u a/dlls/ntdll/unix/security.c b/dlls/ntdll/unix/security.c
+--- a/dlls/ntdll/unix/security.c
++++ b/dlls/ntdll/unix/security.c
+@@ -434,7 +434,16 @@
+         0,    /* TokenRestrictedDeviceGroups */
+         0,    /* TokenSecurityAttributes */
+         sizeof(DWORD), /* TokenIsRestricted */
+-        0     /* TokenProcessTrustLevel */
++        0,    /* TokenProcessTrustLevel */
++        0,    /* TokenPrivateNameSpace */
++        0,    /* TokenSingletonAttributes */
++        0,    /* TokenBnoIsolation */
++        0,    /* TokenChildProcessFlags */
++        0,    /* TokenIsLessPrivilegedAppContainer */
++        sizeof(DWORD), /* TokenIsSandboxed */
++        0,    /* TokenIsAppSilo */
++        0,    /* TokenLoggingInformation */
++        0,    /* TokenLearningMode */
+     };
+ 
+     ULONG len = 0;
+@@ -445,7 +454,7 @@
+     if (class == TokenSecurityAttributes)
+         return NtQuerySecurityAttributesToken( token, NULL, 0, info, length, retlen );
+ 
+-    if (class < MaxTokenInfoClass) len = info_len[class];
++    if (class < ARRAY_SIZE(info_len)) len = info_len[class];
+     if (retlen) *retlen = len;
+     if (length < len) return STATUS_BUFFER_TOO_SMALL;
+ 
+@@ -732,6 +741,34 @@
+             break;
+         }
+ 
++    case TokenIsSandboxed:
++        {
++            /* Native: integrity level below medium, or an AppContainer token. Derived from the
++             * same token model that answers TokenIntegrityLevel and TokenIsAppContainer. */
++            BYTE label_buf[sizeof(TOKEN_MANDATORY_LABEL) + sizeof(SID)];
++            TOKEN_MANDATORY_LABEL *label = (TOKEN_MANDATORY_LABEL *)label_buf;
++            DWORD is_appcontainer = 0;
++            SID *sid;
++            ULONG size;
++
++            SERVER_START_REQ( get_token_info )  /* validates the handle and TOKEN_QUERY access */
++            {
++                req->handle = wine_server_obj_handle( token );
++                status = wine_server_call( req );
++            }
++            SERVER_END_REQ;
++            if (status) break;
++            if ((status = NtQueryInformationToken( token, TokenIntegrityLevel, label_buf, sizeof(label_buf), &size )))
++                break;
++            if ((status = NtQueryInformationToken( token, TokenIsAppContainer, &is_appcontainer,
++                                                   sizeof(is_appcontainer), &size )))
++                break;
++            sid = label->Label.Sid;
++            *(DWORD *)info = is_appcontainer || !sid->SubAuthorityCount ||
++                             sid->SubAuthority[sid->SubAuthorityCount - 1] < SECURITY_MANDATORY_MEDIUM_RID;
++        }
++        break;
++
+     case TokenLinkedToken:
+         SERVER_START_REQ( create_linked_token )
+         {
 diff -u a/dlls/ntdll/unix/thread.c b/dlls/ntdll/unix/thread.c
 --- a/dlls/ntdll/unix/thread.c
 +++ b/dlls/ntdll/unix/thread.c
@@ -3224,6 +5097,109 @@ diff -u a/dlls/ole32/ole32.spec b/dlls/ole32/ole32.spec
  @ stdcall CoGetState(ptr)
  @ stub CoGetTIDFromIPID
  @ stdcall CoGetTreatAsClass(ptr ptr) combase.CoGetTreatAsClass
+diff -u a/dlls/profapi/Makefile.in b/dlls/profapi/Makefile.in
+--- a/dlls/profapi/Makefile.in
++++ b/dlls/profapi/Makefile.in
+@@ -1 +1,5 @@
+ MODULE    = profapi.dll
++IMPORTS   = advapi32
++
++SOURCES = \
++	main.c
+diff -u a/dlls/profapi/main.c b/dlls/profapi/main.c
+--- /dev/null
++++ b/dlls/profapi/main.c
+@@ -0,0 +1,77 @@
++/*
++ * Profile API
++ *
++ * Copyright 2026 Xodus contributors
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include <stdarg.h>
++
++#include "windef.h"
++#include "winbase.h"
++#include "winreg.h"
++#include "winerror.h"
++
++#include "wine/debug.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(profapi);
++
++static const WCHAR storage_key[] = L"Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows"
++                                   L"\\CurrentVersion\\AppContainer\\Storage\\";
++
++/***********************************************************************
++ *           GetAppContainerRegistryHandleFromName (PROFAPI.114)
++ */
++HRESULT WINAPI GetAppContainerRegistryHandleFromName( const WCHAR *name, const WCHAR *child,
++                                                      const WCHAR *subkey, REGSAM access, HKEY *ret )
++{
++    HKEY user;
++    WCHAR *path;
++    size_t len;
++    LSTATUS status;
++
++    TRACE( "%s %s %s %#lx %p\n", debugstr_w(name), debugstr_w(child), debugstr_w(subkey), access, ret );
++
++    if (!name) return E_INVALIDARG;
++
++    if ((status = RegOpenCurrentUser( KEY_READ, &user ))) return HRESULT_FROM_WIN32( status );
++
++    len = wcslen( storage_key ) + wcslen( name ) + 1;
++    if (child) len += wcslen( L"\\Children\\" ) + wcslen( child );
++    if (subkey) len += 1 + wcslen( subkey );
++    if (!(path = HeapAlloc( GetProcessHeap(), 0, len * sizeof(WCHAR) )))
++    {
++        RegCloseKey( user );
++        return E_OUTOFMEMORY;
++    }
++    wcscpy( path, storage_key );
++    wcscat( path, name );
++    if (child)
++    {
++        wcscat( path, L"\\Children\\" );
++        wcscat( path, child );
++    }
++    if (subkey)
++    {
++        wcscat( path, L"\\" );
++        wcscat( path, subkey );
++    }
++
++    status = RegOpenKeyExW( user, path, 0, access, ret );
++    HeapFree( GetProcessHeap(), 0, path );
++    RegCloseKey( user );
++    return HRESULT_FROM_WIN32( status );
++}
+\ No newline at end of file
+diff -u a/dlls/profapi/profapi.spec b/dlls/profapi/profapi.spec
+--- a/dlls/profapi/profapi.spec
++++ b/dlls/profapi/profapi.spec
+@@ -11,7 +11,7 @@
+ 111 stub -noname @
+ 112 stub -noname @
+ 113 stub -noname @
+-114 stub -noname @
++114 stdcall -noname GetAppContainerRegistryHandleFromName(wstr wstr wstr long ptr)
+ 115 stub -noname @
+ 116 stub -noname @
+ 117 stub -noname @
 diff -u a/dlls/rpcrt4/cproxy.c b/dlls/rpcrt4/cproxy.c
 --- a/dlls/rpcrt4/cproxy.c
 +++ b/dlls/rpcrt4/cproxy.c
@@ -3581,6 +5557,29 @@ diff -u a/dlls/rpcrt4/cstub.c b/dlls/rpcrt4/cstub.c
        header->pDispatchTable[pMsg->iMethod](iface, pChannel, (PRPC_MESSAGE)pMsg, &dwPhase);
      else /* pure interpreted */
        NdrStubCall2(iface, pChannel, (PRPC_MESSAGE)pMsg, &dwPhase);
+diff -u a/dlls/rpcrt4/ndr_clientserver.c b/dlls/rpcrt4/ndr_clientserver.c
+--- a/dlls/rpcrt4/ndr_clientserver.c
++++ b/dlls/rpcrt4/ndr_clientserver.c
+@@ -44,6 +44,11 @@
+ /************************************************************************
+  *             NdrClientInitializeNew [RPCRT4.@]
+  */
++/* ndr3-compact: every Wine client marshaling path emits NDR 2.0; record it so that an
++ * in-process (cross-apartment) NdrStubCall3 does not read an uninitialized syntax pointer. */
++static RPC_SYNTAX_IDENTIFIER ndr20_transfer_syntax =
++    {{0x8a885d04, 0x1ceb, 0x11c9, {0x9f, 0xe8, 0x08, 0x00, 0x2b, 0x10, 0x48, 0x60}}, {2, 0}};
++
+ void WINAPI NdrClientInitializeNew( PRPC_MESSAGE pRpcMessage, PMIDL_STUB_MESSAGE pStubMsg, 
+                                     PMIDL_STUB_DESC pStubDesc, unsigned int ProcNum )
+ {
+@@ -56,6 +61,7 @@
+   pRpcMessage->RpcFlags = 0;
+   pRpcMessage->ReservedForRuntime = NULL;
+   pRpcMessage->DataRepresentation = NDR_LOCAL_DATA_REPRESENTATION;
++  pRpcMessage->TransferSyntax = &ndr20_transfer_syntax;
+ 
+   pStubMsg->RpcMsg = pRpcMessage;
+   pStubMsg->BufferStart = NULL;
 diff -u a/dlls/rpcrt4/ndr_stubless.c b/dlls/rpcrt4/ndr_stubless.c
 --- a/dlls/rpcrt4/ndr_stubless.c
 +++ b/dlls/rpcrt4/ndr_stubless.c
@@ -3636,6 +5635,73 @@ diff -u a/dlls/rpcrt4/rpcrt4.spec b/dlls/rpcrt4/rpcrt4.spec
  @ stdcall NdrStubCall(ptr ptr ptr ptr)
  @ stdcall NdrStubForwardingFunction(ptr ptr ptr ptr)
  @ stdcall NdrStubGetBuffer(ptr ptr ptr)
+diff -u a/dlls/shcore/main.c b/dlls/shcore/main.c
+--- a/dlls/shcore/main.c
++++ b/dlls/shcore/main.c
+@@ -92,6 +92,52 @@
+ 
+     *scale = SCALE_100_PERCENT;
+     return S_OK;
++}
++
++DEFINE_GUID(IID_ICoreWindowInterop_shcore, 0x45d64a29, 0xa63e, 0x4cb6, 0xb4, 0x98, 0x57, 0x81, 0xd2, 0x98, 0xcb, 0x4f);
++
++typedef struct core_window_interop core_window_interop;
++struct core_window_interop_vtbl
++{
++    HRESULT (WINAPI *QueryInterface)(core_window_interop *iface, REFIID iid, void **out);
++    ULONG (WINAPI *AddRef)(core_window_interop *iface);
++    ULONG (WINAPI *Release)(core_window_interop *iface);
++    HRESULT (WINAPI *get_WindowHandle)(core_window_interop *iface, HWND *hwnd);
++};
++struct core_window_interop { const struct core_window_interop_vtbl *lpVtbl; };
++
++/* Ordinal 265. Native presets *scale to 100, resolves the CoreWindow HWND
++ * through ICoreWindowInterop and then uses the per-window scale; a NULL
++ * CoreWindow uses a NULL HWND, which natively reports the same value as
++ * GetScaleFactorForMonitor() for the primary monitor (measured packaged and
++ * unpackaged). Like native, a NULL scale pointer is not checked. */
++HRESULT WINAPI GetScaleFactorForCoreWindow(IUnknown *core_window, DEVICE_SCALE_FACTOR *scale)
++{
++    static const POINT origin;
++    core_window_interop *interop;
++    HMONITOR monitor;
++    HWND hwnd = NULL;
++    HRESULT hr;
++
++    TRACE("(%p %p)\n", core_window, scale);
++
++    *scale = SCALE_100_PERCENT;
++    if (core_window)
++    {
++        if (FAILED(hr = IUnknown_QueryInterface(core_window, &IID_ICoreWindowInterop_shcore, (void **)&interop)))
++            return hr;
++        hr = interop->lpVtbl->get_WindowHandle(interop, &hwnd);
++        interop->lpVtbl->Release(interop);
++        if (FAILED(hr)) return hr;
++    }
++
++    if (hwnd)
++    {
++        FIXME("per-window ViewPresentation/legacy scale properties not implemented, using monitor of %p\n", hwnd);
++        monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
++    }
++    else monitor = MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY);
++    return GetScaleFactorForMonitor(monitor, scale);
+ }
+ 
+ DEVICE_SCALE_FACTOR WINAPI GetScaleFactorForDevice(DISPLAY_DEVICE_TYPE device_type)
+diff -u a/dlls/shcore/shcore.spec b/dlls/shcore/shcore.spec
+--- a/dlls/shcore/shcore.spec
++++ b/dlls/shcore/shcore.spec
+@@ -187,6 +187,7 @@
+ 255 stub -noname GetCurrentWindow
+ 260 stub -noname PhysicalRectFromRelativeRectWithScales
+ 261 stub -noname RelativeRectFromPhysicalRectWithScales
++265 stdcall -noname GetScaleFactorForCoreWindow(ptr ptr)
+ 270 stub -noname SHCreateMemoryStreamOnSharedBuffer
+ 280 stub -noname _CreateDirectoryHelper
+ 281 stub -noname Win32CreateDirectory
 diff -u a/dlls/urlmon/uri.c b/dlls/urlmon/uri.c
 --- a/dlls/urlmon/uri.c
 +++ b/dlls/urlmon/uri.c
@@ -4647,17 +6713,155 @@ diff -u a/dlls/windows.applicationmodel/package.c b/dlls/windows.applicationmode
  }
  
  static HRESULT WINAPI package_get_InstalledLocation( IPackage *iface, IStorageFolder **value )
+diff -u a/dlls/windows.staterepositorycore/Makefile.in b/dlls/windows.staterepositorycore/Makefile.in
+--- /dev/null
++++ b/dlls/windows.staterepositorycore/Makefile.in
+@@ -0,0 +1,5 @@
++MODULE    = windows.staterepositorycore.dll
++IMPORTS   = advapi32
++
++SOURCES = \
++	main.c
+diff -u a/dlls/windows.staterepositorycore/main.c b/dlls/windows.staterepositorycore/main.c
+--- /dev/null
++++ b/dlls/windows.staterepositorycore/main.c
+@@ -0,0 +1,116 @@
++/*
++ * StateRepository cache manager (Windows.StateRepositoryCore.dll)
++ *
++ * The cache is the registry tree HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\
++ * AppModel\StateRepository\Cache that the StateRepository service maintains.
++ * Behaviour follows Windows.StateRepositoryCore.dll 10.0.26100.9444.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include <stdarg.h>
++
++#include "windef.h"
++#include "winbase.h"
++#include "winreg.h"
++#include "winerror.h"
++
++#include "wine/debug.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(srcache);
++
++#ifndef STATEREPOSITORY_E_CACHE_NOT_INIITALIZED
++#define STATEREPOSITORY_E_CACHE_NOT_INIITALIZED _HRESULT_TYPEDEF_(0x80670015)
++#endif
++
++#define SRCACHE_FLAG_WRITE 0x1
++
++struct sr_cache_manager
++{
++    HKEY root;
++    HKEY metadata;
++};
++
++static void free_manager( struct sr_cache_manager *mgr )
++{
++    if (mgr->metadata) RegCloseKey( mgr->metadata );
++    if (mgr->root) RegCloseKey( mgr->root );
++    HeapFree( GetProcessHeap(), 0, mgr );
++}
++
++static HRESULT open_manager( struct sr_cache_manager *mgr, UINT32 flags )
++{
++    REGSAM access = KEY_READ | KEY_WOW64_64KEY;
++    LSTATUS err;
++
++    if (flags & SRCACHE_FLAG_WRITE) access |= KEY_SET_VALUE | KEY_CREATE_SUB_KEY;
++
++    err = RegOpenKeyExW( HKEY_LOCAL_MACHINE,
++                         L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModel\\StateRepository\\Cache",
++                         0, access, &mgr->root );
++    if (err) return HRESULT_FROM_WIN32( err );
++
++    if (flags & SRCACHE_FLAG_WRITE)
++    {
++        FIXME( "writable cache open is not implemented\n" );
++        return E_NOTIMPL;
++    }
++
++    err = RegOpenKeyExW( mgr->root, L"Metadata", 0, access, &mgr->metadata );
++    if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
++        return STATEREPOSITORY_E_CACHE_NOT_INIITALIZED;
++    if (err) return HRESULT_FROM_WIN32( err );
++
++    FIXME( "reading an initialized cache is not implemented\n" );
++    return E_NOTIMPL;
++}
++
++/***********************************************************************
++ *         SRCacheManager_Open   (windows.staterepositorycore.@)
++ */
++HRESULT WINAPI SRCacheManager_Open( UINT32 flags, struct sr_cache_manager **manager )
++{
++    struct sr_cache_manager *mgr;
++    HRESULT hr;
++
++    TRACE( "(%#x %p)\n", flags, manager );
++
++    if (!manager) return E_INVALIDARG;
++    *manager = NULL;
++
++    if (!(mgr = HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*mgr) ))) return E_OUTOFMEMORY;
++    hr = open_manager( mgr, flags );
++    if (hr == STATEREPOSITORY_E_CACHE_NOT_INIITALIZED)
++        /* Windows asks the StateRepository service to build the cache here;
++         * there is no such service, so the cache stays uninitialized. */
++        WARN( "StateRepository cache is not initialized\n" );
++    if (FAILED(hr))
++    {
++        free_manager( mgr );
++        return hr;
++    }
++    *manager = mgr;
++    return S_OK;
++}
++
++/***********************************************************************
++ *         SRCacheManager_Close   (windows.staterepositorycore.@)
++ */
++void WINAPI SRCacheManager_Close( struct sr_cache_manager *manager )
++{
++    TRACE( "(%p)\n", manager );
++
++    if (manager) free_manager( manager );
++}
+\ No newline at end of file
+diff -u a/dlls/windows.staterepositorycore/windows.staterepositorycore.spec b/dlls/windows.staterepositorycore/windows.staterepositorycore.spec
+--- /dev/null
++++ b/dlls/windows.staterepositorycore/windows.staterepositorycore.spec
+@@ -0,0 +1,2 @@
++@ stdcall SRCacheManager_Close(ptr)
++@ stdcall SRCacheManager_Open(long ptr)
 diff -u a/dlls/windows.ui/Makefile.in b/dlls/windows.ui/Makefile.in
 --- a/dlls/windows.ui/Makefile.in
 +++ b/dlls/windows.ui/Makefile.in
-@@ -3,6 +3,7 @@
+@@ -3,7 +3,9 @@
  
  SOURCES = \
  	accessibilitysettings.c \
 +	applicationviewscaling.c \
  	classes.idl \
++	corewindow.c \
  	inputpane.c \
  	main.c \
+ 	uisettings.c \
 diff -u a/dlls/windows.ui/applicationviewscaling.c b/dlls/windows.ui/applicationviewscaling.c
 --- /dev/null
 +++ b/dlls/windows.ui/applicationviewscaling.c
@@ -4831,14 +7035,172 @@ diff -u a/dlls/windows.ui/applicationviewscaling.c b/dlls/windows.ui/application
 diff -u a/dlls/windows.ui/classes.idl b/dlls/windows.ui/classes.idl
 --- a/dlls/windows.ui/classes.idl
 +++ b/dlls/windows.ui/classes.idl
-@@ -37,6 +37,7 @@
+@@ -35,8 +35,13 @@
+ import "windows.ui.windowmanagement.idl";
+ import "windows.ui.viewmanagement.idl";
  
++namespace Windows.UI.Core {
++    runtimeclass CoreWindow;
++}
++
  namespace Windows.UI.ViewManagement {
      runtimeclass AccessibilitySettings;
 +    runtimeclass ApplicationViewScaling;
      runtimeclass UISettings;
      runtimeclass UIViewSettings;
      runtimeclass InputPane;
+diff -u a/dlls/windows.ui/corewindow.c b/dlls/windows.ui/corewindow.c
+--- /dev/null
++++ b/dlls/windows.ui/corewindow.c
+@@ -0,0 +1,148 @@
++/* WinRT Windows.UI.Core.CoreWindow Implementation
++ *
++ * Copyright 2025 Zhiyi Zhang for CodeWeavers
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include "private.h"
++
++#include "wine/debug.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(ui);
++
++struct corewindow_statics
++{
++    IActivationFactory IActivationFactory_iface;
++    ICoreWindowStatic ICoreWindowStatic_iface;
++    LONG ref;
++};
++
++static inline struct corewindow_statics *impl_from_IActivationFactory( IActivationFactory *iface )
++{
++    return CONTAINING_RECORD( iface, struct corewindow_statics, IActivationFactory_iface );
++}
++
++static HRESULT WINAPI factory_QueryInterface( IActivationFactory *iface, REFIID iid, void **out )
++{
++    struct corewindow_statics *impl = impl_from_IActivationFactory( iface );
++
++    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
++
++    if (IsEqualGUID( iid, &IID_IUnknown ) ||
++        IsEqualGUID( iid, &IID_IAgileObject ) ||
++        IsEqualGUID( iid, &IID_IInspectable ) ||
++        IsEqualGUID( iid, &IID_IActivationFactory ))
++    {
++        *out = &impl->IActivationFactory_iface;
++        IActivationFactory_AddRef( &impl->IActivationFactory_iface );
++        return S_OK;
++    }
++    else if (IsEqualGUID( iid, &IID_ICoreWindowStatic ))
++    {
++        *out = &impl->ICoreWindowStatic_iface;
++        ICoreWindowStatic_AddRef( &impl->ICoreWindowStatic_iface );
++        return S_OK;
++    }
++
++    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
++    *out = NULL;
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI factory_AddRef( IActivationFactory *iface )
++{
++    struct corewindow_statics *impl = impl_from_IActivationFactory( iface );
++    ULONG ref = InterlockedIncrement( &impl->ref );
++    TRACE( "iface %p, ref %lu.\n", iface, ref );
++    return ref;
++}
++
++static ULONG WINAPI factory_Release( IActivationFactory *iface )
++{
++    struct corewindow_statics *impl = impl_from_IActivationFactory( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref );
++    TRACE( "iface %p, ref %lu.\n", iface, ref );
++    return ref;
++}
++
++static HRESULT WINAPI factory_GetIids( IActivationFactory *iface, ULONG *iid_count, IID **iids )
++{
++    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI factory_GetRuntimeClassName( IActivationFactory *iface, HSTRING *class_name )
++{
++    FIXME( "iface %p, class_name %p stub!\n", iface, class_name );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI factory_GetTrustLevel( IActivationFactory *iface, TrustLevel *trust_level )
++{
++    FIXME( "iface %p, trust_level %p stub!\n", iface, trust_level );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI factory_ActivateInstance( IActivationFactory *iface, IInspectable **instance )
++{
++    FIXME( "iface %p, instance %p.\n", iface, instance );
++    return E_NOTIMPL;
++}
++
++static const struct IActivationFactoryVtbl factory_vtbl =
++{
++    factory_QueryInterface,
++    factory_AddRef,
++    factory_Release,
++    /* IInspectable methods */
++    factory_GetIids,
++    factory_GetRuntimeClassName,
++    factory_GetTrustLevel,
++    /* IActivationFactory methods */
++    factory_ActivateInstance,
++};
++
++DEFINE_IINSPECTABLE( corewindow_static, ICoreWindowStatic, struct corewindow_statics, IActivationFactory_iface )
++
++static HRESULT STDMETHODCALLTYPE corewindow_static_GetForCurrentThread( ICoreWindowStatic *iface, ICoreWindow **windows )
++{
++    FIXME( "iface %p, windows %p stub!\n", iface, windows );
++
++    *windows = NULL;
++    return S_OK;
++}
++
++static const struct ICoreWindowStaticVtbl corewindow_static_vtbl =
++{
++    corewindow_static_QueryInterface,
++    corewindow_static_AddRef,
++    corewindow_static_Release,
++    /* IInspectable methods */
++    corewindow_static_GetIids,
++    corewindow_static_GetRuntimeClassName,
++    corewindow_static_GetTrustLevel,
++    /* ICoreWindowStatic methods */
++    corewindow_static_GetForCurrentThread
++};
++
++static struct corewindow_statics corewindow_statics =
++{
++    {&factory_vtbl},
++    {&corewindow_static_vtbl},
++    1,
++};
++
++IActivationFactory *corewindow_factory = &corewindow_statics.IActivationFactory_iface;
 diff -u a/dlls/windows.ui/main.c b/dlls/windows.ui/main.c
 --- a/dlls/windows.ui/main.c
 +++ b/dlls/windows.ui/main.c
@@ -4852,10 +7214,26 @@ diff -u a/dlls/windows.ui/main.c b/dlls/windows.ui/main.c
      if (!wcscmp( buffer, RuntimeClass_Windows_UI_ViewManagement_UISettings ))
          IActivationFactory_QueryInterface( uisettings_factory, &IID_IActivationFactory, (void **)factory );
  
+@@ -50,6 +53,9 @@
+     if (!wcscmp( buffer, RuntimeClass_Windows_UI_ViewManagement_InputPane ))
+         IActivationFactory_QueryInterface( inputpane_factory, &IID_IActivationFactory, (void **)factory );
+ 
++    if (!wcscmp( buffer, RuntimeClass_Windows_UI_Core_CoreWindow ))
++        IActivationFactory_QueryInterface( corewindow_factory, &IID_IActivationFactory, (void **)factory );
++
+     if (*factory) return S_OK;
+     return CLASS_E_CLASSNOTAVAILABLE;
+ }
 diff -u a/dlls/windows.ui/private.h b/dlls/windows.ui/private.h
 --- a/dlls/windows.ui/private.h
 +++ b/dlls/windows.ui/private.h
-@@ -37,6 +37,7 @@
+@@ -33,13 +33,17 @@
+ #include "windows.foundation.h"
+ #define WIDL_using_Windows_UI
+ #include "windows.ui.h"
++#define WIDL_using_Windows_UI_Core
++#include "windows.ui.core.h"
+ #define WIDL_using_Windows_UI_ViewManagement
  #include "windows.ui.viewmanagement.h"
  
  extern IActivationFactory *accessibilitysettings_factory;
@@ -4863,6 +7241,127 @@ diff -u a/dlls/windows.ui/private.h b/dlls/windows.ui/private.h
  extern IActivationFactory *uisettings_factory;
  extern IActivationFactory *uiviewsettings_factory;
  extern IActivationFactory *inputpane_factory;
++extern IActivationFactory *corewindow_factory;
+ 
+ #define DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from, iface_mem, expr )             \
+     static inline impl_type *impl_from( iface_type *iface )                                        \
+diff -u a/dlls/windows.ui/tests/Makefile.in b/dlls/windows.ui/tests/Makefile.in
+--- /dev/null
++++ b/dlls/windows.ui/tests/Makefile.in
+@@ -0,0 +1,6 @@
++TESTDLL = windows.ui.dll
++IMPORTS = combase advapi32 user32
++
++SOURCES = \
++	corewindow.c \
++	uisettings.c
+diff -u a/dlls/windows.ui/tests/corewindow.c b/dlls/windows.ui/tests/corewindow.c
+--- /dev/null
++++ b/dlls/windows.ui/tests/corewindow.c
+@@ -0,0 +1,103 @@
++/*
++ * Copyright 2025 Zhiyi Zhang for CodeWeavers
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++#include <stdarg.h>
++#define COBJMACROS
++#include "windef.h"
++#include "winbase.h"
++#include "winstring.h"
++#include "roapi.h"
++#include "wine/test.h"
++
++#define WIDL_using_Windows_UI_Core
++#include "windows.ui.core.h"
++
++#define check_interface( obj, iid, exp ) check_interface_( __LINE__, obj, iid, exp )
++static void check_interface_( unsigned int line, void *obj, const IID *iid, BOOL supported )
++{
++    IUnknown *unk, *iface = obj;
++    HRESULT hr, expected_hr;
++
++    expected_hr = supported ? S_OK : E_NOINTERFACE;
++    hr = IUnknown_QueryInterface( iface, iid, (void **)&unk );
++    ok_(__FILE__, line)( hr == expected_hr, "Got hr %#lx, expected %#lx.\n", hr, expected_hr );
++    if (SUCCEEDED( hr ))
++        IUnknown_Release( unk );
++}
++
++static void test_CoreWindow(void)
++{
++    static const WCHAR *class_name = RuntimeClass_Windows_UI_Core_CoreWindow;
++    ICoreWindowStatic *core_window_static;
++    IActivationFactory *factory;
++    ICoreWindow *core_window;
++    HSTRING str;
++    HRESULT hr;
++    LONG ref;
++
++    hr = WindowsCreateString( class_name, wcslen( class_name ), &str );
++    ok( hr == S_OK, "Got unexpected hr %#lx.\n", hr );
++
++    hr = RoGetActivationFactory( str, &IID_IActivationFactory, (void **)&factory );
++    ok( hr == S_OK || broken( hr == REGDB_E_CLASSNOTREG ), "got hr %#lx.\n", hr );
++    WindowsDeleteString( str );
++    if (FAILED( hr ))
++    {
++        win_skip( "%s runtimeclass not registered, skipping tests.\n", wine_dbgstr_w( class_name ) );
++        return;
++    }
++
++    check_interface( factory, &IID_IUnknown, TRUE );
++    check_interface( factory, &IID_IAgileObject, TRUE );
++    check_interface( factory, &IID_IInspectable, TRUE );
++    check_interface( factory, &IID_IActivationFactory, TRUE );
++    check_interface( factory, &IID_ICoreWindowStatic, TRUE );
++
++    /* Test ICoreWindowStatic */
++    hr = IActivationFactory_QueryInterface( factory, &IID_ICoreWindowStatic, (void **)&core_window_static );
++    ok( hr == S_OK, "Got unexpected hr %#lx.\n", hr );
++
++    /* Crash on Windows */
++    if (0)
++    {
++    hr = ICoreWindowStatic_GetForCurrentThread( core_window_static, 0 );
++    ok( hr == E_INVALIDARG, "Got unexpected hr %#lx.\n", hr );
++    }
++
++    /* How to create a ICoreWindow? */
++    core_window = (ICoreWindow *)0xdeadbeef;
++    hr = ICoreWindowStatic_GetForCurrentThread( core_window_static, &core_window );
++    ok( hr == S_OK, "Got unexpected hr %#lx.\n", hr );
++    ok( core_window == NULL, "Got unexpected core_window.\n" );
++
++    ICoreWindowStatic_Release( core_window_static );
++
++    ref = IActivationFactory_Release( factory );
++    ok( ref == 1, "Got unexpected ref %ld.\n", ref );
++}
++
++START_TEST(corewindow)
++{
++    HRESULT hr;
++
++    hr = RoInitialize( RO_INIT_MULTITHREADED );
++    ok( hr == S_OK, "RoInitialize failed, hr %#lx\n", hr );
++
++    test_CoreWindow();
++
++    RoUninitialize();
++}
 diff -u a/dlls/windows.ui/uisettings.c b/dlls/windows.ui/uisettings.c
 --- a/dlls/windows.ui/uisettings.c
 +++ b/dlls/windows.ui/uisettings.c
@@ -7337,6 +9836,57 @@ diff -u a/include/appmodel.h b/include/appmodel.h
  #define APPLICATION_USER_MODEL_ID_MIN_LENGTH 21
  
  typedef enum AppPolicyMediaFoundationCodecLoading
+@@ -87,6 +89,50 @@
+ }
+ PACKAGE_ID;
+ 
++#define PACKAGE_PROPERTY_FRAMEWORK          0x00000001
++#define PACKAGE_FILTER_HEAD                 0x00000010
++#define PACKAGE_FILTER_DIRECT               0x00000020
++#define PACKAGE_FILTER_RESOURCE             0x00000040
++#define PACKAGE_FILTER_BUNDLE               0x00000080
++#define PACKAGE_FILTER_OPTIONAL             0x00020000
++#define PACKAGE_FILTER_IS_IN_RELATED_SET    0x00040000
++#define PACKAGE_FILTER_STATIC               0x00080000
++#define PACKAGE_FILTER_DYNAMIC              0x00100000
++
++typedef enum PackagePathType
++{
++    PackagePathType_Install   = 0,
++    PackagePathType_Mutable   = 1,
++    PackagePathType_Effective = 2,
++} PackagePathType;
++
++typedef struct PACKAGE_INFO
++{
++    UINT32 reserved;
++    UINT32 flags;
++    WCHAR *path;
++    WCHAR *packageFullName;
++    WCHAR *packageFamilyName;
++    PACKAGE_ID packageId;
++}
++PACKAGE_INFO;
++
++LONG WINAPI GetCurrentPackageInfo(const UINT32,UINT32*,BYTE*,UINT32*);
++LONG WINAPI GetCurrentPackageInfo2(const UINT32,PackagePathType,UINT32*,BYTE*,UINT32*);
++
++typedef enum PackageInfo3Type
++{
++    PackageInfo3Type_PackageInfoGeneration = 16,
++} PackageInfo3Type;
++
++HRESULT WINAPI GetCurrentPackageInfo3(UINT32,PackageInfo3Type,UINT32*,void*,UINT32*);
++DECLARE_HANDLE(PACKAGE_GLOBALIZATION_CONTEXT_REFERENCE);
++LONG WINAPI GetCurrentPackageGlobalizationContext(UINT32,UINT32,PACKAGE_GLOBALIZATION_CONTEXT_REFERENCE*);
++LONG WINAPI GetPackageGlobalizationProperty(PACKAGE_GLOBALIZATION_CONTEXT_REFERENCE,UINT32,UINT32*,BYTE*);
++LONG WINAPI GetStagedPackagePathByFullName(const WCHAR*,UINT32*,WCHAR*);
++LONG WINAPI GetStagedPackagePathByFullName2(const WCHAR*,PackagePathType,UINT32*,WCHAR*);
++LONG WINAPI FindPackagesByPackageFamily(const WCHAR*,UINT32,UINT32*,WCHAR**,UINT32*,WCHAR*,UINT32*);
++
+ LONG WINAPI AppPolicyGetMediaFoundationCodecLoading(HANDLE token, AppPolicyMediaFoundationCodecLoading *policy);
+ LONG WINAPI AppPolicyGetProcessTerminationMethod(HANDLE token, AppPolicyProcessTerminationMethod *policy);
+ LONG WINAPI AppPolicyGetShowDeveloperDiagnostic(HANDLE token, AppPolicyShowDeveloperDiagnostic *policy);
 diff -u a/include/ntuser.h b/include/ntuser.h
 --- a/include/ntuser.h
 +++ b/include/ntuser.h
@@ -7406,7 +9956,15 @@ diff -u a/include/winternl.h b/include/winternl.h
  NTSYSAPI NTSTATUS  WINAPI NtAlpcSendWaitReceivePort(HANDLE,DWORD,ALPC_PORT_MESSAGE*,ALPC_MESSAGE_ATTRIBUTES*,ALPC_PORT_MESSAGE*, SIZE_T*,ALPC_MESSAGE_ATTRIBUTES*,LARGE_INTEGER*);
  NTSYSAPI NTSTATUS  WINAPI NtAcceptConnectPort(PHANDLE,ULONG,PLPC_MESSAGE,BOOLEAN,PLPC_SECTION_WRITE,PLPC_SECTION_READ);
  NTSYSAPI NTSTATUS  WINAPI NtAccessCheck(PSECURITY_DESCRIPTOR,HANDLE,ACCESS_MASK,PGENERIC_MAPPING,PPRIVILEGE_SET,PULONG,PULONG,NTSTATUS*);
-@@ -5224,6 +5225,7 @@
+@@ -5063,6 +5064,7 @@
+ NTSYSAPI BOOLEAN   WINAPI RtlBarrier(RTL_BARRIER*,ULONG);
+ NTSYSAPI NTSTATUS  WINAPI RtlCharToInteger(PCSZ,ULONG,PULONG);
+ NTSYSAPI NTSTATUS  WINAPI RtlCheckRegistryKey(ULONG, PWSTR);
++NTSYSAPI NTSTATUS  WINAPI RtlCheckSandboxedToken(HANDLE,BOOLEAN*);
+ NTSYSAPI void      WINAPI RtlClearAllBits(PRTL_BITMAP);
+ NTSYSAPI void      WINAPI RtlClearBits(PRTL_BITMAP,ULONG,ULONG);
+ NTSYSAPI ULONG     WINAPI RtlCompactHeap(HANDLE,ULONG);
+@@ -5224,6 +5226,7 @@
  NTSYSAPI NTSTATUS  WINAPI RtlGetSystemPreferredUILanguages(DWORD,ULONG,ULONG*,WCHAR*,ULONG*);
  NTSYSAPI LONGLONG  WINAPI RtlGetSystemTimePrecise(void);
  NTSYSAPI DWORD     WINAPI RtlGetThreadErrorMode(void);
@@ -7414,7 +9972,7 @@ diff -u a/include/winternl.h b/include/winternl.h
  NTSYSAPI NTSTATUS  WINAPI RtlGetThreadPreferredUILanguages(DWORD,ULONG*,WCHAR*,ULONG*);
  NTSYSAPI BOOLEAN   WINAPI RtlGetUserInfoHeap(HANDLE,ULONG,void*,void**,ULONG*);
  NTSYSAPI NTSTATUS  WINAPI RtlGetUserPreferredUILanguages(DWORD,ULONG,ULONG*,WCHAR*,ULONG*);
-@@ -5369,6 +5371,7 @@
+@@ -5369,6 +5372,7 @@
  NTSYSAPI NTSTATUS  WINAPI RtlSetSaclSecurityDescriptor(PSECURITY_DESCRIPTOR,BOOLEAN,PACL,BOOLEAN);
  NTSYSAPI NTSTATUS  WINAPI RtlSetSearchPathMode(ULONG);
  NTSYSAPI NTSTATUS  WINAPI RtlSetThreadErrorMode(DWORD,LPDWORD);
@@ -7422,7 +9980,7 @@ diff -u a/include/winternl.h b/include/winternl.h
  NTSYSAPI NTSTATUS  WINAPI RtlSetThreadPreferredUILanguages(DWORD,PCZZWSTR,ULONG*);
  NTSYSAPI NTSTATUS  WINAPI RtlSetTimeZoneInformation(const RTL_TIME_ZONE_INFORMATION*);
  NTSYSAPI void      WINAPI RtlSetUnhandledExceptionFilter(PRTL_EXCEPTION_FILTER);
-@@ -5467,6 +5470,7 @@
+@@ -5467,6 +5471,7 @@
  NTSYSAPI NTSTATUS  WINAPI TpSetPoolStackInformation(TP_POOL *, TP_POOL_STACK_INFORMATION *stack_info);
  NTSYSAPI void      WINAPI TpSetTimer(TP_TIMER *, LARGE_INTEGER *,LONG,LONG);
  NTSYSAPI void      WINAPI TpSetWait(TP_WAIT *,HANDLE,LARGE_INTEGER *);
@@ -7446,500 +10004,6 @@ diff -u a/programs/services/Makefile.in b/programs/services/Makefile.in
  	services.c \
  	svcctl.idl \
  	utils.c
-diff -u a/programs/services/service_token.c b/programs/services/service_token.c
---- /dev/null
-+++ b/programs/services/service_token.c
-@@ -0,0 +1,490 @@
-+/*
-+ * Services - primary token for services that run under a service account
-+ *
-+ * This library is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU Lesser General Public
-+ * License as published by the Free Software Foundation; either
-+ * version 2.1 of the License, or (at your option) any later version.
-+ *
-+ * This library is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * Lesser General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU Lesser General Public
-+ * License along with this library; if not, write to the Free Software
-+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
-+ */
-+
-+#include <stdarg.h>
-+#include <stdlib.h>
-+#include "ntstatus.h"
-+#define WIN32_NO_STATUS
-+#include <windows.h>
-+#include <winternl.h>
-+#include <winsvc.h>
-+
-+#include "wine/debug.h"
-+#include "services.h"
-+
-+WINE_DEFAULT_DEBUG_CHANNEL(service);
-+
-+#define MAX_GROUP_MEMBERS 64
-+
-+#ifndef SERVICE_SID_TYPE_NONE
-+#define SERVICE_SID_TYPE_NONE         0x00000000
-+#define SERVICE_SID_TYPE_UNRESTRICTED 0x00000001
-+#define SERVICE_SID_TYPE_RESTRICTED   (0x00000002 | SERVICE_SID_TYPE_UNRESTRICTED)
-+#endif
-+
-+/* S-1-2-0 LOCAL and S-1-2-1 CONSOLE LOGON (Wine's winnt.h maps LOCAL_LOGON to 0). */
-+#define LOCAL_RID         0
-+#define CONSOLE_LOGON_RID 1
-+
-+struct group_member
-+{
-+    WCHAR *name;
-+    PSID sid;
-+    WCHAR *required_privs;  /* NULL when the service declares no RequiredPrivileges */
-+};
-+
-+/* Privileges of NT AUTHORITY\LocalService with their well-known LUIDs, in LUID order. */
-+static const struct
-+{
-+    const WCHAR *name;
-+    DWORD luid;
-+    DWORD attrs;
-+}
-+local_service_privs[] =
-+{
-+    { L"SeAssignPrimaryTokenPrivilege",  3, 0 },
-+    { L"SeIncreaseQuotaPrivilege",       5, 0 },
-+    { L"SeSystemtimePrivilege",         12, 0 },
-+    { L"SeShutdownPrivilege",           19, 0 },
-+    { L"SeAuditPrivilege",              21, 0 },
-+    { L"SeChangeNotifyPrivilege",       23, SE_PRIVILEGE_ENABLED | SE_PRIVILEGE_ENABLED_BY_DEFAULT },
-+    { L"SeUndockPrivilege",             25, 0 },
-+    { L"SeImpersonatePrivilege",        29, SE_PRIVILEGE_ENABLED | SE_PRIVILEGE_ENABLED_BY_DEFAULT },
-+    { L"SeCreateGlobalPrivilege",       30, SE_PRIVILEGE_ENABLED | SE_PRIVILEGE_ENABLED_BY_DEFAULT },
-+    { L"SeIncreaseWorkingSetPrivilege", 33, 0 },
-+    { L"SeTimeZonePrivilege",           34, 0 },
-+};
-+
-+static BOOL is_local_service_account(const WCHAR *name)
-+{
-+    return name && (!wcsicmp(name, L"NT AUTHORITY\\LocalService") || !wcsicmp(name, L"LocalService"));
-+}
-+
-+/* Reads a REG_MULTI_SZ value; *value is NULL when the value does not exist. */
-+static DWORD read_multisz(HKEY key, const WCHAR *name, WCHAR **value)
-+{
-+    DWORD size = 0, type, err;
-+    WCHAR *buf;
-+
-+    *value = NULL;
-+    if ((err = RegQueryValueExW(key, name, NULL, &type, NULL, &size)))
-+        return err == ERROR_FILE_NOT_FOUND ? ERROR_SUCCESS : err;
-+    if (type != REG_MULTI_SZ) return ERROR_INVALID_DATA;
-+    if (!(buf = calloc(1, size + 2 * sizeof(WCHAR)))) return ERROR_NOT_ENOUGH_MEMORY;
-+    if ((err = RegQueryValueExW(key, name, NULL, &type, (BYTE *)buf, &size)) || type != REG_MULTI_SZ)
-+    {
-+        free(buf);
-+        return err ? err : ERROR_INVALID_DATA;
-+    }
-+    *value = buf;
-+    return ERROR_SUCCESS;
-+}
-+
-+static DWORD read_service_sid_type(HKEY key)
-+{
-+    DWORD value, size = sizeof(value), type;
-+
-+    if (RegQueryValueExW(key, L"ServiceSidType", NULL, &type, (BYTE *)&value, &size) || type != REG_DWORD)
-+        return SERVICE_SID_TYPE_NONE;
-+    return value;
-+}
-+
-+/* Returns the svchost group named by "-k <group>" in an svchost.exe image path. */
-+static WCHAR *get_svchost_group(const WCHAR *path)
-+{
-+    static const WCHAR svchost[] = L"svchost.exe";
-+    const WCHAR *p, *end, *image = NULL;
-+    WCHAR *group;
-+
-+    if (!path) return NULL;
-+    for (p = path; *p && *p != '-'; p++)
-+        if (!wcsnicmp(p, svchost, ARRAY_SIZE(svchost) - 1) &&
-+            (p == path || p[-1] == '\\' || p[-1] == '/' || p[-1] == '"') &&
-+            (!p[ARRAY_SIZE(svchost) - 1] || p[ARRAY_SIZE(svchost) - 1] == ' ' ||
-+             p[ARRAY_SIZE(svchost) - 1] == '\t' || p[ARRAY_SIZE(svchost) - 1] == '"'))
-+            image = p;
-+    if (!image) return NULL;
-+    for (p = image; (p = wcschr(p, '-')); p++)
-+    {
-+        if (p != path && p[-1] != ' ' && p[-1] != '\t') continue;
-+        if ((p[1] != 'k' && p[1] != 'K') || (p[2] != ' ' && p[2] != '\t')) continue;
-+        p += 2;
-+        while (*p == ' ' || *p == '\t') p++;
-+        for (end = p; *end && *end != ' ' && *end != '\t'; end++);
-+        if (end == p) return NULL;
-+        if (!(group = malloc((end - p + 1) * sizeof(WCHAR)))) return NULL;
-+        memcpy(group, p, (end - p) * sizeof(WCHAR));
-+        group[end - p] = 0;
-+        return group;
-+    }
-+    return NULL;
-+}
-+
-+static PSID create_service_sid(const WCHAR *name)
-+{
-+    UNICODE_STRING str;
-+    ULONG size = 0;
-+    PSID sid;
-+
-+    RtlInitUnicodeString(&str, name);
-+    if (RtlCreateServiceSid(&str, NULL, &size) != STATUS_BUFFER_TOO_SMALL) return NULL;
-+    if (!(sid = malloc(size))) return NULL;
-+    if (RtlCreateServiceSid(&str, sid, &size))
-+    {
-+        free(sid);
-+        return NULL;
-+    }
-+    return sid;
-+}
-+
-+static int __cdecl compare_members(const void *a, const void *b)
-+{
-+    return wcsicmp(((const struct group_member *)a)->name, ((const struct group_member *)b)->name);
-+}
-+
-+static DWORD append_member(HKEY key, const WCHAR *name, struct group_member *members, unsigned int *count)
-+{
-+    struct group_member *member = &members[*count];
-+    DWORD err;
-+
-+    if (*count >= MAX_GROUP_MEMBERS) return ERROR_TOO_MANY_SIDS;
-+    if ((err = read_multisz(key, L"RequiredPrivileges", &member->required_privs))) return err;
-+    if (!(member->name = wcsdup(name)) || !(member->sid = create_service_sid(name)))
-+    {
-+        free(member->name);
-+        free(member->required_privs);
-+        return ERROR_NOT_ENOUGH_MEMORY;
-+    }
-+    (*count)++;
-+    return ERROR_SUCCESS;
-+}
-+
-+/* Adds another LocalService member of the host group that has a service SID. */
-+static void add_group_member(struct scmdatabase *db, const WCHAR *name, struct group_member *members,
-+                             unsigned int *count)
-+{
-+    WCHAR *account = NULL;
-+    DWORD size = 0, type, err;
-+    unsigned int i;
-+    HKEY key;
-+
-+    for (i = 0; i < *count; i++)
-+        if (!wcsicmp(members[i].name, name)) return;
-+    if (RegOpenKeyExW(db->root_key, name, 0, KEY_READ, &key)) return;
-+
-+    if (read_service_sid_type(key) == SERVICE_SID_TYPE_NONE) goto done;
-+    if (RegQueryValueExW(key, L"ObjectName", NULL, &type, NULL, &size) || (type != REG_SZ && type != REG_EXPAND_SZ))
-+        goto done;
-+    if (!(account = calloc(1, size + sizeof(WCHAR)))) goto done;
-+    if (RegQueryValueExW(key, L"ObjectName", NULL, &type, (BYTE *)account, &size)) goto done;
-+    if (!is_local_service_account(account)) goto done;
-+    if ((err = append_member(key, name, members, count)))
-+        WINE_WARN("group member %s not added, error %lu\n", wine_dbgstr_w(name), err);
-+
-+done:
-+    free(account);
-+    RegCloseKey(key);
-+}
-+
-+static BOOL members_require_priv(const struct group_member *members, unsigned int count, const WCHAR *priv)
-+{
-+    unsigned int i;
-+    const WCHAR *p;
-+
-+    /* A member without RequiredPrivileges keeps every privilege of the account. */
-+    for (i = 0; i < count; i++)
-+        if (!members[i].required_privs) return TRUE;
-+    if (!wcsicmp(priv, L"SeChangeNotifyPrivilege")) return TRUE;
-+    for (i = 0; i < count; i++)
-+        for (p = members[i].required_privs; *p; p += wcslen(p) + 1)
-+            if (!wcsicmp(p, priv)) return TRUE;
-+    return FALSE;
-+}
-+
-+static PSID alloc_sid(BYTE authority, BYTE count, DWORD sub0, DWORD sub1, DWORD sub2)
-+{
-+    SID_IDENTIFIER_AUTHORITY auth = {{0, 0, 0, 0, 0, authority}};
-+    PSID sid;
-+
-+    if (!AllocateAndInitializeSid(&auth, count, sub0, sub1, sub2, 0, 0, 0, 0, 0, &sid)) return NULL;
-+    return sid;
-+}
-+
-+/*
-+ * Builds the primary token Windows gives a LocalService service with a service SID:
-+ * the account's well-known groups, the service SIDs of every LocalService member of
-+ * the host group (only the started one enabled), a unique logon SID, the account's
-+ * privileges filtered by RequiredPrivileges, and a write-restricted token for
-+ * SERVICE_SID_TYPE_RESTRICTED.
-+ *
-+ * *token is left NULL for services that keep running under the SCM token.
-+ */
-+DWORD service_create_token(struct service_entry *service, HANDLE *token)
-+{
-+    static const BYTE nt = 5, world = 1, local = 2, mandatory = 16;
-+    struct group_member members[MAX_GROUP_MEMBERS];
-+    unsigned int member_count = 0, started = ~0u, i, n;
-+    PSID fixed_sids[7] = {0}, logon_sid = NULL, local_sid = NULL, write_restricted_sid = NULL;
-+    PSID user_sid = NULL, system_sid = NULL, owner_rights_sid = NULL, admins_sid = NULL;
-+    TOKEN_GROUPS *groups = NULL;
-+    TOKEN_PRIVILEGES *privs = NULL;
-+    SID_AND_ATTRIBUTES *restricting = NULL;
-+    TOKEN_USER user;
-+    TOKEN_OWNER owner;
-+    TOKEN_PRIMARY_GROUP primary;
-+    TOKEN_DEFAULT_DACL default_dacl;
-+    TOKEN_SOURCE source = {{'S','e','r','v','i','c','e'}, {0, 0}};
-+    OBJECT_ATTRIBUTES attr;
-+    SECURITY_DESCRIPTOR token_sd;
-+    LUID auth_id = {0x3e5, 0} /* LOCALSERVICE_LUID */, logon_id;
-+    LARGE_INTEGER expire;
-+    ACL *dacl = NULL, *token_dacl = NULL;
-+    DWORD sid_type, dacl_size, err = ERROR_SUCCESS;
-+    HANDLE base = NULL;
-+    WCHAR *group = NULL, *list = NULL, *p;
-+    NTSTATUS status;
-+    HKEY key;
-+
-+    *token = NULL;
-+    if (!is_local_service_account(service->config.lpServiceStartName)) return ERROR_SUCCESS;
-+
-+    if ((err = RegOpenKeyExW(service->db->root_key, service->name, 0, KEY_READ, &key))) return err;
-+    sid_type = read_service_sid_type(key);
-+    if (sid_type == SERVICE_SID_TYPE_NONE)
-+    {
-+        RegCloseKey(key);
-+        WINE_FIXME("LocalService service %s without a service SID runs under the SCM token\n",
-+                   wine_dbgstr_w(service->name));
-+        return ERROR_SUCCESS;
-+    }
-+    if (sid_type != SERVICE_SID_TYPE_UNRESTRICTED && sid_type != SERVICE_SID_TYPE_RESTRICTED)
-+    {
-+        RegCloseKey(key);
-+        return ERROR_INVALID_PARAMETER;
-+    }
-+    err = append_member(key, service->name, members, &member_count);
-+    RegCloseKey(key);
-+    if (err) return err;
-+
-+    if ((service->config.dwServiceType & SERVICE_WIN32_SHARE_PROCESS) &&
-+        (group = get_svchost_group(service->config.lpBinaryPathName)) &&
-+        !RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Svchost",
-+                       0, KEY_READ, &key))
-+    {
-+        err = read_multisz(key, group, &list);
-+        RegCloseKey(key);
-+        if (err) goto done;
-+    }
-+    for (p = list; p && *p; p += wcslen(p) + 1)
-+        add_group_member(service->db, p, members, &member_count);
-+    qsort(members, member_count, sizeof(members[0]), compare_members);
-+    for (i = 0; i < member_count; i++)
-+        if (!wcsicmp(members[i].name, service->name)) started = i;
-+    if (started == ~0u)
-+    {
-+        err = ERROR_INVALID_DATA;
-+        goto done;
-+    }
-+
-+    if (!AllocateLocallyUniqueId(&logon_id))
-+    {
-+        err = GetLastError();
-+        goto done;
-+    }
-+    user_sid = alloc_sid(nt, 1, SECURITY_LOCAL_SERVICE_RID, 0, 0);
-+    system_sid = alloc_sid(nt, 1, SECURITY_LOCAL_SYSTEM_RID, 0, 0);
-+    owner_rights_sid = alloc_sid(3, 1, SECURITY_CREATOR_OWNER_RIGHTS_RID, 0, 0);
-+    admins_sid = alloc_sid(nt, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0);
-+    fixed_sids[0] = alloc_sid(mandatory, 1, SECURITY_MANDATORY_SYSTEM_RID, 0, 0);
-+    fixed_sids[1] = alloc_sid(world, 1, SECURITY_WORLD_RID, 0, 0);
-+    fixed_sids[2] = alloc_sid(nt, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_USERS, 0);
-+    fixed_sids[3] = alloc_sid(nt, 1, SECURITY_SERVICE_RID, 0, 0);
-+    fixed_sids[4] = alloc_sid(local, 1, CONSOLE_LOGON_RID, 0, 0);
-+    fixed_sids[5] = alloc_sid(nt, 1, SECURITY_AUTHENTICATED_USER_RID, 0, 0);
-+    fixed_sids[6] = alloc_sid(nt, 1, SECURITY_THIS_ORGANIZATION_RID, 0, 0);
-+    logon_sid = alloc_sid(nt, 3, SECURITY_LOGON_IDS_RID, logon_id.HighPart, logon_id.LowPart);
-+    local_sid = alloc_sid(local, 1, LOCAL_RID, 0, 0);
-+    write_restricted_sid = alloc_sid(nt, 1, SECURITY_WRITE_RESTRICTED_CODE_RID, 0, 0);
-+    for (i = 0; i < ARRAY_SIZE(fixed_sids); i++)
-+        if (!fixed_sids[i]) err = ERROR_NOT_ENOUGH_MEMORY;
-+    if (!user_sid || !system_sid || !owner_rights_sid || !admins_sid || !logon_sid || !local_sid ||
-+        !write_restricted_sid)
-+        err = ERROR_NOT_ENOUGH_MEMORY;
-+    if (err) goto done;
-+
-+    n = ARRAY_SIZE(fixed_sids) + member_count + 3;
-+    if (!(groups = calloc(1, offsetof(TOKEN_GROUPS, Groups[n])))) goto nomem;
-+    groups->Groups[0].Sid = fixed_sids[0];
-+    groups->Groups[0].Attributes = SE_GROUP_INTEGRITY | SE_GROUP_INTEGRITY_ENABLED;
-+    for (i = 1; i < ARRAY_SIZE(fixed_sids); i++)
-+    {
-+        groups->Groups[i].Sid = fixed_sids[i];
-+        groups->Groups[i].Attributes = SE_GROUP_MANDATORY | SE_GROUP_ENABLED_BY_DEFAULT | SE_GROUP_ENABLED;
-+    }
-+    n = ARRAY_SIZE(fixed_sids);
-+    for (i = 0; i < member_count; i++, n++)
-+    {
-+        groups->Groups[n].Sid = members[i].sid;
-+        groups->Groups[n].Attributes = SE_GROUP_OWNER | SE_GROUP_ENABLED_BY_DEFAULT;
-+        if (i == started) groups->Groups[n].Attributes |= SE_GROUP_ENABLED;
-+    }
-+    groups->Groups[n].Sid = logon_sid;
-+    groups->Groups[n++].Attributes = SE_GROUP_LOGON_ID | SE_GROUP_OWNER | SE_GROUP_MANDATORY |
-+                                     SE_GROUP_ENABLED_BY_DEFAULT | SE_GROUP_ENABLED;
-+    groups->Groups[n].Sid = local_sid;
-+    groups->Groups[n++].Attributes = SE_GROUP_MANDATORY | SE_GROUP_ENABLED_BY_DEFAULT | SE_GROUP_ENABLED;
-+    if (sid_type == SERVICE_SID_TYPE_RESTRICTED)
-+    {
-+        groups->Groups[n].Sid = write_restricted_sid;
-+        groups->Groups[n++].Attributes = SE_GROUP_MANDATORY | SE_GROUP_ENABLED_BY_DEFAULT | SE_GROUP_ENABLED;
-+    }
-+    groups->GroupCount = n;
-+
-+    if (!(privs = calloc(1, offsetof(TOKEN_PRIVILEGES, Privileges[ARRAY_SIZE(local_service_privs)]))))
-+        goto nomem;
-+    for (i = 0; i < ARRAY_SIZE(local_service_privs); i++)
-+    {
-+        if (!members_require_priv(members, member_count, local_service_privs[i].name)) continue;
-+        privs->Privileges[privs->PrivilegeCount].Luid.LowPart = local_service_privs[i].luid;
-+        privs->Privileges[privs->PrivilegeCount].Luid.HighPart = 0;
-+        privs->Privileges[privs->PrivilegeCount++].Attributes = local_service_privs[i].attrs;
-+    }
-+
-+    dacl_size = sizeof(ACL) + offsetof(ACCESS_ALLOWED_ACE, SidStart) * (member_count + 2) +
-+                GetLengthSid(system_sid) + GetLengthSid(owner_rights_sid);
-+    for (i = 0; i < member_count; i++) dacl_size += GetLengthSid(members[i].sid);
-+    if (!(dacl = malloc(dacl_size))) goto nomem;
-+    if (!InitializeAcl(dacl, dacl_size, ACL_REVISION) ||
-+        !AddAccessAllowedAce(dacl, ACL_REVISION, GENERIC_ALL, system_sid) ||
-+        !AddAccessAllowedAce(dacl, ACL_REVISION, READ_CONTROL, owner_rights_sid))
-+    {
-+        err = GetLastError();
-+        goto done;
-+    }
-+    for (i = 0; i < member_count; i++)
-+        if (!AddAccessAllowedAce(dacl, ACL_REVISION, GENERIC_ALL, members[i].sid))
-+        {
-+            err = GetLastError();
-+            goto done;
-+        }
-+
-+    /* the token object's own DACL, as the LSA sets it for service logons */
-+    dacl_size += offsetof(ACCESS_ALLOWED_ACE, SidStart) * 2 + GetLengthSid(admins_sid) + GetLengthSid(logon_sid);
-+    if (!(token_dacl = malloc(dacl_size))) goto nomem;
-+    if (!InitializeAcl(token_dacl, dacl_size, ACL_REVISION) ||
-+        !AddAccessAllowedAce(token_dacl, ACL_REVISION, TOKEN_ALL_ACCESS, system_sid) ||
-+        !AddAccessAllowedAce(token_dacl, ACL_REVISION, READ_CONTROL, owner_rights_sid))
-+    {
-+        err = GetLastError();
-+        goto done;
-+    }
-+    for (i = 0; i < member_count; i++)
-+        if (!AddAccessAllowedAce(token_dacl, ACL_REVISION, TOKEN_ALL_ACCESS, members[i].sid))
-+        {
-+            err = GetLastError();
-+            goto done;
-+        }
-+    if (!AddAccessAllowedAce(token_dacl, ACL_REVISION, TOKEN_QUERY, admins_sid) ||
-+        !AddAccessAllowedAce(token_dacl, ACL_REVISION, TOKEN_ALL_ACCESS, logon_sid) ||
-+        !InitializeSecurityDescriptor(&token_sd, SECURITY_DESCRIPTOR_REVISION) ||
-+        !SetSecurityDescriptorOwner(&token_sd, user_sid, FALSE) ||
-+        !SetSecurityDescriptorGroup(&token_sd, user_sid, FALSE) ||
-+        !SetSecurityDescriptorDacl(&token_sd, TRUE, token_dacl, FALSE))
-+    {
-+        err = GetLastError();
-+        goto done;
-+    }
-+
-+    user.User.Sid = user_sid;
-+    user.User.Attributes = 0;
-+    owner.Owner = user_sid;
-+    primary.PrimaryGroup = user_sid;
-+    default_dacl.DefaultDacl = dacl;
-+    expire.QuadPart = 0x7fffffffffffffff;
-+    InitializeObjectAttributes(&attr, NULL, 0, NULL, NULL);
-+    status = NtCreateToken(&base, TOKEN_ALL_ACCESS, &attr, TokenPrimary, &auth_id, &expire, &user, groups,
-+                           privs, &owner, &primary, &default_dacl, &source);
-+    if (status)
-+    {
-+        WINE_ERR("failed to create token for %s, status %#lx\n", wine_dbgstr_w(service->name), status);
-+        err = RtlNtStatusToDosError(status);
-+        goto done;
-+    }
-+
-+    if (sid_type == SERVICE_SID_TYPE_RESTRICTED)
-+    {
-+        if (!(restricting = calloc(member_count + 3, sizeof(*restricting)))) goto nomem;
-+        for (i = 0; i < member_count; i++) restricting[i].Sid = members[i].sid;
-+        restricting[i++].Sid = fixed_sids[1];
-+        restricting[i++].Sid = logon_sid;
-+        restricting[i++].Sid = write_restricted_sid;
-+        if (!CreateRestrictedToken(base, WRITE_RESTRICTED, 0, NULL, 0, NULL, i, restricting, token))
-+        {
-+            err = GetLastError();
-+            WINE_ERR("failed to restrict token for %s, error %lu\n", wine_dbgstr_w(service->name), err);
-+            *token = NULL;
-+            goto done;
-+        }
-+    }
-+    else
-+    {
-+        *token = base;
-+        base = NULL;
-+    }
-+
-+    if (!SetKernelObjectSecurity(*token, OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION |
-+                                 DACL_SECURITY_INFORMATION, &token_sd))
-+    {
-+        err = GetLastError();
-+        WINE_ERR("failed to set token security for %s, error %lu\n", wine_dbgstr_w(service->name), err);
-+        CloseHandle(*token);
-+        *token = NULL;
-+        goto done;
-+    }
-+
-+    WINE_TRACE("service %s: LocalService token, %u service SIDs, sid type %lu, %lu privileges\n",
-+               wine_dbgstr_w(service->name), member_count, sid_type, privs->PrivilegeCount);
-+    goto done;
-+
-+nomem:
-+    err = ERROR_NOT_ENOUGH_MEMORY;
-+done:
-+    if (base) CloseHandle(base);
-+    free(restricting);
-+    free(token_dacl);
-+    free(dacl);
-+    free(privs);
-+    free(groups);
-+    for (i = 0; i < ARRAY_SIZE(fixed_sids); i++) FreeSid(fixed_sids[i]);
-+    FreeSid(logon_sid);
-+    FreeSid(local_sid);
-+    FreeSid(write_restricted_sid);
-+    FreeSid(user_sid);
-+    FreeSid(system_sid);
-+    FreeSid(owner_rights_sid);
-+    FreeSid(admins_sid);
-+    for (i = 0; i < member_count; i++)
-+    {
-+        free(members[i].name);
-+        free(members[i].sid);
-+        free(members[i].required_privs);
-+    }
-+    free(list);
-+    free(group);
-+    return err;
-+}
 diff -u a/programs/services/services.c b/programs/services/services.c
 --- a/programs/services/services.c
 +++ b/programs/services/services.c
@@ -8453,3 +10517,13 @@ diff -u a/server/token.c b/server/token.c
  
      ret = token_access_check_pass( token, FALSE, sd, desired_access, privs, priv_count,
                                    mapping, granted_access, status );
+--- a/configure.ac
++++ b/configure.ac
+@@ -3356,6 +3356,7 @@
+ WINE_CONFIG_MAKEFILE(dlls/windows.security.authentication.onlineid/tests)
+ WINE_CONFIG_MAKEFILE(dlls/windows.security.credentials.ui.userconsentverifier)
+ WINE_CONFIG_MAKEFILE(dlls/windows.security.credentials.ui.userconsentverifier/tests)
++WINE_CONFIG_MAKEFILE(dlls/windows.staterepositorycore)
+ WINE_CONFIG_MAKEFILE(dlls/windows.storage.applicationdata)
+ WINE_CONFIG_MAKEFILE(dlls/windows.storage.applicationdata/tests)
+ WINE_CONFIG_MAKEFILE(dlls/windows.storage)

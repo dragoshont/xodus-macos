@@ -1,0 +1,35 @@
+﻿Shell-host lane - native measurements (Windows VM arm64 26300.9457), 2026-10-07
+
+Claims probe (audit-claims.exe, RtlQueryPackageClaims):
+  XboxPcApp.exe PID 3776 (activated via shell): flags=0x1 origin=3 attrs=0x3
+  RuntimeBroker: flags=0x40
+  sihost/explorer/ApplicationFrameHost: c0000225 (not packaged)
+  => twinapi.appcore registrar gate (flags & 0x10) is OFF for the activated app natively;
+     sihost registrar not involved. App publishes factories and waits for an external activator.
+
+Registry:
+  CLSID {3480A401-BDE9-4407-BC02-798A866AC051} ShellServiceHostBrokerProvider
+     AppID {30AD8C8E-AE85-42FA-B9E8-7E99E3DFBFC5}, RunAs=Interactive User, no LocalServer32 (runtime registered)
+  CLSID {14DE3806-5D5B-405C-AB89-4AC936BCBF48}: InProcHandler32 = twinapi.appcore.dll only
+  Interface -> ProxyStubClsid32:
+    IActivatableApplication {92696C00-7578-48E1-AC1A-2CA909E2C8CF} -> {95E15D0A} OneCoreUAPCommonProxyStub
+    IActivatedEventArgs {CF651713-CD08-4FD8-B697-A281B6544E2E}    -> {95E15D0A}
+    ILaunchActivatedEventArgs {FBC93E26-A14A-4B4F-82B0-33BED920AF52} -> {95E15D0A}
+    ICoreWindowFactory {CD292360-2763-4085-8A9F-74B224A29175}       -> {95E15D0A}
+    IServiceHostBrokerProvider {0F4ACCB1-D8F9-4011-BA37-2557925A78CF} -> {1A66AEDC-93C3-4ACC-BA96-08F5716429F7} Windows.Shell.ServiceHostBuilder.dll
+    IApplicationActivationBroker {D98FD14A-...} -> {B03C2205-F02E-4D77-80DF-E1747AFDD39C} execmodelproxy.dll
+
+Genuine x64 proxies (Winbindex/msdl, Authenticode Valid CN=Microsoft Windows):
+  execmodelproxy.dll 10.0.26100.1  sha256 f70f3299...cec8  key D5E9C1C214000  81920 bytes
+  windows.shell.servicehostbuilder.dll 10.0.26100.9278  sha256 8e2b1e9a...7176  key 80801C1A1f000
+
+Lightweight-handler wire format (twinapi.appcore PDB-symbolized disassembly):
+  Server CWrlLightweightHandlerBase::MarshalInterface 0x31670:
+    vtbl[10](..) computes additional-data size -> stored at this+0x10; IStream_Write(size,4)
+    CoGetStdMarshalEx(outer) -> std MarshalInterface (OBJREF) ; seek-bracketed v_MarshalAdditionalData;
+    if written < declared size, pads; if more -> E_FAIL(0x80004005)
+  Server CImmersiveWindowFactoryBase::v_MarshalAdditionalData 0x15f8e0 writes:
+    GUID16(+0x6c) u32(+0x7c) u8(+0x61) u8(0) u8 flagA(+0x88) [u32 +0x8c] u8 flagB(+0x90) [u32 +0x94]
+    u32(+0x68) u8(+0xa0)
+  Client CImmersiveWindowFactoryProxy::v_UnmarshalAdditionalData 0x89270 reads the mirror:
+    GUID16->+0x48 u32->+0x58 u8->+0x5c u8 skip u8 flagA [u32->+0x60] u8 flagB [u32->+0x68] u32->+0x6c u8->+0x70

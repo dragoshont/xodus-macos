@@ -1,0 +1,8 @@
+nqwsd=00006FFFFFBD9F50
+mrm1-size: name=41950223a3bc1035 st=0x0 stamp=0 size=0
+mrm1-data: name=41950223a3bc1035 st=0x0 stamp=0 size=0 data=
+mrm2-size: name=41950223a3bc2035 st=0x0 stamp=0 size=0
+mrm2-data: name=41950223a3bc2035 st=0x0 stamp=0 size=0 data=
+unknown: name=41950223a3bcf035 st=0xc0000034 stamp=3435973836 size=0
+nullname: st=0xc0000005
+GUARD: exit=0 reason=none base=     826 end=     832 winedbg=0

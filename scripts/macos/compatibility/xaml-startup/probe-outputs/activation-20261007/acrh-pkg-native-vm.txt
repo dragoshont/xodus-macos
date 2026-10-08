@@ -1,0 +1,8 @@
+family-read hr=0x00000000 key=set subkeys=3 values=0
+family-lower hr=0x00000000 key=set subkeys=3 values=0
+family-sub-missing hr=0x80070002 key=null subkeys=0 values=0
+family-child-missing hr=0x80070002 key=null subkeys=0 values=0
+unknown-family hr=0x80070002 key=null subkeys=0 values=0
+empty-family hr=0x00000000 key=set subkeys=75 values=0
+null-family hr=0x80070057 key=untouched subkeys=0 values=0
+write-sam hr=0x00000000 key=set subkeys=3 values=0

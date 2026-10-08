@@ -1,0 +1,44 @@
+HKLM cache key: 0
+ext-ms-onecore-appmodel-staterepository-cache-l1-1-0.dll: mod=00007FF90CDE0000 err=0
+  open=00007FF90CDE2210 close=00007FF90CDE21C0 owner=C:\WINDOWS\SYSTEM32\windows.staterepositorycore.dll
+  Open(0) hr=0 mgr=0000022285ADB320
+  Open(1) hr=0x80070005 mgr=0000000000000000
+  Open(2) hr=0 mgr=0000022285ADB100
+  Open(3) hr=0x80070005 mgr=0000000000000000
+windows.staterepositorycore.dll: mod=00007FF90CDE0000 err=0
+  open=00007FF90CDE2210 close=00007FF90CDE21C0 owner=C:\WINDOWS\SYSTEM32\windows.staterepositorycore.dll
+  Open(0) hr=0 mgr=0000022285ADB360
+  Open(1) hr=0x80070005 mgr=0000000000000000
+  Open(2) hr=0 mgr=0000022285ADB1C0
+  Open(3) hr=0x80070005 mgr=0000000000000000
+windows.staterepositoryclient.dll: mod=00007FF8F7470000 err=0
+  open=0000000000000000 close=0000000000000000 owner=
+
+Name                                Length v                                     
+----                                ------ -                                     
+Windows.StateRepository.dll        9139152 10.0.26100.9278 (WinBuild.160101.0800)
+Windows.StateRepositoryBroker.dll   248296 10.0.26100.9444 (WinBuild.160101.0800)
+Windows.StateRepositoryClient.dll   544584 10.0.26100.9444 (WinBuild.160101.0800)
+Windows.StateRepositoryCore.dll     233696 10.0.26100.9444 (WinBuild.160101.0800)
+Windows.StateRepositoryPS.dll      1571416 10.0.26100.9444 (WinBuild.160101.0800)
+Windows.StateRepositoryUpgrade.dll  581120 10.0.26100.9444 (WinBuild.160101.0800)
+
+
+
+
+Name                                                                                                                 
+----                                                                                                                 
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Activation               
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\AppExtension             
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Application              
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\ApplicationExtension     
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\ApplicationUser          
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\AppUriHandler            
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\AppUriHandlerGroup       
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\DependencyGraph          
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\DynamicAppUriHandler     
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\DynamicAppUriHandlerGroup
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\FileTypeAssociation      
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\HostRuntime              
+
+

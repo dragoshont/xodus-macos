@@ -1,0 +1,17 @@
+package r=0 Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+null-out r=87
+kind=0 r=0 ctx=set node-flags=00000000 node-name=Microsoft.Xbox.App p0:r=87,size=8,val=cccccccc,b4=cc p1:r=0,size=4,val=00000000,b4=00 p2:r=0,size=4,val=00000000,b4=00 p3:r=87,size=8,val=cccccccc,b4=cc
+kind=1 r=0 ctx=set same-as-kind0=0 node-flags=00000000 node-name=Microsoft.Xbox.AppL p0:r=87,size=8,val=cccccccc,b4=cc p1:r=0,size=4,val=00000000,b4=00 p2:r=0,size=4,val=00000000,b4=00 p3:r=87,size=8,val=cccccccc,b4=cc
+kind=2 r=0 ctx=set same-as-kind0=0 node-flags=00000000 node-name=Microsoft.Xbox.WidgetsApp p0:r=87,size=8,val=cccccccc,b4=cc p1:r=0,size=4,val=00000000,b4=00 p2:r=0,size=4,val=00000000,b4=00 p3:r=87,size=8,val=cccccccc,b4=cc
+kind=3 r=1168 ctx=untouched
+kind=4 r=1168 ctx=untouched
+kind=5 r=1168 ctx=untouched
+kind=6 r=1168 ctx=untouched
+kind=7 r=1168 ctx=untouched
+flags1 r=0 same=1
+flagsff r=0 same=1
+short3 r=122 size=4 b0=cc
+zero r=122 size=4
+nullbuf r=87 size=4
+nullsize r=87
+nullctx r=87

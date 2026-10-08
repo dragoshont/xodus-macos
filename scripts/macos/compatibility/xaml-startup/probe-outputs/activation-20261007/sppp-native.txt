@@ -1,0 +1,158 @@
+--- outside package
+exports v2=1 v1=1 GetPackagePathByFullName=1
+Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+  v2 name type 0 size: ret=122 len=85
+  v2 name type 0 short: ret=122 len=85 buf0=cccc
+  v2 name type 0 fill: ret=0 len=85 path=C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 0 big: ret=0 len=85
+  v2 name type 1 size: ret=15707 len=0
+  v2 name type 2 size: ret=122 len=85
+  v2 name type 2 short: ret=122 len=85 buf0=cccc
+  v2 name type 2 fill: ret=0 len=85 path=C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 2 big: ret=0 len=85
+  v2 name type 3 size: ret=1168 len=0
+  v1 size: ret=122 len=85 fill: ret=0 len=85 path=C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+  GetPackagePathByFullName size: ret=122 len=85 fill: ret=0 len=85 path=C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+  v2 name type 0 size: ret=122 len=87
+  v2 name type 0 short: ret=122 len=87 buf0=cccc
+  v2 name type 0 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 0 big: ret=0 len=87
+  v2 name type 1 size: ret=15707 len=0
+  v2 name type 2 size: ret=122 len=87
+  v2 name type 2 short: ret=122 len=87 buf0=cccc
+  v2 name type 2 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 2 big: ret=0 len=87
+  v2 name type 3 size: ret=1168 len=0
+  v1 size: ret=122 len=87 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+  GetPackagePathByFullName size: ret=122 len=87 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+  v2 name type 0 size: ret=122 len=98
+  v2 name type 0 short: ret=122 len=98 buf0=cccc
+  v2 name type 0 fill: ret=0 len=98 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 0 big: ret=0 len=98
+  v2 name type 1 size: ret=15707 len=0
+  v2 name type 2 size: ret=122 len=98
+  v2 name type 2 short: ret=122 len=98 buf0=cccc
+  v2 name type 2 fill: ret=0 len=98 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 2 big: ret=0 len=98
+  v2 name type 3 size: ret=1168 len=0
+  v1 size: ret=122 len=98 fill: ret=0 len=98 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+  GetPackagePathByFullName size: ret=122 len=98 fill: ret=0 len=98 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+  v2 name type 0 size: ret=122 len=87
+  v2 name type 0 short: ret=122 len=87 buf0=cccc
+  v2 name type 0 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 0 big: ret=0 len=87
+  v2 name type 1 size: ret=15707 len=0
+  v2 name type 2 size: ret=122 len=87
+  v2 name type 2 short: ret=122 len=87 buf0=cccc
+  v2 name type 2 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 2 big: ret=0 len=87
+  v2 name type 3 size: ret=1168 len=0
+  v1 size: ret=122 len=87 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+  GetPackagePathByFullName size: ret=122 len=87 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+  v2 name type 0 size: ret=122 len=88
+  v2 name type 0 short: ret=122 len=88 buf0=cccc
+  v2 name type 0 fill: ret=0 len=88 path=C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 0 big: ret=0 len=88
+  v2 name type 1 size: ret=15707 len=0
+  v2 name type 2 size: ret=122 len=88
+  v2 name type 2 short: ret=122 len=88 buf0=cccc
+  v2 name type 2 fill: ret=0 len=88 path=C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 2 big: ret=0 len=88
+  v2 name type 3 size: ret=1168 len=0
+  v1 size: ret=122 len=88 fill: ret=0 len=88 path=C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+  GetPackagePathByFullName size: ret=122 len=88 fill: ret=0 len=88 path=C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+edge cases
+  v2 unknown type 0 size: ret=1168 len=0
+  v2 malformed type 0 size: ret=87 len=0
+  v2 empty type 0 size: ret=234 len=0
+  v2 NULL name: ret=87 len=0
+  v2 NULL len: ret=87
+  v2 len 8 NULL path: ret=87 len=8
+  v2 type 7: ret=87 len=0
+--- in package
+exports v2=1 v1=1 GetPackagePathByFullName=1
+Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+  v2 name type 0 size: ret=122 len=85
+  v2 name type 0 short: ret=122 len=85 buf0=cccc
+  v2 name type 0 fill: ret=0 len=85 path=C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 0 big: ret=0 len=85
+  v2 name type 1 size: ret=15707 len=0
+  v2 name type 2 size: ret=122 len=85
+  v2 name type 2 short: ret=122 len=85 buf0=cccc
+  v2 name type 2 fill: ret=0 len=85 path=C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 2 big: ret=0 len=85
+  v2 name type 3 size: ret=1168 len=0
+  v1 size: ret=122 len=85 fill: ret=0 len=85 path=C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+  GetPackagePathByFullName size: ret=122 len=85 fill: ret=0 len=85 path=C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe
+Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+  v2 name type 0 size: ret=122 len=87
+  v2 name type 0 short: ret=122 len=87 buf0=cccc
+  v2 name type 0 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 0 big: ret=0 len=87
+  v2 name type 1 size: ret=15707 len=0
+  v2 name type 2 size: ret=122 len=87
+  v2 name type 2 short: ret=122 len=87 buf0=cccc
+  v2 name type 2 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 2 big: ret=0 len=87
+  v2 name type 3 size: ret=1168 len=0
+  v1 size: ret=122 len=87 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+  GetPackagePathByFullName size: ret=122 len=87 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe
+Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+  v2 name type 0 size: ret=122 len=98
+  v2 name type 0 short: ret=122 len=98 buf0=cccc
+  v2 name type 0 fill: ret=0 len=98 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 0 big: ret=0 len=98
+  v2 name type 1 size: ret=15707 len=0
+  v2 name type 2 size: ret=122 len=98
+  v2 name type 2 short: ret=122 len=98 buf0=cccc
+  v2 name type 2 fill: ret=0 len=98 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 2 big: ret=0 len=98
+  v2 name type 3 size: ret=1168 len=0
+  v1 size: ret=122 len=98 fill: ret=0 len=98 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+  GetPackagePathByFullName size: ret=122 len=98 fill: ret=0 len=98 path=C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe
+Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+  v2 name type 0 size: ret=122 len=87
+  v2 name type 0 short: ret=122 len=87 buf0=cccc
+  v2 name type 0 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 0 big: ret=0 len=87
+  v2 name type 1 size: ret=15707 len=0
+  v2 name type 2 size: ret=122 len=87
+  v2 name type 2 short: ret=122 len=87 buf0=cccc
+  v2 name type 2 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 2 big: ret=0 len=87
+  v2 name type 3 size: ret=1168 len=0
+  v1 size: ret=122 len=87 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+  GetPackagePathByFullName size: ret=122 len=87 fill: ret=0 len=87 path=C:\Program Files\WindowsApps\Microsoft.UI.Xaml.2.8_8.2511.26001.0_arm64__8wekyb3d8bbwe
+Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+  v2 name type 0 size: ret=122 len=88
+  v2 name type 0 short: ret=122 len=88 buf0=cccc
+  v2 name type 0 fill: ret=0 len=88 path=C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 0 big: ret=0 len=88
+  v2 name type 1 size: ret=15707 len=0
+  v2 name type 2 size: ret=122 len=88
+  v2 name type 2 short: ret=122 len=88 buf0=cccc
+  v2 name type 2 fill: ret=0 len=88 path=C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe tail=cccc
+  v2 name type 2 big: ret=0 len=88
+  v2 name type 3 size: ret=1168 len=0
+  v1 size: ret=122 len=88 fill: ret=0 len=88 path=C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+  GetPackagePathByFullName size: ret=122 len=88 fill: ret=0 len=88 path=C:\Program Files\WindowsApps\Microsoft.WindowsAppRuntime.2_2.5.1.0_arm64__8wekyb3d8bbwe
+edge cases
+  v2 unknown type 0 size: ret=1168 len=0
+  v2 malformed type 0 size: ret=87 len=0
+  v2 empty type 0 size: ret=234 len=0
+  v2 NULL name: ret=87 len=0
+  v2 NULL len: ret=87
+  v2 len 8 NULL path: ret=87 len=8
+  v2 type 7: ret=87 len=0
+
+  v2 name type 3 size: ret=1168 len=0
+  v2 name type 4 size: ret=1168 len=0
+  v2 name type 5 size: ret=1168 len=0
+  v2 name type 6 size: ret=87 len=0
+  v2 unknown type 0 size: ret=1168 len=0
+
+

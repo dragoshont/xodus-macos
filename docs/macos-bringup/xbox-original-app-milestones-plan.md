@@ -440,6 +440,34 @@ boundary".
 - Next step requires an owner decision: a separate shell-host lane
   (registrar + window broker) or stop.
 
+### Sprint progress: shell-host lane, owner-approved (2026-10-07 22:00 – 2026-10-08 04:30)
+
+- **Approval and stop rule.** The owner approved the lane end to end. The
+  stop rule was kept: explorer, ApplicationFrameHost RPC or a window band.
+- **What was built.** An external activator (`activate-app.c`) and a window
+  broker (`shellhost-broker.c`), both following the PDB-measured contract.
+  The original app was then followed through `br7`–`br38`.
+- **Fixes along the way:**
+  - launch arguments built the genuine twinapi way, plus PS registrations;
+  - ALPC connection-request context;
+  - the MRT package-identity chain;
+  - the upstream CoreWindow statics backport;
+  - shcore #265, FPBF, GSPPBFN, OGUSK and WNF;
+  - rpcrt4 NDR 2.0 `TransferSyntax`;
+  - combase OBJREF_HANDLER re-marshal.
+- **Furthest point (br38).** The app's view thread creates a CoreWindow
+  through the handler-marshaled `ICoreWindowFactory`.
+- **Stop.** On DESKTOP, `PrepareToActivateAsync` needs the CoreWindow
+  navigation client (CoreUIComponents `ImmersiveNavigationClient`). That
+  class is a client of the shell CoreUI window-manager server.
+  `ActivateInternal` treats its absence as fatal. Building that server is
+  explorer/ApplicationFrameHost work, so the bounded stop applies.
+- **Milestone 4 not proven.** XBOX-APP-STARTUP stays UNTESTED.
+- **Details.** See the xaml-startup README section "Shell-host lane" and
+  `probe-outputs/activation-20261007/navigation-client-boundary.txt`.
+- **Next step needs an owner decision:** a shell window-manager (CoreUI
+  server) lane, or stop.
+
 ## Xodus-backed substitutes for Windows dependencies (owner question, 2026-10-07)
 
 Xodus already reimplements several Windows pieces, using genuine Microsoft

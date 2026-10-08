@@ -1,0 +1,40 @@
+untrusted IL token: status=0x00000000 sandboxed=1
+q thread effective len=4: status=0x00000000 ret=0x4 value=00 00 00 00 cc
+q thread effective len=8: status=0x00000000 ret=0x4 value=00 00 00 00 cc
+q thread effective len=3: status=0xc0000023 ret=0x4 value=cc cc cc cc cc
+q thread effective len=1: status=0xc0000023 ret=0x4 value=cc cc cc cc cc
+q thread effective len=0: status=0xc0000023 ret=0x4 value=cc cc cc cc cc
+q thread effective len=0 NULL buf: status=0xc0000023 ret=0x4 value=cc cc cc cc cc
+q rid 0 len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+q rid 0x800 len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+q rid 0xfff len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+q rid 0x1000 len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+q rid 0x1001 len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+q rid 0x17ff len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+q rid 0x1fff len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+q rid 0x2000 len=4: status=0x00000000 ret=0x4 value=00 00 00 00 cc
+[set IL 0x2100 failed 1314] q rid 0x2100 len=4: status=0x00000000 ret=0x4 value=00 00 00 00 cc
+derive hr=0x00000000
+appcontainer CreateProcess failed 2
+appcontainer CreateProcess failed 2
+derive hr=0x00000000
+appcontainer CreateProcess failed 2
+appcontainer CreateProcess failed 2
+create profile hr=0x00000000
+NULL token: status=0x00000000 sandboxed=1
+q thread effective len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+q thread effective len=8: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+q thread effective len=3: status=0xc0000023 ret=0x4 value=cc cc cc cc cc
+q thread effective len=1: status=0xc0000023 ret=0x4 value=cc cc cc cc cc
+q thread effective len=0: status=0xc0000023 ret=0x4 value=cc cc cc cc cc
+q thread effective len=0 NULL buf: status=0xc0000023 ret=0x4 value=cc cc cc cc cc
+q rid 0 len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+q rid 0x800 len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+q rid 0xfff len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+q rid 0x1000 len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+[set IL 0x1001 failed 1314] q rid 0x1001 len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+[set IL 0x17ff failed 1314] q rid 0x17ff len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+[set IL 0x1fff failed 1314] q rid 0x1fff len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+[set IL 0x2000 failed 1314] q rid 0x2000 len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+[set IL 0x2100 failed 1314] q rid 0x2100 len=4: status=0x00000000 ret=0x4 value=01 00 00 00 cc
+delete profile hr=0x00000000

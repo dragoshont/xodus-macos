@@ -1,0 +1,18 @@
+﻿== wine server mta
+[exe tid=256] CoGetStdMarshalEx(SMEXF_SERVER) -> 0
+[exe tid=256] GetClassForHandler ctx=0
+[exe tid=256] std GetUnmarshalClass -> 0 clsid=00000027
+[exe tid=256] GetClassForHandler ctx=0
+[exe tid=256] GetClassForHandler ctx=0
+[exe tid=256] std MarshalInterface -> 0
+[exe tid=256] CoMarshalInterface -> 0 size=136
+objref: 4d 45 4f 57 04 00 00 00 00 00 00 00 00 00 00 00 c0 00 00 00 00 00 00 46 27 00 00 00 00 00 08 00 c0 00 00 00 00 00 00 46 00 00 00 00 58 00 00 00
+== wine server sta2
+[exe tid=364] CoGetStdMarshalEx(SMEXF_SERVER) -> 0
+[exe tid=364] GetClassForHandler ctx=0
+[exe tid=364] std GetUnmarshalClass -> 0 clsid=00000027
+[exe tid=364] GetClassForHandler ctx=0
+[exe tid=364] GetClassForHandler ctx=0
+[exe tid=364] std MarshalInterface -> 0
+[exe tid=364] CoMarshalInterface -> 0 size=136
+objref: 4d 45 4f 57 04 00 00 00 00 00 00 00 00 00 00 00 c0 00 00 00 00 00 00 46 27 00 00 00 00 00 08 00 c0 00 00 00 00 00 00 46 00 00 00 00 58 00 00 00

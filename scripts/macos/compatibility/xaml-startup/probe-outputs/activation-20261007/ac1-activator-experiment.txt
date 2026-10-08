@@ -1,0 +1,82 @@
+﻿CoInitializeEx hr=0x00000000
+ROT/moniker hr=0x00000000 item=Xodus.WinRT.Factory.v1|Microsoft.GamingApp_2609.1001.16.0_x64__8wekyb3d8bbwe|Microsoft.Xbox.AppL|Microsoft.Xbox.AppL
+factory published after 5750 ms
+QI IClassFactory hr=0x00000000
+CreateInstance IActivatableApplication hr=0x00000000
+launch-args factory hr=0x00000000
+launch-args ActivateInstance hr=0x80004001
+launch-args QI IActivatedEventArgs hr=0x80004001
+Activate(XboxPcApp.App, Microsoft.Xbox.AppL, Windows.Launch, -, args=0000000000000000, aam=0, options=0) ...
+Activate hr=0x80040154
+ACT_EXIT=5
+=== original stderr lines 5450-5505
+020c:trace:ole:CoGetTreatAsClass {02844640-e37c-4322-a3b8-4c61a2e58879}, 000000000010F880.
+020c:trace:ole:apartment_addref 2080000cafe: before = 7
+020c:trace:ole:apartment_add_dll L"C:\\Windows\\System32\\twinapi.appcore.dll"
+020c:trace:ole:apartment_getclassobject added new loaded dll L"C:\\Windows\\System32\\twinapi.appcore.dll"
+020c:trace:ole:apartment_getclassobject calling DllGetClassObject 00006FFFF6FEB270
+0228:trace:ole:CoCreateInstance {3480a401-bde9-4407-bc02-798a866ac051}, 0000000000000000, 0x404, {0f4accb1-d8f9-4011-ba37-2557925a78cf}, 000000000156E768.
+0228:trace:ole:CoCreateInstanceEx {3480a401-bde9-4407-bc02-798a866ac051}, 0000000000000000, 0x404, 0000000000000000, 1, 000000000156E6C0
+0228:trace:ole:CoGetTreatAsClass {3480a401-bde9-4407-bc02-798a866ac051}, 000000000156E600.
+0228:trace:ole:apartment_addref 2080000cafe: before = 8
+0228:trace:ole:apartment_release 2080000cafe: after = 8
+0228:trace:ole:rpc_get_local_class_object clsid {3480a401-bde9-4407-bc02-798a866ac051}, riid {00000001-0000-0000-c000-000000000046}
+020c:trace:ole:apartment_release 2080000cafe: after = 7
+020c:trace:ole:CoCreateFreeThreadedMarshaler 0000000000000000, 000000000010F770
+020c:trace:ole:ftmarshaler_inner_QueryInterface 00000000012D8DF0, {00000003-0000-0000-c000-000000000046}, 00000000012D9EA0
+020c:trace:ole:ftmarshaler_AddRef 00000000012D8DF8
+020c:trace:ole:ftmarshaler_inner_AddRef 00000000012D8DF0, refcount 2
+020c:trace:ole:ftmarshaler_inner_Release 00000000012D8DF0, refcount 1
+020c:trace:ole:StdGlobalInterfaceTable_RegisterInterfaceInGlobal iface=000000000129A360, pUnk=00000000012D9E80, riid={33c255c3-1a86-45fc-9498-f60d8f56b9d3}, pdwCookie=0x000000000129C738
+020c:trace:ole:StdGlobalInterfaceTable_RegisterInterfaceInGlobal About to marshal the interface
+020c:trace:ole:CoMarshalInterface 00000000012D8E40, {33c255c3-1a86-45fc-9498-f60d8f56b9d3}, 00000000012D9E80, 3, 0000000000000000,  MSHLFLAGS_TABLESTRONG
+0228:trace:ole:NdrCorrelationInitialize (000000000156D980, 000000000156CE40, 2048, 0x0)
+0228:trace:ole:NdrSimpleStructBufferSize (000000000156D980,000000000156E600,00006FFFFB829B18)
+020c:trace:ole:ftmarshaler_GetUnmarshalClass {33c255c3-1a86-45fc-9498-f60d8f56b9d3}, 00000000012D9E80, 0x3, 0000000000000000, 0x1, 000000000010F840
+020c:trace:ole:CoMarshalInterface Using custom marshaling
+020c:trace:ole:ftmarshaler_GetMarshalSizeMax {33c255c3-1a86-45fc-9498-f60d8f56b9d3}, 00000000012D9E80, 0x3, 0000000000000000, 0x1, 000000000010F87C
+020c:trace:ole:CoMarshalInterface Calling IMarshal::MarshalInterface
+020c:trace:ole:ftmarshaler_MarshalInterface 00000000012D8E40, {33c255c3-1a86-45fc-9498-f60d8f56b9d3}, 00000000012D9E80, 0x3, 0000000000000000, 0x1
+020c:trace:ole:CoMarshalInterface completed with hr 0
+020c:trace:ole:StdGlobalInterfaceTable_RegisterInterfaceInGlobal Cookie is 0xf103
+020c:fixme:sync:SetWaitableTimerEx (0000000000000274, 000000000010F838, 0, 0000000000000000, 0000000000000000, 0000000000000000, 30000) semi-stub
+0228:trace:ole:NdrSimpleStructMarshall (000000000156D980,000000000156E600,00006FFFFB829B18)
+0228:trace:ole:NdrPointerUnmarshall (000000000156D980,000000000156E170,00006FFFFB829B4C,0)
+0228:trace:ole:PointerUnmarshall (000000000156D980,00000000012A6990,000000000156E170,000000000156E388,00006FFFFB829B4C,0)
+0228:trace:ole:PointerUnmarshall type=0x11, attr= FC_ALLOCED_ON_STACK FC_POINTER_DEREF
+0228:trace:ole:PointerUnmarshall client
+0228:trace:ole:PointerUnmarshall setting *pPointer to 000000000156E388
+0228:trace:ole:PointerUnmarshall deref => 000000000156E388
+0228:trace:ole:NdrPointerUnmarshall (000000000156D980,000000000156E388,00006FFFFB829B48,0)
+0228:trace:ole:PointerUnmarshall (000000000156D980,00000000012A6990,000000000156E388,0000000000000000,00006FFFFB829B48,0)
+0228:trace:ole:PointerUnmarshall type=0x12, attr=
+0228:trace:ole:PointerUnmarshall pointer_id is 0x00000000
+0228:trace:ole:PointerUnmarshall pointer=0000000000000000
+0228:trace:ole:PointerUnmarshall pointer=000000000156E388
+0228:trace:ole:NdrBaseTypeUnmarshall pStubMsg: 000000000156D980, ppMemory: 000000000156CBE8, type: 0x08, fMustAlloc: false
+0228:trace:ole:NdrBaseTypeUnmarshall *ppMemory: 000000000156CC88
+0228:trace:ole:NdrBaseTypeUnmarshall value: 0x80004002
+0228:trace:ole:create_local_service Attempting to start Local service for {3480a401-bde9-4407-bc02-798a866ac051}
+0228:trace:ole:create_server Attempting to start server for {3480a401-bde9-4407-bc02-798a866ac051}
+0228:err:ole:create_server class {3480a401-bde9-4407-bc02-798a866ac051} not registered
+0228:trace:ole:create_surrogate_server Attempting to start surrogate server for {3480a401-bde9-4407-bc02-798a866ac051}
+0228:err:ole:com_get_class_object no class object {3480a401-bde9-4407-bc02-798a866ac051} could be created for context 0x404
+0228:warn:module:LdrGetProcedureAddress "WilFailureNotifyWatchers" (ordinal 0) not found in L"C:\\windows\\system32\\kernelbase.dll"
+0228:warn:ntdll:EtwEventRegister ({b4e1f963-7db6-4e64-a392-6727f395372b}, 00006FFFF6FF30C0, 00006FFFF71B3000, 00006FFFF71B3020) stub.
+0228:fixme:ntdll:EtwEventSetInformation (deadbeef, 2, 00006FFFF718BCC7, 56) stub
+0228:trace:ole:NdrBaseTypeBufferSize pStubMsg 000000000156EDE0, pMemory 00000000012A4EE0, type 0x08
+0228:trace:ole:NdrStubGetBuffer (000000000130F250, 0000000001304580, 000000000156EDE0)
+=== guard/boot
+0100:warn:module:start_main_thread error loading cxcompatdb.so: dlopen(/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so, 0x0005): tried: '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/win32u/cxcompatdb.so' (no such file), '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/System/Volumes/Preboot/Cryptexes/Rosetta/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file)
+0100:warn:file:NtCreateFile L"\\??\\C:\\windows\\system32\\start.exe.manifest" not found (c0000034)
+0100:warn:globalmem:KernelBaseGetGlobalData semi-stub!
+0100:warn:msvcrt:_configure_wide_argv (1) stub
+0100:warn:file:NtQueryAttributesFile L"\\??\\C:\\windows\\system32\\reg.com" not found (c0000034)
+0108:warn:module:start_main_thread error loading cxcompatdb.so: dlopen(/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so, 0x0005): tried: '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/win32u/cxcompatdb.so' (no such file), '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/System/Volumes/Preboot/Cryptexes/Rosetta/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file), '/Users/dragoshont/xodus-runs/xbox-service-principal-20261007-001/build/dlls/ntdll/cxcompatdb.so' (no such file)
+0108:warn:file:NtCreateFile L"\\??\\C:\\windows\\system32\\reg.exe.manifest" not found (c0000034)
+0108:warn:globalmem:KernelBaseGetGlobalData semi-stub!
+0108:warn:msvcrt:_configure_wide_argv (1) stub
+0108:warn:file:server_ioctl_file Unsupported ioctl 508078 (device=50 access=2 func=1e method=0)
+reg: The operation completed successfully
+reg: The operation completed successfully
+reg: The operation completed successfully

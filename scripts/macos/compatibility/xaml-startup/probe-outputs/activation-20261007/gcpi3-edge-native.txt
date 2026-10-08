@@ -1,0 +1,22 @@
+edge 0 type 17 len_in=0 buf=NULL count=NULL len_ptr=ptr: hr=0x00000000 len=0 count=77 buf0=cc
+exit=0  
+edge 1 type 17 len_in=8 buf=NULL count=NULL len_ptr=ptr: hr=0x80070057 len=8 count=77 buf0=cc
+exit=0  
+edge 2 type 17 len_in=8 buf=ptr count=NULL len_ptr=ptr: hr=0x80070057 len=8 count=77 buf0=cc
+exit=0  
+edge 3 type 17 len_in=8 buf=NULL count=ptr len_ptr=ptr: hr=0x80070057 len=8 count=77 buf0=cc
+exit=0  
+edge 4 type 17 len_in=0 buf=NULL count=ptr len_ptr=NULL: hr=0x80070057 len=0 count=77 buf0=cc
+exit=0  
+edge 5 type 17 len_in=0 buf=NULL count=NULL len_ptr=NULL: hr=0x80070057 len=0 count=77 buf0=cc
+exit=0  
+edge 6 type 0 len_in=0 buf=NULL count=NULL len_ptr=ptr: hr=0x8007007a len=3504 count=77 buf0=cc
+exit=0  
+edge 7 type 2 len_in=0 buf=NULL count=NULL len_ptr=ptr: hr=0x8007007a len=3504 count=77 buf0=cc
+exit=0  
+edge 8 type 0 len_in=8 buf=NULL count=ptr len_ptr=ptr: hr=0x80070057 len=8 count=77 buf0=cc
+exit=0 
+edge 9 type 17 len_in=8 buf=ptr count=ptr len_ptr=ptr: hr=0x00000000 len=0 count=0 buf0=cc
+exit=0  
+edge 10 type 0 len_in=8 buf=ptr count=NULL len_ptr=ptr: hr=0x80070057 len=8 count=77 buf0=cc
+exit=0 

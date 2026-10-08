@@ -1,0 +1,34 @@
+ogusk=00007FF9203C6380
+CommonGlobUserSettings open=0
+RedirectedKey=2 type=0 
+read: st=0x0 key=0000000000000134
+read name=\REGISTRY\USER\S-1-5-21-<vm-machine>-1000
+  key[0] AppEvents
+  key[1] Console
+  key[2] Control Panel
+  key[3] Environment
+  key[4] EUDC
+  key[5] Keyboard Layout
+  key[6] Microsoft
+  key[7] Network
+  key[8] Printers
+  key[9] Software
+  key[10] System
+  key[11] Volatile Environment
+readwrite: st=0x0 key=set
+token: st=0x0 key=set
+token name=\REGISTRY\USER\S-1-5-21-<vm-machine>-1000
+  key[0] AppEvents
+  key[1] Console
+  key[2] Control Panel
+  key[3] Environment
+  key[4] EUDC
+  key[5] Keyboard Layout
+  key[6] Microsoft
+  key[7] Network
+  key[8] Printers
+  key[9] Software
+  key[10] System
+  key[11] Volatile Environment
+zeroaccess: st=0xc0000022 key=null
+nullout: st=0xc000000d

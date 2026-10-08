@@ -1,0 +1,115 @@
+OUT-OF-PACKAGE
+type 0 size: hr=0x80073d54 len=0 count=77
+type 1 size: hr=0x80073d54 len=0 count=77
+type 2 size: hr=0x80073d54 len=0 count=77
+type 3 size: hr=0x80073d54 len=0 count=77
+type 4 size: hr=0x80073d54 len=0 count=77
+type 5 size: hr=0x80073d54 len=0 count=77
+type 6 size: hr=0x80073d54 len=0 count=77
+type 7 size: hr=0x80073d54 len=0 count=77
+type 8 size: hr=0x80073d54 len=0 count=77
+type 9 size: hr=0x80073d54 len=0 count=77
+type 10 size: hr=0x80073d54 len=0 count=77
+type 11 size: hr=0x80073d54 len=0 count=77
+type 12 size: hr=0x80073d54 len=0 count=77
+type 13 size: hr=0x80073d54 len=0 count=77
+type 14 size: hr=0x80073d54 len=0 count=77
+type 15 size: hr=0x80073d54 len=0 count=77
+type 16 size: hr=0x8007007a len=0 count=0
+type 17 size: hr=0x80073d54 len=0 count=77
+type 18 size: hr=0x80073d54 len=0 count=77
+type 19 size: hr=0x80073d54 len=0 count=77
+type 20 size: hr=0x80073d54 len=0 count=77
+gen4: hr=0x00000000 len=4 count=0 val=0
+gen8: hr=0x00000000 len=4 count=0 bytes 00 00 00 00 cc cc cc cc 
+flags 0x10 type 17 size: hr=0x80073d54 len=0 count=77
+flags 0x20 type 17 size: hr=0x80073d54 len=0 count=77
+flags 0x40 type 17 size: hr=0x80073d54 len=0 count=77
+flags 0x80 type 17 size: hr=0x80073d54 len=0 count=77
+flags 0x100 type 17 size: hr=0x80073d54 len=0 count=77
+flags 0x200 type 17 size: hr=0x80073d54 len=0 count=77
+flags 0x400 type 17 size: hr=0x80073d54 len=0 count=77
+IN-PACKAGE
+type 0 size: hr=0x8007007a len=3504 count=5
+type 0 fill: hr=0x00000000 len=3504 count=5
+    00 00 00 00 10 00 00 00 d0 71 e4 db f7 7f 00 00 60 73 e4 db f7 7f 00 00 d0 73 e4 db f7 7f 00 00
+    00 00 00 00 0c 00 00 00 00 00 10 00 e9 03 31 0a 7a 72 e4 db f7 7f 00 00 be 72 e4 db f7 7f 00 00
+    00 00 00 00 00 00 00 00 a2 72 e4 db f7 7f 00 00 00 00 00 00 21 00 00 00 14 74 e4 db f7 7f 00 00
+    b0 75 e4 db f7 7f 00 00 24 76 e4 db f7 7f 00 00 00 00 00 00 0c 00 00 00 00 00 ef 82 00 00 0e 00
+    c2 74 e4 db f7 7f 00 00 0e 75 e4 db f7 7f 00 00 00 00 00 00 00 00 00 00 f2 74 e4 db f7 7f 00 00
+    00 00 00 00 21 00 00 00 70 76 e4 db f7 7f 00 00 38 78 e4 db f7 7f 00 00 c2 78 e4 db f7 7f 00 00
+    00 00 00 00 0c 00 00 00 00 00 c0 83 00 00 0e 00 34 77 e4 db f7 7f 00 00 96 77 e4 db f7 7f 00 00
+    00 00 00 00 00 00 00 00 7a 77 e4 db f7 7f 00 00 00 00 00 00 21 00 00 00 24 79 e4 db f7 7f 00 00
+    bc 7a e4 db f7 7f 00 00 30 7b e4 db f7 7f 00 00 00 00 00 00 0c 00 00 00 00 00 91 65 cf 09 08 00
+    d2 79 e4 db f7 7f 00 00 1a 7a e4 db f7 7f 00 00 00 00 00 00 00 00 00 00 fe 79 e4 db f7 7f 00 00
+    00 00 00 00 21 00 00 00 78 7b e4 db f7 7f 00 00 22 7d e4 db f7 7f 00 00 98 7d e4 db f7 7f 00 00
+    00 00 00 00 0c 00 00 00 00 00 01 00 05 00 02 00 28 7c e4 db f7 7f 00 00 80 7c e4 db f7 7f 00 00
+    00 00 00 00 00 00 00 00 64 7c e4 db f7 7f 00 00 43 00 3a 00 5c 00 50 00 72 00 6f 00 67 00 72 00
+    61 00 6d 00 20 00 46 00 69 00 6c 00 65 00 73 00 5c 00 57 00 69 00 6e 00 64 00 6f 00 77 00 73 00
+    41 00 70 00 70 00 73 00 5c 00 4d 00 69 00 63 00 72 00 6f 00 73 00 6f 00 66 00 74 00 2e 00 47 00
+    61 00 6d 00 69 00 6e 00 67 00 41 00 70 00 70 00 5f 00 32 00 36 00 30 00 39 00 2e 00 31 00 30 00
+    
+    text: ||.|...|...|...|||.||......|...|||||...|||!|...|...|...|||.||.|....|...|||||...|||!|...|...|...|||.||.|....|...|||||...|||!|...|...|...|||.||......|...|||||...|||!|...|...|...|||.||......|...|||||...|C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe|Microsoft.GamingApp|8wekyb3d8bbwe|CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US|Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe|Microsoft.GamingApp_8wekyb3d8bbwe|C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe|Microsoft.VCLibs.140.00|8wekyb3d8bbwe|CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US|Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe|Microsoft.VCLibs.140.00_8wekyb3d8bbwe|C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe|Microsoft.VCLibs.140.00.UWPDesktop|8wekyb3d8bbwe|CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US|Micr
+type 0 short: hr=0x8007007a len=3504 count=5
+type 1 size: hr=0x80073d5b len=0 count=77
+type 2 size: hr=0x8007007a len=3504 count=5
+type 2 fill: hr=0x00000000 len=3504 count=5
+    00 00 00 00 10 00 00 00 d0 71 e4 db f7 7f 00 00 60 73 e4 db f7 7f 00 00 d0 73 e4 db f7 7f 00 00
+    00 00 00 00 0c 00 00 00 00 00 10 00 e9 03 31 0a 7a 72 e4 db f7 7f 00 00 be 72 e4 db f7 7f 00 00
+    00 00 00 00 00 00 00 00 a2 72 e4 db f7 7f 00 00 00 00 00 00 21 00 00 00 14 74 e4 db f7 7f 00 00
+    b0 75 e4 db f7 7f 00 00 24 76 e4 db f7 7f 00 00 00 00 00 00 0c 00 00 00 00 00 ef 82 00 00 0e 00
+    c2 74 e4 db f7 7f 00 00 0e 75 e4 db f7 7f 00 00 00 00 00 00 00 00 00 00 f2 74 e4 db f7 7f 00 00
+    00 00 00 00 21 00 00 00 70 76 e4 db f7 7f 00 00 38 78 e4 db f7 7f 00 00 c2 78 e4 db f7 7f 00 00
+    00 00 00 00 0c 00 00 00 00 00 c0 83 00 00 0e 00 34 77 e4 db f7 7f 00 00 96 77 e4 db f7 7f 00 00
+    00 00 00 00 00 00 00 00 7a 77 e4 db f7 7f 00 00 00 00 00 00 21 00 00 00 24 79 e4 db f7 7f 00 00
+    bc 7a e4 db f7 7f 00 00 30 7b e4 db f7 7f 00 00 00 00 00 00 0c 00 00 00 00 00 91 65 cf 09 08 00
+    d2 79 e4 db f7 7f 00 00 1a 7a e4 db f7 7f 00 00 00 00 00 00 00 00 00 00 fe 79 e4 db f7 7f 00 00
+    00 00 00 00 21 00 00 00 78 7b e4 db f7 7f 00 00 22 7d e4 db f7 7f 00 00 98 7d e4 db f7 7f 00 00
+    00 00 00 00 0c 00 00 00 00 00 01 00 05 00 02 00 28 7c e4 db f7 7f 00 00 80 7c e4 db f7 7f 00 00
+    00 00 00 00 00 00 00 00 64 7c e4 db f7 7f 00 00 43 00 3a 00 5c 00 50 00 72 00 6f 00 67 00 72 00
+    61 00 6d 00 20 00 46 00 69 00 6c 00 65 00 73 00 5c 00 57 00 69 00 6e 00 64 00 6f 00 77 00 73 00
+    41 00 70 00 70 00 73 00 5c 00 4d 00 69 00 63 00 72 00 6f 00 73 00 6f 00 66 00 74 00 2e 00 47 00
+    61 00 6d 00 69 00 6e 00 67 00 41 00 70 00 70 00 5f 00 32 00 36 00 30 00 39 00 2e 00 31 00 30 00
+    
+    text: ||.|...|...|...|||.||......|...|||||...|||!|...|...|...|||.||.|....|...|||||...|||!|...|...|...|||.||.|....|...|||||...|||!|...|...|...|||.||......|...|||||...|||!|...|...|...|||.||......|...|||||...|C:\Program Files\WindowsApps\Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe|Microsoft.GamingApp|8wekyb3d8bbwe|CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US|Microsoft.GamingApp_2609.1001.16.0_arm64__8wekyb3d8bbwe|Microsoft.GamingApp_8wekyb3d8bbwe|C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe|Microsoft.VCLibs.140.00|8wekyb3d8bbwe|CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US|Microsoft.VCLibs.140.00_14.0.33519.0_arm64__8wekyb3d8bbwe|Microsoft.VCLibs.140.00_8wekyb3d8bbwe|C:\Program Files\WindowsApps\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33728.0_arm64__8wekyb3d8bbwe|Microsoft.VCLibs.140.00.UWPDesktop|8wekyb3d8bbwe|CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US|Micr
+type 2 short: hr=0x8007007a len=3504 count=5
+type 3 size: hr=0x80070057 len=0 count=77
+type 4 size: hr=0x80070057 len=0 count=77
+type 5 size: hr=0x80070057 len=0 count=77
+type 6 size: hr=0x80070057 len=0 count=77
+type 7 size: hr=0x80070057 len=0 count=77
+type 8 size: hr=0x80070057 len=0 count=77
+type 9 size: hr=0x80070057 len=0 count=77
+type 10 size: hr=0x80070057 len=0 count=77
+type 11 size: hr=0x80070057 len=0 count=77
+type 12 size: hr=0x80070057 len=0 count=77
+type 13 size: hr=0x80070057 len=0 count=77
+type 14 size: hr=0x80070057 len=0 count=77
+type 15 size: hr=0x80070057 len=0 count=77
+type 16 size: hr=0x8007007a len=0 count=0
+type 17 size: hr=0x00000000 len=0 count=0
+type 18 size: hr=0x80070057 len=0 count=77
+type 19 size: hr=0x80070057 len=0 count=77
+type 20 size: hr=0x80070057 len=0 count=77
+gen4: hr=0x00000000 len=4 count=0 val=0
+gen8: hr=0x00000000 len=4 count=0 bytes 00 00 00 00 cc cc cc cc 
+flags 0x10 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x20 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x40 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x80 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x100 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x200 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x400 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x800 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x1000 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x2000 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x4000 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x8000 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x10000 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x20000 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x40000 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x80000 type 17 size: hr=0x00000000 len=0 count=0
+flags 0x100000 type 17 size: hr=0x00000000 len=0 count=0
+gen null buf len4: hr=0x80070057 len=4 count=77
+null len: hr=0x80070057
+null count: hr=0x00000000 len=4

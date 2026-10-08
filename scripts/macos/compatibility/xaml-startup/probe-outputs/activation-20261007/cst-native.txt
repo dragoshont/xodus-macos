@@ -1,0 +1,47 @@
+--- outside package
+NULL token: status=0x00000000 sandboxed=0
+exit=0 
+process token TOKEN_QUERY: status=0x00000000 sandboxed=0
+exit=0 
+process token no TOKEN_QUERY: status=0xc0000022 sandboxed=0
+exit=0 
+invalid handle: status=0xc0000008 sandboxed=0
+exit=0 
+pseudo current process: status=0xc0000024 sandboxed=0
+exit=0 
+low IL token: status=0x00000000 sandboxed=1
+exit=0 
+untrusted IL token: status=0x00000000 sandboxed=0
+exit=0 
+medium IL dup token: status=0x00000000 sandboxed=0
+exit=0 
+[impersonate=1] NULL token while impersonating low IL: status=0x00000000 sandboxed=1
+exit=0 
+NULL out pointer: exit=0 
+[impersonate=1] NULL token while impersonating medium IL: status=0x00000000 sandboxed=0
+exit=0 
+current thread pseudo token: status=0x00000000 sandboxed=0
+exit=0 
+current process pseudo token: status=0x00000000 sandboxed=0
+exit=0 
+--- in package
+NULL token: status=0x00000000 sandboxed=0
+exit=0  
+process token TOKEN_QUERY: status=0x00000000 sandboxed=0
+exit=0  
+low IL token: status=0x00000000 sandboxed=1
+exit=0  
+[impersonate=1] NULL token while impersonating low IL: status=0x00000000 sandboxed=1
+exit=0  
+[impersonate=1] NULL token while impersonating medium IL: status=0x00000000 sandboxed=0
+exit=0 
+Everyone                                                      Well-known group S-1-1-0      Mandatory group, Enabled by default, Enabled group
+BUILTIN\Users                                                 Alias            S-1-5-32-545 Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\INTERACTIVE                                      Well-known group S-1-5-4      Mandatory group, Enabled by default, Enabled group
+CONSOLE LOGON                                                 Well-known group S-1-2-1      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Authenticated Users                              Well-known group S-1-5-11     Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\This Organization                                Well-known group S-1-5-15     Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Local account                                    Well-known group S-1-5-113    Mandatory group, Enabled by default, Enabled group
+LOCAL                                                         Well-known group S-1-2-0      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\NTLM Authentication                              Well-known group S-1-5-64-10  Mandatory group, Enabled by default, Enabled group
+Mandatory Label\Medium Mandatory Level                        Label            S-1-16-8192                                                    

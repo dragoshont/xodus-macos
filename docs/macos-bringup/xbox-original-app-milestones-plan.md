@@ -734,11 +734,11 @@ The dedicated research session owns source-backed feasibility and one independen
 adversarial review for roadmap/funding, including Mono/MAUI relevance and the
 distinction between source porting and unchanged Windows binary compatibility.
 Research and one independent review/correction pass are published at
-`285cec85b98111a5766d01a5f8e40664ea8ab99a`:
-[feasibility report](https://github.com/dragoshont/wine-composition-research/blob/285cec85b98111a5766d01a5f8e40664ea8ab99a/docs/feasibility.md),
-[evidence register](https://github.com/dragoshont/wine-composition-research/blob/285cec85b98111a5766d01a5f8e40664ea8ab99a/docs/evidence-register.md),
-[claim corrections](https://github.com/dragoshont/wine-composition-research/blob/285cec85b98111a5766d01a5f8e40664ea8ab99a/docs/claims.md),
-[independent review](https://github.com/dragoshont/wine-composition-research/blob/285cec85b98111a5766d01a5f8e40664ea8ab99a/docs/independent-review.md).
+`a9aa4d2785d45800476f1d0f8db1eff7033b4bcb` (final publication-metadata correction):
+[feasibility report](https://github.com/dragoshont/wine-composition-research/blob/a9aa4d2785d45800476f1d0f8db1eff7033b4bcb/docs/feasibility.md),
+[evidence register](https://github.com/dragoshont/wine-composition-research/blob/a9aa4d2785d45800476f1d0f8db1eff7033b4bcb/docs/evidence-register.md),
+[claim corrections](https://github.com/dragoshont/wine-composition-research/blob/a9aa4d2785d45800476f1d0f8db1eff7033b4bcb/docs/claims.md),
+[independent review](https://github.com/dragoshont/wine-composition-research/blob/a9aa4d2785d45800476f1d0f8db1eff7033b4bcb/docs/independent-review.md).
 Private target and remote SHA were read back independently. Recommendation:
 BOUNDED_GO for reached-boundary qualification, DEFER composition implementation.
 G0 must show the exact failing rendering contract before G1/G2 pixel/adapter

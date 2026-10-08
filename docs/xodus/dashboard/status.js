@@ -2,7 +2,7 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-08T10:53:53+03:00",
+  updatedAt: "2026-10-08T13:39:44+03:00",
   phase: "Phase 2 â€” functionally complete, user-serviceable",
   budget: { totalHours: 30, spentHours: 28.5, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension" },
 
@@ -33,7 +33,7 @@ window.XODUS_STATUS = {
     { id: "B10", title: "Cloud saves and online spikes", hours: 0.5, status: "done", done: "Feasibility recorded with evidence", evidence: "Cloud saves: local-only, upload not implemented (deferred). Online: Lara Xbox user OK but publisher service offline; Abiotic Xbox user fails at SISU (E_INVALIDARG). Single player works." },
     { id: "B12", title: "First launch works in a new environment", hours: 1.0, status: "done", done: "Lara opens with no GPU dialog on its very first launch after install", evidence: "Root cause: new environments list the Vulkan GPU id that the first launch replaces. New environments now get this Mac's real id; a fresh environment launched Lara with no dialog." },
     { id: "B13", title: "Game service ships with Xodus", hours: 1.0, status: "done", done: "Service binary runs from the Xodus runtime folder; ~/.local no longer used", evidence: "The service now runs from the Xodus runtime folder, signed in, with no Keychain prompt (the binary is identical)." },
-    { id: "B14", title: "Fresh macOS account acceptance", hours: 1.0, status: "blocked", evidence: "Needs the user to create a macOS account (admin password).", done: "Full journey on a brand-new Mac user using only the app" },
+    { id: "B14", title: "Fresh macOS account acceptance", hours: 1.0, status: "deferred", evidence: "Deferred by the user: Xodus only runs in this account for now. Needed before sharing Xodus or reinstalling macOS.", done: "Full journey on a brand-new Mac user using only the app" },
     { id: "B11", title: "Release acceptance on a fresh account", hours: 1.0, status: "done", done: "Full journey passes using only the app", evidence: "On the user account (fresh macOS account deferred): setup, sign-in, Discover, search, Game Pass install, play, stop, uninstall with saves kept, reinstall restored 11 save files, play, stop." }
   ],
 
@@ -90,6 +90,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-08T13:39:44+03:00", text: "B14 deferred: Xodus only runs in this account for now" },
     { at: "2026-10-08T10:53:53+03:00", text: "B6 live: one Keychain approval; after reinstalling Xodus, the PC Library loads with no prompt" },
     { at: "2026-10-08T10:53:53+03:00", text: "B13 done: the game service runs from the Xodus folder, signed in" },
     { at: "2026-10-08T09:43:23+03:00", text: "B6 helper build admitted; waiting for the user to approve one Keychain prompt" },

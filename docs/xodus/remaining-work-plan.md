@@ -452,3 +452,6 @@ B6: the broker is installed at ~/Library/Application Support/Xodus/CredentialBro
 
 Stale socket fixed: com.xodus.service now starts via Runtime/scripts/macos/private-xodus-service-run.sh. It removes /tmp/xodus.sock if nothing answers on it, then execs the same service binary. Stop, start and kill-restart cycles all came back signed in with no prompt.
 
+
+B14 deferred by the user (2026-10-08): Xodus only runs in the developer account for now. Fresh-account acceptance is required before distributing Xodus or after a macOS reinstall.
+

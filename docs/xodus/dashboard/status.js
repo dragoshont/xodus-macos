@@ -2,9 +2,9 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-08T09:43:23+03:00",
+  updatedAt: "2026-10-08T10:53:53+03:00",
   phase: "Phase 2 â€” functionally complete, user-serviceable",
-  budget: { totalHours: 30, spentHours: 27, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension" },
+  budget: { totalHours: 30, spentHours: 28.5, note: "8 h delivered (S0–S6) + 16 h Phase 2 + 6 h extension" },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -26,13 +26,13 @@ window.XODUS_STATUS = {
     { id: "B3", title: "Plays-on-Mac check before download", hours: 1.5, status: "done", done: "Unsupported packages flagged with zero bytes downloaded", evidence: "Live: Celeste install checks first and is blocked with the reason; zero download." },
     { id: "B4", title: "Game Pass licence spike", hours: 1.0, status: "done", done: "Yes/no evidence for subscription status and one Game Pass licence", evidence: "YES: 3 unowned Game Pass titles licensed; 2 unowned non-Game Pass titles refused. Status command live (active)." },
     { id: "B5", title: "Game Pass status and shelf", hours: 2.0, status: "done", done: "Subscription state correct; Install only when active and supported", evidence: "Live: Game Pass shelf; Install showed Plays on Mac · 5.3 GB and registered Abiotic Factor (not owned). Probe-order fix live in 208939c: status Active." },
-    { id: "B6", title: "One sign-in, no Keychain prompts", hours: 3.0, status: "blocked", done: "Sign in once; restarts cause zero prompts", evidence: "Helper build 2d420d1 admitted: exact CI green, hashes and signatures verified, both migration outcomes proven in a test keychain. Going live needs the user at the Mac for one Keychain approval." },
+    { id: "B6", title: "One sign-in, no Keychain prompts", hours: 3.0, status: "done", done: "Sign in once; restarts cause zero prompts", evidence: "Live: the sign-in moved to the helper after one approval, and the old copy was removed. After reinstalling Xodus, the PC Library loaded 13 games with no prompt." },
     { id: "B7", title: "Self-contained app", hours: 2.5, status: "done", evidence: "App now runs every script from ~/Library/Application Support/Xodus/Runtime (50 MB, self-contained). Remaining: game service still at ~/.local; runtime not yet inside the app bundle.", done: "Developer folders moved aside; Lara still installs and plays" },
     { id: "B8", title: "First-run setup and Repair Xodus", hours: 2.0, status: "done", evidence: "Live: Setup list in the app; Repair Xodus ran from the app (status 0); backend rebuilds the environment from scratch in 11 s.", done: "Missing template rebuilt from the app; Lara plays" },
     { id: "B9", title: "Stop game", hours: 1.0, status: "done", done: "Stop ends the game; app returns to Play cleanly", evidence: "Live: Stop from the app ended Abiotic in 6 s; app shows Stopped; Continue Playing updated." },
     { id: "B10", title: "Cloud saves and online spikes", hours: 0.5, status: "done", done: "Feasibility recorded with evidence", evidence: "Cloud saves: local-only, upload not implemented (deferred). Online: Lara Xbox user OK but publisher service offline; Abiotic Xbox user fails at SISU (E_INVALIDARG). Single player works." },
     { id: "B12", title: "First launch works in a new environment", hours: 1.0, status: "done", done: "Lara opens with no GPU dialog on its very first launch after install", evidence: "Root cause: new environments list the Vulkan GPU id that the first launch replaces. New environments now get this Mac's real id; a fresh environment launched Lara with no dialog." },
-    { id: "B13", title: "Game service ships with Xodus", hours: 1.0, status: "blocked", done: "Service binary runs from the Xodus runtime folder; ~/.local no longer used", evidence: "Binary already in the runtime folder. Switching the service to it changes its Keychain identity and would prompt; do it together with the B6 helper migration while the user is present." },
+    { id: "B13", title: "Game service ships with Xodus", hours: 1.0, status: "done", done: "Service binary runs from the Xodus runtime folder; ~/.local no longer used", evidence: "The service now runs from the Xodus runtime folder, signed in, with no Keychain prompt (the binary is identical)." },
     { id: "B14", title: "Fresh macOS account acceptance", hours: 1.0, status: "blocked", evidence: "Needs the user to create a macOS account (admin password).", done: "Full journey on a brand-new Mac user using only the app" },
     { id: "B11", title: "Release acceptance on a fresh account", hours: 1.0, status: "done", done: "Full journey passes using only the app", evidence: "On the user account (fresh macOS account deferred): setup, sign-in, Discover, search, Game Pass install, play, stop, uninstall with saves kept, reinstall restored 11 save files, play, stop." }
   ],
@@ -90,6 +90,8 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-08T10:53:53+03:00", text: "B6 live: one Keychain approval; after reinstalling Xodus, the PC Library loads with no prompt" },
+    { at: "2026-10-08T10:53:53+03:00", text: "B13 done: the game service runs from the Xodus folder, signed in" },
     { at: "2026-10-08T09:43:23+03:00", text: "B6 helper build admitted; waiting for the user to approve one Keychain prompt" },
     { at: "2026-10-08T08:54:02+03:00", text: "B12 done: first launch in a new environment no longer shows the No GPU dialog" },
     { at: "2026-10-08T08:54:02+03:00", text: "B6 helper: signed build A writes, different build B reads through the same helper, unsigned caller rejected" },

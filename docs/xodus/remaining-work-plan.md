@@ -444,3 +444,8 @@ Open (needs the user at the Mac):
 
 App 2d420d1 (tree c630816), CI run 37737577280 succeeded on the exact SHA. Package z4RPpO receipt 80118680…fe9543 (22 files); launcher a15d9fbd…, auth host e1389298…, C8 c8fe69a3… unchanged; broker 2c40354c…/228448 bytes; deep strict codesign check passed. Native v3 qualification 3de4feee… records both outcomes: exact-reference delete succeeds without a prompt, and when the delete is denied, the old item is kept and no retry happens. Live install of the broker, app replacement and the one-approval migration (bundled with B13) are held until the user is at the Mac.
 
+
+## B6 and B13 live (2026-10-08)
+
+B6: the broker is installed at ~/Library/Application Support/Xodus/CredentialBroker (2c40354c…). The migration needed one user approval (legacyRetained=false). After an identical reinstall (PID 23110), the PC Library loaded 13 games with no prompt. Receipts are in app-b6-broker-2d420d1-20261008/. B13: the com.xodus.service LaunchAgent now runs Runtime/bin/xodus-service (same hash 24e78d53…); service-status reports signedIn=true; no prompt. A stale /tmp/xodus.sock from the old process had to be removed (the service does not unlink it on SIGTERM). Plist backup: com.xodus.service.plist.pre-b13.bak. B14 is open; it needs a fresh macOS account.
+

@@ -733,9 +733,22 @@ reported source inspection, not independently qualified for funding).**
 The dedicated research session owns source-backed feasibility and one independent
 adversarial review for roadmap/funding, including Mono/MAUI relevance and the
 distinction between source porting and unchanged Windows binary compatibility.
-Research tool approvals are currently being resolved; no reviewed report or
-funding estimate is available. Genuine Microsoft XAML DLL reuse and narrower
-backend work remain hypotheses to examine, not a commitment to rewrite XAML.
+Research and one independent review/correction pass are published at
+`285cec85b98111a5766d01a5f8e40664ea8ab99a`:
+[feasibility report](https://github.com/dragoshont/wine-composition-research/blob/285cec85b98111a5766d01a5f8e40664ea8ab99a/docs/feasibility.md),
+[evidence register](https://github.com/dragoshont/wine-composition-research/blob/285cec85b98111a5766d01a5f8e40664ea8ab99a/docs/evidence-register.md),
+[claim corrections](https://github.com/dragoshont/wine-composition-research/blob/285cec85b98111a5766d01a5f8e40664ea8ab99a/docs/claims.md),
+[independent review](https://github.com/dragoshont/wine-composition-research/blob/285cec85b98111a5766d01a5f8e40664ea8ab99a/docs/independent-review.md).
+Private target and remote SHA were read back independently. Recommendation:
+BOUNDED_GO for reached-boundary qualification, DEFER composition implementation.
+G0 must show the exact failing rendering contract before G1/G2 pixel/adapter
+spending; original frame, authentication and library remain separate gates.
+No defensible cost/duration forecast is available. Genuine Microsoft XAML DLL
+reuse and narrower backend work remain hypotheses, not a rewrite commitment.
+The frozen draft's inconsistent conditional PASS was correctly normalized to
+REVISE because one Major funding-sequencing correction was required. The author
+applied that correction; no revised-text independent PASS or second review is
+claimed. Documentation research is not runtime feasibility certification.
 The original startup lane, D3c stop, product freeze and final deadline are unchanged.
 
 This is an evidence-qualified map, not a complete Windows compatibility

@@ -656,3 +656,11 @@ brD4 (05:34-05:38) *** DIAGNOSTIC ONLY *** wincomp_diag4.dll (sha256 a504b5c0e51
   StartHandOffVisualCaching reads IVisual properties. Stopped at: IVisual property getters (slot 14) on the visual.
   Cheapest next step: composition owner implements real IVisual property get/put on its SpriteVisual and continues the walk.
   Prefix restored again to the br171 clean candidate state (C:\wincomp_poc.dll = 3d8392a3). Logs: wincomp_poc.log.brD1..brD4.
+brD5 (05:41-05:45) *** DIAGNOSTIC ONLY *** wincomp_diag5.dll (sha256 ce9259361e0172050797fd1178cb445e765a5b3bf3ae606a8bbe3d27a50cc338,
+  repo e0501c0): IVisual getters return WinRT defaults (puts E_NOTIMPL). RESULT: app ALIVE (exit 92), no fail-fast.
+  Log: ... CreateVisual; QI-OK 117e202d, fa92376b; 8 listeners; StartHandOffVisualCaching passes; QI-OK 117e202d;
+  QI-OK bcb4ad45 x2; NOTIMPL iid=bcb4ad45 slot=8 caller=Microsoft.UI.Xaml.dll+0xe4016 (WinUI2 MUX, app control code);
+  QI-OK fa92376b; 8 SetPropertyChangedListener with listener=NULL; QI NOINTERFACE {fe93b735-e574-4a5d-a21a-f705c21945fa}
+  (tolerated). FINAL SLOT WALK REACHED: system XAML handoff visual is fully set up; WinUI2 then calls bcb4ad45 slot 8.
+  Next requirements (composition owner): bcb4ad45 slot 8, fe93b735. Still no VisualPartner slot calls; no pixels; no
+  visible window. Prefix restored to br171 clean candidate (C:\wincomp_poc.dll = 3d8392a3).

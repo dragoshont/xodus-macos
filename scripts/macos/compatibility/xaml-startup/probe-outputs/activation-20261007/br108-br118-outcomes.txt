@@ -647,3 +647,12 @@ DIAGNOSTIC SUMMARY (brD1-brD3; none are candidates; the skeleton DLLs stay out o
   a CreateVisual object missing a required interface is fail-fast (brD2/brD3). Stopped at: {fa92376b} on the visual.
   Cheapest next step: composition owner resolves {fa92376b} and continues the per-QI walk; each step is ~4 min.
   Prefix restored to clean candidate: C:\wincomp_poc.dll = partner POC 3d8392a3 (br171 state).
+brD4 (05:34-05:38) *** DIAGNOSTIC ONLY *** wincomp_diag4.dll (sha256 a504b5c0e51059d098c96a516ed5744bcdbcdb3ae76430c5f30ea2d7bbf173e2,
+  repo 11d1c34): visual also answers {fa92376b} (INFERRED ICompositionNotifyPropertyChangedPartner; listener accepted,
+  never notifies). RESULT: FAIL-FAST exit 0xC0000602. Log after QI-OK 6b556968: CreateVisual -> SpriteVisual; QI-OK 117e202d;
+  QI-OK fa92376b; SetPropertyChangedListener x8 (types 4,2,c,a,8,7,d,1, one listener); NOTIMPL IVisual slot 14 (likely
+  get_Clip) caller=Windows.UI.Xaml+0x2f43b6 = CUIElement::StartHandOffVisualCaching+0xc6 -> fail-fast.
+  First frame (updated): ... CreateVisual -> QI IVisual -> QI fa92376b (AttachToPrependVisual) -> 8 property listeners ->
+  StartHandOffVisualCaching reads IVisual properties. Stopped at: IVisual property getters (slot 14) on the visual.
+  Cheapest next step: composition owner implements real IVisual property get/put on its SpriteVisual and continues the walk.
+  Prefix restored again to the br171 clean candidate state (C:\wincomp_poc.dll = 3d8392a3). Logs: wincomp_poc.log.brD1..brD4.

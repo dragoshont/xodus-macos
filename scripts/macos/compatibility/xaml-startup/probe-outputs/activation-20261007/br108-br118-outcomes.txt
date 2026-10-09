@@ -529,3 +529,45 @@ br161 (03:48) ntdll RtlQueryWnfStateData + RtlQueryWnfStateDataWithExplicitScope
   (AnimatedVisualPlayer failure caught). UI thread keeps cycling CoreWindow/HolographicViewProperties activations.
   Compositor POC 51a2639 (sha256 22fa6696...) staged at /tmp on the Mac but NOT installed: it needs the staging dcomp
   series; waiting for the composition owner's patch against this tree.
+br162 (03:55) measured ActivatableClassId rows (Windows 26100 host) for classes the app failed on, DLLs native:
+  HolographicViewProperties->twinapi.appcore.dll, LauncherQueryInfo->Windows.System.Launcher.dll, ThreadPoolTimer->
+  threadpoolwinrt.dll, ExtendedExecutionForegroundSession->ExecModelClient.dll, ProcessDiagnosticInfo->
+  Windows.System.Diagnostics.dll (copied), Radio->Windows.Devices.Radios.dll (copied). All AT=0 Thr=0 Trust=0.
+  RESULT: exit 0x80000100: ExecModelClient calls unimplemented api-ms-win-core-psm-key PsmGetKeyFromProcess.
+  ExtendedExecution needs the ExecModel broker (absent under Wine) -> row REMOVED again (failed experiment).
+br163 (04:02) same minus ExtendedExecution row. Exit 0x80000100: UI thread calls unimplemented
+  shcore #244 GetScaleFactorForWindow (progress: further than br161). Also a null read in native threadpoolwinrt.dll
+  +0x2b0d on ThreadPoolTimer worker threads (row REMOVED again in br164; failed experiment, investigate later).
+br164 (04:08) shcore #244 GetScaleFactorForWindow implemented from native 26100 shcore (0x1a070): *scale=100 preset;
+  without the immersive scale service it falls back to the window's monitor scale (NULL hwnd = primary monitor);
+  returns that HRESULT. shcore.dll md5 66d354dc. Compositor drop-in from composition owner installed (prefix is
+  disposable): dcomp_native.dll sha256 cd3f0a57 as system32\dcomp.dll (dcomp=n,b), wincomp_poc.dll sha256 22fa6696
+  at C:\ with row ActivatableClassId\Windows.UI.Composition.Compositor (AT=0 Thr=0 Trust=0).
+  RESULT: dcomp.dll native loads; "Found library C:\wincomp_poc.dll for Windows.UI.Composition.Compositor",
+  factory created. COMPOSITOR ACTIVATES. Immediately after: winrt::hresult_no_interface 0x80004002 (QI on the
+  Compositor for an interface the POC does not implement), then check_noexcept -> terminate, exit 3.
+  hermes.dll not loaded. Next: br165 with a QI-miss-logging build of the POC to name the IID.
+br165 (04:15) DIAGNOSTIC: own QI-miss-logging rebuild of the POC (md5 6d4a439b) in place of C:\wincomp_poc.dll.
+  No 'wincomp_poc:' line at all in the app stderr. The E_NOINTERFACE 0x80004002 is thrown by Microsoft.UI.Xaml.dll
+  (WinUI 2.8, image base +0x99047), not via the POC's QI. Then 0x802b000a "Cannot create instance of type
+  'Microsoft.UI.Xaml.Controls.AnimatedVisualPlayer'" (caught by XboxPcApp.exe), then 0x80004005 -> check_noexcept, exit 3.
+br166 (04:20) DIAGNOSTIC: ntdll dispatch_exception now also logs RtlCaptureStackBackTrace for C++ throws (ntdll md5
+  fc592b69). Stacks:
+  - E_NOINTERFACE: MUX+0x99047 <- MUX+0x19add9 <- MUX+0x9f57e/0xa32d9/0xa3eae (AnimatedVisualPlayer construction)
+    <- XboxPcApp.exe+0x5c49ea. Non-fatal (the app catches the AVP failure).
+  - FATAL E_FAIL 0x80004005: Microsoft.ReactNative.dll+0x16ed24 = check_hresult after
+    IDisplayInformation vtbl[14] add_DpiChanged (source-location string in RN: consume_..IDisplayInformation..DpiChanged,
+    Windows.Graphics.Display.h line 395), reached from a CoreMessaging dispatch. The only event just before it in native
+    Windows.Graphics.dll: "NtQueryWnfStateData state name 41c61629a3bc1035 is not modelled" (we return NOT_FOUND).
+  MEASURED on the Windows 11 x64 host (build 26300): NtQueryWnfStateData(0x41c61629a3bc1035) = STATUS_SUCCESS,
+  size 0, change stamp 57, so the state exists and is published with empty data (a notification-only state).
+br167 (04:25) CANDIDATE: ntdll models 0x41c61629a3bc1035 like the other measured empty-data states (exists, size 0,
+  stamp 0 because Wine has no publisher, subscribers never notified). ntdll md5 5d7d01e4 (also contains the br166
+  diag). Composition owner's logging POC 6fdd014 (sha256 198e75e5) installed at C:\wincomp_poc.dll.
+  RESULT: DpiChanged no longer fails. Compositor still activates (dcomp.dll native + wincomp_poc.dll loaded).
+  No 'wincomp_poc:' NOTIMPL/QI line in the app stderr. New stop: exit 0x80000100, unimplemented
+  shcore.dll #251 RegisterWindowMonitorChangeListener (native 26300 shcore RVA 0x2ae90; #253 Unregister at 0x2d7f0).
+  hermes.dll still not loaded. AnimatedVisualPlayer creation still fails (non-fatal).
+  Pieces: CANDIDATE = ntdll WNF row, shcore #244, ntdll RtlQueryWnfStateData; DROP-IN (external, by hash) =
+  dcomp_native.dll cd3f0a57 + wincomp_poc 198e75e5/22fa6696; DIAGNOSTIC = ntdll cxxobj+backtrace, combase
+  RoOriginateErrorW ERR.

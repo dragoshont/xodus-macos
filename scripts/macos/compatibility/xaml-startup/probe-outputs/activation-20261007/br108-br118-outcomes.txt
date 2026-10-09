@@ -589,3 +589,15 @@ br169 (04:40) CANDIDATE (native, measured host files): system32 icu.dll + icuuc.
   factory QI {22118adf} (IInteropCompositorFactoryPartner) -> vtbl[6](NULL, DCompInteropCompositorPartnerCallback,
   {d14b6158-c3fa-4bce-9c1f-b61d8665eab0}, &out). Callback slots: 3 NotifyDirty(), 4 NotifyDeferralState(bool).
   Tuple sent to composition owner 8dac952d. No visible window yet (XAML has no interop compositor).
+STATIC follow-up (system32 Windows.UI.Xaml.dll + PDB): DCompTreeHost::EnsureDCompDevice (RVA 0x157e80) loads dcomp.dll,
+  GetProcAddress DCompositionCreateDevice3, calls CreateWinRTInteropCompositionDevice, then QIs the interop compositor for
+  {e7894c70-af56-4f52-b382-4b3cd263dc6f}, ICompositor, {7bd36c9a-56ee-4fdd-ac4e-76bbd16ec8e4}, ICompositor2/5/6,
+  ICompositorPartner {9cbd9312-070d-4588-9bf3-bbf528cf3e84}, ICompositorPrivate {509eab63-6a73-4493-b7fe-80006df879c2},
+  ICompositorInterop; needs IDCompositionDeviceInternal {6b556968-2d25-11e2-99f6-8bc36088709b} (host+0x198, fatal).
+  XAML rendering then uses native dcomp private partner interfaces (SurfaceFactoryPartner/PrimitiveGroupPartner/...).
+  Conclusion: visible XAML content needs a native-dcomp-compatible private partner device; this is the composition
+  owner's lane (8dac952d). NOT ATTEMPTED: ThreadPoolTimer row again (failed in br162-br164).
+br170 (05:00) DROP-IN (external): composition owner's partner POC 2a8ed1b wincomp_poc_partner.dll (sha256 3d8392a3) as
+  C:\wincomp_poc.dll. RESULT: app alive (exit 92), hermes loads. wincomp_poc.log: DllGetActivationFactory Compositor;
+  CreateInteropCompositor dev=0 cb=...; QI NOINTERFACE {e7894c70} (first EnsureDCompDevice QI). Sent to 8dac952d.
+  No visible window content (headless run; composition device not available).

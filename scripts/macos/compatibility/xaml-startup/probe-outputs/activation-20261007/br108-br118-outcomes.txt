@@ -612,3 +612,38 @@ br171 (~04:55) CLEAN CANDIDATE VERIFICATION. Diagnostics reverted to baselines: 
   STATUS: no visible window. XBOX-APP-STARTUP stays UNTESTED. Blocker: Windows.UI.Xaml renders via native dcomp's
   private partner device (e7894c70 / DeviceInternal 6b556968 / SurfaceFactoryPartner); composition owner (8dac952d)
   declined success-shaped stubs; both lanes agree.
+brD1 (05:05-05:09) *** DIAGNOSTIC ONLY - not a candidate, not rendering, not progress *** Composition owner's partner
+  skeleton wincomp_diag.dll (sha256 269302b9a67b776433dcddc4e3c712086f301e1994b910044e84242f07f39ce3; repo
+  dragoshont/wine-composition-research 6a81ad0 poc/handoff/wincomp_poc_DIAGNOSTIC.dll) as C:\wincomp_poc.dll; every
+  slot logs + E_NOTIMPL, unknown IIDs E_NOINTERFACE. Exit 92 (alive), hermes loads, stderr errors unchanged vs br171.
+  wincomp_poc.log (full): DllGetActivationFactory Compositor; CreateInteropCompositor dev=0; DIAGNOSTIC banner;
+    NOTIMPL iid=d14b6158 slot=35 caller=Windows.UI.Xaml.dll+0x158116 (DCompTreeHost::EnsureDCompDevice+0x296)
+    NOTIMPL iid=d14b6158 slot=32 caller=+0x15812e (EnsureDCompDevice+0x2ae, edx=1)
+    NOTIMPL iid=d14b6158 slot=6  caller=+0x13190a (CUIElement::EnsureHandOffVisual+0x132)
+  STATIC (disasm 0x157e80-0x158245): r12=&host+0x188 (interop compositor). Slots 35/32 HRESULT NOT checked; only
+  As<IDCompositionDeviceInternal>(host+0x198) is checked; then host+0x2dd=1, EnsureDCompDevice returns S_OK.
+  MEASURED partner-slot table for the first frame: e7894c70 (IDCompositionDesktopDevicePartner4) slots called: none;
+  DeviceInternal 6b556968 slots called: none; d14b6158: 35, 32, 6. No further composition calls; no visible content.
+  Correction (composition owner, PDB vtable dump): d14b6158 IS IDCompositionDesktopDevicePartner4; slots 35/32/6 =
+  DisableD2DStatePreservation / EnableWhitePixelOptimization / CreateVisual(IDCompositionVisualPartner**).
+brD2 (05:15-05:19) *** DIAGNOSTIC ONLY *** wincomp_diag2.dll (sha256 9cb83307634ff8bba508e224a4443dfbea1a85ecbd5d7515247cacc13c6a5740,
+  repo 7e11b86 wincomp_poc_DIAGNOSTIC_v2.dll): real d14b6158 shape, CreateVisual returns a logging VisualPartner, hints
+  no-op, QI-OK logged. RESULT: FAIL-FAST exit 0xC0000602 (UI thread). Log: QI-OK 00000035, 22118adf; CreateInteropCompositor;
+  QI-OK d14b6158, e7894c70, b403ca50, 7bd36c9a, 735081dc, 48ea31ad, 7a38b2bd, 9cbd9312, 509eab63, 25297d5c; hints arg=0, arg=1;
+  QI-OK 6b556968; CreateVisual -> VisualPartner; QI NOINTERFACE {117e202d} (Windows.UI.Composition.IVisual) -> C++ throw ->
+  RaiseFailFastException. MEASURED: XAML requires the CreateVisual object to also be the WinRT IVisual (same object);
+  no VisualPartner slot is called before that. React Native thread was activating package modules (RNDeviceInfoCPP.dll
+  loaded, OrientationWindows next) at fail-fast time.
+  (note: RN package-module activation, e.g. RNDeviceInfoCPP.dll, already occurs in br171; not new in brD2.)
+brD3 (05:25-05:29) *** DIAGNOSTIC ONLY *** wincomp_diag3.dll (sha256 2702d8033f6e5326f1ad6d72950c14ac0f4865eed4dca1db936149c1a8c59f4d,
+  repo 6bfb638 wincomp_poc_DIAGNOSTIC_v3.dll): CreateVisual returns the owner's real SpriteVisual that also carries the
+  logging VisualPartner. RESULT: FAIL-FAST exit 0xC0000602. Log after banner: QI-OK d14b6158, e7894c70, b403ca50, 7bd36c9a,
+  735081dc, 48ea31ad, 7a38b2bd, 9cbd9312, 509eab63, 25297d5c; HINT arg=0, arg=1; QI-OK 6b556968; CreateVisual -> SpriteVisual;
+  QI-OK 117e202d; QI NOINTERFACE {fa92376b-164b-432a-bf53-c7fe2d51cabc} -> fail-fast. No VisualPartner slot called yet.
+DIAGNOSTIC SUMMARY (brD1-brD3; none are candidates; the skeleton DLLs stay out of the cumulative patch and br171):
+  First frame so far: EnsureDCompDevice = 13 QIs on the interop compositor + DisableD2DStatePreservation(0) +
+  EnableWhitePixelOptimization(1) (HRESULTs unchecked) + As<DeviceInternal>; then the first UIElement handoff visual:
+  DesktopDevicePartner4.CreateVisual -> QI IVisual -> QI {fa92376b}. A failing CreateVisual is tolerated (br171/brD1);
+  a CreateVisual object missing a required interface is fail-fast (brD2/brD3). Stopped at: {fa92376b} on the visual.
+  Cheapest next step: composition owner resolves {fa92376b} and continues the per-QI walk; each step is ~4 min.
+  Prefix restored to clean candidate: C:\wincomp_poc.dll = partner POC 3d8392a3 (br171 state).

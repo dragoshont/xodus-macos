@@ -699,3 +699,10 @@ log: InsetClip -> EXPERIMENT NotifyDirty -> NOTIMPL d14b6158 slot=5 caller=Windo
   = RefreshRateInfo::UpdateRefreshInterval(DCompTreeHost*)+0x4f (PDB symbol, MEASURED)
   slot 5 = GetFrameStatistics(DCOMPOSITION_FRAME_STATISTICS*) (IDCompositionDevice order, INFERRED) -> RaiseFailFastException same thread 0340.
 next: real GetFrameStatistics (QPC/QPF, 60 Hz), then Commit/WaitForCommitCompletion. Prefix restored to br171.
+=== brE4 (2026-10-09 08:16, recorded 17:05) EXPERIMENT ===
+installed: wincomp_exp9.dll sha256 a8e0dbef9dc56f55aae235a574deb932496dcfaef15ed410b716b98f00a196d1
+  (composition owner 3bd0a7a: d14b6158 slot 3/4 S_OK, slot 5 GetFrameStatistics QPC/60Hz, INV-09)
+result: ALIVE, exit 92, 0 fail-fast.
+log tail: InsetClip -> NotifyDirty -> 'EXPERIMENT GetFrameStatistics S_OK' -> second visual listeners -> nothing further.
+  no Commit / WaitForCommitCompletion / second frame. App JS keeps running (FindPackages GamingServices polls).
+next: find what gates XAML's frame tick (visibility/occlusion under headless null driver vs owed callback).

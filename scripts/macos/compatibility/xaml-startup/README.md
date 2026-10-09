@@ -652,6 +652,8 @@ Wine source delta for these cycles: `wine-xbox-br113-br118-delta.patch`.
 | br166-br167 | ntdll WNF display state 0x41c61629a3bc1035 (measured empty) | DpiChanged passes |
 | br168 | shcore #251/#253 window monitor listeners (native CWindowTracker semantics) | reaches hermes.dll; needs ICU |
 | br169 | native system ICU (icu/icuuc/icuin) | hermes.dll loads, app alive; first Compositor QI {22118adf} IInteropCompositorFactoryPartner |
+| br170 | composition owner partner POC (wincomp_poc_partner.dll 3d8392a3) | alive; CreateInteropCompositor ok; QI NOINTERFACE {e7894c70} |
+| br171 | clean candidate: diagnostics reverted (ntdll 296d4c71, combase e1babffe, shcore e822e291); patch regenerated | app alive (exit 92); ReactNative + hermes load native; stops at XAML EnsureDCompDevice QI {e7894c70} (private DComp partner device) |
 **Status at br123:** ShowWindow reached and the app survives XAML startup (headless, alive until the harness alarm). Activated and rendering calls (dcomp/Composition) are not yet observed. Earlier status at br118:
 - Reached: ConnectionComplete, ActivateViewComplete, ReadyToNavigate, presentation deferral and SetWindow.
 - Not reached: Activated, ShowWindow and any rendering call.

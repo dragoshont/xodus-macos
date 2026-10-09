@@ -1,14 +1,15 @@
 diff -u a/dlls/apisetschema/apisetschema.spec b/dlls/apisetschema/apisetschema.spec
 --- a/dlls/apisetschema/apisetschema.spec
 +++ b/dlls/apisetschema/apisetschema.spec
-@@ -1,5 +1,6 @@
+@@ -1,5 +1,7 @@
  apiset api-ms-win-appmodel-runtime-internal-l1-1-1 = kernelbase.dll
  apiset api-ms-win-appmodel-runtime-l1-1-2 = kernelbase.dll
 +apiset api-ms-win-appmodel-state-l1-2-0 = kernelbase.dll
++apiset api-ms-win-appmodel-unlock-l1-1-0 = kernelbase.dll
  apiset api-ms-win-audiocore-spatial-config-l1-1-0 = windows.media.devices.dll
  apiset api-ms-win-base-bootconfig-l1-1-0 = advapi32.dll
  apiset api-ms-win-base-util-l1-1-0 = advapi32.dll
-@@ -332,6 +333,7 @@
+@@ -332,6 +334,7 @@
  apiset ext-ms-onecore-appmodel-emclient-l1-1-0 =
  apiset ext-ms-onecore-appmodel-emsvcs-l1-1-0 =
  apiset ext-ms-onecore-appmodel-pacmanclient-l1-1-0 =
@@ -16,7 +17,7 @@ diff -u a/dlls/apisetschema/apisetschema.spec b/dlls/apisetschema/apisetschema.s
  apiset ext-ms-onecore-comp-dwmmonitor-l1-1-0 =
  apiset ext-ms-onecore-dcomp-l1-1-0 = dcomp.dll
  apiset ext-ms-onecore-defaultdiscovery-l1-1-0 =
-@@ -391,6 +393,7 @@
+@@ -391,6 +394,7 @@
  apiset ext-ms-win-com-ole32-l1-2-0 = ole32.dll
  apiset ext-ms-win-com-ole32-l1-3-0 = ole32.dll
  apiset ext-ms-win-com-ole32-l1-4-0 = ole32.dll
@@ -24,7 +25,7 @@ diff -u a/dlls/apisetschema/apisetschema.spec b/dlls/apisetschema/apisetschema.s
  apiset ext-ms-win-com-sta-l1-1-0 = ole32.dll
  apiset ext-ms-win-com-suspendresiliency-l1-1-0 =
  apiset ext-ms-win-composition-holographic-l1-1-0 =
-@@ -483,6 +486,7 @@
+@@ -483,6 +487,7 @@
  apiset ext-ms-win-mm-msacm-l1-1-0 = msacm32.dll
  apiset ext-ms-win-mm-pehelper-l1-1-0 = mf.dll
  apiset ext-ms-win-mm-wmvcore-l1-1-0 = wmvcore.dll
@@ -32,15 +33,369 @@ diff -u a/dlls/apisetschema/apisetschema.spec b/dlls/apisetschema/apisetschema.s
  apiset ext-ms-win-msa-device-l1-1-0 =
  apiset ext-ms-win-msi-misc-l1-1-0 = msi.dll
  apiset ext-ms-win-msimg-draw-l1-1-0 = msimg32.dll
+diff -u a/dlls/bcp47langs/Makefile.in b/dlls/bcp47langs/Makefile.in
+--- a/dlls/bcp47langs/Makefile.in
++++ b/dlls/bcp47langs/Makefile.in
+@@ -1,5 +1,6 @@
+ MODULE    = bcp47langs.dll
+ IMPORTLIB = bcp47langs
++IMPORTS   = combase
+ 
+ SOURCES = \
+ 	main.c
+diff -u a/dlls/bcp47langs/bcp47langs.spec b/dlls/bcp47langs/bcp47langs.spec
+--- a/dlls/bcp47langs/bcp47langs.spec
++++ b/dlls/bcp47langs/bcp47langs.spec
+@@ -5,8 +5,8 @@
+ @ stub Bcp47BufferFromLcid
+ @ stub Bcp47FindClosestLanguage
+ @ stub Bcp47FromCompactTagInternal
+-@ stub Bcp47FromHkl
+-@ stub Bcp47FromLcid
++@ stdcall Bcp47FromHkl(long ptr)
++@ stdcall Bcp47FromLcid(long ptr)
+ @ stub Bcp47GetAbbreviation
+ @ stub Bcp47GetDirectionality
+ @ stub Bcp47GetDistance
+@@ -17,7 +17,7 @@
+ @ stub Bcp47GetLanguageName
+ @ stub Bcp47GetMuiForm
+ @ stub Bcp47GetNeutralForm
+-@ stub Bcp47GetNlsForm
++@ stdcall Bcp47GetNlsForm(ptr ptr)
+ @ stub Bcp47GetSubtagMapInternal
+ @ stub Bcp47GetUnIsoRegionCode
+ @ stub Bcp47IsWellFormed
+@@ -31,7 +31,7 @@
+ @ stub DllGetActivationFactory
+ @ stub DllGetClassObject
+ @ stub GetApplicationLanguageOverride
+-@ stub GetApplicationLanguages
++@ stdcall GetApplicationLanguages(wstr long ptr)
+ @ stub GetApplicationManifestLanguages
+ @ stub GetAppropriateUserLocaleForUserLanguages
+ @ stub GetAppropriateUserPreferredAndDisplayLanguagesForUser
+@@ -53,7 +53,7 @@
+ @ stub GetUserLanguagesForUser
+ @ stub GetUserLocaleFromLanguageProfileOptOut
+ @ stub IsTransientLcid
+-@ stub LanguageListAsMuiForm
++@ stdcall LanguageListAsMuiForm(long ptr long ptr)
+ @ stub LcidFromBcp47
+ @ stub RemoveInputsForAllLanguagesInternal
+ @ stub RemoveUserLanguageInputMethods
+diff -u a/dlls/bcp47langs/main.c b/dlls/bcp47langs/main.c
+--- a/dlls/bcp47langs/main.c
++++ b/dlls/bcp47langs/main.c
+@@ -22,11 +22,15 @@
+ #include "winbase.h"
+ #include "winnls.h"
+ #include "winstring.h"
++#include "appmodel.h"
++#include "winerror.h"
+ 
+ #include "wine/debug.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(bcp47langs);
+ 
++LONG WINAPI GetCurrentPackageId(UINT32 *length, BYTE *buffer);
++
+ HRESULT WINAPI GetFontFallbackLanguageList(const WCHAR *lang, size_t buffer_length, WCHAR *buffer,
+                                            size_t *required_buffer_length)
+ {
+@@ -57,8 +61,153 @@
+     return S_OK;
+ }
+ 
++static HRESULT get_preferred_languages(WCHAR delim, HSTRING *langs)
++{
++    ULONG count = 0, size = 0, len;
++    WCHAR *buffer, *p;
++    HRESULT hr;
++
++    if (!GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &count, NULL, &size))
++        return HRESULT_FROM_WIN32(GetLastError());
++    if (!(buffer = malloc(size * sizeof(WCHAR)))) return E_OUTOFMEMORY;
++    if (!GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &count, buffer, &size))
++    {
++        free(buffer);
++        return HRESULT_FROM_WIN32(GetLastError());
++    }
++
++    /* MULTI_SZ -> delimited list */
++    for (p = buffer; *p; p += wcslen(p) + 1)
++        if (p[wcslen(p) + 1]) p[wcslen(p)] = delim;
++    len = wcslen(buffer);
++    hr = WindowsCreateString(buffer, len, langs);
++    free(buffer);
++    return hr;
++}
++
+ HRESULT WINAPI GetUserLanguages(WCHAR delim, HSTRING *langs)
+ {
+-    FIXME("%lc, %p\n", delim, langs);
+-    return S_OK;
++    TRACE("%#x, %p\n", delim, langs);
++
++    if (!langs) return E_INVALIDARG;
++    *langs = NULL;
++    return get_preferred_languages(delim, langs);
+ }
++
++/* Native bcp47langs!LanguageListAsMuiForm(in_delim, HSTRING list, out_delim, HSTRING *out):
++ * *out = NULL; NULL list -> E_POINTER; split on in_delim, map each tag through
++ * Bcp47GetMuiForm, drop empty strings and duplicates, empty result -> E_INVALIDARG,
++ * else join with out_delim.  The MUI form of a tag is returned unchanged here; native
++ * derives it from its subtag tables (not reproduced). */
++HRESULT WINAPI LanguageListAsMuiForm(WCHAR in_delim, HSTRING list, WCHAR out_delim, HSTRING *out)
++{
++    const WCHAR *src, *tok, *end;
++    WCHAR *buffer, *dst;
++    UINT32 src_len;
++    HRESULT hr;
++
++    TRACE("%#x, %s, %#x, %p\n", in_delim, debugstr_hstring(list), out_delim, out);
++
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (!list) return E_POINTER;
++
++    src = WindowsGetStringRawBuffer(list, &src_len);
++    if (!(buffer = malloc((src_len + 1) * sizeof(WCHAR)))) return E_OUTOFMEMORY;
++    dst = buffer;
++    for (tok = src; tok <= src + src_len; tok = end + 1)
++    {
++        const WCHAR *q;
++        size_t n;
++        BOOL dup = FALSE;
++
++        for (end = tok; end < src + src_len && *end != in_delim; end++) ;
++        if (!(n = end - tok)) continue;
++        for (q = buffer; q < dst; )
++        {
++            const WCHAR *e = q;
++            while (e < dst && *e != out_delim) e++;
++            if ((size_t)(e - q) == n && !wcsnicmp(q, tok, n)) { dup = TRUE; break; }
++            q = e + 1;
++        }
++        if (dup) continue;
++        if (dst != buffer) *dst++ = out_delim;
++        memcpy(dst, tok, n * sizeof(WCHAR));
++        dst += n;
++    }
++    if (dst == buffer)
++    {
++        free(buffer);
++        return E_INVALIDARG;
++    }
++    hr = WindowsCreateString(buffer, dst - buffer, out);
++    free(buffer);
++    return hr;
++}
++
++/* Native bcp47langs!GetApplicationLanguages(id, delimiter, HSTRING *): with a NULL
++ * id the caller must have package identity (GetCurrentPackageId, else
++ * APPMODEL_ERROR_NO_PACKAGE).  Native ranks the user languages against the
++ * package ManifestLanguagesList through the application language registrar;
++ * like windows.globalization ApplicationLanguages.Languages, this returns the
++ * user preferred UI languages without the manifest intersection. */
++HRESULT WINAPI GetApplicationLanguages(const WCHAR *id, WCHAR delim, HSTRING *langs)
++{
++    TRACE("%s, %#x, %p\n", debugstr_w(id), delim, langs);
++
++    if (!langs) return E_INVALIDARG;
++    *langs = NULL;
++
++    if (!id)
++    {
++        UINT32 id_len = 0;
++        if (GetCurrentPackageId(&id_len, NULL) != ERROR_INSUFFICIENT_BUFFER)
++            return HRESULT_FROM_WIN32(APPMODEL_ERROR_NO_PACKAGE);
++    }
++
++    return get_preferred_languages(delim, langs);
++}
++
++/* Native Bcp47FromLcid(LCID, HSTRING *): *out = NULL; LCID 0, LOCALE_INVARIANT and
++ * LOCALE_CUSTOM_UNSPECIFIED, or an LCID without a locale, give E_INVALIDARG. */
++HRESULT WINAPI Bcp47FromLcid(LCID lcid, HSTRING *out)
++{
++    WCHAR name[LOCALE_NAME_MAX_LENGTH];
++    int len;
++
++    TRACE("%#lx, %p\n", lcid, out);
++
++    *out = NULL;
++    if (!lcid || lcid == LOCALE_INVARIANT || lcid == LOCALE_CUSTOM_UNSPECIFIED) return E_INVALIDARG;
++    if (!(len = LCIDToLocaleName(lcid, name, ARRAY_SIZE(name), 0)) || len <= 1) return E_INVALIDARG;
++    return WindowsCreateString(name, len - 1, out);
++}
++
++/* Native Bcp47FromHkl(HKL, HSTRING *): same CLanguage(HKL) construction, the language
++ * id is the low word of the layout handle. */
++HRESULT WINAPI Bcp47FromHkl(HKL hkl, HSTRING *out)
++{
++    TRACE("%p, %p\n", hkl, out);
++
++    return Bcp47FromLcid(MAKELCID(LOWORD((ULONG_PTR)hkl), SORT_DEFAULT), out);
++}
++
++/* Native Bcp47GetNlsForm(HSTRING tag, HSTRING *): *out = NULL, parses the tag and returns
++ * its NLS locale-name form.  Here: the locale name NLS resolves the tag to, else the tag. */
++HRESULT WINAPI Bcp47GetNlsForm(HSTRING tag, HSTRING *out)
++{
++    WCHAR name[LOCALE_NAME_MAX_LENGTH], buf[LOCALE_NAME_MAX_LENGTH];
++    const WCHAR *str;
++    UINT32 len;
++
++    TRACE("%s, %p\n", debugstr_hstring(tag), out);
++
++    *out = NULL;
++    str = WindowsGetStringRawBuffer(tag, &len);
++    if (!len || len >= ARRAY_SIZE(buf)) return E_INVALIDARG;
++    memcpy(buf, str, len * sizeof(WCHAR));
++    buf[len] = 0;
++    if (ResolveLocaleName(buf, name, ARRAY_SIZE(name)) > 1 && !wcsicmp(name, buf))
++        return WindowsCreateString(name, wcslen(name), out);
++    return WindowsCreateString(buf, len, out);
++}
+diff -u a/dlls/combase/apartment.c b/dlls/combase/apartment.c
+--- a/dlls/combase/apartment.c
++++ b/dlls/combase/apartment.c
+@@ -1244,6 +1244,8 @@
+         return 0;
+     case DM_HOSTOBJECT:
+         return apartment_hostobject(com_get_current_apt(), (const struct host_object_params *)lParam);
++    case DM_CONTEXTCALLBACK:
++        return context_callback_execute((void *)lParam);
+     default:
+         return DefWindowProcW(hWnd, msg, wParam, lParam);
+     }
 diff -u a/dlls/combase/combase.c b/dlls/combase/combase.c
 --- a/dlls/combase/combase.c
 +++ b/dlls/combase/combase.c
-@@ -3501,9 +3501,109 @@
-     FIXME("%p\n", object);
+@@ -2556,6 +2556,8 @@
+     IContextCallback IContextCallback_iface;
+     IObjContext IObjContext_iface;
+     LONG refcount;
++    BOOL apt_mta;   /* context belongs to the MTA (or no apartment) */
++    DWORD apt_tid;  /* owning thread of an STA context */
+ };
  
-     return TRUE;
+ static inline struct thread_context *impl_from_IComThreadingInfo(IComThreadingInfo *iface)
+@@ -2699,14 +2701,83 @@
+ {
+     struct thread_context *context = impl_from_IContextCallback(iface);
+     return IComThreadingInfo_Release(&context->IComThreadingInfo_iface);
 +}
 +
++struct context_callback_params
++{
++    PFNCONTEXTCALL callback;
++    ComCallData *param;
++    HRESULT hr;
++    HANDLE event;
++};
++
++LRESULT context_callback_execute(void *arg)
++{
++    struct context_callback_params *params = arg;
++    return params->callback(params->param);
+ }
+ 
++static void CALLBACK context_callback_mta_proc(TP_CALLBACK_INSTANCE *instance, void *arg)
++{
++    struct context_callback_params *params = arg;
++    params->hr = params->callback(params->param);
++    SetEvent(params->event);
++}
++
+ static HRESULT WINAPI thread_context_callback_ContextCallback(IContextCallback *iface,
+         PFNCONTEXTCALL callback, ComCallData *param, REFIID riid, int method, IUnknown *punk)
+ {
+-    FIXME("%p, %p, %p, %s, %d, %p\n", iface, callback, param, debugstr_guid(riid), method, punk);
++    struct thread_context *context = impl_from_IContextCallback(iface);
++    struct context_callback_params params;
++    struct apartment *apt;
++    BOOL current_mta;
++    DWORD index;
++    HRESULT hr;
+ 
+-    return E_NOTIMPL;
++    TRACE("%p, %p, %p, %s, %d, %p\n", iface, callback, param, debugstr_guid(riid), method, punk);
++
++    if (!callback)
++        return E_INVALIDARG;
++
++    apt = apartment_get_current_or_mta();
++    current_mta = !apt || apt->multi_threaded;
++    if (apt) apartment_release(apt);
++
++    if (context->apt_mta ? current_mta : context->apt_tid == GetCurrentThreadId())
++        return callback(param);
++
++    params.callback = callback;
++    params.param = param;
++
++    if (!context->apt_mta)
++    {
++        HWND hwnd = NULL;
++
++        if ((apt = apartment_findfromtid(context->apt_tid)))
++        {
++            hwnd = apartment_getwindow(apt);
++            apartment_release(apt);
++        }
++        if (!hwnd)
++        {
++            WARN("target apartment %#lx is gone\n", context->apt_tid);
++            return RPC_E_DISCONNECTED;
++        }
++        return SendMessageW(hwnd, DM_CONTEXTCALLBACK, 0, (LPARAM)&params);
++    }
++
++    if (!(params.event = CreateEventW(NULL, TRUE, FALSE, NULL)))
++        return HRESULT_FROM_WIN32(GetLastError());
++    params.hr = E_FAIL;
++    if (!TrySubmitThreadpoolCallback(context_callback_mta_proc, &params, NULL))
++    {
++        hr = HRESULT_FROM_WIN32(GetLastError());
++        CloseHandle(params.event);
++        return hr;
++    }
++    hr = CoWaitForMultipleHandles(0, INFINITE, 1, &params.event, &index);
++    CloseHandle(params.event);
++    return FAILED(hr) ? hr : params.hr;
+ }
+ 
+ static const IContextCallbackVtbl thread_context_callback_vtbl =
+@@ -2841,6 +2912,7 @@
+     if (!tlsdata->context_token)
+     {
+         struct thread_context *context;
++        struct apartment *apt;
+ 
+         context = calloc(1, sizeof(*context));
+         if (!context)
+@@ -2849,6 +2921,14 @@
+         context->IComThreadingInfo_iface.lpVtbl = &thread_context_info_vtbl;
+         context->IContextCallback_iface.lpVtbl = &thread_context_callback_vtbl;
+         context->IObjContext_iface.lpVtbl = &thread_object_context_vtbl;
++        if ((apt = apartment_get_current_or_mta()))
++        {
++            context->apt_mta = apt->multi_threaded;
++            context->apt_tid = apt->tid;
++            apartment_release(apt);
++        }
++        else
++            context->apt_mta = TRUE;
+         /* Context token does not take a reference, it's always zero until the
+            interface is explicitly requested with CoGetObjectContext(). */
+         context->refcount = 0;
+@@ -3503,7 +3583,107 @@
+     return TRUE;
+ }
+ 
 +/* Per service-tag reference entries, as kept by native combase (CClassCache service refs). */
 +struct shared_service_ref
 +{
@@ -61,7 +416,7 @@ diff -u a/dlls/combase/combase.c b/dlls/combase/combase.c
 +    return NULL;
 +}
 +
-+/***********************************************************************
+ /***********************************************************************
 + *           CoGetSharedServiceId    (combase.66)
 + */
 +HRESULT WINAPI CoGetSharedServiceId(DWORD *id)
@@ -89,9 +444,9 @@ diff -u a/dlls/combase/combase.c b/dlls/combase/combase.c
 +    LeaveCriticalSection(&registered_classes_cs);
 +
 +    return hr;
- }
- 
- /***********************************************************************
++}
++
++/***********************************************************************
 + *           CoAddRefSharedService    (combase.67)
 + */
 +ULONG WINAPI CoAddRefSharedService(DWORD id)
@@ -145,7 +500,7 @@ diff -u a/dlls/combase/combase.c b/dlls/combase/combase.c
   *           CoSuspendClassObjects   (combase.@)
   */
  HRESULT WINAPI CoSuspendClassObjects(void)
-@@ -3590,3 +3690,16 @@
+@@ -3590,3 +3770,16 @@
  
      return CLASS_E_CLASSNOTAVAILABLE;
  }
@@ -813,7 +1168,7 @@ diff -u a/dlls/combase/combase.spec b/dlls/combase/combase.spec
 +528 stub InternalStubInvoke
 +529 stdcall InternalTlsAllocData(ptr)
 +530 stub InternalUnmarshalObjRef
-+531 stub IsErrorPropagationEnabled
++531 stdcall IsErrorPropagationEnabled()
 +534 stub NdrExtStubInitialize
 +535 stub NdrOleDllGetClassObject
 +537 stub NdrpFindInterface
@@ -824,7 +1179,7 @@ diff -u a/dlls/combase/combase.spec b/dlls/combase/combase.spec
 +542 stdcall RoActivateInstance(ptr ptr)
 +543 stub RoCaptureErrorContext
 +544 stub RoClearError
-+545 stub RoFailFastWithErrorContext
++545 stdcall RoFailFastWithErrorContext(long)
 +546 stub RoFreeParameterizedTypeExtra
 +547 stdcall RoGetActivatableClassRegistration(ptr ptr)
 +548 stdcall RoGetActivationFactory(ptr ptr ptr)
@@ -835,7 +1190,7 @@ diff -u a/dlls/combase/combase.spec b/dlls/combase/combase.spec
 +157 stdcall -noname RoGetDesignModeV2(ptr)
 +550 stdcall RoGetApartmentIdentifier(ptr)
 +551 stdcall RoGetErrorReportingFlags(ptr)
-+552 stub RoGetMatchingRestrictedErrorInfo
++552 stdcall RoGetMatchingRestrictedErrorInfo(long ptr)
 +553 stdcall RoGetParameterizedTypeInstanceIID(long ptr ptr ptr ptr)
 +554 stdcall RoGetServerActivatableClasses(ptr ptr ptr)
 +555 stdcall RoInitialize(long)
@@ -853,8 +1208,8 @@ diff -u a/dlls/combase/combase.spec b/dlls/combase/combase.spec
 +567 stub RoResolveRestrictedErrorInfoReference
 +568 stdcall RoRevokeActivationFactories(ptr)
 +569 stdcall RoSetErrorReportingFlags(long)
-+570 stub RoTransformError
-+571 stub RoTransformErrorW
++570 stdcall RoTransformError(long long ptr)
++571 stdcall RoTransformErrorW(long long long wstr)
 +572 stdcall RoUninitialize()
 +573 stdcall RoUnregisterForApartmentShutdown(ptr)
 +574 stub SetCleanupFlag
@@ -891,6 +1246,25 @@ diff -u a/dlls/combase/combase.spec b/dlls/combase/combase.spec
 +606 stdcall WindowsSubstringWithSpecifiedLength(ptr long long ptr)
 +607 stdcall WindowsTrimStringEnd(ptr ptr ptr)
 +608 stdcall WindowsTrimStringStart(ptr ptr ptr)
+diff -u a/dlls/combase/combase_private.h b/dlls/combase/combase_private.h
+--- a/dlls/combase/combase_private.h
++++ b/dlls/combase/combase_private.h
+@@ -61,6 +61,7 @@
+ /* DCOM messages used by the apartment window (not compatible with native) */
+ #define DM_EXECUTERPC   (WM_USER + 0) /* WPARAM = 0, LPARAM = (struct dispatch_params *) */
+ #define DM_HOSTOBJECT   (WM_USER + 1) /* WPARAM = 0, LPARAM = (struct host_object_params *) */
++#define DM_CONTEXTCALLBACK (WM_USER + 2) /* WPARAM = 0, LPARAM = (struct context_callback_params *) */
+ 
+ #define CHARS_IN_GUID 39
+ 
+@@ -114,6 +115,7 @@
+ }
+ 
+ HWND apartment_getwindow(const struct apartment *apt);
++LRESULT context_callback_execute(void *params);
+ HRESULT apartment_createwindowifneeded(struct apartment *apt);
+ void apartment_freeunusedlibraries(struct apartment *apt, DWORD unload_delay);
+ void apartment_global_cleanup(void);
 diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 --- a/dlls/combase/marshal.c
 +++ b/dlls/combase/marshal.c
@@ -1870,7 +2244,7 @@ diff -u a/dlls/combase/marshal.c b/dlls/combase/marshal.c
 diff -u a/dlls/combase/roapi.c b/dlls/combase/roapi.c
 --- a/dlls/combase/roapi.c
 +++ b/dlls/combase/roapi.c
-@@ -19,6 +19,7 @@
+@@ -19,12 +19,14 @@
  #define COBJMACROS
  #define WIN32_NO_STATUS
  #include "objbase.h"
@@ -1878,16 +2252,84 @@ diff -u a/dlls/combase/roapi.c b/dlls/combase/roapi.c
  #include "initguid.h"
  #include "roapi.h"
  #include "roparameterizediid.h"
-@@ -448,8 +449,102 @@
+ #include "roerrorapi.h"
+ #include "winstring.h"
+ #include "errhandlingapi.h"
++#include "appmodel.h"
+ #undef WIN32_NO_STATUS
+ #include "ntstatus.h"
+ 
+@@ -48,6 +50,24 @@
+     DWORD threading_model;
+ };
+ 
++static LSTATUS open_package_class_key(const WCHAR *classid, HKEY *key)
++{
++    static const WCHAR fmt[] = L"Software\\Classes\\ActivatableClasses\\Package\\%s\\ActivatableClassId\\%s";
++    WCHAR name[PACKAGE_FULL_NAME_MAX_LENGTH + 1], *path;
++    UINT32 len = ARRAY_SIZE(name);
++    LSTATUS ret;
++    size_t size;
++
++    if (GetCurrentPackageFullName(&len, name)) return ERROR_NOT_FOUND;
++    size = wcslen(fmt) + wcslen(name) + wcslen(classid) + 1;
++    if (!(path = malloc(size * sizeof(WCHAR)))) return ERROR_OUTOFMEMORY;
++    swprintf(path, size, fmt, name, classid);
++    ret = RegOpenKeyExW(HKEY_LOCAL_MACHINE, path, 0, KEY_READ, key);
++    if (!ret) TRACE("package class %s\n", debugstr_w(path));
++    free(path);
++    return ret;
++}
++
+ static HRESULT get_library_for_classid(const WCHAR *classid, WCHAR **out)
+ {
+     ACTCTX_SECTION_KEYED_DATA data;
+@@ -69,6 +89,11 @@
+         return S_OK;
+     }
+ 
++    /* classes registered by the caller's package (native package catalog layout:
++     * Software\\Classes\\ActivatableClasses\\Package\\<full name>\\ActivatableClassId) */
++    if (!open_package_class_key(classid, &hkey_class))
++        goto found;
++
+     /* load class registry key */
+     if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\WindowsRuntime\\ActivatableClassId",
+                       0, KEY_READ, &hkey_root))
+@@ -81,6 +106,7 @@
+     }
+     RegCloseKey(hkey_root);
+ 
++found:
+     /* load (and expand) DllPath registry value */
+     if (RegQueryValueExW(hkey_class, L"DllPath", NULL, &type, NULL, &size))
+     {
+@@ -441,12 +467,115 @@
+ }
+ 
+ /***********************************************************************
++ *      RoFailFastWithErrorContext (combase.@)
++ */
++void WINAPI RoFailFastWithErrorContext(HRESULT error)
++{
++    ERR("fail fast, error %#lx.\n", error);
++    RaiseFailFastException(NULL, NULL, 0);
++}
++
++/***********************************************************************
+  *      RoFailFastWithErrorContextInternal2 (combase.@)
+  */
+ void WINAPI RoFailFastWithErrorContextInternal2(HRESULT error, ULONG exception_count, /* PSTOWED_EXCEPTION_INFORMATION_V2 */void *information)
+ {
      FIXME("%#lx, %lu, %p stub.\n", error, exception_count, information);
      RaiseFailFastException(NULL, NULL, 0);
- }
++}
 +
 +/* xodus-designmode: native combase derives the XAML design-mode state from the
 + * WIN://DESIGN_MODE[_V2] token security attributes (process token, then the
 + * thread token while impersonating). */
 +static LONG design_mode_state; /* 0 unknown, 1 design mode, 2 design mode v2, 3 none */
- 
++
 +static HRESULT token_has_security_attribute(HANDLE token, const WCHAR *name, BOOL *present)
 +{
 +    struct { USHORT version, reserved; ULONG count; } *info;
@@ -1929,7 +2371,7 @@ diff -u a/dlls/combase/roapi.c b/dlls/combase/roapi.c
 +    return S_OK;
 +}
 +
- /***********************************************************************
++/***********************************************************************
 + *      RoGetDesignMode (combase.90)
 + */
 +HRESULT WINAPI RoGetDesignMode(BOOL *design_mode)
@@ -1975,13 +2417,67 @@ diff -u a/dlls/combase/roapi.c b/dlls/combase/roapi.c
 +        return hr;
 +    *design_mode = present;
 +    return S_OK;
+ }
+ 
+ /***********************************************************************
+@@ -522,6 +651,31 @@
+ }
+ 
+ /***********************************************************************
++ *      RoGetMatchingRestrictedErrorInfo (combase.@)
++ *
++ * Returns the thread's restricted error info when it matches the HRESULT,
++ * otherwise originates a matching one.  Restricted error info is not stored
++ * (GetRestrictedErrorInfo/SetRestrictedErrorInfo) nor originated
++ * (RoOriginateError returns FALSE), so there is none to return.
++ */
++HRESULT WINAPI RoGetMatchingRestrictedErrorInfo(HRESULT error, IRestrictedErrorInfo **info)
++{
++    FIXME("%#lx, %p: restricted error info not supported\n", error, info);
++    if (!info) return E_POINTER;
++    *info = NULL;
++    return E_NOTIMPL;
 +}
 +
 +/***********************************************************************
-  *      RoGetApartmentIdentifier (combase.@)
++ *      IsErrorPropagationEnabled (combase.@)
++ */
++BOOL WINAPI IsErrorPropagationEnabled(void)
++{
++    TRACE("\n");
++    return FALSE;
++}
++
++/***********************************************************************
+  *      RoOriginateLanguageException (combase.@)
   */
- HRESULT WINAPI RoGetApartmentIdentifier(UINT64 *identifier)
-@@ -598,3 +693,51 @@
+ BOOL WINAPI RoOriginateLanguageException(HRESULT error, HSTRING message, IUnknown *language_exception)
+@@ -540,6 +694,24 @@
+ }
+ 
+ /***********************************************************************
++ *      RoTransformError (combase.@)
++ */
++BOOL WINAPI RoTransformError(HRESULT old_error, HRESULT new_error, HSTRING message)
++{
++    FIXME("%#lx, %#lx, %s: stub\n", old_error, new_error, debugstr_hstring(message));
++    return FALSE;
++}
++
++/***********************************************************************
++ *      RoTransformErrorW (combase.@)
++ */
++BOOL WINAPI RoTransformErrorW(HRESULT old_error, HRESULT new_error, UINT max_len, const WCHAR *message)
++{
++    FIXME("%#lx, %#lx, %u, %s: stub\n", old_error, new_error, max_len, debugstr_wn(message, max_len));
++    return FALSE;
++}
++
++/***********************************************************************
+  *      RoOriginateErrorW (combase.@)
+  */
+ BOOL WINAPI RoOriginateErrorW(HRESULT error, UINT max_len, const WCHAR *message)
+@@ -598,3 +770,51 @@
  
      return REGDB_E_CLASSNOTREG;
  }
@@ -2049,6 +2545,128 @@ diff -u a/dlls/combase/rpc.c b/dlls/combase/rpc.c
          msg->Buffer = malloc(msg->BufferLength);
          if (msg->Buffer)
              status = RPC_S_OK;
+diff -u a/dlls/dwrite/analyzer.c b/dlls/dwrite/analyzer.c
+--- a/dlls/dwrite/analyzer.c
++++ b/dlls/dwrite/analyzer.c
+@@ -1283,7 +1283,29 @@
+ 
+     return S_OK;
+ }
++
++/* Private DirectWrite interface used by Windows.UI.Xaml; the IID and the single
++   method were taken from the native DWrite.dll vtable for DWriteTextAnalyzer. */
++static const GUID IID_IDWritePrivateTextAnalyzer = {0xb7e6163e,0x7f46,0x43b4,{0x84,0xb3,0xe4,0xe6,0x24,0x9c,0x36,0x5e}};
++
++typedef struct IDWritePrivateTextAnalyzer IDWritePrivateTextAnalyzer;
++
++typedef struct IDWritePrivateTextAnalyzerVtbl
++{
++    HRESULT (WINAPI *QueryInterface)(IDWritePrivateTextAnalyzer *iface, REFIID riid, void **obj);
++    ULONG (WINAPI *AddRef)(IDWritePrivateTextAnalyzer *iface);
++    ULONG (WINAPI *Release)(IDWritePrivateTextAnalyzer *iface);
++    HRESULT (WINAPI *GetContentReadingDirection)(IDWritePrivateTextAnalyzer *iface, IDWriteTextAnalysisSource *source,
++            UINT32 position, UINT32 length, DWRITE_READING_DIRECTION *direction, BOOL *is_ambiguous);
++} IDWritePrivateTextAnalyzerVtbl;
+ 
++struct IDWritePrivateTextAnalyzer
++{
++    const IDWritePrivateTextAnalyzerVtbl *lpVtbl;
++};
++
++static IDWritePrivateTextAnalyzer private_textanalyzer;
++
+ static HRESULT WINAPI dwritetextanalyzer_QueryInterface(IDWriteTextAnalyzer2 *iface, REFIID riid, void **obj)
+ {
+     TRACE("%s, %p.\n", debugstr_guid(riid), obj);
+@@ -1294,6 +1316,12 @@
+         IsEqualIID(riid, &IID_IUnknown))
+     {
+         *obj = iface;
++        return S_OK;
++    }
++
++    if (IsEqualIID(riid, &IID_IDWritePrivateTextAnalyzer))
++    {
++        *obj = &private_textanalyzer;
+         return S_OK;
+     }
+ 
+@@ -2336,6 +2364,75 @@
+ 
+ static IDWriteTextAnalyzer2 textanalyzer = { &textanalyzervtbl };
+ 
++static HRESULT WINAPI dwriteprivatetextanalyzer_QueryInterface(IDWritePrivateTextAnalyzer *iface, REFIID riid, void **obj)
++{
++    return IDWriteTextAnalyzer2_QueryInterface(&textanalyzer, riid, obj);
++}
++
++static ULONG WINAPI dwriteprivatetextanalyzer_AddRef(IDWritePrivateTextAnalyzer *iface)
++{
++    return 2;
++}
++
++static ULONG WINAPI dwriteprivatetextanalyzer_Release(IDWritePrivateTextAnalyzer *iface)
++{
++    return 1;
++}
++
++/* Direction of the first strong character before a paragraph separator, falling back to the
++   paragraph direction (flagged as ambiguous) when there is none. */
++static HRESULT WINAPI dwriteprivatetextanalyzer_GetContentReadingDirection(IDWritePrivateTextAnalyzer *iface,
++        IDWriteTextAnalysisSource *source, UINT32 position, UINT32 length, DWRITE_READING_DIRECTION *direction,
++        BOOL *is_ambiguous)
++{
++    enum { BIDI_L = 1, BIDI_R = 2, BIDI_AL = 5, BIDI_B = 13 };
++    struct text_source_context context;
++    DWRITE_READING_DIRECTION paragraph;
++    UINT8 bidi_class = BIDI_B;
++
++    TRACE("%p, %u, %u, %p, %p.\n", source, position, length, direction, is_ambiguous);
++
++    *direction = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
++    *is_ambiguous = TRUE;
++
++    if (!source || position + length < position)
++        return E_INVALIDARG;
++
++    paragraph = IDWriteTextAnalysisSource_GetParagraphReadingDirection(source);
++
++    if (length)
++    {
++        text_source_context_init(&context, source, position, length);
++        while (!text_source_get_next_u32_char(&context))
++        {
++            bidi_class = get_char_bidi_class(context.ch);
++            if (bidi_class == BIDI_L || bidi_class == BIDI_R || bidi_class == BIDI_AL || bidi_class == BIDI_B)
++                break;
++            bidi_class = BIDI_B;
++        }
++    }
++
++    if (bidi_class == BIDI_B)
++    {
++        *direction = paragraph;
++        return S_OK;
++    }
++
++    *direction = (paragraph & ~1) | (bidi_class != BIDI_L);
++    *is_ambiguous = FALSE;
++    return S_OK;
++}
++
++static const IDWritePrivateTextAnalyzerVtbl private_textanalyzervtbl =
++{
++    dwriteprivatetextanalyzer_QueryInterface,
++    dwriteprivatetextanalyzer_AddRef,
++    dwriteprivatetextanalyzer_Release,
++    dwriteprivatetextanalyzer_GetContentReadingDirection,
++};
++
++static IDWritePrivateTextAnalyzer private_textanalyzer = { &private_textanalyzervtbl };
++
+ IDWriteTextAnalyzer2 *get_text_analyzer(void)
+ {
+     return &textanalyzer;
 diff -u a/dlls/dxgi/device.c b/dlls/dxgi/device.c
 --- a/dlls/dxgi/device.c
 +++ b/dlls/dxgi/device.c
@@ -2196,6 +2814,49 @@ diff -u a/dlls/dxgi/dxgi_private.h b/dlls/dxgi/dxgi_private.h
      IUnknown *child_layer;
      LONG refcount;
      struct wined3d_private_store private_store;
+diff -u a/dlls/dxgi/output.c b/dlls/dxgi/output.c
+--- a/dlls/dxgi/output.c
++++ b/dlls/dxgi/output.c
+@@ -363,14 +363,35 @@
+ 
+ static HRESULT STDMETHODCALLTYPE dxgi_output_WaitForVBlank(IDXGIOutput6 *iface)
+ {
++    struct dxgi_output *output = impl_from_IDXGIOutput6(iface);
++    struct wined3d_display_mode mode;
++    LARGE_INTEGER freq, now;
++    LONGLONG period, remaining;
+     static BOOL once = FALSE;
++    HRESULT hr;
+ 
+     if (!once++)
+-        FIXME("iface %p stub!\n", iface);
+-    else
+-        TRACE("iface %p stub!\n", iface);
++        FIXME("iface %p, approximating the vertical blank from the refresh rate.\n", iface);
++    else
++        TRACE("iface %p.\n", iface);
+ 
+-    return E_NOTIMPL;
++    /* There is no vertical blank event to wait on; sleep until the next
++     * refresh-interval boundary of the output's current mode instead. */
++    wined3d_mutex_lock();
++    hr = wined3d_output_get_display_mode(output->wined3d_output, &mode, NULL);
++    wined3d_mutex_unlock();
++    if (FAILED(hr))
++        return hr;
++    if (!mode.refresh_rate)
++        mode.refresh_rate = 60;
++
++    QueryPerformanceFrequency(&freq);
++    QueryPerformanceCounter(&now);
++    period = freq.QuadPart / mode.refresh_rate;
++    remaining = period - now.QuadPart % period;
++    Sleep((DWORD)((remaining * 1000 + freq.QuadPart - 1) / freq.QuadPart));
++
++    return S_OK;
+ }
+ 
+ static HRESULT STDMETHODCALLTYPE dxgi_output_TakeOwnership(IDXGIOutput6 *iface, IUnknown *device, BOOL exclusive)
 diff -u a/dlls/iertutil/iertutil.spec b/dlls/iertutil/iertutil.spec
 --- a/dlls/iertutil/iertutil.spec
 +++ b/dlls/iertutil/iertutil.spec
@@ -2337,6 +2998,15 @@ diff -u a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
  # @ stub GetStateRootFolder
  # @ stub GetStateRootFolderBase
  # @ stub GetStateSettingsFolder
+@@ -898,7 +903,7 @@
+ @ stdcall IsDBCSLeadByte(long)
+ @ stdcall IsDBCSLeadByteEx(long long)
+ @ stdcall IsDebuggerPresent()
+-# @ stub IsDeveloperModeEnabled
++@ stdcall IsDeveloperModeEnabled(ptr)
+ # @ stub IsDeveloperModePolicyApplied
+ # @ stub IsEnclaveTypeSupported
+ # @ stub IsGlobalizationUserSettingsKeyRedirected
 @@ -1028,7 +1033,7 @@
  @ stdcall OpenFileById(long ptr long long ptr long)
  @ stdcall OpenFileMappingFromApp(long long wstr)
@@ -2387,6 +3057,15 @@ diff -u a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
  # @ stub PssCaptureSnapshot
  # @ stub PssDuplicateSnapshot
  # @ stub PssFreeSnapshot
+@@ -1715,7 +1721,7 @@
+ @ stdcall -ret64 VerSetConditionMask(long long long long) ntdll.VerSetConditionMask
+ # @ stub VerifyApplicationUserModelId
+ # @ stub VerifyPackageFamilyName
+-# @ stub VerifyPackageFullName
++@ stdcall VerifyPackageFullName(wstr)
+ # @ stub VerifyPackageId
+ # @ stub VerifyPackageRelativeApplicationId
+ # @ stub VerifyScripts
 diff -u a/dlls/kernelbase/loader.c b/dlls/kernelbase/loader.c
 --- a/dlls/kernelbase/loader.c
 +++ b/dlls/kernelbase/loader.c
@@ -2589,7 +3268,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
      address = (ULONG_PTR)family->Buffer;
      if (!family->Length || family->Length % sizeof(WCHAR) ||
          family->MaximumLength < family->Length || address < base ||
-@@ -1671,29 +1670,893 @@
+@@ -1671,9 +1670,17 @@
      }
      *length = required;
  done:
@@ -2597,19 +3276,18 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    if (result == ERROR_INVALID_DATA) WARN( "Malformed package identity token attribute\n" );
      HeapFree( GetProcessHeap(), 0, info );
      return result;
- }
- 
++}
++
 +/***********************************************************************
 + *         GetCurrentPackageFamilyName   (kernelbase.@)
 + */
 +LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageFamilyName( UINT32 *length, WCHAR *name )
 +{
 +    return get_current_package_identity_string( 2, length, name );
-+}
+ }
  
-+
- /***********************************************************************
-  *         GetCurrentPackageFullName   (kernelbase.@)
+ 
+@@ -1682,18 +1689,874 @@
   */
  LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageFullName( UINT32 *length, WCHAR *name )
  {
@@ -3041,8 +3719,8 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +        HeapFree( GetProcessHeap(), 0, res->application.values[i] );
 +    }
 +    HeapFree( GetProcessHeap(), 0, res );
- }
- 
++}
++
 +static WCHAR *read_manifest( const WCHAR *path, const WCHAR **end )
 +{
 +    LARGE_INTEGER size;
@@ -3051,7 +3729,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    WCHAR *text = NULL;
 +    HANDLE file;
 +    int len;
- 
++
 +    file = CreateFileW( path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL );
 +    if (file == INVALID_HANDLE_VALUE) return NULL;
 +    if (!GetFileSizeEx( file, &size ) || !size.QuadPart || size.QuadPart > 8 * 1024 * 1024 ||
@@ -3082,13 +3760,13 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    HeapFree( GetProcessHeap(), 0, data );
 +    CloseHandle( file );
 +    return text;
-+}
-+
+ }
+ 
 +static BOOL full_name_field_is( const WCHAR *full_name, unsigned int field, const WCHAR *value )
 +{
 +    const WCHAR *start = full_name, *p;
 +    unsigned int i;
-+
+ 
 +    for (i = 0; i < field; i++)
 +    {
 +        if (!(start = wcschr( start, '_' ))) return FALSE;
@@ -3310,7 +3988,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    return ERROR_SUCCESS;
 +}
 +
- /***********************************************************************
++/***********************************************************************
 + *         GetCurrentPackageApplicationResourcesContext   (kernelbase.@)
 + */
 +LONG WINAPI GetCurrentPackageApplicationResourcesContext( UINT32 index, UINT32 flags, void **context )
@@ -3430,7 +4108,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    return status;
 +}
 +
-+/***********************************************************************
+ /***********************************************************************
   *         GetCurrentPackageId   (kernelbase.@)
   */
  LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageId( UINT32 *len, BYTE *buffer )
@@ -3509,10 +4187,12 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
  }
  
  
-@@ -1875,4 +2737,882 @@
+@@ -1873,6 +2735,916 @@
+         return ERROR_INVALID_PARAMETER;
+     memcpy(id->publisherId, publisher_id, sizeof(*id->publisherId) * len);
      id->publisherId[len] = 0;
- 
-     return ERROR_SUCCESS;
++
++    return ERROR_SUCCESS;
 +}
 +
 +#define MAX_PACKAGE_DEPENDENCIES 32
@@ -3528,7 +4208,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    BOOL framework;
 +    BOOL has_max_tested;
 +};
-+
+ 
 +struct package_dependency
 +{
 +    WCHAR name[PACKAGE_FULL_NAME_MAX_LENGTH + 1];
@@ -3651,7 +4331,7 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    if (ret == ERROR_BAD_FORMAT) WARN( "Malformed package manifest %s\n", debugstr_w(path) );
 +    HeapFree( GetProcessHeap(), 0, data );
 +    return ret;
- }
++}
 +
 +/* Wine stages packages as sibling directories of the caller's package root; pick the highest
 + * matching version like the deployment resolver does for a static PackageDependency. */
@@ -3934,8 +4614,8 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +    }
 +    memcpy( path, node.root, needed * sizeof(WCHAR) );
 +    *length = needed;
-+    return ERROR_SUCCESS;
-+}
+     return ERROR_SUCCESS;
+ }
 +static BOOL is_package_name_char( WCHAR c )
 +{
 +    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '-';
@@ -4392,6 +5072,38 @@ diff -u a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
 +        return E_INVALIDARG;
 +    }
 +}
++
++/***********************************************************************
++ *         VerifyPackageFullName   (kernelbase.@)
++ */
++LONG WINAPI VerifyPackageFullName( const WCHAR *full_name )
++{
++    UINT32 size = 0;
++
++    TRACE( "(%s)\n", debugstr_w(full_name) );
++
++    if (!full_name) return ERROR_INVALID_PARAMETER;
++    if (PackageIdFromFullName( full_name, 0, &size, NULL ) != ERROR_INSUFFICIENT_BUFFER)
++        return ERROR_INVALID_PARAMETER;
++    return ERROR_SUCCESS;
++}
++
++/***********************************************************************
++ *         IsDeveloperModeEnabled   (kernelbase.@)
++ */
++HRESULT WINAPI IsDeveloperModeEnabled( BOOL *enabled )
++{
++    DWORD value = 0, size = sizeof(value);
++
++    TRACE( "(%p)\n", enabled );
++
++    if (!enabled) return E_POINTER;
++    if (RegGetValueW( HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock",
++                      L"AllowDevelopmentWithoutDevLicense", RRF_RT_REG_DWORD, NULL, &value, &size ))
++        value = 0;
++    *enabled = (value == 1);
++    return S_OK;
++}
 diff -u a/dlls/msctf/msctf.c b/dlls/msctf/msctf.c
 --- a/dlls/msctf/msctf.c
 +++ b/dlls/msctf/msctf.c
@@ -4425,6 +5137,86 @@ diff -u a/dlls/msctf/msctf.spec b/dlls/msctf/msctf.spec
  @ stdcall SetInputScope(long long)
  @ stub SetInputScopeXML
  @ stdcall SetInputScopes(long ptr long ptr long wstr wstr)
+diff -u a/dlls/msvcp90/exception.c b/dlls/msvcp90/exception.c
+--- a/dlls/msvcp90/exception.c
++++ b/dlls/msvcp90/exception.c
+@@ -18,6 +18,7 @@
+ 
+ #include <errno.h>
+ #include <stdarg.h>
++#include <malloc.h>
+ 
+ #define COBJMACROS
+ 
+@@ -1077,6 +1078,9 @@
+     LONG *ref; /* not binary compatible with native */
+ } exception_ptr;
+ 
++static inline void copy_exception( void *object, void **dest, UINT catch_flags,
++                                   const cxx_type_info *type, uintptr_t base );
++
+ static void exception_ptr_rethrow(const exception_ptr *ep)
+ {
+     TRACE("(%p)\n", ep);
+@@ -1091,6 +1095,23 @@
+         return;
+     }
+ 
++    if (ep->rec->ExceptionCode == CXX_EXCEPTION)
++    {
++        /* like native, rethrow a copy of the stored object built on this stack, so that
++         * the exception_ptr may be destroyed during unwinding */
++        EXCEPTION_RECORD rec = *ep->rec;
++        const cxx_exception_type *et = (void*)rec.ExceptionInformation[2];
++        uintptr_t base = cxx_rva_base( et );
++        const cxx_type_info_table *table = cxx_rva( et->type_info_table, base );
++        const cxx_type_info *ti = cxx_rva( table->info[0], base );
++        void **data = _alloca(ti->size);
++
++        copy_exception((void*)rec.ExceptionInformation[1], data, 0, ti, base);
++        rec.ExceptionInformation[1] = (ULONG_PTR)data;
++        RaiseException(rec.ExceptionCode, rec.ExceptionFlags & ~EXCEPTION_UNWINDING,
++                rec.NumberParameters, rec.ExceptionInformation);
++    }
++
+     RaiseException(ep->rec->ExceptionCode, ep->rec->ExceptionFlags & ~EXCEPTION_UNWINDING,
+             ep->rec->NumberParameters, ep->rec->ExceptionInformation);
+ }
+diff -u a/dlls/msvcrt/exception_ptr.c b/dlls/msvcrt/exception_ptr.c
+--- a/dlls/msvcrt/exception_ptr.c
++++ b/dlls/msvcrt/exception_ptr.c
+@@ -19,6 +19,7 @@
+  */
+ 
+ #include <stdarg.h>
++#include <malloc.h>
+ #include <stdbool.h>
+ 
+ #include "windef.h"
+@@ -139,6 +140,23 @@
+     {
+         throw_exception("bad exception");
+         return;
++    }
++
++    if (ep->rec->ExceptionCode == CXX_EXCEPTION)
++    {
++        /* like native, rethrow a copy of the stored object built on this stack, so that
++         * the exception_ptr may be destroyed during unwinding */
++        EXCEPTION_RECORD rec = *ep->rec;
++        const cxx_exception_type *et = (void*)rec.ExceptionInformation[2];
++        uintptr_t base = cxx_rva_base( et );
++        const cxx_type_info_table *table = cxx_rva( et->type_info_table, base );
++        const cxx_type_info *ti = cxx_rva( table->info[0], base );
++        void **data = _alloca(ti->size);
++
++        copy_exception((void*)rec.ExceptionInformation[1], data, 0, ti, base);
++        rec.ExceptionInformation[1] = (ULONG_PTR)data;
++        RaiseException(rec.ExceptionCode, rec.ExceptionFlags & ~EXCEPTION_UNWINDING,
++                rec.NumberParameters, rec.ExceptionInformation);
+     }
+ 
+     RaiseException(ep->rec->ExceptionCode, ep->rec->ExceptionFlags & ~EXCEPTION_UNWINDING,
 diff -u a/dlls/msvcrt/handler4.c b/dlls/msvcrt/handler4.c
 --- a/dlls/msvcrt/handler4.c
 +++ b/dlls/msvcrt/handler4.c
@@ -4569,10 +5361,12 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  @ stdcall RtlClearAllBits(ptr)
  @ stdcall RtlClearBits(ptr long long)
  # @ stub RtlCloneMemoryStream
-@@ -744,9 +747,12 @@
+@@ -744,9 +747,14 @@
  @ stdcall RtlFreeUnicodeString(ptr)
  @ stdcall RtlFreeUserStack(ptr)
  @ stdcall RtlGetDeviceFamilyInfoEnum(ptr ptr ptr)
++@ stdcall RtlQueryWnfStateData(ptr int64 ptr ptr ptr)
++@ stdcall RtlQueryWnfStateDataWithExplicitScope(ptr int64 ptr ptr ptr ptr)
 +@ stdcall RtlSubscribeWnfStateChangeNotification(ptr int64 long ptr ptr ptr long long)
 +@ stdcall RtlUnsubscribeWnfStateChangeNotification(ptr)
  @ stdcall RtlGUIDFromString(ptr ptr)
@@ -4582,7 +5376,7 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  @ stdcall RtlGetActiveActivationContext(ptr)
  @ stdcall RtlGetCallersAddress(ptr ptr)
  @ stdcall RtlGetCompressionWorkSpaceSize(long ptr ptr)
-@@ -791,6 +797,7 @@
+@@ -791,6 +799,7 @@
  @ stdcall RtlGetSystemPreferredUILanguages(long long ptr ptr ptr)
  @ stdcall -ret64 RtlGetSystemTimePrecise()
  @ stdcall RtlGetThreadErrorMode()
@@ -4590,7 +5384,7 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  @ stdcall RtlGetThreadPreferredUILanguages(long ptr ptr ptr)
  @ stdcall RtlGetUnloadEventTrace()
  @ stdcall RtlGetUnloadEventTraceEx(ptr ptr ptr)
-@@ -877,9 +884,11 @@
+@@ -877,9 +886,11 @@
  @ stdcall -arch=x86_64 -norelay RtlIsEcCode(ptr)
  @ stdcall RtlIsGenericTableEmpty(ptr)
  # @ stub RtlIsGenericTableEmptyAvl
@@ -4602,7 +5396,15 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  # @ stub RtlIsRangeAvailable
  @ stdcall RtlIsTextUnicode(ptr long ptr)
  # @ stub RtlIsThreadWithinLoaderCallout
-@@ -1051,6 +1060,7 @@
+@@ -960,6 +971,7 @@
+ @ stdcall RtlQueryInformationActivationContext(long long ptr long ptr long ptr)
+ @ stdcall RtlQueryInformationActiveActivationContext(long ptr long ptr)
+ @ stub RtlQueryInterfaceMemoryStream
++@ stdcall RtlQueryPackageClaims(long ptr ptr ptr ptr ptr ptr ptr)
+ @ stdcall RtlQueryPackageIdentity(long ptr ptr ptr ptr ptr)
+ @ stdcall RtlQueryPerformanceCounter(ptr)
+ @ stdcall RtlQueryPerformanceFrequency(ptr)
+@@ -1051,6 +1063,7 @@
  @ stub RtlSetSecurityObject
  # @ stub RtlSetSecurityObjectEx
  @ stdcall RtlSetThreadErrorMode(long ptr)
@@ -4610,7 +5412,7 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  # @ stub RtlSetThreadIsCritical
  @ stdcall RtlSetThreadPreferredUILanguages(long ptr ptr)
  # @ stub RtlSetThreadPoolStartFunc
-@@ -1206,6 +1216,7 @@
+@@ -1206,6 +1219,7 @@
  @ stdcall TpSetPoolStackInformation(ptr ptr)
  @ stdcall TpSetTimer(ptr ptr long long)
  @ stdcall TpSetWait(ptr long ptr)
@@ -4618,7 +5420,7 @@ diff -u a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
  @ stdcall TpSimpleTryPost(ptr ptr ptr)
  @ stdcall TpStartAsyncIoOperation(ptr)
  @ stdcall TpWaitForIoCompletion(ptr long)
-@@ -1429,6 +1440,7 @@
+@@ -1429,6 +1443,7 @@
  @ stdcall -private ZwQuerySystemInformation(long ptr long ptr) NtQuerySystemInformation
  @ stdcall -private ZwQuerySystemInformationEx(long ptr long ptr long ptr) NtQuerySystemInformationEx
  @ stdcall -private ZwQuerySystemTime(ptr) NtQuerySystemTime
@@ -4976,12 +5778,169 @@ diff -u a/dlls/ntdll/process.c b/dlls/ntdll/process.c
 diff -u a/dlls/ntdll/rtl.c b/dlls/ntdll/rtl.c
 --- a/dlls/ntdll/rtl.c
 +++ b/dlls/ntdll/rtl.c
-@@ -1677,5 +1677,99 @@
- 
-     memcpy(device_family, windows_desktop, family_length);
-     memcpy(device_form, unknown_form, form_length);
-+    return STATUS_SUCCESS;
+@@ -1620,16 +1620,156 @@
+ {
+     FIXME("(%p, %p) stub!\n", table, buffer);
+     return NULL;
 +}
++
++/* Package identity lives in the token security attributes WIN://SYSAPPID (strings: package full name,
++ * application id, family name) and WIN://PKG (one integer: claim flags in the low 32 bits, origin in
++ * the high 32 bits), as provisioned by the package activation path. */
++struct package_claim_attribute
++{
++    UNICODE_STRING name;
++    USHORT type, reserved;
++    ULONG flags, count;
++    union { ULONG64 *integers; UNICODE_STRING *strings; void *pointer; } values;
++};
++struct package_claim_attributes
++{
++    USHORT version, reserved;
++    ULONG count;
++    struct package_claim_attribute *attributes;
++};
++typedef struct { ULONG Flags; ULONG Origin; } PS_PKG_CLAIM;
++#define PKG_ATTR_UINT64 2
++#define PKG_ATTR_STRING 3
++
++static NTSTATUS query_token_attribute( HANDLE token, const WCHAR *name, USHORT type, ULONG min_count,
++                                       struct package_claim_attributes **info,
++                                       struct package_claim_attribute **attribute )
++{
++    UNICODE_STRING str;
++    ULONG bytes = 0;
++    NTSTATUS status;
++    ULONG_PTR base, end, address;
++
++    *info = NULL;
++    RtlInitUnicodeString( &str, name );
++    status = NtQuerySecurityAttributesToken( token, &str, 1, NULL, 0, &bytes );
++    if (status != STATUS_BUFFER_TOO_SMALL) return status ? status : STATUS_INVALID_PARAMETER;
++    if (bytes < sizeof(**info) || bytes > 1024 * 1024) return STATUS_INVALID_PARAMETER;
++    if (!(*info = RtlAllocateHeap( GetProcessHeap(), 0, bytes ))) return STATUS_NO_MEMORY;
++    if ((status = NtQuerySecurityAttributesToken( token, &str, 1, *info, bytes, &bytes ))) goto fail;
++    status = STATUS_INVALID_PARAMETER;
++    base = (ULONG_PTR)*info;
++    end = base + bytes;
++    address = (ULONG_PTR)(*info)->attributes;
++    if ((*info)->version != 1 || (*info)->count != 1 ||
++        address < base || address > end || sizeof(**attribute) > end - address) goto fail;
++    *attribute = (*info)->attributes;
++    address = (ULONG_PTR)(*attribute)->values.pointer;
++    if ((*attribute)->type != type || (*attribute)->count < min_count ||
++        address < base || address > end) goto fail;
++    if (type == PKG_ATTR_STRING)
++    {
++        ULONG i;
++        if ((*attribute)->count > (end - address) / sizeof(UNICODE_STRING)) goto fail;
++        for (i = 0; i < (*attribute)->count; i++)
++        {
++            UNICODE_STRING *v = &(*attribute)->values.strings[i];
++            address = (ULONG_PTR)v->Buffer;
++            if (v->Length % sizeof(WCHAR) || address < base || address > end || v->Length > end - address)
++                goto fail;
++        }
++    }
++    else if ((*attribute)->count > (end - address) / sizeof(ULONG64)) goto fail;
++    return STATUS_SUCCESS;
++fail:
++    RtlFreeHeap( GetProcessHeap(), 0, *info );
++    *info = NULL;
++    return status;
++}
++
++static NTSTATUS copy_claim_string( const UNICODE_STRING *value, WCHAR *buffer, SIZE_T *size )
++{
++    SIZE_T required = value->Length + sizeof(WCHAR);
++
++    if (!size) return STATUS_SUCCESS;
++    if (*size < required || !buffer)
++    {
++        *size = required;
++        return STATUS_BUFFER_TOO_SMALL;
++    }
++    memcpy( buffer, value->Buffer, value->Length );
++    buffer[value->Length / sizeof(WCHAR)] = 0;
++    *size = required;
++    return STATUS_SUCCESS;
+ }
+ 
+ /*********************************************************************
++ *           RtlQueryPackageClaims [NTDLL.@]
++ *
++ * Sizes are in bytes including the terminating null. Returns STATUS_NOT_FOUND for a token without
++ * package identity (measured natively for unpackaged sihost/explorer).
++ */
++NTSTATUS WINAPI RtlQueryPackageClaims( HANDLE token, WCHAR *fullname, SIZE_T *fullname_size,
++                                       WCHAR *appid, SIZE_T *appid_size, GUID *dynamic_id,
++                                       PS_PKG_CLAIM *claim, ULONG64 *attributes_present )
++{
++    struct package_claim_attributes *ids = NULL, *pkg = NULL;
++    struct package_claim_attribute *ids_attr, *pkg_attr;
++    HANDLE opened = NULL;
++    NTSTATUS status, ret;
++    ULONG64 present = 0;
++
++    TRACE( "(%p, %p, %p, %p, %p, %p, %p, %p)\n", token, fullname, fullname_size, appid, appid_size,
++           dynamic_id, claim, attributes_present );
++
++    if (token == GetCurrentProcessToken() || token == GetCurrentThreadToken() ||
++        token == GetCurrentThreadEffectiveToken())
++    {
++        if ((status = NtOpenProcessToken( GetCurrentProcess(), TOKEN_QUERY, &opened ))) return status;
++        token = opened;
++    }
++    status = query_token_attribute( token, L"WIN://SYSAPPID", PKG_ATTR_STRING, 2,
++                                    &ids, &ids_attr );
++    if (!status)
++    {
++        present |= 1;
++        if (!query_token_attribute( token, L"WIN://PKG", PKG_ATTR_UINT64, 1,
++                                    &pkg, &pkg_attr ))
++            present |= 2;
++    }
++    if (opened) NtClose( opened );
++    if (status) return status == STATUS_NOT_FOUND ? STATUS_NOT_FOUND : status;
++
++    ret = copy_claim_string( &ids_attr->values.strings[0], fullname, fullname_size );
++    status = copy_claim_string( &ids_attr->values.strings[1], appid, appid_size );
++    if (!ret) ret = status;
++    if (dynamic_id) memset( dynamic_id, 0, sizeof(*dynamic_id) );
++    if (claim)
++    {
++        ULONG64 value = pkg ? pkg_attr->values.integers[0] : 0;
++        claim->Flags = (ULONG)value;
++        claim->Origin = (ULONG)(value >> 32);
++    }
++    if (attributes_present) *attributes_present = present;
++    RtlFreeHeap( GetProcessHeap(), 0, ids );
++    RtlFreeHeap( GetProcessHeap(), 0, pkg );
++    return ret;
++}
++
++/*********************************************************************
+  *           RtlQueryPackageIdentity [NTDLL.@]
+  */
+ NTSTATUS WINAPI RtlQueryPackageIdentity(HANDLE token, WCHAR *fullname, SIZE_T *fullname_size,
+                                         WCHAR *appid, SIZE_T *appid_size, BOOLEAN *packaged)
+ {
+-    FIXME("(%p, %p, %p, %p, %p, %p): stub\n", token, fullname, fullname_size, appid, appid_size, packaged);
+-    return STATUS_NOT_FOUND;
++    PS_PKG_CLAIM claim;
++    NTSTATUS status;
++
++    TRACE("(%p, %p, %p, %p, %p, %p)\n", token, fullname, fullname_size, appid, appid_size, packaged);
++    status = RtlQueryPackageClaims( token, fullname, fullname_size, appid, appid_size, NULL, &claim, NULL );
++    if (packaged && status != STATUS_NOT_FOUND) *packaged = TRUE;
++    return status;
+ }
+ 
+ /*********************************************************************
+@@ -1679,3 +1819,131 @@
+     memcpy(device_form, unknown_form, form_length);
+     return STATUS_SUCCESS;
+ }
 +
 +/******************************************************************************
 + *  RtlIsMultiSessionSku   (NTDLL.@)
@@ -4995,12 +5954,15 @@ diff -u a/dlls/ntdll/rtl.c b/dlls/ntdll/rtl.c
 +}
 +
 +/* Windows Notification Facility. Wine has no WNF publishers, so only state names measured as
-+ * registered but never published on Windows 11 26100 are modelled: they have no data and change
-+ * stamp 0, and subscriptions to them are never notified. Other names are reported as not found. */
++ * registered with no data on Windows 11 26100 are modelled: since nothing publishes them under
++ * Wine they have change stamp 0, and subscriptions to them are never notified. Other names are
++ * reported as not found. */
 +static const ULONGLONG unpublished_wnf_state_names[] =
 +{
 +    0x41950223a3bc1035, /* NLS scope, queried by MrmCoreR LanguageChangeNotifyThreadProc */
 +    0x41950223a3bc2035, /* NLS scope, queried by MrmCoreR LanguageChangeNotifyThreadProc */
++    0x41c61629a3bc1035, /* empty-data notification state, queried by Windows.Graphics DisplayInformation
++                         * add_DpiChanged (natively published with size 0) */
 +};
 +
 +struct wnf_subscription
@@ -5035,8 +5997,39 @@ diff -u a/dlls/ntdll/rtl.c b/dlls/ntdll/rtl.c
 +    }
 +    *change_stamp = 0;
 +    *size = 0;
-     return STATUS_SUCCESS;
- }
++    return STATUS_SUCCESS;
++}
++
++typedef NTSTATUS (WINAPI *WNF_USER_CALLBACK)( ULONGLONG name, ULONG change_stamp, const GUID *type_id,
++                                              void *context, const void *buffer, ULONG size );
++
++/***********************************************************************
++ *           RtlQueryWnfStateDataWithExplicitScope   (NTDLL.@)
++ */
++NTSTATUS WINAPI RtlQueryWnfStateDataWithExplicitScope( ULONG *change_stamp, ULONGLONG name, const void *scope,
++                                                       WNF_USER_CALLBACK callback, void *context,
++                                                       const GUID *type_id )
++{
++    BYTE buffer[0x1000];
++    ULONG size = sizeof(buffer), stamp = 0;
++    NTSTATUS status;
++
++    TRACE( "(%p %s %p %p %p %p)\n", change_stamp, wine_dbgstr_longlong( name ), scope, callback, context, type_id );
++
++    status = NtQueryWnfStateData( &name, type_id, scope, &stamp, buffer, &size );
++    if (status < 0) return status;
++    *change_stamp = stamp;
++    return callback( name, stamp, type_id, context, buffer, size );
++}
++
++/***********************************************************************
++ *           RtlQueryWnfStateData   (NTDLL.@)
++ */
++NTSTATUS WINAPI RtlQueryWnfStateData( ULONG *change_stamp, ULONGLONG name, WNF_USER_CALLBACK callback,
++                                      void *context, const GUID *type_id )
++{
++    return RtlQueryWnfStateDataWithExplicitScope( change_stamp, name, NULL, callback, context, type_id );
++}
 +
 +/***********************************************************************
 + *           RtlSubscribeWnfStateChangeNotification   (NTDLL.@)
@@ -6279,12 +7272,10 @@ diff -u a/dlls/shcore/main.c b/dlls/shcore/main.c
  
  WINE_DEFAULT_DEBUG_CHANNEL(shcore);
  
-@@ -92,6 +93,52 @@
- 
-     *scale = SCALE_100_PERCENT;
+@@ -94,6 +95,227 @@
      return S_OK;
-+}
-+
+ }
+ 
 +DEFINE_GUID(IID_ICoreWindowInterop_shcore, 0x45d64a29, 0xa63e, 0x4cb6, 0xb4, 0x98, 0x57, 0x81, 0xd2, 0x98, 0xcb, 0x4f);
 +
 +typedef struct core_window_interop core_window_interop;
@@ -6329,13 +7320,403 @@ diff -u a/dlls/shcore/main.c b/dlls/shcore/main.c
 +    }
 +    else monitor = MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY);
 +    return GetScaleFactorForMonitor(monitor, scale);
- }
- 
++}
++
++/* Ordinal 244. Native presets *scale to 100. Without the immersive scale
++ * service (a desktop session as under Wine) it falls back to the scale factor
++ * of the window's monitor; a NULL HWND uses the primary monitor. */
++/* Window monitor change listeners (ordinals 251/253), modelled on native 26100 shcore
++ * CWindowTracker: listeners are tracked per window, the registration cookie is the listener
++ * pointer, a WH_CALLWNDPROC hook on the window's thread notifies every listener of the window
++ * (IWindowMonitorChangeListener method 3, no arguments) when it moves or its DPI changes, and the
++ * listeners are dropped when the window is destroyed. */
++struct monitor_listener
++{
++    struct list entry;
++    HWND hwnd;
++    IUnknown *listener;
++};
++
++struct monitor_hook
++{
++    struct list entry;
++    DWORD tid;
++    HHOOK hook;
++};
++
++static struct list monitor_listeners = LIST_INIT( monitor_listeners );
++static struct list monitor_hooks = LIST_INIT( monitor_hooks );
++static CRITICAL_SECTION monitor_cs;
++static CRITICAL_SECTION_DEBUG monitor_cs_debug =
++{
++    0, 0, &monitor_cs,
++    { &monitor_cs_debug.ProcessLocksList, &monitor_cs_debug.ProcessLocksList },
++      0, 0, { (DWORD_PTR)(__FILE__ ": monitor_cs") }
++};
++static CRITICAL_SECTION monitor_cs = { &monitor_cs_debug, -1, 0, 0, 0, 0 };
++
++typedef HRESULT (STDMETHODCALLTYPE *monitor_changed_func)( IUnknown *listener );
++
++static void notify_monitor_listeners( HWND hwnd, BOOL destroyed )
++{
++    struct monitor_listener *ml, *next;
++    IUnknown *snapshot[16];
++    unsigned int count = 0, i;
++
++    EnterCriticalSection( &monitor_cs );
++    LIST_FOR_EACH_ENTRY_SAFE( ml, next, &monitor_listeners, struct monitor_listener, entry )
++    {
++        if (ml->hwnd != hwnd) continue;
++        if (destroyed)
++        {
++            list_remove( &ml->entry );
++            IUnknown_Release( ml->listener );
++            free( ml );
++        }
++        else if (count < ARRAY_SIZE(snapshot))
++        {
++            IUnknown_AddRef( ml->listener );
++            snapshot[count++] = ml->listener;
++        }
++    }
++    LeaveCriticalSection( &monitor_cs );
++
++    for (i = 0; i < count; i++)
++    {
++        monitor_changed_func changed = (monitor_changed_func)((void **)snapshot[i]->lpVtbl)[3];
++        TRACE( "notifying listener %p of window %p\n", snapshot[i], hwnd );
++        changed( snapshot[i] );
++        IUnknown_Release( snapshot[i] );
++    }
++}
++
++static LRESULT CALLBACK monitor_hook_proc( int code, WPARAM wparam, LPARAM lparam )
++{
++    const CWPSTRUCT *cwp = (const CWPSTRUCT *)lparam;
++
++    if (code == HC_ACTION && cwp)
++    {
++        switch (cwp->message)
++        {
++        case WM_WINDOWPOSCHANGED:
++        {
++            const WINDOWPOS *pos = (const WINDOWPOS *)cwp->lParam;
++            if (pos && (pos->flags & (SWP_NOMOVE | SWP_NOSIZE)) == (SWP_NOMOVE | SWP_NOSIZE)) break;
++            notify_monitor_listeners( cwp->hwnd, FALSE );
++            break;
++        }
++        case WM_DPICHANGED:
++            notify_monitor_listeners( cwp->hwnd, FALSE );
++            break;
++        case WM_NCDESTROY:
++            notify_monitor_listeners( cwp->hwnd, TRUE );
++            break;
++        }
++    }
++    return CallNextHookEx( NULL, code, wparam, lparam );
++}
++
++/***********************************************************************
++ *          RegisterWindowMonitorChangeListener (SHCORE.251)
++ */
++HRESULT WINAPI RegisterWindowMonitorChangeListener( HWND hwnd, IUnknown *listener, UINT64 *cookie )
++{
++    DWORD tid = GetCurrentThreadId();
++    struct monitor_listener *ml;
++    struct monitor_hook *mh;
++    BOOL hooked = FALSE;
++
++    TRACE( "(%p, %p, %p)\n", hwnd, listener, cookie );
++
++    if (!cookie) return E_POINTER;
++    *cookie = 0;
++    if (!listener) return E_INVALIDARG;
++    if (GetWindowThreadProcessId( hwnd, NULL ) != tid) return E_INVALIDARG;
++    if (!(ml = malloc( sizeof(*ml) ))) return E_OUTOFMEMORY;
++
++    EnterCriticalSection( &monitor_cs );
++    LIST_FOR_EACH_ENTRY( mh, &monitor_hooks, struct monitor_hook, entry )
++        if (mh->tid == tid) { hooked = TRUE; break; }
++    if (!hooked)
++    {
++        if (!(mh = malloc( sizeof(*mh) )) ||
++            !(mh->hook = SetWindowsHookExW( WH_CALLWNDPROC, monitor_hook_proc, NULL, tid )))
++        {
++            HRESULT hr = mh ? HRESULT_FROM_WIN32( GetLastError() ) : E_OUTOFMEMORY;
++            LeaveCriticalSection( &monitor_cs );
++            free( mh );
++            free( ml );
++            return hr;
++        }
++        mh->tid = tid;
++        list_add_tail( &monitor_hooks, &mh->entry );
++    }
++    ml->hwnd = hwnd;
++    ml->listener = listener;
++    IUnknown_AddRef( listener );
++    list_add_tail( &monitor_listeners, &ml->entry );
++    LeaveCriticalSection( &monitor_cs );
++
++    *cookie = (UINT_PTR)listener;
++    return S_OK;
++}
++
++/***********************************************************************
++ *          UnregisterWindowMonitorChangeListener (SHCORE.253)
++ */
++HRESULT WINAPI UnregisterWindowMonitorChangeListener( HWND hwnd, UINT64 cookie )
++{
++    struct monitor_listener *ml;
++
++    TRACE( "(%p, %s)\n", hwnd, wine_dbgstr_longlong( cookie ) );
++
++    EnterCriticalSection( &monitor_cs );
++    LIST_FOR_EACH_ENTRY( ml, &monitor_listeners, struct monitor_listener, entry )
++    {
++        if (ml->hwnd != hwnd || (UINT_PTR)ml->listener != cookie) continue;
++        list_remove( &ml->entry );
++        LeaveCriticalSection( &monitor_cs );
++        IUnknown_Release( ml->listener );
++        free( ml );
++        return S_OK;
++    }
++    LeaveCriticalSection( &monitor_cs );
++    return E_INVALIDARG;
++}
++
++HRESULT WINAPI GetScaleFactorForWindow(HWND hwnd, DEVICE_SCALE_FACTOR *scale)
++{
++    static const POINT origin;
++    HMONITOR monitor;
++
++    TRACE("(%p %p)\n", hwnd, scale);
++
++    *scale = SCALE_100_PERCENT;
++    if (hwnd) monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
++    else monitor = MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY);
++    return GetScaleFactorForMonitor(monitor, scale);
++}
++
  DEVICE_SCALE_FACTOR WINAPI GetScaleFactorForDevice(DISPLAY_DEVICE_TYPE device_type)
-@@ -2581,11 +2628,214 @@
+ {
+     FIXME("%d\n", device_type);
+@@ -917,7 +1139,211 @@
+     stream = shstream_create(&memstreamvtbl, data, data_len);
+     return stream ? &stream->IStream_iface : NULL;
+ }
++
++struct access_private_buffer
++{
++    struct
++    {
++        HRESULT (WINAPI *QueryInterface)(struct access_private_buffer *, REFIID, void **);
++        ULONG (WINAPI *AddRef)(struct access_private_buffer *);
++        ULONG (WINAPI *Release)(struct access_private_buffer *);
++        HRESULT (WINAPI *GetPrivateBuffer)(struct access_private_buffer *, UINT *, const BYTE **);
++    } *lpVtbl;
++};
+ 
++struct sharedbuf_stream
++{
++    struct shstream stream;
++    struct access_private_buffer IAccessPrivateBuffer_iface;
++    IUnknown *owner;
++    DWORD capacity;
++};
++
++/* {ed3071e9-f556-4c46-9294-6640c8c75281}, IAccessPrivateBuffer (shcore CMemStream, measured) */
++static const GUID IID_IAccessPrivateBuffer = {0xed3071e9, 0xf556, 0x4c46, {0x92, 0x94, 0x66, 0x40, 0xc8, 0xc7, 0x52, 0x81}};
++
++static inline struct sharedbuf_stream *sharedbuf_from_IAccessPrivateBuffer(struct access_private_buffer *iface)
++{
++    return CONTAINING_RECORD(iface, struct sharedbuf_stream, IAccessPrivateBuffer_iface);
++}
++
++static HRESULT WINAPI sharedbuf_stream_QueryInterface(IStream *iface, REFIID riid, void **out)
++{
++    struct shstream *stream = impl_from_IStream(iface);
++    struct sharedbuf_stream *shared = CONTAINING_RECORD(stream, struct sharedbuf_stream, stream);
++
++    if (IsEqualIID(riid, &IID_IAccessPrivateBuffer))
++    {
++        *out = &shared->IAccessPrivateBuffer_iface;
++        IStream_AddRef(iface);
++        return S_OK;
++    }
++    return shstream_QueryInterface(iface, riid, out);
++}
++
++static HRESULT WINAPI access_private_buffer_QueryInterface(struct access_private_buffer *iface, REFIID riid, void **out)
++{
++    struct sharedbuf_stream *shared = sharedbuf_from_IAccessPrivateBuffer(iface);
++    return IStream_QueryInterface(&shared->stream.IStream_iface, riid, out);
++}
++
++static ULONG WINAPI access_private_buffer_AddRef(struct access_private_buffer *iface)
++{
++    struct sharedbuf_stream *shared = sharedbuf_from_IAccessPrivateBuffer(iface);
++    return IStream_AddRef(&shared->stream.IStream_iface);
++}
++
++static ULONG WINAPI access_private_buffer_Release(struct access_private_buffer *iface)
++{
++    struct sharedbuf_stream *shared = sharedbuf_from_IAccessPrivateBuffer(iface);
++    return IStream_Release(&shared->stream.IStream_iface);
++}
++
++/* Native CMemStream::GetPrivateBuffer returns the whole buffer (not position
++ * relative) and E_UNEXPECTED when there is no backing data. */
++static HRESULT WINAPI access_private_buffer_GetPrivateBuffer(struct access_private_buffer *iface, UINT *size, const BYTE **buffer)
++{
++    struct sharedbuf_stream *shared = sharedbuf_from_IAccessPrivateBuffer(iface);
++
++    TRACE("%p, %p, %p.\n", iface, size, buffer);
++
++    *size = shared->stream.u.mem.length;
++    *buffer = shared->stream.u.mem.buffer;
++    return shared->stream.u.mem.buffer ? S_OK : E_UNEXPECTED;
++}
++
++static const struct
++{
++    HRESULT (WINAPI *QueryInterface)(struct access_private_buffer *, REFIID, void **);
++    ULONG (WINAPI *AddRef)(struct access_private_buffer *);
++    ULONG (WINAPI *Release)(struct access_private_buffer *);
++    HRESULT (WINAPI *GetPrivateBuffer)(struct access_private_buffer *, UINT *, const BYTE **);
++} access_private_buffer_vtbl =
++{
++    access_private_buffer_QueryInterface,
++    access_private_buffer_AddRef,
++    access_private_buffer_Release,
++    access_private_buffer_GetPrivateBuffer,
++};
++
++static ULONG WINAPI sharedbuf_stream_Release(IStream *iface)
++{
++    struct shstream *stream = impl_from_IStream(iface);
++    struct sharedbuf_stream *shared = CONTAINING_RECORD(stream, struct sharedbuf_stream, stream);
++    ULONG refcount = InterlockedDecrement(&stream->refcount);
++
++    TRACE("%p, refcount %lu.\n", iface, refcount);
++
++    if (!refcount)
++    {
++        IUnknown_Release(shared->owner);
++        free(shared);
++    }
++
++    return refcount;
++}
++
++static HRESULT WINAPI sharedbuf_stream_Write(IStream *iface, const void *buff, ULONG buff_size, ULONG *written)
++{
++    struct shstream *stream = impl_from_IStream(iface);
++    struct sharedbuf_stream *shared = CONTAINING_RECORD(stream, struct sharedbuf_stream, stream);
++    DWORD end = stream->u.mem.position + buff_size;
++
++    TRACE("%p, %p, %lu, %p.\n", iface, buff, buff_size, written);
++
++    if (written) *written = 0;
++    if (end < stream->u.mem.position || end > shared->capacity)
++        return STG_E_MEDIUMFULL;
++
++    memmove(stream->u.mem.buffer + stream->u.mem.position, buff, buff_size);
++    stream->u.mem.position = end;
++    if (end > stream->u.mem.length) stream->u.mem.length = end;
++    if (written) *written = buff_size;
++    return S_OK;
++}
++
++static HRESULT WINAPI sharedbuf_stream_SetSize(IStream *iface, ULARGE_INTEGER new_size)
++{
++    struct shstream *stream = impl_from_IStream(iface);
++    struct sharedbuf_stream *shared = CONTAINING_RECORD(stream, struct sharedbuf_stream, stream);
++
++    TRACE("%p, %s.\n", iface, wine_dbgstr_longlong(new_size.QuadPart));
++
++    if (new_size.QuadPart > shared->capacity)
++        return STG_E_MEDIUMFULL;
++    stream->u.mem.length = new_size.u.LowPart;
++    return S_OK;
++}
++
++static const IStreamVtbl sharedbufstreamvtbl =
++{
++    sharedbuf_stream_QueryInterface,
++    shstream_AddRef,
++    sharedbuf_stream_Release,
++    memstream_Read,
++    sharedbuf_stream_Write,
++    memstream_Seek,
++    sharedbuf_stream_SetSize,
++    shstream_CopyTo,
++    shstream_Commit,
++    shstream_Revert,
++    shstream_LockRegion,
++    shstream_UnlockRegion,
++    memstream_Stat,
++    shstream_Clone,
++};
++
++typedef struct
++{
++    struct
++    {
++        HRESULT (WINAPI *QueryInterface)(IUnknown *, REFIID, void **);
++        ULONG (WINAPI *AddRef)(IUnknown *);
++        ULONG (WINAPI *Release)(IUnknown *);
++        HRESULT (WINAPI *Buffer)(IUnknown *, BYTE **);
++    } *lpVtbl;
++} buffer_byte_access;
++
++/*************************************************************************
++ * SHCreateMemoryStreamOnSharedBuffer   [SHCORE.270]
++ *
++ * Creates an IStream over the bytes exposed by a buffer object whose first
++ * method after IUnknown returns the data pointer (IBufferByteAccess layout).
++ * The stream does not copy the data; it keeps a reference on the buffer.
++ */
++HRESULT WINAPI SHCreateMemoryStreamOnSharedBuffer(IUnknown *buffer, DWORD size, IStream **out)
++{
++    struct sharedbuf_stream *shared;
++    BYTE *data = NULL;
++    HRESULT hr;
++
++    TRACE("%p, %lu, %p.\n", buffer, size, out);
++
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (!buffer) return E_INVALIDARG;
++
++    if (!(shared = calloc(1, sizeof(*shared)))) return E_OUTOFMEMORY;
++    if (FAILED(hr = ((buffer_byte_access *)buffer)->lpVtbl->Buffer(buffer, &data)))
++    {
++        free(shared);
++        return hr;
++    }
++
++    shared->stream.IStream_iface.lpVtbl = &sharedbufstreamvtbl;
++    shared->IAccessPrivateBuffer_iface.lpVtbl = (void *)&access_private_buffer_vtbl;
++    shared->stream.refcount = 1;
++    shared->stream.u.mem.buffer = data;
++    shared->stream.u.mem.length = size;
++    shared->stream.u.mem.position = 0;
++    shared->capacity = size;
++    shared->owner = buffer;
++    IUnknown_AddRef(buffer);
++
++    *out = &shared->stream.IStream_iface;
++    return S_OK;
++}
++
+ static ULONG WINAPI filestream_Release(IStream *iface)
+ {
+     struct shstream *stream = impl_from_IStream(iface);
+@@ -2580,8 +3006,84 @@
+ 
      return E_NOTIMPL;
  }
- 
++
 +/* Window scale-change sinks (ordinals 240/246). Native shcore (26100) resolves the window's scaling info
 + * (CScalingInfoCache::GetWindowScalingInfo) and registers the IScaleChangeSink there, returning a cookie; revoking an
 + * unknown cookie is not an error (HRESULT_FROM_WIN32(ERROR_NOT_FOUND) is mapped to S_OK). Wine never changes a
@@ -6347,7 +7728,7 @@ diff -u a/dlls/shcore/main.c b/dlls/shcore/main.c
 +    IUnknown *sink;
 +    DWORD cookie;
 +};
-+
+ 
 +static struct list scale_sinks = LIST_INIT(scale_sinks);
 +static DWORD scale_sink_cookie;
 +static CRITICAL_SECTION scale_sink_cs;
@@ -6416,10 +7797,10 @@ diff -u a/dlls/shcore/main.c b/dlls/shcore/main.c
   * CreateRandomAccessStreamOverStream        [SHCORE.@]
   */
  HRESULT WINAPI CreateRandomAccessStreamOverStream(IStream *stream, BSOS_OPTIONS options, REFIID riid, void **ppv)
- {
+@@ -2589,3 +3091,156 @@
      FIXME("(%p, %d, %s, %p) stub\n", stream, options, debugstr_guid(riid), ppv);
      return E_NOTIMPL;
-+}
+ }
 +
 +/* Windows::Internal::IComPoolTask: IUnknown plus void Run(void) (native shcore CRemoteTask::Run). */
 +typedef struct IComPoolTask IComPoolTask;
@@ -6451,7 +7832,7 @@ diff -u a/dlls/shcore/main.c b/dlls/shcore/main.c
 +    pt->task->lpVtbl->Release( pt->task );
 +    if (SUCCEEDED(hr)) CoUninitialize();
 +    free( pt );
- }
++}
 +
 +static void CALLBACK pool_task_work( PTP_CALLBACK_INSTANCE instance, void *context )
 +{
@@ -6547,19 +7928,52 @@ diff -u a/dlls/shcore/main.c b/dlls/shcore/main.c
 +    free( pt );
 +    return HRESULT_FROM_WIN32( GetLastError() );
 +}
++
++/* Native shcore keeps these as plain globals consulted by its task pool. */
++static DWORD taskpool_reuse_thread_id;
++static BOOL taskpool_thread_reuse_allowed;
++
++/*************************************************************************
++ * SHTaskPoolAllowThreadReuse        [SHCORE.@]
++ *
++ * Native: void SHTaskPoolAllowThreadReuse(void) records GetCurrentThreadId().
++ */
++void WINAPI SHTaskPoolAllowThreadReuse(void)
++{
++    TRACE("thread %04lx\n", GetCurrentThreadId());
++    taskpool_reuse_thread_id = GetCurrentThreadId();
++}
++
++/*************************************************************************
++ * SHTaskPoolSetThreadReuseAllowed   [SHCORE.@]
++ *
++ * Native: void SHTaskPoolSetThreadReuseAllowed(BOOL) stores (allowed != 0).
++ */
++void WINAPI SHTaskPoolSetThreadReuseAllowed(BOOL allowed)
++{
++    TRACE("%d\n", allowed);
++    taskpool_thread_reuse_allowed = !!allowed;
++}
 diff -u a/dlls/shcore/shcore.spec b/dlls/shcore/shcore.spec
 --- a/dlls/shcore/shcore.spec
 +++ b/dlls/shcore/shcore.spec
-@@ -85,7 +85,7 @@
+@@ -81,12 +81,12 @@
+ @ stdcall SHSetValueW(long wstr wstr long ptr long)
+ @ stdcall SHStrDupA(str ptr)
+ @ stdcall SHStrDupW(wstr ptr)
+-# @ stub SHTaskPoolAllowThreadReuse
++@ stdcall SHTaskPoolAllowThreadReuse()
  # @ stub SHTaskPoolDoNotWaitForMoreTasks
  # @ stub SHTaskPoolGetCurrentThreadLifetime
  # @ stub SHTaskPoolGetUniqueContext
 -# @ stub SHTaskPoolQueueTask
+-# @ stub SHTaskPoolSetThreadReuseAllowed
 +@ stdcall SHTaskPoolQueueTask(long long long long ptr ptr)
- # @ stub SHTaskPoolSetThreadReuseAllowed
++@ stdcall SHTaskPoolSetThreadReuseAllowed(long)
  @ stdcall SHUnicodeToAnsi(wstr ptr ptr)
  @ stdcall SHUnicodeToUnicode(wstr ptr long)
-@@ -170,12 +170,12 @@
+ @ stdcall SetCurrentProcessExplicitAppUserModelID(wstr)
+@@ -170,24 +170,25 @@
  232 stub -noname SHRemoveWindowSubclass
  233 stub -noname SHDefSubclassProc
  234 stub -noname SHRegisterClassW
@@ -6567,21 +7981,30 @@ diff -u a/dlls/shcore/shcore.spec b/dlls/shcore/shcore.spec
 +240 stdcall -noname RegisterScaleChangeSinkForWindow(ptr ptr ptr)
  241 stub -noname ScaleAndMapRelativeRect
  242 stub -noname RelativeRectFromPhysicalRectWithScale
- 244 stub -noname GetScaleFactorForWindow
+-244 stub -noname GetScaleFactorForWindow
++244 stdcall -noname GetScaleFactorForWindow(long ptr)
  245 stub -noname RegisterScaleChangeNotificationsForWindow
 -246 stub -noname RevokeScaleChangeNotificationsForWindow
 +246 stdcall -noname RevokeScaleChangeNotificationsForWindow(ptr long)
  247 stub -noname GetOverrideScaleFactorForWindow
  248 stub -noname GetSystemScaleFactorForWindow
  249 stub -noname UpdateScalingInfoCache
-@@ -187,6 +187,7 @@
+ 250 stub -noname RegisterCurrentWindowChangeListener
+-251 stub -noname RegisterWindowMonitorChangeListener
++251 stdcall -noname RegisterWindowMonitorChangeListener(long ptr ptr)
+ 252 stub -noname UnregisterCurrentWindowChangeListener
+-253 stub -noname UnregisterWindowMonitorChangeListener
++253 stdcall -noname UnregisterWindowMonitorChangeListener(long int64)
+ 254 stub -noname AddCurrentWindowCandidate
  255 stub -noname GetCurrentWindow
  260 stub -noname PhysicalRectFromRelativeRectWithScales
  261 stub -noname RelativeRectFromPhysicalRectWithScales
+-270 stub -noname SHCreateMemoryStreamOnSharedBuffer
 +265 stdcall -noname GetScaleFactorForCoreWindow(ptr ptr)
- 270 stub -noname SHCreateMemoryStreamOnSharedBuffer
++270 stdcall -noname SHCreateMemoryStreamOnSharedBuffer(ptr long ptr)
  280 stub -noname _CreateDirectoryHelper
  281 stub -noname Win32CreateDirectory
+ 282 stub -noname SuspendSHNotify
 diff -u a/dlls/urlmon/uri.c b/dlls/urlmon/uri.c
 --- a/dlls/urlmon/uri.c
 +++ b/dlls/urlmon/uri.c
@@ -6764,17 +8187,17 @@ diff -u a/dlls/user32/defwnd.c b/dlls/user32/defwnd.c
 diff -u a/dlls/user32/misc.c b/dlls/user32/misc.c
 --- a/dlls/user32/misc.c
 +++ b/dlls/user32/misc.c
-@@ -23,6 +23,9 @@
+@@ -22,6 +22,9 @@
+  */
  
  #include <stdarg.h>
- 
++
 +#include "ntstatus.h"
 +#define WIN32_NO_STATUS
-+
+ 
  #include "windef.h"
  #include "wine/windef16.h"
- #include "winbase.h"
-@@ -543,3 +546,29 @@
+@@ -543,3 +546,71 @@
      if (!imm_ime_wnd_proc) return DefWindowProcW(hwnd, msg, wParam, lParam);
      return imm_ime_wnd_proc( hwnd, msg, wParam, lParam, FALSE );
  }
@@ -6804,9 +8227,60 @@ diff -u a/dlls/user32/misc.c b/dlls/user32/misc.c
 +    FIXME( "(%lu, %p): interaction tracking not running\n", info_class, info );
 +    return STATUS_PROFILING_NOT_STARTED;
 +}
++
++/* PROCESS_UICONTEXT_INFORMATION layout from the Windows SDK winuser.h */
++struct process_uicontext_information
++{
++    DWORD context; /* PROCESS_UICONTEXT: 0 desktop, 1 immersive, 2 immersive browser */
++    DWORD flags;   /* PROCESS_UIF_* */
++};
++
++/***********************************************************************
++ *		GetProcessUIContextInformation (USER32.@)
++ *
++ * Native reports PROCESS_UICONTEXT_IMMERSIVE only for immersive (AppContainer)
++ * processes. Wine tokens are never AppContainers (TokenIsAppContainer is 0),
++ * so every Wine process is in the desktop UI context.
++ */
++BOOL WINAPI GetProcessUIContextInformation( HANDLE process, struct process_uicontext_information *info )
++{
++    TRACE( "(%p, %p)\n", process, info );
++    if (!info)
++    {
++        SetLastError( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    info->context = 0;
++    info->flags = 0;
++    return TRUE;
++}
++
++/***********************************************************************
++ *		GetResizeDCompositionSynchronizationObject (USER32.2614)
++ *
++ * Returns the DWM resize synchronisation handle for a CoreWindow HWND.
++ * Native Windows.UI.dll clears *handle, calls this and ignores the result.
++ * Wine has no DWM resize synchronisation, so no object exists.
++ */
++BOOL WINAPI GetResizeDCompositionSynchronizationObject( HWND hwnd, HANDLE *handle )
++{
++    FIXME( "(%p, %p): no DWM resize synchronisation object\n", hwnd, handle );
++    if (handle) *handle = NULL;
++    SetLastError( ERROR_NOT_SUPPORTED );
++    return FALSE;
++}
 diff -u a/dlls/user32/user32.spec b/dlls/user32/user32.spec
 --- a/dlls/user32/user32.spec
 +++ b/dlls/user32/user32.spec
+@@ -32,7 +32,7 @@
+ 2518 stub @
+ 2519 stub -noname EnableMouseInputForCursorSuppression  # NtUserEnableMouseInputForCursorSuppression
+ 2520 stub -noname IsMouseInputEnabled  # NtUserIsMouseInputEnabled
+-2521 stub GetProcessUIContextInformation  # NtUserGetProcessUIContextInformation
++2521 stdcall GetProcessUIContextInformation(long ptr)
+ 2522 stub -noname SetBrokeredForeground  # NtUserSetBrokeredForeground
+ 2523 stub @
+ 2524 stub @
 @@ -45,14 +45,14 @@
  2531 stub -noname SetCalibrationData  # NtUserSetCalibrationData
  2532 stub -noname SetDisplayMapping  # NtUserSetDisplayMapping
@@ -6843,11 +8317,13 @@ diff -u a/dlls/user32/user32.spec b/dlls/user32/user32.spec
  2598 stub @
  2599 stub @
  2600 stub -noname ForceEnableNumpadTranslation  # NtUserForceEnableNumpadTranslation
-@@ -122,9 +122,9 @@
+@@ -121,10 +121,10 @@
+ 2611 stub -noname EnableWindowResizeOptimization  # NtUserEnableWindowResizeOptimization
  2612 stub -noname InitThreadCoreMessagingIocp  # NtUserInitThreadCoreMessagingIocp
  2613 stub -noname DrainThreadCoreMessagingCompletions  # NtUserDrainThreadCoreMessagingCompletions
- 2614 stub -noname GetResizeDCompositionSynchronizationObject  # NtUserGetResizeDCompositionSynchronizationObject
+-2614 stub -noname GetResizeDCompositionSynchronizationObject  # NtUserGetResizeDCompositionSynchronizationObject
 -2615 stub -noname EnableResizeLayoutSynchronization  # NtUserEnableResizeLayoutSynchronization
++2614 stdcall -noname GetResizeDCompositionSynchronizationObject(long ptr)
 +2615 stdcall -noname EnableResizeLayoutSynchronization(long long)
  2616 stub -noname BeginLayoutUpdate  # NtUserBeginLayoutUpdate
 -2617 stub -noname IsResizeLayoutSynchronizationEnabled  # NtUserIsResizeLayoutSynchronizationEnabled
@@ -8191,7 +9667,7 @@ diff -u a/dlls/windows.applicationmodel/package.c b/dlls/windows.applicationmode
  
  WINE_DEFAULT_DEBUG_CHANNEL(model);
  
-@@ -371,8 +378,400 @@
+@@ -371,11 +378,522 @@
      storage_item_get_Attributes,
      storage_item_get_DateCreated,
      storage_item_IsOfType,
@@ -8536,8 +10012,8 @@ diff -u a/dlls/windows.applicationmodel/package.c b/dlls/windows.applicationmode
 +    package_id_get_PublisherId,
 +    package_id_get_FullName,
 +    package_id_get_FamilyName,
- };
- 
++};
++
 +static HRESULT current_package_string( LONG (WINAPI *get)(UINT32 *, WCHAR *), WCHAR **value )
 +{
 +    UINT32 length = 0;
@@ -8589,10 +10065,146 @@ diff -u a/dlls/windows.applicationmodel/package.c b/dlls/windows.applicationmode
 +    return hr;
 +}
 +
++struct package_status
++{
++    IPackageStatus IPackageStatus_iface;
++    LONG ref;
++};
++
++static inline struct package_status *impl_from_IPackageStatus( IPackageStatus *iface )
++{
++    return CONTAINING_RECORD( iface, struct package_status, IPackageStatus_iface );
++}
++
++static HRESULT WINAPI package_status_QueryInterface( IPackageStatus *iface, REFIID iid, void **out )
++{
++    struct package_status *impl = impl_from_IPackageStatus( iface );
++
++    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
++
++    if (IsEqualGUID( iid, &IID_IUnknown ) ||
++        IsEqualGUID( iid, &IID_IInspectable ) ||
++        IsEqualGUID( iid, &IID_IAgileObject ) ||
++        IsEqualGUID( iid, &IID_IPackageStatus ))
++    {
++        *out = &impl->IPackageStatus_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
++    *out = NULL;
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI package_status_AddRef( IPackageStatus *iface )
++{
++    struct package_status *impl = impl_from_IPackageStatus( iface );
++    return InterlockedIncrement( &impl->ref );
++}
++
++static ULONG WINAPI package_status_Release( IPackageStatus *iface )
++{
++    struct package_status *impl = impl_from_IPackageStatus( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref );
++    if (!ref) free( impl );
++    return ref;
++}
++
++static HRESULT WINAPI package_status_GetIids( IPackageStatus *iface, ULONG *iid_count, IID **iids )
++{
++    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI package_status_GetRuntimeClassName( IPackageStatus *iface, HSTRING *class_name )
++{
++    static const WCHAR name[] = L"Windows.ApplicationModel.PackageStatus";
++    TRACE( "iface %p, class_name %p.\n", iface, class_name );
++    return WindowsCreateString( name, ARRAY_SIZE(name) - 1, class_name );
++}
++
++static HRESULT WINAPI package_status_GetTrustLevel( IPackageStatus *iface, TrustLevel *trust_level )
++{
++    FIXME( "iface %p, trust_level %p stub!\n", iface, trust_level );
++    return E_NOTIMPL;
++}
++
++/* The package is registered and its files are present; no servicing, licensing,
++ * tamper or deployment state is tracked, so every problem flag is FALSE. */
++static HRESULT WINAPI package_status_VerifyIsOK( IPackageStatus *iface, boolean *value )
++{
++    TRACE( "iface %p, value %p.\n", iface, value );
++    if (!value) return E_POINTER;
++    *value = TRUE;
++    return S_OK;
++}
++
++#define PACKAGE_STATUS_FALSE_GETTER( name ) \
++static HRESULT WINAPI package_status_get_##name( IPackageStatus *iface, boolean *value ) \
++{ \
++    TRACE( "iface %p, value %p.\n", iface, value ); \
++    if (!value) return E_POINTER; \
++    *value = FALSE; \
++    return S_OK; \
++}
++
++PACKAGE_STATUS_FALSE_GETTER( NotAvailable )
++PACKAGE_STATUS_FALSE_GETTER( PackageOffline )
++PACKAGE_STATUS_FALSE_GETTER( DataOffline )
++PACKAGE_STATUS_FALSE_GETTER( Disabled )
++PACKAGE_STATUS_FALSE_GETTER( NeedsRemediation )
++PACKAGE_STATUS_FALSE_GETTER( LicenseIssue )
++PACKAGE_STATUS_FALSE_GETTER( Modified )
++PACKAGE_STATUS_FALSE_GETTER( Tampered )
++PACKAGE_STATUS_FALSE_GETTER( DependencyIssue )
++PACKAGE_STATUS_FALSE_GETTER( Servicing )
++PACKAGE_STATUS_FALSE_GETTER( DeploymentInProgress )
++
++static const struct IPackageStatusVtbl package_status_vtbl =
++{
++    package_status_QueryInterface,
++    package_status_AddRef,
++    package_status_Release,
++    package_status_GetIids,
++    package_status_GetRuntimeClassName,
++    package_status_GetTrustLevel,
++    package_status_VerifyIsOK,
++    package_status_get_NotAvailable,
++    package_status_get_PackageOffline,
++    package_status_get_DataOffline,
++    package_status_get_Disabled,
++    package_status_get_NeedsRemediation,
++    package_status_get_LicenseIssue,
++    package_status_get_Modified,
++    package_status_get_Tampered,
++    package_status_get_DependencyIssue,
++    package_status_get_Servicing,
++    package_status_get_DeploymentInProgress,
+ };
+ 
  struct package
  {
      IPackage IPackage_iface;
-@@ -444,8 +843,11 @@
++    IPackage3 IPackage3_iface;
+     LONG ref;
+ };
+ 
+@@ -400,6 +918,13 @@
+         return S_OK;
+     }
+ 
++    if (IsEqualGUID( iid, &IID_IPackage3 ))
++    {
++        *out = &impl->IPackage3_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
+     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
+     *out = NULL;
+     return E_NOINTERFACE;
+@@ -444,8 +969,11 @@
  
  static HRESULT WINAPI package_get_Id( IPackage *iface, IPackageId **value )
  {
@@ -8606,6 +10218,894 @@ diff -u a/dlls/windows.applicationmodel/package.c b/dlls/windows.applicationmode
  }
  
  static HRESULT WINAPI package_get_InstalledLocation( IPackage *iface, IStorageFolder **value )
+@@ -494,6 +1022,47 @@
+     package_get_Dependencies,
+ };
+ 
++DEFINE_IINSPECTABLE( package3, IPackage3, struct package, IPackage_iface )
++
++static HRESULT WINAPI package3_get_Status( IPackage3 *iface, IPackageStatus **value )
++{
++    struct package_status *impl;
++
++    TRACE( "iface %p, value %p.\n", iface, value );
++
++    if (!value) return E_POINTER;
++    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
++    impl->IPackageStatus_iface.lpVtbl = &package_status_vtbl;
++    impl->ref = 1;
++    *value = &impl->IPackageStatus_iface;
++    return S_OK;
++}
++
++static HRESULT WINAPI package3_get_InstalledDate( IPackage3 *iface, DateTime *value )
++{
++    FIXME( "iface %p, value %p stub!\n", iface, value );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI package3_GetAppListEntriesAsync( IPackage3 *iface, IAsyncOperation_IVectorView_AppListEntry **operation )
++{
++    FIXME( "iface %p, operation %p stub!\n", iface, operation );
++    return E_NOTIMPL;
++}
++
++static const struct IPackage3Vtbl package3_vtbl =
++{
++    package3_QueryInterface,
++    package3_AddRef,
++    package3_Release,
++    package3_GetIids,
++    package3_GetRuntimeClassName,
++    package3_GetTrustLevel,
++    package3_get_Status,
++    package3_get_InstalledDate,
++    package3_GetAppListEntriesAsync,
++};
++
+ DEFINE_IINSPECTABLE( package_statics, IPackageStatics, struct package_statics, IActivationFactory_iface )
+ 
+ static HRESULT WINAPI package_statics_get_Current( IPackageStatics *iface, IPackage **value )
+@@ -506,6 +1075,7 @@
+     if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
+ 
+     impl->IPackage_iface.lpVtbl = &package_vtbl;
++    impl->IPackage3_iface.lpVtbl = &package3_vtbl;
+     impl->ref = 1;
+ 
+     *value = &impl->IPackage_iface;
+diff -u a/dlls/windows.storage.applicationdata/Makefile.in b/dlls/windows.storage.applicationdata/Makefile.in
+--- a/dlls/windows.storage.applicationdata/Makefile.in
++++ b/dlls/windows.storage.applicationdata/Makefile.in
+@@ -3,5 +3,7 @@
+ 
+ SOURCES = \
+ 	applicationdata.c \
++	async.c \
++	async_private.idl \
+ 	classes.idl \
+ 	main.c
+diff -u a/dlls/windows.storage.applicationdata/applicationdata.c b/dlls/windows.storage.applicationdata/applicationdata.c
+--- a/dlls/windows.storage.applicationdata/applicationdata.c
++++ b/dlls/windows.storage.applicationdata/applicationdata.c
+@@ -22,6 +22,417 @@
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(data);
+ 
++struct storage_folder
++{
++    IStorageFolder IStorageFolder_iface;
++    IStorageItem IStorageItem_iface;
++    LONG ref;
++    WCHAR *path;
++    CreationCollisionOption create_option;
++};
++
++static inline struct storage_folder *impl_from_IStorageFolder( IStorageFolder *iface )
++{
++    return CONTAINING_RECORD( iface, struct storage_folder, IStorageFolder_iface );
++}
++
++static HRESULT WINAPI storage_folder_QueryInterface( IStorageFolder *iface, REFIID iid, void **out )
++{
++    struct storage_folder *impl = impl_from_IStorageFolder( iface );
++
++    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
++
++    if (IsEqualGUID( iid, &IID_IUnknown ) ||
++        IsEqualGUID( iid, &IID_IInspectable ) ||
++        IsEqualGUID( iid, &IID_IStorageFolder ))
++    {
++        *out = &impl->IStorageFolder_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    if (IsEqualGUID( iid, &IID_IStorageItem ))
++    {
++        *out = &impl->IStorageItem_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
++    *out = NULL;
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI storage_folder_AddRef( IStorageFolder *iface )
++{
++    struct storage_folder *impl = impl_from_IStorageFolder( iface );
++    ULONG ref = InterlockedIncrement( &impl->ref );
++    TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
++    return ref;
++}
++
++static ULONG WINAPI storage_folder_Release( IStorageFolder *iface )
++{
++    struct storage_folder *impl = impl_from_IStorageFolder( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref );
++    TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
++    if (!ref)
++    {
++        free( impl->path );
++        free( impl );
++    }
++    return ref;
++}
++
++static HRESULT WINAPI storage_folder_GetIids( IStorageFolder *iface, ULONG *iid_count, IID **iids )
++{
++    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_folder_GetRuntimeClassName( IStorageFolder *iface, HSTRING *class_name )
++{
++    FIXME( "iface %p, class_name %p stub!\n", iface, class_name );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_folder_GetTrustLevel( IStorageFolder *iface, TrustLevel *trust_level )
++{
++    FIXME( "iface %p, trust_level %p stub!\n", iface, trust_level );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_folder_CreateFileAsyncOverloadDefaultOptions( IStorageFolder *iface, HSTRING name,
++                                                                            IAsyncOperation_StorageFile **operation )
++{
++    FIXME( "iface %p, name %s, operation %p stub!\n", iface, debugstr_hstring(name), operation );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_folder_CreateFileAsync( IStorageFolder *iface, HSTRING name, CreationCollisionOption options,
++                                                      IAsyncOperation_StorageFile **operation )
++{
++    FIXME( "iface %p, name %s, options %d, operation %p stub!\n", iface, debugstr_hstring(name), options, operation );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_folder_CreateFolderAsyncOverloadDefaultOptions( IStorageFolder *iface, HSTRING name,
++                                                                              IAsyncOperation_StorageFolder **operation );
++static HRESULT WINAPI storage_folder_CreateFolderAsync( IStorageFolder *iface, HSTRING name, CreationCollisionOption options,
++                                                        IAsyncOperation_StorageFolder **operation );
++
++static HRESULT WINAPI storage_folder_GetFileAsync( IStorageFolder *iface, HSTRING name, IAsyncOperation_StorageFile **operation )
++{
++    FIXME( "iface %p, name %s, operation %p stub!\n", iface, debugstr_hstring(name), operation );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_folder_GetFolderAsync( IStorageFolder *iface, HSTRING name, IAsyncOperation_StorageFolder **operation )
++{
++    FIXME( "iface %p, name %s, operation %p stub!\n", iface, debugstr_hstring(name), operation );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_folder_GetItemAsync( IStorageFolder *iface, HSTRING name, IAsyncOperation_IStorageItem **operation )
++{
++    FIXME( "iface %p, name %s, operation %p stub!\n", iface, debugstr_hstring(name), operation );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_folder_GetFilesAsyncOverloadDefaultOptionsStartAndCount( IStorageFolder *iface,
++                                                                                       IAsyncOperation_IVectorView_StorageFile **operation )
++{
++    FIXME( "iface %p, operation %p stub!\n", iface, operation );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_folder_GetFoldersAsyncOverloadDefaultOptionsStartAndCount( IStorageFolder *iface,
++                                                                                         IAsyncOperation_IVectorView_StorageFolder **operation )
++{
++    FIXME( "iface %p, operation %p stub!\n", iface, operation );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_folder_GetItemsAsyncOverloadDefaultStartAndCount( IStorageFolder *iface,
++                                                                                IAsyncOperation_IVectorView_IStorageItem **operation )
++{
++    FIXME( "iface %p, operation %p stub!\n", iface, operation );
++    return E_NOTIMPL;
++}
++
++static const struct IStorageFolderVtbl storage_folder_vtbl =
++{
++    storage_folder_QueryInterface,
++    storage_folder_AddRef,
++    storage_folder_Release,
++    /* IInspectable methods */
++    storage_folder_GetIids,
++    storage_folder_GetRuntimeClassName,
++    storage_folder_GetTrustLevel,
++    /* IStorageFolder methods */
++    storage_folder_CreateFileAsyncOverloadDefaultOptions,
++    storage_folder_CreateFileAsync,
++    storage_folder_CreateFolderAsyncOverloadDefaultOptions,
++    storage_folder_CreateFolderAsync,
++    storage_folder_GetFileAsync,
++    storage_folder_GetFolderAsync,
++    storage_folder_GetItemAsync,
++    storage_folder_GetFilesAsyncOverloadDefaultOptionsStartAndCount,
++    storage_folder_GetFoldersAsyncOverloadDefaultOptionsStartAndCount,
++    storage_folder_GetItemsAsyncOverloadDefaultStartAndCount,
++};
++
++DEFINE_IINSPECTABLE( storage_item, IStorageItem, struct storage_folder, IStorageFolder_iface )
++
++static HRESULT WINAPI storage_item_RenameAsyncOverloadDefaultOptions( IStorageItem *iface, HSTRING name, IAsyncAction **operation )
++{
++    FIXME( "iface %p, name %s, operation %p stub!\n", iface, debugstr_hstring(name), operation );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_item_RenameAsync( IStorageItem *iface, HSTRING name, NameCollisionOption option, IAsyncAction **operation )
++{
++    FIXME( "iface %p, name %s, option %d, operation %p stub!\n", iface, debugstr_hstring(name), option, operation );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_item_DeleteAsyncOverloadDefaultOptions( IStorageItem *iface, IAsyncAction **operation )
++{
++    FIXME( "iface %p, operation %p stub!\n", iface, operation );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_item_DeleteAsync( IStorageItem *iface, StorageDeleteOption option, IAsyncAction **operation )
++{
++    FIXME( "iface %p, option %d, operation %p stub!\n", iface, option, operation );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_item_GetBasicPropertiesAsync( IStorageItem *iface, IAsyncOperation_BasicProperties **operation )
++{
++    FIXME( "iface %p, operation %p stub!\n", iface, operation );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_item_get_Name( IStorageItem *iface, HSTRING *value )
++{
++    struct storage_folder *impl = impl_from_IStorageItem( iface );
++    const WCHAR *name = wcsrchr( impl->path, '\\' );
++
++    TRACE( "iface %p, value %p\n", iface, value );
++    name = name ? name + 1 : impl->path;
++    return WindowsCreateString( name, wcslen( name ), value );
++}
++
++static HRESULT WINAPI storage_item_get_Path( IStorageItem *iface, HSTRING *value )
++{
++    struct storage_folder *impl = impl_from_IStorageItem( iface );
++
++    TRACE( "iface %p, value %p\n", iface, value );
++    return WindowsCreateString( impl->path, wcslen( impl->path ), value );
++}
++
++static HRESULT WINAPI storage_item_get_Attributes( IStorageItem *iface, FileAttributes *value )
++{
++    FIXME( "iface %p, value %p stub!\n", iface, value );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_item_get_DateCreated( IStorageItem *iface, DateTime *value )
++{
++    FIXME( "iface %p, value %p stub!\n", iface, value );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI storage_item_IsOfType( IStorageItem *iface, StorageItemTypes type, boolean *value )
++{
++    FIXME( "iface %p, type %d, value %p stub!\n", iface, type, value );
++    return E_NOTIMPL;
++}
++
++static const struct IStorageItemVtbl storage_item_vtbl =
++{
++    storage_item_QueryInterface,
++    storage_item_AddRef,
++    storage_item_Release,
++    /* IInspectable methods */
++    storage_item_GetIids,
++    storage_item_GetRuntimeClassName,
++    storage_item_GetTrustLevel,
++    /* IStorageItem methods */
++    storage_item_RenameAsyncOverloadDefaultOptions,
++    storage_item_RenameAsync,
++    storage_item_DeleteAsyncOverloadDefaultOptions,
++    storage_item_DeleteAsync,
++    storage_item_GetBasicPropertiesAsync,
++    storage_item_get_Name,
++    storage_item_get_Path,
++    storage_item_get_Attributes,
++    storage_item_get_DateCreated,
++    storage_item_IsOfType,
++};
++
++
++static HRESULT delete_tree( const WCHAR *path )
++{
++    WIN32_FIND_DATAW data;
++    WCHAR *pattern, *child;
++    HRESULT hr = S_OK;
++    size_t len = wcslen( path );
++    HANDLE find;
++
++    if (!(pattern = malloc( (len + 3) * sizeof(WCHAR) ))) return E_OUTOFMEMORY;
++    swprintf( pattern, len + 3, L"%s\\*", path );
++    find = FindFirstFileW( pattern, &data );
++    free( pattern );
++    if (find != INVALID_HANDLE_VALUE)
++    {
++        do
++        {
++            if (!wcscmp( data.cFileName, L"." ) || !wcscmp( data.cFileName, L".." )) continue;
++            if (!(child = malloc( (len + wcslen( data.cFileName ) + 2) * sizeof(WCHAR) ))) { hr = E_OUTOFMEMORY; break; }
++            swprintf( child, len + wcslen( data.cFileName ) + 2, L"%s\\%s", path, data.cFileName );
++            if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) hr = delete_tree( child );
++            else if (!DeleteFileW( child )) hr = HRESULT_FROM_WIN32( GetLastError() );
++            free( child );
++        } while (SUCCEEDED(hr) && FindNextFileW( find, &data ));
++        FindClose( find );
++    }
++    if (SUCCEEDED(hr) && !RemoveDirectoryW( path )) hr = HRESULT_FROM_WIN32( GetLastError() );
++    return hr;
++}
++
++static HRESULT create_folder_async( IUnknown *invoker, IUnknown *param, PROPVARIANT *result, BOOL called_async )
++{
++    struct storage_folder *folder = impl_from_IStorageFolder( (IStorageFolder *)param );
++    DWORD attrs, err;
++    HRESULT hr;
++
++    if (!called_async) return STATUS_PENDING;
++
++    TRACE( "creating %s, option %d.\n", debugstr_w( folder->path ), folder->create_option );
++
++    if (CreateDirectoryW( folder->path, NULL )) goto done;
++    if ((err = GetLastError()) != ERROR_ALREADY_EXISTS) return HRESULT_FROM_WIN32( err );
++
++    switch (folder->create_option)
++    {
++    case CreationCollisionOption_OpenIfExists:
++        attrs = GetFileAttributesW( folder->path );
++        if (attrs == INVALID_FILE_ATTRIBUTES || !(attrs & FILE_ATTRIBUTE_DIRECTORY)) return HRESULT_FROM_WIN32( ERROR_ALREADY_EXISTS );
++        break;
++    case CreationCollisionOption_ReplaceExisting:
++        attrs = GetFileAttributesW( folder->path );
++        if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY)) hr = delete_tree( folder->path );
++        else hr = DeleteFileW( folder->path ) ? S_OK : HRESULT_FROM_WIN32( GetLastError() );
++        if (FAILED(hr)) return hr;
++        if (!CreateDirectoryW( folder->path, NULL )) return HRESULT_FROM_WIN32( GetLastError() );
++        break;
++    case CreationCollisionOption_GenerateUniqueName:
++    {
++        size_t len = wcslen( folder->path ) + 16;
++        WCHAR *path;
++        UINT i;
++
++        if (!(path = malloc( len * sizeof(WCHAR) ))) return E_OUTOFMEMORY;
++        for (i = 2; i < 10000; i++)
++        {
++            swprintf( path, len, L"%s (%u)", folder->path, i );
++            if (CreateDirectoryW( path, NULL )) break;
++            if ((err = GetLastError()) != ERROR_ALREADY_EXISTS) { free( path ); return HRESULT_FROM_WIN32( err ); }
++        }
++        if (i == 10000) { free( path ); return HRESULT_FROM_WIN32( ERROR_ALREADY_EXISTS ); }
++        free( folder->path );
++        folder->path = path;
++        break;
++    }
++    default:
++        return HRESULT_FROM_WIN32( ERROR_ALREADY_EXISTS );
++    }
++
++done:
++    result->vt = VT_UNKNOWN;
++    result->punkVal = (IUnknown *)&folder->IStorageFolder_iface;
++    IUnknown_AddRef( result->punkVal );
++    return S_OK;
++}
++
++static HRESULT WINAPI storage_folder_CreateFolderAsync( IStorageFolder *iface, HSTRING name, CreationCollisionOption options,
++                                                        IAsyncOperation_StorageFolder **operation )
++{
++    struct storage_folder *impl = impl_from_IStorageFolder( iface ), *child;
++    const WCHAR *str = WindowsGetStringRawBuffer( name, NULL );
++    size_t len;
++    HRESULT hr;
++
++    TRACE( "iface %p, name %s, options %d, operation %p.\n", iface, debugstr_hstring(name), options, operation );
++
++    if (!operation) return E_POINTER;
++    *operation = NULL;
++    if (!str[0] || wcspbrk( str, L"\\/:*?\"<>|" ) || !wcscmp( str, L"." ) || !wcscmp( str, L".." )) return E_INVALIDARG;
++    if (options < CreationCollisionOption_GenerateUniqueName || options > CreationCollisionOption_OpenIfExists) return E_INVALIDARG;
++
++    if (!(child = calloc( 1, sizeof(*child) ))) return E_OUTOFMEMORY;
++    len = wcslen( impl->path ) + wcslen( str ) + 2;
++    if (!(child->path = malloc( len * sizeof(WCHAR) )))
++    {
++        free( child );
++        return E_OUTOFMEMORY;
++    }
++    swprintf( child->path, len, L"%s\\%s", impl->path, str );
++    child->IStorageFolder_iface.lpVtbl = &storage_folder_vtbl;
++    child->IStorageItem_iface.lpVtbl = &storage_item_vtbl;
++    child->ref = 1;
++    child->create_option = options;
++
++    hr = async_operation_inspectable_create( &IID_IAsyncOperation_StorageFolder, (IUnknown *)iface, (IUnknown *)&child->IStorageFolder_iface,
++                                             create_folder_async, (IAsyncOperation_IInspectable **)operation );
++    IStorageFolder_Release( &child->IStorageFolder_iface );
++    return hr;
++}
++
++static HRESULT WINAPI storage_folder_CreateFolderAsyncOverloadDefaultOptions( IStorageFolder *iface, HSTRING name,
++                                                                              IAsyncOperation_StorageFolder **operation )
++{
++    return storage_folder_CreateFolderAsync( iface, name, CreationCollisionOption_FailIfExists, operation );
++}
++static HRESULT create_package_folder( const WCHAR *subdir, IStorageFolder **value )
++{
++    WCHAR family[PACKAGE_FAMILY_NAME_MAX_LENGTH + 1], base[MAX_PATH], path[MAX_PATH];
++    struct storage_folder *impl;
++    UINT32 length = ARRAY_SIZE(family);
++    LONG result;
++    DWORD len;
++
++    if (!value) return E_POINTER;
++    *value = NULL;
++    if ((result = GetCurrentPackageFamilyName( &length, family ))) return HRESULT_FROM_WIN32( result );
++    if (!(len = GetEnvironmentVariableW( L"LOCALAPPDATA", base, ARRAY_SIZE(base) )) || len >= ARRAY_SIZE(base))
++        return HRESULT_FROM_WIN32( ERROR_PATH_NOT_FOUND );
++
++    swprintf( path, ARRAY_SIZE(path), L"%s\\Packages", base );
++    CreateDirectoryW( path, NULL );
++    swprintf( path, ARRAY_SIZE(path), L"%s\\Packages\\%s", base, family );
++    CreateDirectoryW( path, NULL );
++    swprintf( path, ARRAY_SIZE(path), L"%s\\Packages\\%s\\%s", base, family, subdir );
++    if (!CreateDirectoryW( path, NULL ) && GetLastError() != ERROR_ALREADY_EXISTS)
++        return HRESULT_FROM_WIN32( GetLastError() );
++
++    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
++    if (!(impl->path = wcsdup( path )))
++    {
++        free( impl );
++        return E_OUTOFMEMORY;
++    }
++    impl->IStorageFolder_iface.lpVtbl = &storage_folder_vtbl;
++    impl->IStorageItem_iface.lpVtbl = &storage_item_vtbl;
++    impl->ref = 1;
++    *value = &impl->IStorageFolder_iface;
++    TRACE( "created folder %s -> %p\n", debugstr_w( path ), *value );
++    return S_OK;
++}
++
++
+ struct application_data_statics
+ {
+     IActivationFactory IActivationFactory_iface;
+@@ -113,11 +524,280 @@
+     factory_GetTrustLevel,
+     /* IActivationFactory methods */
+     factory_ActivateInstance,
++};
++
++
++struct data_container
++{
++    IApplicationDataContainer IApplicationDataContainer_iface;
++    LONG ref;
++    WCHAR *name;
++    ApplicationDataLocality locality;
++    IPropertySet *values;
++    CRITICAL_SECTION cs;
++    struct list children;
++    struct list entry;
++};
++
++static const struct IApplicationDataContainerVtbl data_container_vtbl;
++
++static inline struct data_container *impl_from_IApplicationDataContainer( IApplicationDataContainer *iface )
++{
++    return CONTAINING_RECORD( iface, struct data_container, IApplicationDataContainer_iface );
++}
++
++static HRESULT create_data_container( const WCHAR *name, UINT32 name_len, ApplicationDataLocality locality,
++                                      struct data_container **out )
++{
++    static const WCHAR property_set_name[] = L"Windows.Foundation.Collections.PropertySet";
++    struct data_container *impl;
++    IInspectable *inspectable;
++    HSTRING class_name;
++    HRESULT hr;
++
++    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
++    if (!(impl->name = calloc( name_len + 1, sizeof(WCHAR) )))
++    {
++        free( impl );
++        return E_OUTOFMEMORY;
++    }
++    memcpy( impl->name, name, name_len * sizeof(WCHAR) );
++
++    if (SUCCEEDED(hr = WindowsCreateString( property_set_name, wcslen( property_set_name ), &class_name )))
++    {
++        if (SUCCEEDED(hr = RoActivateInstance( class_name, &inspectable )))
++        {
++            hr = IInspectable_QueryInterface( inspectable, &IID_IPropertySet, (void **)&impl->values );
++            IInspectable_Release( inspectable );
++        }
++        WindowsDeleteString( class_name );
++    }
++    if (FAILED(hr))
++    {
++        free( impl->name );
++        free( impl );
++        return hr;
++    }
++
++    impl->IApplicationDataContainer_iface.lpVtbl = &data_container_vtbl;
++    impl->ref = 1;
++    impl->locality = locality;
++    InitializeCriticalSectionEx( &impl->cs, 0, RTL_CRITICAL_SECTION_FLAG_FORCE_DEBUG_INFO );
++    impl->cs.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": data_container.cs");
++    list_init( &impl->children );
++    *out = impl;
++    return S_OK;
++}
++
++static HRESULT WINAPI data_container_QueryInterface( IApplicationDataContainer *iface, REFIID iid, void **out )
++{
++    struct data_container *impl = impl_from_IApplicationDataContainer( iface );
++
++    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
++
++    if (IsEqualGUID( iid, &IID_IUnknown ) ||
++        IsEqualGUID( iid, &IID_IInspectable ) ||
++        IsEqualGUID( iid, &IID_IAgileObject ) ||
++        IsEqualGUID( iid, &IID_IApplicationDataContainer ))
++    {
++        *out = &impl->IApplicationDataContainer_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
++    *out = NULL;
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI data_container_AddRef( IApplicationDataContainer *iface )
++{
++    struct data_container *impl = impl_from_IApplicationDataContainer( iface );
++    ULONG ref = InterlockedIncrement( &impl->ref );
++    TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
++    return ref;
++}
++
++static ULONG WINAPI data_container_Release( IApplicationDataContainer *iface )
++{
++    struct data_container *impl = impl_from_IApplicationDataContainer( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref );
++    struct data_container *child, *next;
++
++    TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
++
++    if (!ref)
++    {
++        LIST_FOR_EACH_ENTRY_SAFE( child, next, &impl->children, struct data_container, entry )
++        {
++            list_remove( &child->entry );
++            IApplicationDataContainer_Release( &child->IApplicationDataContainer_iface );
++        }
++        IPropertySet_Release( impl->values );
++        impl->cs.DebugInfo->Spare[0] = 0;
++        DeleteCriticalSection( &impl->cs );
++        free( impl->name );
++        free( impl );
++    }
++    return ref;
++}
++
++static HRESULT WINAPI data_container_GetIids( IApplicationDataContainer *iface, ULONG *iid_count, IID **iids )
++{
++    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI data_container_GetRuntimeClassName( IApplicationDataContainer *iface, HSTRING *class_name )
++{
++    static const WCHAR name[] = L"Windows.Storage.ApplicationDataContainer";
++    TRACE( "iface %p, class_name %p.\n", iface, class_name );
++    return WindowsCreateString( name, wcslen( name ), class_name );
++}
++
++static HRESULT WINAPI data_container_GetTrustLevel( IApplicationDataContainer *iface, TrustLevel *trust_level )
++{
++    TRACE( "iface %p, trust_level %p.\n", iface, trust_level );
++    *trust_level = BaseTrust;
++    return S_OK;
++}
++
++static HRESULT WINAPI data_container_get_Name( IApplicationDataContainer *iface, HSTRING *value )
++{
++    struct data_container *impl = impl_from_IApplicationDataContainer( iface );
++    TRACE( "iface %p, value %p.\n", iface, value );
++    return WindowsCreateString( impl->name, wcslen( impl->name ), value );
++}
++
++static HRESULT WINAPI data_container_get_Locality( IApplicationDataContainer *iface, ApplicationDataLocality *value )
++{
++    struct data_container *impl = impl_from_IApplicationDataContainer( iface );
++    TRACE( "iface %p, value %p.\n", iface, value );
++    *value = impl->locality;
++    return S_OK;
++}
++
++static HRESULT WINAPI data_container_get_Values( IApplicationDataContainer *iface, IPropertySet **value )
++{
++    struct data_container *impl = impl_from_IApplicationDataContainer( iface );
++    TRACE( "iface %p, value %p.\n", iface, value );
++    *value = impl->values;
++    IPropertySet_AddRef( *value );
++    return S_OK;
++}
++
++static HRESULT WINAPI data_container_get_Containers( IApplicationDataContainer *iface,
++                                                     IMapView_HSTRING_ApplicationDataContainer **value )
++{
++    FIXME( "iface %p, value %p stub!\n", iface, value );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI data_container_CreateContainer( IApplicationDataContainer *iface, HSTRING name,
++                                                      ApplicationDataCreateDisposition disposition,
++                                                      IApplicationDataContainer **container )
++{
++    struct data_container *impl = impl_from_IApplicationDataContainer( iface ), *child;
++    UINT32 len;
++    const WCHAR *str = WindowsGetStringRawBuffer( name, &len );
++    HRESULT hr = S_OK;
++
++    TRACE( "iface %p, name %s, disposition %d, container %p.\n", iface, debugstr_hstring( name ), disposition, container );
++
++    if (!container) return E_POINTER;
++    *container = NULL;
++    if (!len || len > 255) return E_INVALIDARG;
++
++    EnterCriticalSection( &impl->cs );
++    LIST_FOR_EACH_ENTRY( child, &impl->children, struct data_container, entry )
++    {
++        if (wcslen( child->name ) == len && !wcsnicmp( child->name, str, len ))
++        {
++            *container = &child->IApplicationDataContainer_iface;
++            IApplicationDataContainer_AddRef( *container );
++            break;
++        }
++    }
++    if (!*container)
++    {
++        if (disposition == ApplicationDataCreateDisposition_Existing)
++            hr = HRESULT_FROM_WIN32( ERROR_FILE_NOT_FOUND );
++        else if (SUCCEEDED(hr = create_data_container( str, len, impl->locality, &child )))
++        {
++            list_add_tail( &impl->children, &child->entry );
++            *container = &child->IApplicationDataContainer_iface;
++            IApplicationDataContainer_AddRef( *container );
++        }
++    }
++    LeaveCriticalSection( &impl->cs );
++    return hr;
++}
++
++static HRESULT WINAPI data_container_DeleteContainer( IApplicationDataContainer *iface, HSTRING name )
++{
++    struct data_container *impl = impl_from_IApplicationDataContainer( iface ), *child;
++    UINT32 len;
++    const WCHAR *str = WindowsGetStringRawBuffer( name, &len );
++
++    TRACE( "iface %p, name %s.\n", iface, debugstr_hstring( name ) );
++
++    EnterCriticalSection( &impl->cs );
++    LIST_FOR_EACH_ENTRY( child, &impl->children, struct data_container, entry )
++    {
++        if (wcslen( child->name ) == len && !wcsnicmp( child->name, str, len ))
++        {
++            list_remove( &child->entry );
++            IApplicationDataContainer_Release( &child->IApplicationDataContainer_iface );
++            break;
++        }
++    }
++    LeaveCriticalSection( &impl->cs );
++    return S_OK;
++}
++
++static const struct IApplicationDataContainerVtbl data_container_vtbl =
++{
++    data_container_QueryInterface,
++    data_container_AddRef,
++    data_container_Release,
++    /* IInspectable methods */
++    data_container_GetIids,
++    data_container_GetRuntimeClassName,
++    data_container_GetTrustLevel,
++    /* IApplicationDataContainer methods */
++    data_container_get_Name,
++    data_container_get_Locality,
++    data_container_get_Values,
++    data_container_get_Containers,
++    data_container_CreateContainer,
++    data_container_DeleteContainer,
+ };
+ 
++/* Settings live for the lifetime of the process; they are not yet persisted to the package settings store. */
++static IApplicationDataContainer *settings_containers[2];
++
++static HRESULT get_settings_container( ApplicationDataLocality locality, IApplicationDataContainer **value )
++{
++    struct data_container *impl;
++    HRESULT hr;
++
++    if (!value) return E_POINTER;
++    if (!settings_containers[locality])
++    {
++        if (FAILED(hr = create_data_container( L"", 0, locality, &impl ))) return hr;
++        if (InterlockedCompareExchangePointer( (void **)&settings_containers[locality],
++                                               &impl->IApplicationDataContainer_iface, NULL ))
++            IApplicationDataContainer_Release( &impl->IApplicationDataContainer_iface );
++    }
++    *value = settings_containers[locality];
++    IApplicationDataContainer_AddRef( *value );
++    return S_OK;
++}
++
+ struct application_data
+ {
+     IApplicationData IApplicationData_iface;
++    IApplicationData2 IApplicationData2_iface;
+     LONG ref;
+ };
+ 
+@@ -142,6 +822,13 @@
+         return S_OK;
+     }
+ 
++    if (IsEqualGUID( iid, &IID_IApplicationData2 ))
++    {
++        *out = &impl->IApplicationData2_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
+     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
+     *out = NULL;
+     return E_NOINTERFACE;
+@@ -211,32 +898,32 @@
+ 
+ static HRESULT WINAPI application_data_get_LocalSettings( IApplicationData *iface, IApplicationDataContainer **value )
+ {
+-    FIXME( "iface %p, value %p stub!\n", iface, value );
+-    return E_NOTIMPL;
++    TRACE( "iface %p, value %p\n", iface, value );
++    return get_settings_container( ApplicationDataLocality_Local, value );
+ }
+ 
+ static HRESULT WINAPI application_data_get_RoamingSettings( IApplicationData *iface, IApplicationDataContainer **value )
+ {
+-    FIXME( "iface %p, value %p stub!\n", iface, value );
+-    return E_NOTIMPL;
++    TRACE( "iface %p, value %p\n", iface, value );
++    return get_settings_container( ApplicationDataLocality_Roaming, value );
+ }
+ 
+ static HRESULT WINAPI application_data_get_LocalFolder( IApplicationData *iface, IStorageFolder **value )
+ {
+-    FIXME( "iface %p, value %p stub!\n", iface, value );
+-    return E_NOTIMPL;
++    TRACE( "iface %p, value %p\n", iface, value );
++    return create_package_folder( L"LocalState", value );
+ }
+ 
+ static HRESULT WINAPI application_data_get_RoamingFolder( IApplicationData *iface, IStorageFolder **value )
+ {
+-    FIXME( "iface %p, value %p stub!\n", iface, value );
+-    return E_NOTIMPL;
++    TRACE( "iface %p, value %p\n", iface, value );
++    return create_package_folder( L"RoamingState", value );
+ }
+ 
+ static HRESULT WINAPI application_data_get_TemporaryFolder( IApplicationData *iface, IStorageFolder **value )
+ {
+-    FIXME( "iface %p, value %p stub!\n", iface, value );
+-    return E_NOTIMPL;
++    TRACE( "iface %p, value %p\n", iface, value );
++    return create_package_folder( L"TempState", value );
+ }
+ 
+ static HRESULT WINAPI application_data_add_DataChanged( IApplicationData *iface, ITypedEventHandler_ApplicationData_IInspectable *handler,
+@@ -289,6 +976,27 @@
+     application_data_get_RoamingStorageQuota,
+ };
+ 
++DEFINE_IINSPECTABLE( application_data2, IApplicationData2, struct application_data, IApplicationData_iface )
++
++static HRESULT WINAPI application_data2_get_LocalCacheFolder( IApplicationData2 *iface, IStorageFolder **value )
++{
++    TRACE( "iface %p, value %p\n", iface, value );
++    return create_package_folder( L"LocalCache", value );
++}
++
++static const struct IApplicationData2Vtbl application_data2_vtbl =
++{
++    application_data2_QueryInterface,
++    application_data2_AddRef,
++    application_data2_Release,
++    /* IInspectable methods */
++    application_data2_GetIids,
++    application_data2_GetRuntimeClassName,
++    application_data2_GetTrustLevel,
++    /* IApplicationData2 methods */
++    application_data2_get_LocalCacheFolder,
++};
++
+ DEFINE_IINSPECTABLE( application_data_statics, IApplicationDataStatics, struct application_data_statics, IActivationFactory_iface )
+ 
+ static HRESULT WINAPI application_data_statics_get_Current( IApplicationDataStatics *iface, IApplicationData **value )
+@@ -301,6 +1009,7 @@
+     if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
+ 
+     impl->IApplicationData_iface.lpVtbl = &application_data_vtbl;
++    impl->IApplicationData2_iface.lpVtbl = &application_data2_vtbl;
+     impl->ref = 1;
+ 
+     *value = &impl->IApplicationData_iface;
+diff -u a/dlls/windows.storage.applicationdata/private.h b/dlls/windows.storage.applicationdata/private.h
+--- a/dlls/windows.storage.applicationdata/private.h
++++ b/dlls/windows.storage.applicationdata/private.h
+@@ -38,8 +38,14 @@
+ #define WIDL_using_Windows_Storage
+ #include "windows.storage.h"
+ 
++#include "async_private.h"
++
+ extern IActivationFactory *application_data_factory;
+ 
++extern HRESULT async_operation_inspectable_create( const GUID *iid, IUnknown *invoker, IUnknown *param, async_operation_callback callback,
++                                                   IAsyncOperation_IInspectable **out );
++extern HRESULT async_action_create( IUnknown *invoker, async_operation_callback callback, IAsyncAction **out );
++
+ #define DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from, iface_mem, expr )             \
+     static inline impl_type *impl_from( iface_type *iface )                                        \
+     {                                                                                              \
+@@ -77,5 +83,7 @@
+     }
+ #define DEFINE_IINSPECTABLE( pfx, iface_type, impl_type, base_iface )                              \
+     DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from_##iface_type, iface_type##_iface, &impl->base_iface )
++#define DEFINE_IINSPECTABLE_OUTER( pfx, iface_type, impl_type, outer_iface )                       \
++    DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from_##iface_type, iface_type##_iface, impl->outer_iface )
+ 
+ #endif
 diff -u a/dlls/windows.ui/Makefile.in b/dlls/windows.ui/Makefile.in
 --- a/dlls/windows.ui/Makefile.in
 +++ b/dlls/windows.ui/Makefile.in
@@ -9710,12 +12210,14 @@ diff -u a/dlls/windows.web/json_object.c b/dlls/windows.web/json_object.c
  #include "private.h"
  #include "wine/debug.h"
  
-@@ -25,7 +29,14 @@
+@@ -25,7 +29,16 @@
  struct json_object
  {
      IJsonObject IJsonObject_iface;
 +    IJsonValue IJsonValue_iface;
 +    IStringable IStringable_iface;
++    IMap_HSTRING_IJsonValue IMap_HSTRING_IJsonValue_iface;
++    IIterable_IKeyValuePair_HSTRING_IJsonValue IIterable_IKeyValuePair_HSTRING_IJsonValue_iface;
      LONG ref;
 +    IMap_HSTRING_IInspectable *members;
 +    /* Windows.Web serializes members in insertion order; the map does not preserve it. */
@@ -9725,7 +12227,7 @@ diff -u a/dlls/windows.web/json_object.c b/dlls/windows.web/json_object.c
  };
  
  static inline struct json_object *impl_from_IJsonObject( IJsonObject *iface )
-@@ -33,7 +44,7 @@
+@@ -33,7 +46,7 @@
      return CONTAINING_RECORD( iface, struct json_object, IJsonObject_iface );
  }
  
@@ -9734,7 +12236,7 @@ diff -u a/dlls/windows.web/json_object.c b/dlls/windows.web/json_object.c
  {
      struct json_object *impl = impl_from_IJsonObject( iface );
  
-@@ -49,12 +60,26 @@
+@@ -49,12 +62,40 @@
          return S_OK;
      }
  
@@ -9752,6 +12254,20 @@ diff -u a/dlls/windows.web/json_object.c b/dlls/windows.web/json_object.c
 +        return S_OK;
 +    }
 +
++    if (IsEqualGUID( iid, &IID_IMap_HSTRING_IJsonValue ))
++    {
++        *out = &impl->IMap_HSTRING_IJsonValue_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    if (IsEqualGUID( iid, &IID_IIterable_IKeyValuePair_HSTRING_IJsonValue ))
++    {
++        *out = &impl->IIterable_IKeyValuePair_HSTRING_IJsonValue_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
      FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
      *out = NULL;
      return E_NOINTERFACE;
@@ -9762,7 +12278,7 @@ diff -u a/dlls/windows.web/json_object.c b/dlls/windows.web/json_object.c
  {
      struct json_object *impl = impl_from_IJsonObject( iface );
      ULONG ref = InterlockedIncrement( &impl->ref );
-@@ -62,96 +87,365 @@
+@@ -62,96 +103,892 @@
      return ref;
  }
  
@@ -9984,7 +12500,14 @@ diff -u a/dlls/windows.web/json_object.c b/dlls/windows.web/json_object.c
  
 -static const struct IJsonObjectVtbl json_object_statics_vtbl =
 +static HRESULT WINAPI json_object_GetNamedBoolean( IJsonObject *iface, HSTRING name, boolean *value )
-+{
+ {
+-    json_object_statics_QueryInterface,
+-    json_object_statics_AddRef,
+-    json_object_statics_Release,
+-    /* IInspectable methods */
+-    json_object_statics_GetIids,
+-    json_object_statics_GetRuntimeClassName,
+-    json_object_statics_GetTrustLevel,
 +    IJsonValue *internal_value;
 +    JsonValueType value_type;
 +    HRESULT hr;
@@ -10003,17 +12526,11 @@ diff -u a/dlls/windows.web/json_object.c b/dlls/windows.web/json_object.c
 +}
 +
 +static const struct IJsonObjectVtbl json_object_vtbl =
- {
--    json_object_statics_QueryInterface,
--    json_object_statics_AddRef,
--    json_object_statics_Release,
++{
 +    json_object_QueryInterface,
 +    json_object_AddRef,
 +    json_object_Release,
-     /* IInspectable methods */
--    json_object_statics_GetIids,
--    json_object_statics_GetRuntimeClassName,
--    json_object_statics_GetTrustLevel,
++    /* IInspectable methods */
 +    json_object_GetIids,
 +    json_object_GetRuntimeClassName,
 +    json_object_GetTrustLevel,
@@ -10032,8 +12549,8 @@ diff -u a/dlls/windows.web/json_object.c b/dlls/windows.web/json_object.c
 +    json_object_GetNamedString,
 +    json_object_GetNamedNumber,
 +    json_object_GetNamedBoolean,
- };
- 
++};
++
 +HRESULT json_object_write( IJsonObject *iface, struct json_writer *writer )
 +{
 +    struct json_object *impl;
@@ -10165,10 +12682,537 @@ diff -u a/dlls/windows.web/json_object.c b/dlls/windows.web/json_object.c
 +    json_object_stringable_ToString,
 +};
 +
++/* IMap<HSTRING, IJsonValue> / IIterable<IKeyValuePair<HSTRING, IJsonValue>> */
++
++struct json_kvp
++{
++    IKeyValuePair_HSTRING_IJsonValue IKeyValuePair_HSTRING_IJsonValue_iface;
++    LONG ref;
++    HSTRING key;
++    IJsonValue *value;
++};
++
++static inline struct json_kvp *impl_from_IKeyValuePair_HSTRING_IJsonValue( IKeyValuePair_HSTRING_IJsonValue *iface )
++{
++    return CONTAINING_RECORD( iface, struct json_kvp, IKeyValuePair_HSTRING_IJsonValue_iface );
++}
++
++static HRESULT WINAPI json_kvp_QueryInterface( IKeyValuePair_HSTRING_IJsonValue *iface, REFIID iid, void **out )
++{
++    struct json_kvp *impl = impl_from_IKeyValuePair_HSTRING_IJsonValue( iface );
++
++    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
++
++    if (IsEqualGUID( iid, &IID_IUnknown ) ||
++        IsEqualGUID( iid, &IID_IInspectable ) ||
++        IsEqualGUID( iid, &IID_IAgileObject ) ||
++        IsEqualGUID( iid, &IID_IKeyValuePair_HSTRING_IJsonValue ))
++    {
++        *out = &impl->IKeyValuePair_HSTRING_IJsonValue_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
++    *out = NULL;
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI json_kvp_AddRef( IKeyValuePair_HSTRING_IJsonValue *iface )
++{
++    struct json_kvp *impl = impl_from_IKeyValuePair_HSTRING_IJsonValue( iface );
++    return InterlockedIncrement( &impl->ref );
++}
++
++static ULONG WINAPI json_kvp_Release( IKeyValuePair_HSTRING_IJsonValue *iface )
++{
++    struct json_kvp *impl = impl_from_IKeyValuePair_HSTRING_IJsonValue( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref );
++
++    if (!ref)
++    {
++        WindowsDeleteString( impl->key );
++        if (impl->value) IJsonValue_Release( impl->value );
++        free( impl );
++    }
++    return ref;
++}
++
++static HRESULT WINAPI json_kvp_GetIids( IKeyValuePair_HSTRING_IJsonValue *iface, ULONG *iid_count, IID **iids )
++{
++    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI json_kvp_GetRuntimeClassName( IKeyValuePair_HSTRING_IJsonValue *iface, HSTRING *class_name )
++{
++    FIXME( "iface %p, class_name %p stub!\n", iface, class_name );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI json_kvp_GetTrustLevel( IKeyValuePair_HSTRING_IJsonValue *iface, TrustLevel *trust_level )
++{
++    FIXME( "iface %p, trust_level %p stub!\n", iface, trust_level );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI json_kvp_get_Key( IKeyValuePair_HSTRING_IJsonValue *iface, HSTRING *key )
++{
++    struct json_kvp *impl = impl_from_IKeyValuePair_HSTRING_IJsonValue( iface );
++    TRACE( "iface %p, key %p.\n", iface, key );
++    if (!key) return E_POINTER;
++    return WindowsDuplicateString( impl->key, key );
++}
++
++static HRESULT WINAPI json_kvp_get_Value( IKeyValuePair_HSTRING_IJsonValue *iface, IJsonValue **value )
++{
++    struct json_kvp *impl = impl_from_IKeyValuePair_HSTRING_IJsonValue( iface );
++    TRACE( "iface %p, value %p.\n", iface, value );
++    if (!value) return E_POINTER;
++    if ((*value = impl->value)) IJsonValue_AddRef( *value );
++    return S_OK;
++}
++
++static const struct IKeyValuePair_HSTRING_IJsonValueVtbl json_kvp_vtbl =
++{
++    json_kvp_QueryInterface,
++    json_kvp_AddRef,
++    json_kvp_Release,
++    json_kvp_GetIids,
++    json_kvp_GetRuntimeClassName,
++    json_kvp_GetTrustLevel,
++    json_kvp_get_Key,
++    json_kvp_get_Value,
+ };
+ 
++struct json_object_iterator
++{
++    IIterator_IKeyValuePair_HSTRING_IJsonValue IIterator_IKeyValuePair_HSTRING_IJsonValue_iface;
++    LONG ref;
++    struct json_object *object;
++    UINT32 index;
++};
++
++static inline struct json_object_iterator *impl_from_IIterator_IKeyValuePair_HSTRING_IJsonValue( IIterator_IKeyValuePair_HSTRING_IJsonValue *iface )
++{
++    return CONTAINING_RECORD( iface, struct json_object_iterator, IIterator_IKeyValuePair_HSTRING_IJsonValue_iface );
++}
++
++static HRESULT WINAPI json_object_iterator_QueryInterface( IIterator_IKeyValuePair_HSTRING_IJsonValue *iface, REFIID iid, void **out )
++{
++    struct json_object_iterator *impl = impl_from_IIterator_IKeyValuePair_HSTRING_IJsonValue( iface );
++
++    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
++
++    if (IsEqualGUID( iid, &IID_IUnknown ) ||
++        IsEqualGUID( iid, &IID_IInspectable ) ||
++        IsEqualGUID( iid, &IID_IAgileObject ) ||
++        IsEqualGUID( iid, &IID_IIterator_IKeyValuePair_HSTRING_IJsonValue ))
++    {
++        *out = &impl->IIterator_IKeyValuePair_HSTRING_IJsonValue_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
++    *out = NULL;
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI json_object_iterator_AddRef( IIterator_IKeyValuePair_HSTRING_IJsonValue *iface )
++{
++    struct json_object_iterator *impl = impl_from_IIterator_IKeyValuePair_HSTRING_IJsonValue( iface );
++    return InterlockedIncrement( &impl->ref );
++}
++
++static ULONG WINAPI json_object_iterator_Release( IIterator_IKeyValuePair_HSTRING_IJsonValue *iface )
++{
++    struct json_object_iterator *impl = impl_from_IIterator_IKeyValuePair_HSTRING_IJsonValue( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref );
++
++    if (!ref)
++    {
++        IJsonObject_Release( &impl->object->IJsonObject_iface );
++        free( impl );
++    }
++    return ref;
++}
++
++static HRESULT WINAPI json_object_iterator_GetIids( IIterator_IKeyValuePair_HSTRING_IJsonValue *iface, ULONG *iid_count, IID **iids )
++{
++    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI json_object_iterator_GetRuntimeClassName( IIterator_IKeyValuePair_HSTRING_IJsonValue *iface, HSTRING *class_name )
++{
++    FIXME( "iface %p, class_name %p stub!\n", iface, class_name );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI json_object_iterator_GetTrustLevel( IIterator_IKeyValuePair_HSTRING_IJsonValue *iface, TrustLevel *trust_level )
++{
++    FIXME( "iface %p, trust_level %p stub!\n", iface, trust_level );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI json_object_iterator_get_Current( IIterator_IKeyValuePair_HSTRING_IJsonValue *iface, IKeyValuePair_HSTRING_IJsonValue **value )
++{
++    struct json_object_iterator *impl = impl_from_IIterator_IKeyValuePair_HSTRING_IJsonValue( iface );
++    struct json_object *object = impl->object;
++    struct json_kvp *kvp;
++    HRESULT hr;
++
++    TRACE( "iface %p, value %p.\n", iface, value );
++
++    if (!value) return E_POINTER;
++    *value = NULL;
++    if (impl->index >= object->key_count) return E_BOUNDS;
++
++    if (!(kvp = calloc( 1, sizeof(*kvp) ))) return E_OUTOFMEMORY;
++    kvp->IKeyValuePair_HSTRING_IJsonValue_iface.lpVtbl = &json_kvp_vtbl;
++    kvp->ref = 1;
++    if (FAILED(hr = WindowsDuplicateString( object->keys[impl->index], &kvp->key )) ||
++        FAILED(hr = IMap_HSTRING_IInspectable_Lookup( object->members, kvp->key, (IInspectable **)&kvp->value )))
++    {
++        WindowsDeleteString( kvp->key );
++        free( kvp );
++        return hr;
++    }
++    *value = &kvp->IKeyValuePair_HSTRING_IJsonValue_iface;
++    return S_OK;
++}
++
++static HRESULT WINAPI json_object_iterator_get_HasCurrent( IIterator_IKeyValuePair_HSTRING_IJsonValue *iface, boolean *value )
++{
++    struct json_object_iterator *impl = impl_from_IIterator_IKeyValuePair_HSTRING_IJsonValue( iface );
++    TRACE( "iface %p, value %p.\n", iface, value );
++    if (!value) return E_POINTER;
++    *value = impl->index < impl->object->key_count;
++    return S_OK;
++}
++
++static HRESULT WINAPI json_object_iterator_MoveNext( IIterator_IKeyValuePair_HSTRING_IJsonValue *iface, boolean *value )
++{
++    struct json_object_iterator *impl = impl_from_IIterator_IKeyValuePair_HSTRING_IJsonValue( iface );
++    TRACE( "iface %p, value %p.\n", iface, value );
++    if (!value) return E_POINTER;
++    if (impl->index < impl->object->key_count) impl->index++;
++    *value = impl->index < impl->object->key_count;
++    return S_OK;
++}
++
++static HRESULT WINAPI json_object_iterator_GetMany( IIterator_IKeyValuePair_HSTRING_IJsonValue *iface, UINT32 items_size,
++                                                     IKeyValuePair_HSTRING_IJsonValue **items, UINT32 *count )
++{
++    struct json_object_iterator *impl = impl_from_IIterator_IKeyValuePair_HSTRING_IJsonValue( iface );
++    HRESULT hr = S_OK;
++    UINT32 i;
++
++    TRACE( "iface %p, items_size %u, items %p, count %p.\n", iface, items_size, items, count );
++
++    if (!count) return E_POINTER;
++    for (i = 0; i < items_size && impl->index < impl->object->key_count; i++, impl->index++)
++    {
++        if (FAILED(hr = json_object_iterator_get_Current( iface, &items[i] ))) break;
++    }
++    if (FAILED(hr)) while (i) IKeyValuePair_HSTRING_IJsonValue_Release( items[--i] );
++    *count = i;
++    return hr;
++}
++
++static const struct IIterator_IKeyValuePair_HSTRING_IJsonValueVtbl json_object_iterator_vtbl =
++{
++    json_object_iterator_QueryInterface,
++    json_object_iterator_AddRef,
++    json_object_iterator_Release,
++    json_object_iterator_GetIids,
++    json_object_iterator_GetRuntimeClassName,
++    json_object_iterator_GetTrustLevel,
++    json_object_iterator_get_Current,
++    json_object_iterator_get_HasCurrent,
++    json_object_iterator_MoveNext,
++    json_object_iterator_GetMany,
++};
++
++DEFINE_IINSPECTABLE( json_object_iterable, IIterable_IKeyValuePair_HSTRING_IJsonValue, struct json_object, IJsonObject_iface )
++
++static HRESULT WINAPI json_object_iterable_First( IIterable_IKeyValuePair_HSTRING_IJsonValue *iface, IIterator_IKeyValuePair_HSTRING_IJsonValue **value )
++{
++    struct json_object *impl = impl_from_IIterable_IKeyValuePair_HSTRING_IJsonValue( iface );
++    struct json_object_iterator *iter;
++
++    TRACE( "iface %p, value %p.\n", iface, value );
++
++    if (!value) return E_POINTER;
++    if (!(iter = calloc( 1, sizeof(*iter) ))) return E_OUTOFMEMORY;
++    iter->IIterator_IKeyValuePair_HSTRING_IJsonValue_iface.lpVtbl = &json_object_iterator_vtbl;
++    iter->ref = 1;
++    iter->object = impl;
++    IJsonObject_AddRef( &impl->IJsonObject_iface );
++    *value = &iter->IIterator_IKeyValuePair_HSTRING_IJsonValue_iface;
++    return S_OK;
++}
++
++static const struct IIterable_IKeyValuePair_HSTRING_IJsonValueVtbl json_object_iterable_vtbl =
++{
++    json_object_iterable_QueryInterface,
++    json_object_iterable_AddRef,
++    json_object_iterable_Release,
++    json_object_iterable_GetIids,
++    json_object_iterable_GetRuntimeClassName,
++    json_object_iterable_GetTrustLevel,
++    json_object_iterable_First,
++};
++
++DEFINE_IINSPECTABLE( json_object_map, IMap_HSTRING_IJsonValue, struct json_object, IJsonObject_iface )
++
++static HRESULT WINAPI json_object_map_Lookup( IMap_HSTRING_IJsonValue *iface, HSTRING key, IJsonValue **value )
++{
++    struct json_object *impl = impl_from_IMap_HSTRING_IJsonValue( iface );
++    boolean exists;
++    HRESULT hr;
++
++    TRACE( "iface %p, key %s, value %p.\n", iface, debugstr_hstring( key ), value );
++
++    if (!value) return E_POINTER;
++    *value = NULL;
++    if (FAILED(hr = IMap_HSTRING_IInspectable_HasKey( impl->members, key, &exists ))) return hr;
++    if (!exists) return E_BOUNDS;
++    return IMap_HSTRING_IInspectable_Lookup( impl->members, key, (IInspectable **)value );
++}
++
++static HRESULT WINAPI json_object_map_get_Size( IMap_HSTRING_IJsonValue *iface, UINT32 *size )
++{
++    struct json_object *impl = impl_from_IMap_HSTRING_IJsonValue( iface );
++    TRACE( "iface %p, size %p.\n", iface, size );
++    if (!size) return E_POINTER;
++    *size = impl->key_count;
++    return S_OK;
++}
++
++static HRESULT WINAPI json_object_map_HasKey( IMap_HSTRING_IJsonValue *iface, HSTRING key, boolean *found )
++{
++    struct json_object *impl = impl_from_IMap_HSTRING_IJsonValue( iface );
++    TRACE( "iface %p, key %s, found %p.\n", iface, debugstr_hstring( key ), found );
++    if (!found) return E_POINTER;
++    return IMap_HSTRING_IInspectable_HasKey( impl->members, key, found );
++}
++
++struct json_object_view
++{
++    IMapView_HSTRING_IJsonValue IMapView_HSTRING_IJsonValue_iface;
++    IIterable_IKeyValuePair_HSTRING_IJsonValue IIterable_IKeyValuePair_HSTRING_IJsonValue_iface;
++    LONG ref;
++    struct json_object *object;
++};
++
++static inline struct json_object_view *impl_from_IMapView_HSTRING_IJsonValue( IMapView_HSTRING_IJsonValue *iface )
++{
++    return CONTAINING_RECORD( iface, struct json_object_view, IMapView_HSTRING_IJsonValue_iface );
++}
++
++static HRESULT WINAPI json_object_view_QueryInterface( IMapView_HSTRING_IJsonValue *iface, REFIID iid, void **out )
++{
++    struct json_object_view *impl = impl_from_IMapView_HSTRING_IJsonValue( iface );
++
++    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
++
++    if (IsEqualGUID( iid, &IID_IUnknown ) ||
++        IsEqualGUID( iid, &IID_IInspectable ) ||
++        IsEqualGUID( iid, &IID_IAgileObject ) ||
++        IsEqualGUID( iid, &IID_IMapView_HSTRING_IJsonValue ))
++    {
++        *out = &impl->IMapView_HSTRING_IJsonValue_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    if (IsEqualGUID( iid, &IID_IIterable_IKeyValuePair_HSTRING_IJsonValue ))
++    {
++        *out = &impl->IIterable_IKeyValuePair_HSTRING_IJsonValue_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
++    *out = NULL;
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI json_object_view_AddRef( IMapView_HSTRING_IJsonValue *iface )
++{
++    struct json_object_view *impl = impl_from_IMapView_HSTRING_IJsonValue( iface );
++    return InterlockedIncrement( &impl->ref );
++}
++
++static ULONG WINAPI json_object_view_Release( IMapView_HSTRING_IJsonValue *iface )
++{
++    struct json_object_view *impl = impl_from_IMapView_HSTRING_IJsonValue( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref );
++
++    if (!ref)
++    {
++        IJsonObject_Release( &impl->object->IJsonObject_iface );
++        free( impl );
++    }
++    return ref;
++}
++
++static HRESULT WINAPI json_object_view_GetIids( IMapView_HSTRING_IJsonValue *iface, ULONG *iid_count, IID **iids )
++{
++    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI json_object_view_GetRuntimeClassName( IMapView_HSTRING_IJsonValue *iface, HSTRING *class_name )
++{
++    FIXME( "iface %p, class_name %p stub!\n", iface, class_name );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI json_object_view_GetTrustLevel( IMapView_HSTRING_IJsonValue *iface, TrustLevel *trust_level )
++{
++    FIXME( "iface %p, trust_level %p stub!\n", iface, trust_level );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI json_object_view_Lookup( IMapView_HSTRING_IJsonValue *iface, HSTRING key, IJsonValue **value )
++{
++    struct json_object_view *impl = impl_from_IMapView_HSTRING_IJsonValue( iface );
++    return IMap_HSTRING_IJsonValue_Lookup( &impl->object->IMap_HSTRING_IJsonValue_iface, key, value );
++}
++
++static HRESULT WINAPI json_object_view_get_Size( IMapView_HSTRING_IJsonValue *iface, UINT32 *size )
++{
++    struct json_object_view *impl = impl_from_IMapView_HSTRING_IJsonValue( iface );
++    return IMap_HSTRING_IJsonValue_get_Size( &impl->object->IMap_HSTRING_IJsonValue_iface, size );
++}
++
++static HRESULT WINAPI json_object_view_HasKey( IMapView_HSTRING_IJsonValue *iface, HSTRING key, boolean *found )
++{
++    struct json_object_view *impl = impl_from_IMapView_HSTRING_IJsonValue( iface );
++    return IMap_HSTRING_IJsonValue_HasKey( &impl->object->IMap_HSTRING_IJsonValue_iface, key, found );
++}
++
++static HRESULT WINAPI json_object_view_Split( IMapView_HSTRING_IJsonValue *iface, IMapView_HSTRING_IJsonValue **first,
++                                              IMapView_HSTRING_IJsonValue **second )
++{
++    TRACE( "iface %p, first %p, second %p.\n", iface, first, second );
++    /* IMapView.Split may decline to split; both halves are then null. */
++    if (!first || !second) return E_POINTER;
++    *first = *second = NULL;
++    return S_OK;
++}
++
++static const struct IMapView_HSTRING_IJsonValueVtbl json_object_view_vtbl =
++{
++    json_object_view_QueryInterface,
++    json_object_view_AddRef,
++    json_object_view_Release,
++    json_object_view_GetIids,
++    json_object_view_GetRuntimeClassName,
++    json_object_view_GetTrustLevel,
++    json_object_view_Lookup,
++    json_object_view_get_Size,
++    json_object_view_HasKey,
++    json_object_view_Split,
++};
++
++DEFINE_IINSPECTABLE_( json_object_view_iterable, IIterable_IKeyValuePair_HSTRING_IJsonValue, struct json_object_view, view_impl_from_IIterable_IKeyValuePair_HSTRING_IJsonValue,
++                      IIterable_IKeyValuePair_HSTRING_IJsonValue_iface, &impl->IMapView_HSTRING_IJsonValue_iface )
++
++static HRESULT WINAPI json_object_view_iterable_First( IIterable_IKeyValuePair_HSTRING_IJsonValue *iface, IIterator_IKeyValuePair_HSTRING_IJsonValue **value )
++{
++    struct json_object_view *impl = view_impl_from_IIterable_IKeyValuePair_HSTRING_IJsonValue( iface );
++    return IIterable_IKeyValuePair_HSTRING_IJsonValue_First( &impl->object->IIterable_IKeyValuePair_HSTRING_IJsonValue_iface, value );
++}
++
++static const struct IIterable_IKeyValuePair_HSTRING_IJsonValueVtbl json_object_view_iterable_vtbl =
++{
++    json_object_view_iterable_QueryInterface,
++    json_object_view_iterable_AddRef,
++    json_object_view_iterable_Release,
++    json_object_view_iterable_GetIids,
++    json_object_view_iterable_GetRuntimeClassName,
++    json_object_view_iterable_GetTrustLevel,
++    json_object_view_iterable_First,
++};
++
++static HRESULT WINAPI json_object_map_GetView( IMap_HSTRING_IJsonValue *iface, IMapView_HSTRING_IJsonValue **view )
++{
++    struct json_object *impl = impl_from_IMap_HSTRING_IJsonValue( iface );
++    struct json_object_view *obj;
++
++    TRACE( "iface %p, view %p.\n", iface, view );
++
++    if (!view) return E_POINTER;
++    if (!(obj = calloc( 1, sizeof(*obj) ))) return E_OUTOFMEMORY;
++    obj->IMapView_HSTRING_IJsonValue_iface.lpVtbl = &json_object_view_vtbl;
++    obj->IIterable_IKeyValuePair_HSTRING_IJsonValue_iface.lpVtbl = &json_object_view_iterable_vtbl;
++    obj->ref = 1;
++    obj->object = impl;
++    IJsonObject_AddRef( &impl->IJsonObject_iface );
++    *view = &obj->IMapView_HSTRING_IJsonValue_iface;
++    return S_OK;
++}
++static HRESULT WINAPI json_object_map_Insert( IMap_HSTRING_IJsonValue *iface, HSTRING key, IJsonValue *value, boolean *replaced )
++{
++    struct json_object *impl = impl_from_IMap_HSTRING_IJsonValue( iface );
++    HRESULT hr;
++
++    TRACE( "iface %p, key %s, value %p, replaced %p.\n", iface, debugstr_hstring( key ), value, replaced );
++
++    if (!replaced) return E_POINTER;
++    if (FAILED(hr = IMap_HSTRING_IInspectable_HasKey( impl->members, key, replaced ))) return hr;
++    return json_object_SetNamedValue( &impl->IJsonObject_iface, key, value );
++}
++
++static HRESULT WINAPI json_object_map_Remove( IMap_HSTRING_IJsonValue *iface, HSTRING key )
++{
++    struct json_object *impl = impl_from_IMap_HSTRING_IJsonValue( iface );
++    boolean exists;
++    HRESULT hr;
++
++    TRACE( "iface %p, key %s.\n", iface, debugstr_hstring( key ) );
++
++    if (FAILED(hr = IMap_HSTRING_IInspectable_HasKey( impl->members, key, &exists ))) return hr;
++    if (!exists) return E_BOUNDS;
++    return json_object_SetNamedValue( &impl->IJsonObject_iface, key, NULL );
++}
++
++static HRESULT WINAPI json_object_map_Clear( IMap_HSTRING_IJsonValue *iface )
++{
++    struct json_object *impl = impl_from_IMap_HSTRING_IJsonValue( iface );
++    HRESULT hr;
++
++    TRACE( "iface %p.\n", iface );
++
++    if (FAILED(hr = IMap_HSTRING_IInspectable_Clear( impl->members ))) return hr;
++    while (impl->key_count) WindowsDeleteString( impl->keys[--impl->key_count] );
++    return S_OK;
++}
++
++static const struct IMap_HSTRING_IJsonValueVtbl json_object_map_vtbl =
++{
++    json_object_map_QueryInterface,
++    json_object_map_AddRef,
++    json_object_map_Release,
++    json_object_map_GetIids,
++    json_object_map_GetRuntimeClassName,
++    json_object_map_GetTrustLevel,
++    json_object_map_Lookup,
++    json_object_map_get_Size,
++    json_object_map_HasKey,
++    json_object_map_GetView,
++    json_object_map_Insert,
++    json_object_map_Remove,
++    json_object_map_Clear,
++};
  struct json_object_statics
  {
      IActivationFactory IActivationFactory_iface;
-@@ -220,18 +514,36 @@
+@@ -220,18 +1057,38 @@
  
  static HRESULT WINAPI factory_ActivateInstance( IActivationFactory *iface, IInspectable **instance )
  {
@@ -10187,6 +13231,8 @@ diff -u a/dlls/windows.web/json_object.c b/dlls/windows.web/json_object.c
 +    impl->IJsonObject_iface.lpVtbl = &json_object_vtbl;
 +    impl->IJsonValue_iface.lpVtbl = &json_object_value_vtbl;
 +    impl->IStringable_iface.lpVtbl = &json_object_stringable_vtbl;
++    impl->IMap_HSTRING_IJsonValue_iface.lpVtbl = &json_object_map_vtbl;
++    impl->IIterable_IKeyValuePair_HSTRING_IJsonValue_iface.lpVtbl = &json_object_iterable_vtbl;
      impl->ref = 1;
  
 +    WindowsCreateStringReference( RuntimeClass_Windows_Foundation_Collections_PropertySet, wcslen( RuntimeClass_Windows_Foundation_Collections_PropertySet ),
@@ -10230,7 +13276,29 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
  #include "private.h"
  #include "wine/debug.h"
  
-@@ -121,10 +128,14 @@
+@@ -26,6 +33,7 @@
+ {
+     IActivationFactory IActivationFactory_iface;
+     IJsonValueStatics IJsonValueStatics_iface;
++    IJsonValueStatics2 IJsonValueStatics2_iface;
+     LONG ref;
+ };
+ 
+@@ -57,6 +65,13 @@
+         return S_OK;
+     }
+ 
++    if (IsEqualGUID( iid, &IID_IJsonValueStatics2 ))
++    {
++        *out = &impl->IJsonValueStatics2_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
+     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
+     *out = NULL;
+     return E_NOINTERFACE;
+@@ -121,10 +136,14 @@
      LONG ref;
  
      JsonValueType json_value_type;
@@ -10249,7 +13317,7 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
  };
  
  static inline struct json_value *impl_from_IJsonValue( IJsonValue *iface )
-@@ -170,8 +181,13 @@
+@@ -170,8 +189,13 @@
  
      if (!ref)
      {
@@ -10265,7 +13333,7 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
          free( impl );
      }
      return ref;
-@@ -205,12 +221,180 @@
+@@ -205,12 +229,180 @@
  
      *value = impl->json_value_type;
      return S_OK;
@@ -10448,7 +13516,7 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
  }
  
  static HRESULT WINAPI json_value_GetString( IJsonValue *iface, HSTRING *value )
-@@ -222,7 +406,7 @@
+@@ -222,7 +414,7 @@
      if (impl->json_value_type != JsonValueType_String) return E_ILLEGAL_METHOD_CALL;
      if (!value) return E_POINTER;
  
@@ -10457,7 +13525,7 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
  }
  
  static HRESULT WINAPI json_value_GetNumber( IJsonValue *iface, DOUBLE *value )
-@@ -234,7 +418,7 @@
+@@ -234,7 +426,7 @@
      if (impl->json_value_type != JsonValueType_Number) return E_ILLEGAL_METHOD_CALL;
      if (!value) return E_POINTER;
  
@@ -10466,7 +13534,7 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
      return S_OK;
  }
  
-@@ -247,7 +431,7 @@
+@@ -247,7 +439,7 @@
      if (impl->json_value_type != JsonValueType_Boolean) return E_ILLEGAL_METHOD_CALL;
      if (!value) return E_POINTER;
  
@@ -10475,7 +13543,7 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
      return S_OK;
  }
  
-@@ -255,24 +439,28 @@
+@@ -255,24 +447,28 @@
  {
      struct json_value *impl = impl_from_IJsonValue( iface );
  
@@ -10508,7 +13576,7 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
  }
  
  static const struct IJsonValueVtbl json_value_vtbl =
-@@ -296,126 +484,305 @@
+@@ -296,126 +492,305 @@
  
  DEFINE_IINSPECTABLE( json_value_statics, IJsonValueStatics, struct json_value_statics, IActivationFactory_iface )
  
@@ -10582,11 +13650,6 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
 +    while (json->len && *json->str != '"')
      {
 -        impl->json_value_type = JsonValueType_Null;
--    }
--    else if ((len == 4 && !wcsncmp( L"true", json, 4 )) || (len == 5 && !wcsncmp( L"false", json, 5 )))
--    {
--        impl->parsed_boolean = len == 4;
--        impl->json_value_type = JsonValueType_Boolean;
 +        if (json_buffer_take( json, L"\\\"", FALSE ))      *(dst++) = '"';
 +        else if (json_buffer_take( json, L"\\\\", FALSE )) *(dst++) = '\\';
 +        else if (json_buffer_take( json, L"\\/", FALSE ))  *(dst++) = '/';
@@ -10622,26 +13685,28 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
 +            return WEB_E_INVALID_JSON_STRING;
 +        }
      }
+-    else if ((len == 4 && !wcsncmp( L"true", json, 4 )) || (len == 5 && !wcsncmp( L"false", json, 5 )))
+-    {
+-        impl->parsed_boolean = len == 4;
+-        impl->json_value_type = JsonValueType_Boolean;
+-    }
 -    else if (json[0] == '\"' && json[len - 1] == '\"')
 -    {
 -        json++;
 -        len -= 2;
- 
--        if (len <= 2) return WEB_E_INVALID_JSON_STRING;
--        if (FAILED(hr = unescape_string( json, &impl->parsed_string ))) return hr;
++
 +    hr = WindowsCreateString( buf, dst - buf, output );
 +    free( buf );
 +    return hr;
 +}
- 
--        impl->json_value_type = JsonValueType_String;
--    }
--    else if (json[0] == '[' && json[len - 1] == ']')
++
 +static BOOL json_is_digit( WCHAR chr )
 +{
 +    return chr >= '0' && chr <= '9';
 +}
-+
+ 
+-        if (len <= 2) return WEB_E_INVALID_JSON_STRING;
+-        if (FAILED(hr = unescape_string( json, &impl->parsed_string ))) return hr;
 +/* strict RFC 8259 number grammar; grammar errors are string errors, range errors are number errors */
 +static HRESULT parse_json_number( struct json_buffer *json, double *number )
 +{
@@ -10650,7 +13715,10 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
 +    BOOL nonzero = FALSE;
 +    WCHAR *buf;
 +    double result;
-+
+ 
+-        impl->json_value_type = JsonValueType_String;
+-    }
+-    else if (json[0] == '[' && json[len - 1] == ']')
 +    if (pos < len && str[pos] == '-') pos++;
 +    if (pos < len && str[pos] == '0') pos++;
 +    else if (pos < len && str[pos] >= '1' && str[pos] <= '9')
@@ -10884,7 +13952,7 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
  static HRESULT WINAPI json_value_statics_TryParse( IJsonValueStatics *iface, HSTRING input, IJsonValue **result, boolean *succeeded )
  {
      FIXME( "iface %p, input %s, result %p, succeeded %p stub!\n", iface, debugstr_hstring( input ), result, succeeded );
-@@ -424,14 +791,40 @@
+@@ -424,14 +799,40 @@
  
  static HRESULT WINAPI json_value_statics_CreateBooleanValue( IJsonValueStatics *iface, boolean input, IJsonValue **value )
  {
@@ -10929,7 +13997,7 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
  }
  
  static HRESULT WINAPI json_value_statics_CreateStringValue( IJsonValueStatics *iface, HSTRING input, IJsonValue **value )
-@@ -449,8 +842,8 @@
+@@ -449,8 +850,8 @@
      impl->json_value_type = JsonValueType_String;
      if (FAILED(hr = WindowsDuplicateString( input, &impl->string_value )))
      {
@@ -10940,6 +14008,51 @@ diff -u a/dlls/windows.web/json_value.c b/dlls/windows.web/json_value.c
      }
  
      *value = &impl->IJsonValue_iface;
+@@ -475,10 +876,44 @@
+     json_value_statics_CreateStringValue,
+ };
+ 
++DEFINE_IINSPECTABLE( json_value_statics2, IJsonValueStatics2, struct json_value_statics, IActivationFactory_iface )
++
++static HRESULT WINAPI json_value_statics2_CreateNullValue( IJsonValueStatics2 *iface, IJsonValue **value )
++{
++    struct json_value *impl;
++
++    TRACE( "iface %p, value %p\n", iface, value );
++
++    if (!value) return E_POINTER;
++    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
++
++    impl->IJsonValue_iface.lpVtbl = &json_value_vtbl;
++    impl->ref = 1;
++    impl->json_value_type = JsonValueType_Null;
++
++    *value = &impl->IJsonValue_iface;
++    TRACE( "created IJsonValue %p.\n", *value );
++    return S_OK;
++}
++
++static const struct IJsonValueStatics2Vtbl json_value_statics2_vtbl =
++{
++    json_value_statics2_QueryInterface,
++    json_value_statics2_AddRef,
++    json_value_statics2_Release,
++    /* IInspectable methods */
++    json_value_statics2_GetIids,
++    json_value_statics2_GetRuntimeClassName,
++    json_value_statics2_GetTrustLevel,
++    /* IJsonValueStatics2 methods */
++    json_value_statics2_CreateNullValue,
++};
++
+ static struct json_value_statics json_value_statics =
+ {
+     {&factory_vtbl},
+     {&json_value_statics_vtbl},
++    {&json_value_statics2_vtbl},
+     1,
+ };
+ 
 diff -u a/dlls/windows.web/main.c b/dlls/windows.web/main.c
 --- a/dlls/windows.web/main.c
 +++ b/dlls/windows.web/main.c
@@ -11593,7 +14706,7 @@ diff -u a/include/appmodel.h b/include/appmodel.h
  #define APPLICATION_USER_MODEL_ID_MIN_LENGTH 21
  
  typedef enum AppPolicyMediaFoundationCodecLoading
-@@ -87,6 +89,51 @@
+@@ -87,6 +89,52 @@
  }
  PACKAGE_ID;
  
@@ -11625,6 +14738,7 @@ diff -u a/include/appmodel.h b/include/appmodel.h
 +}
 +PACKAGE_INFO;
 +
++LONG WINAPI GetCurrentPackageFamilyName(UINT32*,WCHAR*);
 +LONG WINAPI GetCurrentPackageFullName(UINT32*,WCHAR*);
 +LONG WINAPI GetCurrentPackageInfo(const UINT32,UINT32*,BYTE*,UINT32*);
 +LONG WINAPI GetCurrentPackageInfo2(const UINT32,PackagePathType,UINT32*,BYTE*,UINT32*);
@@ -11645,7 +14759,7 @@ diff -u a/include/appmodel.h b/include/appmodel.h
  LONG WINAPI AppPolicyGetMediaFoundationCodecLoading(HANDLE token, AppPolicyMediaFoundationCodecLoading *policy);
  LONG WINAPI AppPolicyGetProcessTerminationMethod(HANDLE token, AppPolicyProcessTerminationMethod *policy);
  LONG WINAPI AppPolicyGetShowDeveloperDiagnostic(HANDLE token, AppPolicyShowDeveloperDiagnostic *policy);
-@@ -99,3 +146,153 @@
+@@ -99,3 +147,153 @@
  #endif
  
  #endif /* _APPMODEL_H_ */
@@ -11913,6 +15027,35 @@ diff -u a/include/winbase.h b/include/winbase.h
  WINBASEAPI BOOL        WINAPI ClearCommBreak(HANDLE);
  WINBASEAPI BOOL        WINAPI ClearCommError(HANDLE,LPDWORD,LPCOMSTAT);
  WINADVAPI  VOID        WINAPI CloseEncryptedFileRaw(PVOID);
+diff -u a/include/windows.data.json.idl b/include/windows.data.json.idl
+--- a/include/windows.data.json.idl
++++ b/include/windows.data.json.idl
+@@ -129,6 +129,16 @@
+     }
+ 
+     [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.Data.Json.JsonValue),
++        uuid(1d9ecbe4-3fe8-4335-8392-93d8e36865f0)
++    ]
++    interface IJsonValueStatics2 : IInspectable
++    {
++        HRESULT CreateNullValue([out, retval] Windows.Data.Json.JsonValue **value);
++    }
++
++    [
+         activatable(Windows.Foundation.UniversalApiContract, 1.0),
+         contract(Windows.Foundation.UniversalApiContract, 1.0),
+         marshaling_behavior(agile),
+@@ -165,7 +175,7 @@
+         contract(Windows.Foundation.UniversalApiContract, 1.0),
+         marshaling_behavior(agile),
+         static(Windows.Data.Json.IJsonValueStatics, Windows.Foundation.UniversalApiContract, 1.0),
+-        /* static(Windows.Data.Json.IJsonValueStatics2, Windows.Foundation.UniversalApiContract, 1.0), */
++        static(Windows.Data.Json.IJsonValueStatics2, Windows.Foundation.UniversalApiContract, 1.0),
+         threading(both)
+     ]
+     runtimeclass JsonValue
 diff -u a/include/winternl.h b/include/winternl.h
 --- a/include/winternl.h
 +++ b/include/winternl.h

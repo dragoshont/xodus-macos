@@ -601,3 +601,14 @@ br170 (05:00) DROP-IN (external): composition owner's partner POC 2a8ed1b wincom
   C:\wincomp_poc.dll. RESULT: app alive (exit 92), hermes loads. wincomp_poc.log: DllGetActivationFactory Compositor;
   CreateInteropCompositor dev=0 cb=...; QI NOINTERFACE {e7894c70} (first EnsureDCompDevice QI). Sent to 8dac952d.
   No visible window content (headless run; composition device not available).
+  (correction: br170 ran at ~04:53, not 05:00.)
+br171 (05:10) CLEAN CANDIDATE VERIFICATION. Diagnostics reverted to baselines: ntdll exception.c <- .pre-hrdiag,
+  combase roapi.c <- .pre-errdiag, marshal.c <- .pre-psdiag (diffs verified diagnostic-only). Prefix: ntdll 296d4c71,
+  combase e1babffe, shcore e822e291. External drop-ins (not Wine source): dcomp_native.dll cd3f0a57 (dcomp=n,b),
+  C:\wincomp_poc.dll = partner POC 3d8392a3 (DIAGNOSTIC, composition owner), native ICU icu/icuuc/icuin 72.1.0.4
+  from the 26300 host, native Windows.Graphics.dll (measured row). RESULT: exit 92 (alive); log: hermes.dll
+  "Loaded ... native", Microsoft.ReactNative.dll "Loaded ... native"; wincomp_poc.log ends at QI NOINTERFACE {e7894c70}.
+  Cumulative patch wine-xbox-original-app-sprint.patch regenerated (113 files + configure.ac, ASCII, no diagnostics).
+  STATUS: no visible window. XBOX-APP-STARTUP stays UNTESTED. Blocker: Windows.UI.Xaml renders via native dcomp's
+  private partner device (e7894c70 / DeviceInternal 6b556968 / SurfaceFactoryPartner); composition owner (8dac952d)
+  declined success-shaped stubs; both lanes agree.

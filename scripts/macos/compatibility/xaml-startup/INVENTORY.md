@@ -124,3 +124,17 @@ Each new entry is appended below as the experiment proceeds (id, run, sha256, cl
 | E-05 | brE5 | wincomp_exp10.dll (DeviceInternal 3-8, Partner4 45/46/57 benign, INV-10) | 8efa3539ae3644c1 | EXPERIMENT-STUB | run once; removed; new slots never reached (headless wall) |
 | X-01 | brE6 | Windows.UI.Xaml.dll UpdateWindowVisibility+0x6f setne dl -> mov dl,1 (force render-enable) | RVA 0x3fdbfb 0F95C2->B20190 | EXPERIMENT-STUB (NATIVE-COPY patch) | tested; NO effect; reverted (.preXvis backup) |
 | G-01 | brG1 | headed Aqua run (winemac window shown) + screencapture | n/a | DIAGNOSTIC | window shown but no XAML Commit; screencapture failed (display asleep/TCC) |
+## PAUSE / final clean state (2026-10-09 ~17:3x, project paused for budget)
+
+All EXPERIMENT and DIAGNOSTIC changes reverted. Mac prefix restored to the clean
+candidate **br171**. Verified at pause:
+- `wincomp_poc.dll` = sha256 `3d8392a3573f7c0f...` (br171); restore baseline
+  `wincomp_poc.dll.br170` retained.
+- `Windows.UI.Xaml.dll` X-01 patch reverted (bytes back to `0F95C2`); my
+  `.preXvis` and `.br171bak` backups deleted. Remaining `.pre-*` backups belong to
+  other baselines (not this lane).
+- No processes, wineservers, or LaunchAgents of this lane running; my caffeinate pid gone.
+Nothing observed past the frame-path wall (NotifyDirty + GetFrameStatistics). Render
+target / Commit = **UNTESTED**. Visible window + screenshot = **UNTESTED**. Next step and
+rerun steps: see `HANDOVER.md` (zero-size swapchain "Image count 0" gate; d14 slot 7
+CreateSurfaceFactory never reached).

@@ -132,8 +132,10 @@ pins and unchanged account/gameplay gates.
 
 The user requires source-level support for four selectable runtime options:
 Apple Game Porting Toolkit 3, Toolkit 4, a legitimate existing CrossOver
-installation, and standalone/source-built Wine. Toolkit 4 is the current
-game-trial default, not a restriction on the product's provider API.
+installation, and standalone/source-built Wine. The user's current default is
+CrossOver; Toolkit and standalone Wine alternatives remain experimental and
+must not replace that default implicitly. The earlier Toolkit 4 game-trial
+choice is historical, not a restriction on the product's provider API.
 
 Execution engine, source/provenance and version must be modeled independently
 from graphics renderer/backend and version. Standalone Wine 11 with Apple

@@ -836,6 +836,88 @@ target/operation/scope permissions before side effects. The private final
 assessment's visibility and main SHA `437f10b86fb62789ecee1d4d688a9bbc633c6d5f`
 were independently checked by the coordinator.
 
+### Overnight result (2026-10-08 22:40 to 2026-10-09 05:50)
+
+Sources: runtime side branch `dragoshont-xbox-app-shell-navigation-client`
+(final `f527d52`, not merged) and the private composition repo
+`dragoshont/wine-composition-research` (final `2463c117`). Results are
+**owner-reported by the two workers**; the coordinator verified that the cited
+commits exist and read the key outcome records. All runs were **headless**.
+Owner direction at 19:58: caps and the go/no-go gate lifted, no launch cap, the
+Mac is a disposable dev machine; 06:00 product freeze and 08:00 report unchanged.
+
+**Milestone ladder, by evidence (original unchanged Xbox app):**
+
+| Milestone | Status | Evidence |
+|---|---|---|
+| ConnectionComplete, activation, ready-to-navigate | Observed | `a1d2688` (br108-br118) |
+| ShowWindow / WM_PAINT on the CoreWindow | Observed (headless) | `b78dbd9` |
+| Survives XAML startup (real refresh-interval wait) | Observed | `00896cf` |
+| App's main XAML loads; React Native native library, WinUI, D3D device | Observed | `37310fe` (br159) |
+| hermes (JavaScript engine) loads; app alive for 420 s | Observed | `985a84b` (br168-br169) |
+| `Windows.UI.Composition.Compositor` activates in the real app (via an external drop-in) | Observed | `4c63f94`, `985a84b` |
+| XAML first-frame partner-call walk | Measured with DIAGNOSTIC skeletons only | `91c13fb`, `009a1fa`, `f527d52` (brD1-brD5) |
+| Activated in a clean run | **Not confirmed** (seen only in a perturbed diagnostic run) | `3c3308e` |
+| Any pixel from the app, visible window | **Not reached** | all records |
+| Genuine sign-in, real account library | **Not reached, unaccepted** | none |
+
+The runtime owner's own status stays **XBOX-APP-STARTUP UNTESTED**: no visible
+window, no frame, no authentication, no library.
+
+**Real blocker.** After the Compositor activates, `Windows.UI.Xaml` renders
+through native dcomp's **private partner device** (`DeviceInternal`
+`{6b556968}` and about ten sibling partner interfaces, roughly 280 vtable
+slots; static PDB counts). The composition worker's Compositor flattens onto
+classic DirectComposition and cannot supply them as built. A DIAGNOSTIC
+skeleton (every slot logs and answers an honest `E_NOTIMPL`, never a fake
+success) discovered about one new requirement per 4-minute run: five
+requirements in five runs (interop QI walk, device hint slots, `CreateVisual`,
+the visual property-change partner, `IVisual` getters, then `ICompositionObject`
+`get_Properties` and one unidentified interface `{fe93b735}`, tolerated so far).
+Composition's own labeled, low-confidence estimate is 10 to 30 more such steps
+before a first draw; real drawing (surface, primitive, color, animation
+partners) is a separate multi-day layer with no validated estimate.
+**G1 is not met** (the first-frame partner-slot table exists only for the
+walk reached so far); no funding is recommended on the standalone POC.
+
+**Composition proof of concept (private repo, standalone, not the Xbox app):**
+Windows.UI.Composition Compositor factory over staging classic dcomp; one Apple
+GL configuration; intermittent (9 of 10, a midnight regression was the worker's
+own lost patch, fixed); 745 of 745 staging window-DC tests passed on that
+configuration. Scale is baked, opacity fixed; no clip, transform, animation or
+shapes yet. It installs into the runtime owner's Wine 11.0 without a rebuild
+(`fdf838d`).
+
+**Candidate hygiene.** The runtime owner restored the clean candidate br171
+(cumulative `wine-xbox-original-app-sprint.patch`, 113 files, no diagnostics).
+Diagnostic skeletons, the ntdll backtrace and error diagnostics are excluded.
+External drop-ins are tracked by hash (`dcomp_native.dll` `cd3f0a57`,
+`wincomp_poc.dll`). Nothing is merged into this branch.
+
+**Honest caveats for the owner.**
+
+- **Provenance:** several pieces are **native Windows files copied from a
+  Windows 11 host** (ICU 72.1.0.4, `Windows.Graphics.dll`, native
+  `gameplatformservices.dll`, the XAML resource DLLs, and earlier native XAML
+  and WinRT DLLs). Their redistribution and licensing status is undecided;
+  treat the experimental prefix as local only.
+- **Review:** the runtime code (cumulative patch) has had no independent
+  runtime-code review; no Wine conformance run; native-VM confirmation remains
+  pending (Parallels still down). The timer fix, WNF models, shcore, kernelbase
+  and dwrite changes are Wine-only verified.
+- **Failed experiments recorded:** ExtendedExecution (needs the ExecModel
+  broker) and a ThreadPoolTimer worker-thread crash; Gaming Services package is
+  genuinely not installed (real absence, not faked).
+- **Resumed or corrected mid-night:** composition worker idled three times and
+  was resumed; the earlier "resource system is the gate" report was corrected
+  to the real `RequestedTheme` gate (missing `dwrite` interface).
+
+**Next experiment, if the owner funds it:** continue the measured
+partner-slot walk (about one requirement per 4-minute run) on the disposable
+Mac until the first draw or a hard wall, then decide on the native-dcomp
+private-layer build with a measured slot set. Sign-in and library remain
+human-controlled and follow a visible window.
+
 ### G0 specification-driven execution contract
 
 The owner's `/architrave` direction is to plan thoroughly, use the canvas and

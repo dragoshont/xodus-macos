@@ -2,12 +2,12 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-09T17:11:23+03:00",
-  phase: "Stopped by user — remaining-work inventory and triage only",
-  paused: true,
-  pauseReason: "No implementation, build, signing, deployment or GUI work. Installed 39fd687; latest source fcf8a36 contains uninstalled copy fixes. Minecraft eligibility and account access remain unresolved.",
+  updatedAt: "2026-10-09T17:26:17+03:00",
+  phase: "SDD program resumed — access-qualified Library first",
+  paused: false,
+  pauseReason: "",
   baseline: { installed: "39fd687", source: "fcf8a36", backend: "a3036bf", note: "Installed app and source differ. Historical completion labels refer to bounded slices, not full Xbox parity or release acceptance." },
-  budget: { totalHours: 48, spentHours: 43.25, note: "Historical 48 h grant; used-hours figure is the prior estimate, not a live clock. All further work paused for triage." },
+  budget: { totalHours: 48, spentHours: 43.25, note: "Historical budget/used-hours estimate retained; no new total estimate for all 43 rows. User authorizes SDD implementation; foreground/auth/release gates preserved." },
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -49,15 +49,15 @@ window.XODUS_STATUS = {
         { id: "D9", title: "Game stats from Xbox", hours: 1.0, status: "done", done: "Play time, achievements and friends who play shown on Library and detail", evidence: "Account-bound Xbox stats and 15-minute refresh installed. Full profile and achievement-detail views are new parity scope below." },
         { id: "P1", title: "Xbox inventory and adversarial review", hours: 0.75, status: "done", done: "Source-backed 1:1 feature inventory, every-view review, uncovered original specs and one consolidated verdict", evidence: "REVISE: dual-access bug, missing companion/Engines pages, incomplete acquisition semantics and generic install errors. Original release-spec gaps catalogued." },
         { id: "P2", title: "Parity contracts and tomorrow triage", hours: 0.5, status: "done", done: "Ordered native/browser/unavailable plan; research-only extras separated from approved implementation", evidence: "Private backend 8cfcbaf: real profile, one console, four friends and 45 Hogwarts achievements; 13 parser/account-cache regressions pass. No console mutation." },
-        { id: "P3", title: "Library eligibility and access (reopened)", hours: 0.75, status: "blocked", done: "Personal Library includes verified account access, not public candidates or installation alone", evidence: "Dual badges are implemented. New Library rule, Minecraft edition/account mismatch and incomplete Game Pass coverage are unresolved; see R01-R07." },
+        { id: "P3", title: "Library eligibility and access (SDD)", hours: 0.75, status: "now", done: "Personal Library includes verified account access, not public candidates or installation alone", evidence: "First frozen SDD slice implementing eligibility across grid/count/hero/recent/filter seams, preserving imports separately; focused regressions before source acceptance." },
         { id: "P4", title: "Xbox profile and achievements", hours: 1.25, status: "done", done: "Real profile, gamer identity/G score and achievement views with account-safe paging/cache/errors", evidence: "39fd687 installed; real Profile and achievement-game list captured. Per-game drilldown and complete acceptance remain R09/R15." },
         { id: "P5", title: "Consoles and browser remote play", hours: 0.75, status: "done", done: "Actual console inventory where supported; verified official browser handoff, never invented devices or deep links", evidence: "Actual console shown from backend cache; publisher's browser Remote Play and setup links wired. No native streaming, wake commands or invented device links." },
         { id: "P6", title: "Native Engines page", hours: 0.75, status: "done", done: "CrossOver and configured alternatives, observed components/readiness, safe defaults and honest experimental states", evidence: "Dedicated native Engines destination installed via Account, Settings and keyboard/menu; existing governed runtime section reused." },
-        { id: "P7", title: "Final parity acceptance (paused)", hours: 1.25, status: "paused", done: "Finish latest-source CI/package and remaining native acceptance after triage", evidence: "User stopped work. Copy fixes bce4407/fcf8a36 are committed but uninstalled; Engines, live dual badge and exact browser destination acceptance remain open." }
+        { id: "P7", title: "Final integrated acceptance", hours: 1.25, status: "blocked", done: "Finish each accepted SDD slice with source review, exact CI/package and native acceptance", evidence: "Source implementation resumed. Native GUI still held by Xbox lane; no packaging/deployment or complete-product claim from source checks alone." }
       ],
 
   remainingWork: [
-    { id: "R01", priority: "P0", state: "partial", work: "Personal Library eligibility", next: "Owned or actual active PC Game Pass; separate unknown-access imports from eligible Your Games." },
+    { id: "R01", priority: "P0", state: "active", work: "Personal Library eligibility", next: "SDD-LIB-01..08 source implementation and live-model regressions underway; one exclusive app owner." },
     { id: "R02", priority: "P0", state: "partial", work: "Minecraft product, edition and package", next: "Resolve Launcher versus playable PC editions and prove exact account/SKU access; no name inference." },
     { id: "R03", priority: "P0", state: "partial", work: "Store versus Xbox game account", next: "Explain mismatches; authorization refusal must not become not-owned or Mac-unsupported." },
     { id: "R04", priority: "P0", state: "partial", work: "Game Pass coverage and freshness", next: "Verify overlapping badges, incomplete feed, expiry/revocation and current subscription access." },
@@ -193,6 +193,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-09T17:26:17+03:00", text: "User resumes all remaining work using SDD. Canonical 43-criterion program created; eligible Library slice implementing, Minecraft exact identity traced independently." },
     { at: "2026-10-09T17:11:00+03:00", text: "User stops implementation. Verified 43 remaining-work items; personal Library eligibility and Minecraft account/edition inconsistency are first priorities." },
     { at: "2026-10-09T08:10:00+03:00", text: "Morning native review resumed: real Profile/Achievements/Consoles observed; one focused consumer-copy and access-refusal correction batch before final acceptance" },
     { at: "2026-10-09T02:10:00+03:00", text: "39fd687 parity build installed and independently source-reviewed PASS; exact CI and all 22 files verified. Final native walkthrough awaits Mac unlock" },

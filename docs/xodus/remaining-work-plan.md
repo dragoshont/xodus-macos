@@ -1,9 +1,10 @@
 # Xodus remaining-work plan (spec-driven)
 
-**Current status, 9 October 2026:** implementation is stopped by the user.
+**Current status, 9 October 2026, 17:26:** user authorizes SDD implementation.
 [The remaining-capability inventory](remaining-capability-inventory.md) is the
-current triage source: 43 outstanding correctness, acceptance, feature and
-release items. Completion statements below describe historical bounded
+current accepted source: 43 outstanding correctness, acceptance, feature and
+release items, starting with its frozen Library-access slice.
+Completion statements below describe historical bounded
 slices, not full Xbox parity or general-release qualification.
 
 Status date: 7 October 2026. Baseline: installed app `0926414` with the

@@ -4,7 +4,7 @@
 `c12a89d` after the atomic detail/trailer reliability fix. This review is not a
 claim that the new parity features were already installed.
 
-**Current status:** implementation is stopped by the user. See
+**Current status, 17:26:** user has resumed implementation using SDD. See
 [remaining-work inventory](remaining-capability-inventory.md) for the verified
 installed `39fd687` versus committed `fcf8a36` baseline and the reopened
 Library/Minecraft correctness issues. Earlier source PASS is narrow and does

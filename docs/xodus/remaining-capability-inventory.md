@@ -1,9 +1,14 @@
 # Xodus remaining work: stopped baseline and triage inventory
 
-Updated: 9 October 2026. **Implementation is stopped at the user's request.**
-This document inventories remaining work; it does not authorize its execution.
-No GUI input, focus changes, capture, builds, signing, deployment, licence
-requests or game actions were performed to prepare this inventory.
+Updated: 9 October 2026. The inventory was prepared while implementation was
+stopped. **At 17:26 the user authorized analysis and implementation of this
+body of work using SDD.** All 43 rows remain in scope; their presence is not a
+claim of feasibility or completion.
+
+The inventory itself used read-only checks. The new SDD program implements
+dependency-ready slices, records genuine unsupported/human-gated outcomes, and
+does not manufacture service capabilities. The Xbox lane's 17:11 foreground hold
+remains in force until an explicit release; source work can proceed without it.
 
 ## Verified baseline
 
@@ -87,7 +92,11 @@ be offered as a known eligible personal-library item; retain an honest error.
 - **Source only:** committed change is not in the installed application.
 - **Deferred:** explicit user decision or separate scope; not silently complete.
 
-All rows below are paused. Priority is a proposed order, not a new work grant.
+Rows below are the accepted program inventory. Work status is tracked on the
+dashboard; completion requires the exit evidence, not merely a committed view.
+Earlier user deferrals are now queued for feasibility/specification, but real
+first-login, fresh-Mac access, new permissions and release credentials still
+require the applicable human action.
 
 ## Complete remaining-work ledger
 
@@ -174,7 +183,7 @@ pages and image-cache implementation. The remaining work is selective
 correctness, acceptance and deliberately triaged features—not replacing the
 launcher again.
 
-## Proposed restart order (not executing)
+## SDD execution order
 
 1. Resolve R01-R04 together: personal Library inclusion, Minecraft exact identity,
    account scope and Game Pass freshness/coverage.
@@ -186,6 +195,62 @@ launcher again.
 
 No reliable estimate for all 43 rows follows from the previous six-hour budget.
 Keep that historical grant; estimate the chosen next batch only after triage.
+
+## Frozen first slice: eligible Library and truthful package access
+
+Owner: one app implementer. Mutable scope: app source, directly related tests
+and specifications. Root owns the private backend and the inventory/dashboard.
+No packaging, signing, app replacement or GUI use before this slice's code
+checks and independent review; no new authentication or uncertain licence retry.
+
+**Objective:** Your Games and its hero/counts must not promote public catalogue
+candidates or installation alone into personal access. Existing local games,
+launchers and saves remain preserved and reachable as explicitly local records.
+
+| Acceptance | Required behavior |
+| --- | --- |
+| SDD-LIB-01 | A current account-held PC entitlement is eligible whether installed or not. No assumption that it was purchased for money. |
+| SDD-LIB-02 | A PC Game Pass product with current active-access evidence is eligible even if not owned. Owned and Game Pass remain independent and may coexist. |
+| SDD-LIB-03 | Public-only, console-only, inactive/trial-only, expired/revoked and unresolved access do not enter the access-qualified personal grid or inflate its count. |
+| SDD-LIB-04 | A locally installed/imported game with unverified current access remains a preserved local record. Expose it separately with an access warning, not as Owned or an eligible featured game. Do not delete files or saves. |
+| SDD-LIB-05 | Personal search, sorting, hero and Continue Playing use the same eligibility decision. A public Store search result may remain in Discover, clearly distinct from Your Games. |
+| SDD-LIB-06 | Partial Game Pass discovery does not establish non-membership. Failed/partial access refresh is not proof that the user has no games. Show qualified stale/partial/error state and preserve safe cache/account boundaries. |
+| SDD-LIB-07 | Package-authorization failure preserves the known collection fact and is distinct from package incompatibility. Explain Store/game-account or edition resolution, never infer “not owned” from a licence refusal. |
+| SDD-LIB-08 | Minecraft Launcher versus actual playable editions remains unresolved until exact product/SKU/package facts are traced. No title-name matching, invented ownership or broad new sign-in/licence experiments. |
+
+Focused regressions cover owned-only, Game-Pass-only, both, public-only,
+installed-without-access, console-only, account change, stale/partial feed,
+revocation and package refusal. Tests must reach the live presentation/model
+seam, not a disconnected test-only eligibility helper.
+
+The first slice can correct Library classification before every broader feature
+is feasible. It must not claim complete Game Pass enumeration, paid/free
+acquisition proof, fresh-Mac distribution or all 43 rows done.
+
+### First independent identity observation
+
+Bounded public DisplayCatalog reads, joined only to existing title/product
+metadata, confirmed:
+
+| Product ID | Observed catalogue identity | PC applicability observed |
+| --- | --- | --- |
+| `9PGW18NPBZV5` | Minecraft Launcher; Xbox title `1794566092` | Windows.Desktop MSIXVC SKUs `0010`, `0017`, `0011` |
+| `9NBLGGH2JHXJ` | Minecraft for Windows; Xbox title `896928775` | Windows.Desktop MSIXVC SKUs `0011`, `0017`, `0010` |
+| `BZ8MZF8444Z5` | Minecraft: Windows 10 Edition Beta | No Windows.Desktop SKU in the inspected response |
+
+This establishes distinct identities, not ownership, Game Pass membership,
+licence access or Mac playability. No credential exchange, licence issuance,
+game download or GUI operation was used for the observation.
+
+### Program traceability
+
+Canonical program: `xodus-sdd-program-20261009`, created through the repository
+runtime API with all 43 inventory acceptance rows. First active task is
+`eligible-library`; root's independent `minecraft-identity` work stays read-only.
+Subsequent dependency tasks are `acceptance-account-ux`,
+`jobs-storage-updates`, `runtime-online-services`, `social-xbox-extras` and
+`release-onboarding`. The rows remain the detailed acceptance authority; task
+registration does not declare any feature implemented.
 
 ## Evidence and related ledgers
 

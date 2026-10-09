@@ -3,12 +3,12 @@
 Status: expanded intake, 9 October 2026. The prior design delivery is a working
 baseline, not evidence of complete Xbox feature parity.
 
-**Superseded execution state:** the user has stopped implementation and
-requested a [full remaining-work inventory](remaining-capability-inventory.md).
-That stopped-baseline inventory is now authoritative for triage, including the
-personal-Library eligibility correction and Minecraft's unresolved
-edition/account/package authorization. The ordered delivery below is historical,
-not permission to resume work.
+**Current execution state, 17:26:** the user has authorized SDD implementation
+of the [full remaining-work inventory](remaining-capability-inventory.md).
+That 43-item inventory and its frozen first slice are now authoritative,
+including personal-Library eligibility and Minecraft's unresolved
+edition/account/package authorization. The older P1-P8 ledger below is history,
+not proof that the 43-item program is done.
 
 ## User outcome
 

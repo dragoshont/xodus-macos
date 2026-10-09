@@ -170,8 +170,8 @@
   <p class="sub">Historical slices are not full parity or release acceptance. The stopped-work inventory below is the current triage source. Width in the bar is proportional to the earlier estimates.</p>
   <div class="backlog" id="backlog"></div>
 
-  <h2>Remaining work — implementation stopped</h2>
-  <p class="sub">P0: access correctness. P1: complete existing behavior and acceptance. P2: broader feature triage. P3: general-release gates. All work is paused; these priorities do not authorize execution. <a href="../remaining-capability-inventory.md">Full inventory, evidence and acceptance</a>.</p>
+  <h2>Remaining work — SDD program</h2>
+  <p class="sub">P0: access correctness. P1: complete existing behavior and acceptance. P2: broader features and service feasibility. P3: general-release gates. Implementation is dependency-driven; a tracked requirement is not a shipped feature. <a href="../remaining-capability-inventory.md">Full inventory, frozen first slice and acceptance</a>.</p>
   <p class="sub" id="remaining-summary"></p>
   <div class="inventory-wrap">
     <table class="inventory">
@@ -252,7 +252,7 @@ function render(s) {
     <div class="h">${i.hours} h</div>
     <div class="state ${esc(i.status)}">${STATE_LABEL[i.status] || esc(i.status)}</div>`).join("");
 
-  const remainingLabels = { missing: "Missing", partial: "Partial", unverified: "Unverified", source: "Source only", deferred: "Deferred" };
+  const remainingLabels = { active: "Implementing", missing: "Missing", partial: "Partial", unverified: "Unverified", source: "Source only", deferred: "Deferred / gated" };
   const remainingItems = s.remainingWork || [];
   const blockers = remainingItems.filter(i => i.priority === "P0").length;
   document.getElementById("remaining-summary").textContent = remainingItems.length ?

@@ -1,0 +1,11 @@
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -1,1 +1,3 @@
+ #include "rpcbindingcreate-server-catalog.c"
++#include "rpcbindingcreate-attributes.c"
++#include "rpcbindingcreate-class-registration.c"
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -1,1 +1,1 @@
+-@ stub RoGetActivatableClassRegistration
++@ stdcall RoGetActivatableClassRegistration(ptr ptr)

@@ -1,0 +1,995 @@
+diff --git a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
+index f20e42a..c9d46a3 100644
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -333,6 +333,7 @@
+ # @ stub NtQueryQuotaInformationFile
+ @ stdcall -syscall=0x0051 NtQuerySection(long long ptr long ptr)
+ @ stdcall -syscall NtQuerySecurityObject(long long ptr long ptr)
++@ stdcall -syscall NtQuerySecurityAttributesToken(long ptr long ptr long ptr)
+ @ stdcall -syscall NtQuerySemaphore (long long ptr long ptr)
+ @ stdcall -syscall NtQuerySymbolicLinkObject(long ptr ptr)
+ @ stdcall -syscall NtQuerySystemEnvironmentValue(ptr ptr long ptr)
+@@ -1405,6 +1406,7 @@
+ # @ stub ZwQueryQuotaInformationFile
+ @ stdcall -private ZwQuerySection(long long ptr long ptr) NtQuerySection
+ @ stdcall -private ZwQuerySecurityObject(long long ptr long ptr) NtQuerySecurityObject
++@ stdcall -private ZwQuerySecurityAttributesToken(long ptr long ptr long ptr) NtQuerySecurityAttributesToken
+ @ stdcall -private ZwQuerySemaphore(long long ptr long ptr) NtQuerySemaphore
+ @ stdcall -private ZwQuerySymbolicLinkObject(long ptr ptr) NtQuerySymbolicLinkObject
+ @ stdcall -private ZwQuerySystemEnvironmentValue(ptr ptr long ptr) NtQuerySystemEnvironmentValue
+diff --git a/dlls/ntdll/ntsyscalls.h b/dlls/ntdll/ntsyscalls.h
+index 02c7625..0b33bfe 100644
+--- a/dlls/ntdll/ntsyscalls.h
++++ b/dlls/ntdll/ntsyscalls.h
+@@ -199,73 +199,74 @@
+     SYSCALL_ENTRY( 0x00c3, NtQueryLicenseValue, 20 ) \
+     SYSCALL_ENTRY( 0x00c4, NtQueryMultipleValueKey, 24 ) \
+     SYSCALL_ENTRY( 0x00c5, NtQueryMutant, 20 ) \
+-    SYSCALL_ENTRY( 0x00c6, NtQuerySecurityObject, 20 ) \
+-    SYSCALL_ENTRY( 0x00c7, NtQuerySemaphore, 20 ) \
+-    SYSCALL_ENTRY( 0x00c8, NtQuerySymbolicLinkObject, 12 ) \
+-    SYSCALL_ENTRY( 0x00c9, NtQuerySystemEnvironmentValue, 16 ) \
+-    SYSCALL_ENTRY( 0x00ca, NtQuerySystemEnvironmentValueEx, 20 ) \
+-    SYSCALL_ENTRY( 0x00cb, NtQuerySystemInformationEx, 24 ) \
+-    SYSCALL_ENTRY( 0x00cc, NtQueryTimerResolution, 12 ) \
+-    SYSCALL_ENTRY( 0x00cd, NtQueueApcThreadEx, 24 ) \
+-    SYSCALL_ENTRY( 0x00ce, NtQueueApcThreadEx2, 28 ) \
+-    SYSCALL_ENTRY( 0x00cf, NtRaiseException, 12 ) \
+-    SYSCALL_ENTRY( 0x00d0, NtRaiseHardError, 24 ) \
+-    SYSCALL_ENTRY( 0x00d1, NtRegisterThreadTerminatePort, 4 ) \
+-    SYSCALL_ENTRY( 0x00d2, NtReleaseKeyedEvent, 16 ) \
+-    SYSCALL_ENTRY( 0x00d3, NtRemoveIoCompletionEx, 24 ) \
+-    SYSCALL_ENTRY( 0x00d4, NtRemoveProcessDebug, 8 ) \
+-    SYSCALL_ENTRY( 0x00d5, NtRenameKey, 8 ) \
+-    SYSCALL_ENTRY( 0x00d6, NtReplaceKey, 12 ) \
+-    SYSCALL_ENTRY( 0x00d7, NtResetEvent, 8 ) \
+-    SYSCALL_ENTRY( 0x00d8, NtResetWriteWatch, 12 ) \
+-    SYSCALL_ENTRY( 0x00d9, NtRestoreKey, 12 ) \
+-    SYSCALL_ENTRY( 0x00da, NtResumeProcess, 4 ) \
+-    SYSCALL_ENTRY( 0x00db, NtRollbackTransaction, 8 ) \
+-    SYSCALL_ENTRY( 0x00dc, NtSaveKey, 8 ) \
+-    SYSCALL_ENTRY( 0x00dd, NtSecureConnectPort, 36 ) \
+-    SYSCALL_ENTRY( 0x00de, NtSetContextThread, 8 ) \
+-    SYSCALL_ENTRY( 0x00df, NtSetDebugFilterState, 12 ) \
+-    SYSCALL_ENTRY( 0x00e0, NtSetDefaultLocale, 8 ) \
+-    SYSCALL_ENTRY( 0x00e1, NtSetDefaultUILanguage, 4 ) \
+-    SYSCALL_ENTRY( 0x00e2, NtSetEaFile, 16 ) \
+-    SYSCALL_ENTRY( 0x00e3, NtSetInformationDebugObject, 20 ) \
+-    SYSCALL_ENTRY( 0x00e4, NtSetInformationJobObject, 16 ) \
+-    SYSCALL_ENTRY( 0x00e5, NtSetInformationKey, 16 ) \
+-    SYSCALL_ENTRY( 0x00e6, NtSetInformationToken, 16 ) \
+-    SYSCALL_ENTRY( 0x00e7, NtSetInformationVirtualMemory, 24 ) \
+-    SYSCALL_ENTRY( 0x00e8, NtSetIntervalProfile, 8 ) \
+-    SYSCALL_ENTRY( 0x00e9, NtSetIoCompletion, 20 ) \
+-    SYSCALL_ENTRY( 0x00ea, NtSetIoCompletionEx, 24 ) \
+-    SYSCALL_ENTRY( 0x00eb, NtSetLdtEntries, 24 ) \
+-    SYSCALL_ENTRY( 0x00ec, NtSetSecurityObject, 12 ) \
+-    SYSCALL_ENTRY( 0x00ed, NtSetSystemInformation, 12 ) \
+-    SYSCALL_ENTRY( 0x00ee, NtSetSystemTime, 8 ) \
+-    SYSCALL_ENTRY( 0x00ef, NtSetThreadExecutionState, 8 ) \
+-    SYSCALL_ENTRY( 0x00f0, NtSetTimerResolution, 12 ) \
+-    SYSCALL_ENTRY( 0x00f1, NtSetVolumeInformationFile, 20 ) \
+-    SYSCALL_ENTRY( 0x00f2, NtShutdownSystem, 4 ) \
+-    SYSCALL_ENTRY( 0x00f3, NtSignalAndWaitForSingleObject, 16 ) \
+-    SYSCALL_ENTRY( 0x00f4, NtSuspendProcess, 4 ) \
+-    SYSCALL_ENTRY( 0x00f5, NtSuspendThread, 8 ) \
+-    SYSCALL_ENTRY( 0x00f6, NtSystemDebugControl, 24 ) \
+-    SYSCALL_ENTRY( 0x00f7, NtTerminateJobObject, 8 ) \
+-    SYSCALL_ENTRY( 0x00f8, NtTestAlert, 0 ) \
+-    SYSCALL_ENTRY( 0x00f9, NtTraceControl, 24 ) \
+-    SYSCALL_ENTRY( 0x00fa, NtUnloadDriver, 4 ) \
+-    SYSCALL_ENTRY( 0x00fb, NtUnloadKey, 4 ) \
+-    SYSCALL_ENTRY( 0x00fc, NtUnlockFile, 20 ) \
+-    SYSCALL_ENTRY( 0x00fd, NtUnlockVirtualMemory, 16 ) \
+-    SYSCALL_ENTRY( 0x00fe, NtUnmapViewOfSectionEx, 12 ) \
+-    SYSCALL_ENTRY( 0x00ff, NtWaitForAlertByThreadId, 8 ) \
+-    SYSCALL_ENTRY( 0x0100, NtWaitForDebugEvent, 16 ) \
+-    SYSCALL_ENTRY( 0x0101, NtWaitForKeyedEvent, 16 ) \
+-    SYSCALL_ENTRY( 0x0102, NtWow64AllocateVirtualMemory64, 28 ) \
+-    SYSCALL_ENTRY( 0x0103, NtWow64GetNativeSystemInformation, 16 ) \
+-    SYSCALL_ENTRY( 0x0104, NtWow64IsProcessorFeaturePresent, 4 ) \
+-    SYSCALL_ENTRY( 0x0105, NtWow64QueryInformationProcess64, 20 ) \
+-    SYSCALL_ENTRY( 0x0106, NtWow64ReadVirtualMemory64, 28 ) \
+-    SYSCALL_ENTRY( 0x0107, NtWow64WriteVirtualMemory64, 28 ) \
+-    SYSCALL_ENTRY( 0x0108, __wine_rpc_NtReadFile, 36 )
++    SYSCALL_ENTRY( 0x00c6, NtQuerySecurityAttributesToken, 24 ) \
++    SYSCALL_ENTRY( 0x00c7, NtQuerySecurityObject, 20 ) \
++    SYSCALL_ENTRY( 0x00c8, NtQuerySemaphore, 20 ) \
++    SYSCALL_ENTRY( 0x00c9, NtQuerySymbolicLinkObject, 12 ) \
++    SYSCALL_ENTRY( 0x00ca, NtQuerySystemEnvironmentValue, 16 ) \
++    SYSCALL_ENTRY( 0x00cb, NtQuerySystemEnvironmentValueEx, 20 ) \
++    SYSCALL_ENTRY( 0x00cc, NtQuerySystemInformationEx, 24 ) \
++    SYSCALL_ENTRY( 0x00cd, NtQueryTimerResolution, 12 ) \
++    SYSCALL_ENTRY( 0x00ce, NtQueueApcThreadEx, 24 ) \
++    SYSCALL_ENTRY( 0x00cf, NtQueueApcThreadEx2, 28 ) \
++    SYSCALL_ENTRY( 0x00d0, NtRaiseException, 12 ) \
++    SYSCALL_ENTRY( 0x00d1, NtRaiseHardError, 24 ) \
++    SYSCALL_ENTRY( 0x00d2, NtRegisterThreadTerminatePort, 4 ) \
++    SYSCALL_ENTRY( 0x00d3, NtReleaseKeyedEvent, 16 ) \
++    SYSCALL_ENTRY( 0x00d4, NtRemoveIoCompletionEx, 24 ) \
++    SYSCALL_ENTRY( 0x00d5, NtRemoveProcessDebug, 8 ) \
++    SYSCALL_ENTRY( 0x00d6, NtRenameKey, 8 ) \
++    SYSCALL_ENTRY( 0x00d7, NtReplaceKey, 12 ) \
++    SYSCALL_ENTRY( 0x00d8, NtResetEvent, 8 ) \
++    SYSCALL_ENTRY( 0x00d9, NtResetWriteWatch, 12 ) \
++    SYSCALL_ENTRY( 0x00da, NtRestoreKey, 12 ) \
++    SYSCALL_ENTRY( 0x00db, NtResumeProcess, 4 ) \
++    SYSCALL_ENTRY( 0x00dc, NtRollbackTransaction, 8 ) \
++    SYSCALL_ENTRY( 0x00dd, NtSaveKey, 8 ) \
++    SYSCALL_ENTRY( 0x00de, NtSecureConnectPort, 36 ) \
++    SYSCALL_ENTRY( 0x00df, NtSetContextThread, 8 ) \
++    SYSCALL_ENTRY( 0x00e0, NtSetDebugFilterState, 12 ) \
++    SYSCALL_ENTRY( 0x00e1, NtSetDefaultLocale, 8 ) \
++    SYSCALL_ENTRY( 0x00e2, NtSetDefaultUILanguage, 4 ) \
++    SYSCALL_ENTRY( 0x00e3, NtSetEaFile, 16 ) \
++    SYSCALL_ENTRY( 0x00e4, NtSetInformationDebugObject, 20 ) \
++    SYSCALL_ENTRY( 0x00e5, NtSetInformationJobObject, 16 ) \
++    SYSCALL_ENTRY( 0x00e6, NtSetInformationKey, 16 ) \
++    SYSCALL_ENTRY( 0x00e7, NtSetInformationToken, 16 ) \
++    SYSCALL_ENTRY( 0x00e8, NtSetInformationVirtualMemory, 24 ) \
++    SYSCALL_ENTRY( 0x00e9, NtSetIntervalProfile, 8 ) \
++    SYSCALL_ENTRY( 0x00ea, NtSetIoCompletion, 20 ) \
++    SYSCALL_ENTRY( 0x00eb, NtSetIoCompletionEx, 24 ) \
++    SYSCALL_ENTRY( 0x00ec, NtSetLdtEntries, 24 ) \
++    SYSCALL_ENTRY( 0x00ed, NtSetSecurityObject, 12 ) \
++    SYSCALL_ENTRY( 0x00ee, NtSetSystemInformation, 12 ) \
++    SYSCALL_ENTRY( 0x00ef, NtSetSystemTime, 8 ) \
++    SYSCALL_ENTRY( 0x00f0, NtSetThreadExecutionState, 8 ) \
++    SYSCALL_ENTRY( 0x00f1, NtSetTimerResolution, 12 ) \
++    SYSCALL_ENTRY( 0x00f2, NtSetVolumeInformationFile, 20 ) \
++    SYSCALL_ENTRY( 0x00f3, NtShutdownSystem, 4 ) \
++    SYSCALL_ENTRY( 0x00f4, NtSignalAndWaitForSingleObject, 16 ) \
++    SYSCALL_ENTRY( 0x00f5, NtSuspendProcess, 4 ) \
++    SYSCALL_ENTRY( 0x00f6, NtSuspendThread, 8 ) \
++    SYSCALL_ENTRY( 0x00f7, NtSystemDebugControl, 24 ) \
++    SYSCALL_ENTRY( 0x00f8, NtTerminateJobObject, 8 ) \
++    SYSCALL_ENTRY( 0x00f9, NtTestAlert, 0 ) \
++    SYSCALL_ENTRY( 0x00fa, NtTraceControl, 24 ) \
++    SYSCALL_ENTRY( 0x00fb, NtUnloadDriver, 4 ) \
++    SYSCALL_ENTRY( 0x00fc, NtUnloadKey, 4 ) \
++    SYSCALL_ENTRY( 0x00fd, NtUnlockFile, 20 ) \
++    SYSCALL_ENTRY( 0x00fe, NtUnlockVirtualMemory, 16 ) \
++    SYSCALL_ENTRY( 0x00ff, NtUnmapViewOfSectionEx, 12 ) \
++    SYSCALL_ENTRY( 0x0100, NtWaitForAlertByThreadId, 8 ) \
++    SYSCALL_ENTRY( 0x0101, NtWaitForDebugEvent, 16 ) \
++    SYSCALL_ENTRY( 0x0102, NtWaitForKeyedEvent, 16 ) \
++    SYSCALL_ENTRY( 0x0103, NtWow64AllocateVirtualMemory64, 28 ) \
++    SYSCALL_ENTRY( 0x0104, NtWow64GetNativeSystemInformation, 16 ) \
++    SYSCALL_ENTRY( 0x0105, NtWow64IsProcessorFeaturePresent, 4 ) \
++    SYSCALL_ENTRY( 0x0106, NtWow64QueryInformationProcess64, 20 ) \
++    SYSCALL_ENTRY( 0x0107, NtWow64ReadVirtualMemory64, 28 ) \
++    SYSCALL_ENTRY( 0x0108, NtWow64WriteVirtualMemory64, 28 ) \
++    SYSCALL_ENTRY( 0x0109, __wine_rpc_NtReadFile, 36 )
+ #ifdef _WIN64
+ #define ALL_SYSCALLS \
+     SYSCALL_ENTRY( 0x0000, NtAccessCheck, 64 ) \
+@@ -466,67 +467,68 @@
+     SYSCALL_ENTRY( 0x00c3, NtQueryLicenseValue, 40 ) \
+     SYSCALL_ENTRY( 0x00c4, NtQueryMultipleValueKey, 48 ) \
+     SYSCALL_ENTRY( 0x00c5, NtQueryMutant, 40 ) \
+-    SYSCALL_ENTRY( 0x00c6, NtQuerySecurityObject, 40 ) \
+-    SYSCALL_ENTRY( 0x00c7, NtQuerySemaphore, 40 ) \
+-    SYSCALL_ENTRY( 0x00c8, NtQuerySymbolicLinkObject, 24 ) \
+-    SYSCALL_ENTRY( 0x00c9, NtQuerySystemEnvironmentValue, 32 ) \
+-    SYSCALL_ENTRY( 0x00ca, NtQuerySystemEnvironmentValueEx, 40 ) \
+-    SYSCALL_ENTRY( 0x00cb, NtQuerySystemInformationEx, 48 ) \
+-    SYSCALL_ENTRY( 0x00cc, NtQueryTimerResolution, 24 ) \
+-    SYSCALL_ENTRY( 0x00cd, NtQueueApcThreadEx, 48 ) \
+-    SYSCALL_ENTRY( 0x00ce, NtQueueApcThreadEx2, 56 ) \
+-    SYSCALL_ENTRY( 0x00cf, NtRaiseException, 24 ) \
+-    SYSCALL_ENTRY( 0x00d0, NtRaiseHardError, 48 ) \
+-    SYSCALL_ENTRY( 0x00d1, NtRegisterThreadTerminatePort, 8 ) \
+-    SYSCALL_ENTRY( 0x00d2, NtReleaseKeyedEvent, 32 ) \
+-    SYSCALL_ENTRY( 0x00d3, NtRemoveIoCompletionEx, 48 ) \
+-    SYSCALL_ENTRY( 0x00d4, NtRemoveProcessDebug, 16 ) \
+-    SYSCALL_ENTRY( 0x00d5, NtRenameKey, 16 ) \
+-    SYSCALL_ENTRY( 0x00d6, NtReplaceKey, 24 ) \
+-    SYSCALL_ENTRY( 0x00d7, NtResetEvent, 16 ) \
+-    SYSCALL_ENTRY( 0x00d8, NtResetWriteWatch, 24 ) \
+-    SYSCALL_ENTRY( 0x00d9, NtRestoreKey, 24 ) \
+-    SYSCALL_ENTRY( 0x00da, NtResumeProcess, 8 ) \
+-    SYSCALL_ENTRY( 0x00db, NtRollbackTransaction, 16 ) \
+-    SYSCALL_ENTRY( 0x00dc, NtSaveKey, 16 ) \
+-    SYSCALL_ENTRY( 0x00dd, NtSecureConnectPort, 72 ) \
+-    SYSCALL_ENTRY( 0x00de, NtSetContextThread, 16 ) \
+-    SYSCALL_ENTRY( 0x00df, NtSetDebugFilterState, 24 ) \
+-    SYSCALL_ENTRY( 0x00e0, NtSetDefaultLocale, 16 ) \
+-    SYSCALL_ENTRY( 0x00e1, NtSetDefaultUILanguage, 8 ) \
+-    SYSCALL_ENTRY( 0x00e2, NtSetEaFile, 32 ) \
+-    SYSCALL_ENTRY( 0x00e3, NtSetInformationDebugObject, 40 ) \
+-    SYSCALL_ENTRY( 0x00e4, NtSetInformationJobObject, 32 ) \
+-    SYSCALL_ENTRY( 0x00e5, NtSetInformationKey, 32 ) \
+-    SYSCALL_ENTRY( 0x00e6, NtSetInformationToken, 32 ) \
+-    SYSCALL_ENTRY( 0x00e7, NtSetInformationVirtualMemory, 48 ) \
+-    SYSCALL_ENTRY( 0x00e8, NtSetIntervalProfile, 16 ) \
+-    SYSCALL_ENTRY( 0x00e9, NtSetIoCompletion, 40 ) \
+-    SYSCALL_ENTRY( 0x00ea, NtSetIoCompletionEx, 48 ) \
+-    SYSCALL_ENTRY( 0x00eb, NtSetLdtEntries, 32 ) \
+-    SYSCALL_ENTRY( 0x00ec, NtSetSecurityObject, 24 ) \
+-    SYSCALL_ENTRY( 0x00ed, NtSetSystemInformation, 24 ) \
+-    SYSCALL_ENTRY( 0x00ee, NtSetSystemTime, 16 ) \
+-    SYSCALL_ENTRY( 0x00ef, NtSetThreadExecutionState, 16 ) \
+-    SYSCALL_ENTRY( 0x00f0, NtSetTimerResolution, 24 ) \
+-    SYSCALL_ENTRY( 0x00f1, NtSetVolumeInformationFile, 40 ) \
+-    SYSCALL_ENTRY( 0x00f2, NtShutdownSystem, 8 ) \
+-    SYSCALL_ENTRY( 0x00f3, NtSignalAndWaitForSingleObject, 32 ) \
+-    SYSCALL_ENTRY( 0x00f4, NtSuspendProcess, 8 ) \
+-    SYSCALL_ENTRY( 0x00f5, NtSuspendThread, 16 ) \
+-    SYSCALL_ENTRY( 0x00f6, NtSystemDebugControl, 48 ) \
+-    SYSCALL_ENTRY( 0x00f7, NtTerminateJobObject, 16 ) \
+-    SYSCALL_ENTRY( 0x00f8, NtTestAlert, 0 ) \
+-    SYSCALL_ENTRY( 0x00f9, NtTraceControl, 48 ) \
+-    SYSCALL_ENTRY( 0x00fa, NtUnloadDriver, 8 ) \
+-    SYSCALL_ENTRY( 0x00fb, NtUnloadKey, 8 ) \
+-    SYSCALL_ENTRY( 0x00fc, NtUnlockFile, 40 ) \
+-    SYSCALL_ENTRY( 0x00fd, NtUnlockVirtualMemory, 32 ) \
+-    SYSCALL_ENTRY( 0x00fe, NtUnmapViewOfSectionEx, 24 ) \
+-    SYSCALL_ENTRY( 0x00ff, NtWaitForAlertByThreadId, 16 ) \
+-    SYSCALL_ENTRY( 0x0100, NtWaitForDebugEvent, 32 ) \
+-    SYSCALL_ENTRY( 0x0101, NtWaitForKeyedEvent, 32 ) \
+-    SYSCALL_ENTRY( 0x0102, __wine_rpc_NtReadFile, 72 )
++    SYSCALL_ENTRY( 0x00c6, NtQuerySecurityAttributesToken, 48 ) \
++    SYSCALL_ENTRY( 0x00c7, NtQuerySecurityObject, 40 ) \
++    SYSCALL_ENTRY( 0x00c8, NtQuerySemaphore, 40 ) \
++    SYSCALL_ENTRY( 0x00c9, NtQuerySymbolicLinkObject, 24 ) \
++    SYSCALL_ENTRY( 0x00ca, NtQuerySystemEnvironmentValue, 32 ) \
++    SYSCALL_ENTRY( 0x00cb, NtQuerySystemEnvironmentValueEx, 40 ) \
++    SYSCALL_ENTRY( 0x00cc, NtQuerySystemInformationEx, 48 ) \
++    SYSCALL_ENTRY( 0x00cd, NtQueryTimerResolution, 24 ) \
++    SYSCALL_ENTRY( 0x00ce, NtQueueApcThreadEx, 48 ) \
++    SYSCALL_ENTRY( 0x00cf, NtQueueApcThreadEx2, 56 ) \
++    SYSCALL_ENTRY( 0x00d0, NtRaiseException, 24 ) \
++    SYSCALL_ENTRY( 0x00d1, NtRaiseHardError, 48 ) \
++    SYSCALL_ENTRY( 0x00d2, NtRegisterThreadTerminatePort, 8 ) \
++    SYSCALL_ENTRY( 0x00d3, NtReleaseKeyedEvent, 32 ) \
++    SYSCALL_ENTRY( 0x00d4, NtRemoveIoCompletionEx, 48 ) \
++    SYSCALL_ENTRY( 0x00d5, NtRemoveProcessDebug, 16 ) \
++    SYSCALL_ENTRY( 0x00d6, NtRenameKey, 16 ) \
++    SYSCALL_ENTRY( 0x00d7, NtReplaceKey, 24 ) \
++    SYSCALL_ENTRY( 0x00d8, NtResetEvent, 16 ) \
++    SYSCALL_ENTRY( 0x00d9, NtResetWriteWatch, 24 ) \
++    SYSCALL_ENTRY( 0x00da, NtRestoreKey, 24 ) \
++    SYSCALL_ENTRY( 0x00db, NtResumeProcess, 8 ) \
++    SYSCALL_ENTRY( 0x00dc, NtRollbackTransaction, 16 ) \
++    SYSCALL_ENTRY( 0x00dd, NtSaveKey, 16 ) \
++    SYSCALL_ENTRY( 0x00de, NtSecureConnectPort, 72 ) \
++    SYSCALL_ENTRY( 0x00df, NtSetContextThread, 16 ) \
++    SYSCALL_ENTRY( 0x00e0, NtSetDebugFilterState, 24 ) \
++    SYSCALL_ENTRY( 0x00e1, NtSetDefaultLocale, 16 ) \
++    SYSCALL_ENTRY( 0x00e2, NtSetDefaultUILanguage, 8 ) \
++    SYSCALL_ENTRY( 0x00e3, NtSetEaFile, 32 ) \
++    SYSCALL_ENTRY( 0x00e4, NtSetInformationDebugObject, 40 ) \
++    SYSCALL_ENTRY( 0x00e5, NtSetInformationJobObject, 32 ) \
++    SYSCALL_ENTRY( 0x00e6, NtSetInformationKey, 32 ) \
++    SYSCALL_ENTRY( 0x00e7, NtSetInformationToken, 32 ) \
++    SYSCALL_ENTRY( 0x00e8, NtSetInformationVirtualMemory, 48 ) \
++    SYSCALL_ENTRY( 0x00e9, NtSetIntervalProfile, 16 ) \
++    SYSCALL_ENTRY( 0x00ea, NtSetIoCompletion, 40 ) \
++    SYSCALL_ENTRY( 0x00eb, NtSetIoCompletionEx, 48 ) \
++    SYSCALL_ENTRY( 0x00ec, NtSetLdtEntries, 32 ) \
++    SYSCALL_ENTRY( 0x00ed, NtSetSecurityObject, 24 ) \
++    SYSCALL_ENTRY( 0x00ee, NtSetSystemInformation, 24 ) \
++    SYSCALL_ENTRY( 0x00ef, NtSetSystemTime, 16 ) \
++    SYSCALL_ENTRY( 0x00f0, NtSetThreadExecutionState, 16 ) \
++    SYSCALL_ENTRY( 0x00f1, NtSetTimerResolution, 24 ) \
++    SYSCALL_ENTRY( 0x00f2, NtSetVolumeInformationFile, 40 ) \
++    SYSCALL_ENTRY( 0x00f3, NtShutdownSystem, 8 ) \
++    SYSCALL_ENTRY( 0x00f4, NtSignalAndWaitForSingleObject, 32 ) \
++    SYSCALL_ENTRY( 0x00f5, NtSuspendProcess, 8 ) \
++    SYSCALL_ENTRY( 0x00f6, NtSuspendThread, 16 ) \
++    SYSCALL_ENTRY( 0x00f7, NtSystemDebugControl, 48 ) \
++    SYSCALL_ENTRY( 0x00f8, NtTerminateJobObject, 16 ) \
++    SYSCALL_ENTRY( 0x00f9, NtTestAlert, 0 ) \
++    SYSCALL_ENTRY( 0x00fa, NtTraceControl, 48 ) \
++    SYSCALL_ENTRY( 0x00fb, NtUnloadDriver, 8 ) \
++    SYSCALL_ENTRY( 0x00fc, NtUnloadKey, 8 ) \
++    SYSCALL_ENTRY( 0x00fd, NtUnlockFile, 40 ) \
++    SYSCALL_ENTRY( 0x00fe, NtUnlockVirtualMemory, 32 ) \
++    SYSCALL_ENTRY( 0x00ff, NtUnmapViewOfSectionEx, 24 ) \
++    SYSCALL_ENTRY( 0x0100, NtWaitForAlertByThreadId, 16 ) \
++    SYSCALL_ENTRY( 0x0101, NtWaitForDebugEvent, 32 ) \
++    SYSCALL_ENTRY( 0x0102, NtWaitForKeyedEvent, 32 ) \
++    SYSCALL_ENTRY( 0x0103, __wine_rpc_NtReadFile, 72 )
+ #else
+ #define ALL_SYSCALLS ALL_SYSCALLS32
+ #endif
+diff --git a/dlls/ntdll/unix/security.c b/dlls/ntdll/unix/security.c
+index 949af82..e9faf89 100644
+--- a/dlls/ntdll/unix/security.c
++++ b/dlls/ntdll/unix/security.c
+@@ -33,6 +33,7 @@
+ #include "winternl.h"
+ #include "unix_private.h"
+ #include "wine/debug.h"
++#include "wine/token_security.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(ntdll);
+ 
+@@ -321,6 +322,58 @@ static const char *debugstr_TokenInformationClass( TOKEN_INFORMATION_CLASS class
+ /***********************************************************************
+  *             NtQueryInformationToken  (NTDLL.@)
+  */
++NTSTATUS WINAPI NtQuerySecurityAttributesToken( HANDLE token, UNICODE_STRING *attributes,
++                                                ULONG count, void *buffer, ULONG length, ULONG *retlen )
++{
++    struct tsa_name names[TSA_MAX_ATTRS];
++    void *data = NULL;
++    unsigned int bytes = 0, allocated = 0, i, attempt;
++    uint32_t required;
++    NTSTATUS status;
++
++    if (!retlen || count > TSA_MAX_ATTRS || (count && !attributes) ||
++        (sizeof(void *) == 8 && !count && attributes))
++        return STATUS_INVALID_PARAMETER;
++    for (i = 0; i < count; ++i)
++    {
++        if (!attributes[i].Buffer || !attributes[i].Length || (attributes[i].Length & 1))
++            return STATUS_INVALID_PARAMETER;
++        names[i].text = attributes[i].Buffer;
++        names[i].bytes = attributes[i].Length;
++    }
++    for (attempt = 0; attempt < 3; ++attempt)
++    {
++        SERVER_START_REQ( get_token_security_attributes )
++        {
++            req->handle = wine_server_obj_handle( token );
++            if (allocated) wine_server_set_reply( req, data, allocated );
++            status = wine_server_call( req );
++            bytes = reply->attributes_len;
++        }
++        SERVER_END_REQ;
++        if (status != STATUS_BUFFER_TOO_SMALL) break;
++        if (bytes < sizeof(struct tsa_header) || bytes > TSA_MAX_BYTES)
++        {
++            status = STATUS_INVALID_PARAMETER;
++            break;
++        }
++        free( data );
++        allocated = bytes;
++        if (!(data = malloc( allocated )))
++        {
++            status = STATUS_NO_MEMORY;
++            break;
++        }
++    }
++    if (!status)
++    {
++        status = tsa_query( data, bytes, count ? names : NULL, count, buffer, length, &required );
++        *retlen = required;
++    }
++    free( data );
++    return status;
++}
++
+ NTSTATUS WINAPI NtQueryInformationToken( HANDLE token, TOKEN_INFORMATION_CLASS class,
+                                          void *info, ULONG length, ULONG *retlen )
+ {
+@@ -375,6 +428,9 @@ NTSTATUS WINAPI NtQueryInformationToken( HANDLE token, TOKEN_INFORMATION_CLASS c
+ 
+     TRACE( "(%p,%s,%p,%d,%p)\n", token, debugstr_TokenInformationClass(class), info, length, retlen );
+ 
++    if (class == TokenSecurityAttributes)
++        return NtQuerySecurityAttributesToken( token, NULL, 0, info, length, retlen );
++
+     if (class < MaxTokenInfoClass) len = info_len[class];
+     if (retlen) *retlen = len;
+     if (length < len) return STATUS_BUFFER_TOO_SMALL;
+diff --git a/dlls/ntdll/unix/server.c b/dlls/ntdll/unix/server.c
+index 1e77a4e..af2e5c1 100644
+--- a/dlls/ntdll/unix/server.c
++++ b/dlls/ntdll/unix/server.c
+@@ -1305,7 +1305,7 @@ static const char *init_server_dir( dev_t dev, ino_t ino )
+ {
+     char *dir = NULL;
+ 
+-#ifdef __ANDROID__  /* there's no /tmp dir on Android */
++#if defined(__ANDROID__) || defined(__APPLE__)  /* keep test-runtime sockets prefix-local */
+     asprintf( &dir, "%s/.wineserver/server-%llx-%llx", config_dir, (unsigned long long)dev, (unsigned long long)ino );
+ #else
+     asprintf( &dir, "/tmp/.wine-%u/server-%llx-%llx", getuid(), (unsigned long long)dev, (unsigned long long)ino );
+diff --git a/dlls/win32u/vulkan.c b/dlls/win32u/vulkan.c
+index 49eac27..efcbc14 100644
+--- a/dlls/win32u/vulkan.c
++++ b/dlls/win32u/vulkan.c
+@@ -3006,7 +3006,14 @@ static void vulkan_init_once(void)
+     if (!(libvulkan = getenv( "CX_LIBVULKAN" )) ||
+         !(graphics_backend = getenv( "CX_ACTIVE_GRAPHICS_BACKEND" )) ||
+         strcmp( graphics_backend, "wined3d" ))
++    {
++#ifdef SONAME_LIBVULKAN
+         libvulkan = SONAME_LIBVULKAN;
++#else
++        ERR( "Vulkan library is unavailable in this build\n" );
++        return;
++#endif
++    }
+     else
+         ERR( "Using %s\n", libvulkan );
+ 
+diff --git a/dlls/wow64/security.c b/dlls/wow64/security.c
+index 0c00aa7..1000b8b 100644
+--- a/dlls/wow64/security.c
++++ b/dlls/wow64/security.c
+@@ -427,6 +427,8 @@ NTSTATUS WINAPI wow64_NtQueryInformationToken( UINT *args )
+ 
+     switch (class)
+     {
++    case TokenSecurityAttributes:
++        return STATUS_NOT_SUPPORTED; /* pointer-width conversion is not implemented */
+     case TokenPrivileges: /* TOKEN_PRIVILEGES */
+     case TokenImpersonationLevel:  /* SECURITY_IMPERSONATION_LEVEL */
+     case TokenStatistics:  /* TOKEN_STATISTICS */
+@@ -556,6 +558,13 @@ NTSTATUS WINAPI wow64_NtQueryInformationToken( UINT *args )
+ /**********************************************************************
+  *           wow64_NtQuerySecurityObject
+  */
++NTSTATUS WINAPI wow64_NtQuerySecurityAttributesToken( UINT *args )
++{
++    /* Do not return 64-bit pointers in a 32-bit token attribute buffer. */
++    (void)args;
++    return STATUS_NOT_SUPPORTED;
++}
++
+ NTSTATUS WINAPI wow64_NtQuerySecurityObject( UINT *args )
+ {
+     HANDLE handle = get_handle( &args );
+diff --git a/include/Makefile.in b/include/Makefile.in
+index 516c03f..6352768 100644
+--- a/include/Makefile.in
++++ b/include/Makefile.in
+@@ -990,6 +990,7 @@ SOURCES = \
+ 	wine/schrpc.idl \
+ 	wine/server.h \
+ 	wine/server_protocol.h \
++	wine/token_security.h \
+ 	wine/strmbase.h \
+ 	wine/svcctl.idl \
+ 	wine/test.h \
+diff --git a/include/wine/server_protocol.h b/include/wine/server_protocol.h
+index 6168668..59a8d06 100644
+--- a/include/wine/server_protocol.h
++++ b/include/wine/server_protocol.h
+@@ -4872,6 +4872,20 @@ struct duplicate_token_reply
+     char __pad_12[4];
+ };
+ 
++
++struct get_token_security_attributes_request
++{
++    struct request_header __header;
++    obj_handle_t  handle;
++};
++struct get_token_security_attributes_reply
++{
++    struct reply_header __header;
++    data_size_t   attributes_len;
++    /* VARARG(attributes,bytes); */
++    char __pad_12[4];
++};
++
+ struct filter_token_request
+ {
+     struct request_header __header;
+@@ -6389,6 +6403,7 @@ enum request
+     REQ_get_token_privileges,
+     REQ_check_token_privileges,
+     REQ_duplicate_token,
++    REQ_get_token_security_attributes,
+     REQ_filter_token,
+     REQ_access_check,
+     REQ_get_token_sid,
+@@ -6702,6 +6717,7 @@ union generic_request
+     struct get_token_privileges_request get_token_privileges_request;
+     struct check_token_privileges_request check_token_privileges_request;
+     struct duplicate_token_request duplicate_token_request;
++    struct get_token_security_attributes_request get_token_security_attributes_request;
+     struct filter_token_request filter_token_request;
+     struct access_check_request access_check_request;
+     struct get_token_sid_request get_token_sid_request;
+@@ -7013,6 +7029,7 @@ union generic_reply
+     struct get_token_privileges_reply get_token_privileges_reply;
+     struct check_token_privileges_reply check_token_privileges_reply;
+     struct duplicate_token_reply duplicate_token_reply;
++    struct get_token_security_attributes_reply get_token_security_attributes_reply;
+     struct filter_token_reply filter_token_reply;
+     struct access_check_reply access_check_reply;
+     struct get_token_sid_reply get_token_sid_reply;
+@@ -7095,6 +7112,6 @@ union generic_reply
+     struct d3dkmt_mutex_release_reply d3dkmt_mutex_release_reply;
+ };
+ 
+-#define SERVER_PROTOCOL_VERSION 1809
++#define SERVER_PROTOCOL_VERSION 1810
+ 
+ #endif /* __WINE_WINE_SERVER_PROTOCOL_H */
+diff --git a/include/wine/token_security.h b/include/wine/token_security.h
+new file mode 100644
+index 0000000..06f133c
+--- /dev/null
++++ b/include/wine/token_security.h
+@@ -0,0 +1,250 @@
++/*
++ * Token security-attribute wire storage and native query marshalling.
++ * Copyright 2026 Xodus contributors
++ * SPDX-License-Identifier: LGPL-2.1-or-later
++ *
++ * This header is also installed as include/wine/token_security.h by the
++ * accompanying Wine patch. No package provisioning or public token setter is
++ * implemented here. Producers must supply genuine activation attributes.
++ */
++#ifndef XODUS_TOKEN_SECURITY_ATTRIBUTES_H
++#define XODUS_TOKEN_SECURITY_ATTRIBUTES_H
++
++#include <stdint.h>
++#include <stddef.h>
++#include <stdlib.h>
++#include <string.h>
++
++#define TSA_SUCCESS       UINT32_C(0)
++#define TSA_INVALID       UINT32_C(0xc000000d)
++#define TSA_NO_MEMORY     UINT32_C(0xc0000017)
++#define TSA_TOO_SMALL     UINT32_C(0xc0000023)
++#define TSA_NOT_SUPPORTED UINT32_C(0xc00000bb)
++#define TSA_NOT_FOUND     UINT32_C(0xc0000225)
++#define TSA_MAX_BYTES     (1024u * 1024u)
++#define TSA_MAX_ATTRS     256u
++
++struct tsa_header { uint32_t version, count; };
++struct tsa_attribute {
++    uint32_t name, name_bytes;
++    uint16_t type, reserved;
++    uint32_t flags, count, values;
++};
++struct tsa_string { uint32_t offset, bytes; };
++struct tsa_name { const void *text; uint32_t bytes; };
++struct tsa_store { void *data; uint32_t bytes; };
++
++static inline int tsa_range(uint32_t bytes, uint32_t offset, uint64_t size)
++{
++    return offset <= bytes && size <= bytes - offset;
++}
++
++static inline uint16_t tsa_u16(const void *p)
++{
++    uint16_t v;
++    memcpy(&v, p, sizeof(v));
++    return v;
++}
++
++static inline int tsa_equal(const void *a, const void *b, uint32_t bytes)
++{
++    uint32_t i;
++    for (i = 0; i < bytes; i += 2) {
++        uint16_t x = tsa_u16((const char *)a + i), y = tsa_u16((const char *)b + i);
++        /* Security-attribute names used by package activation are ASCII.
++           Preserve exact equality for non-ASCII instead of locale folding. */
++        if (x >= 'a' && x <= 'z') x -= 'a' - 'A';
++        if (y >= 'a' && y <= 'z') y -= 'a' - 'A';
++        if (x != y) return 0;
++    }
++    return 1;
++}
++
++static inline uint32_t tsa_validate(const void *data, uint32_t bytes)
++{
++    const struct tsa_header *h = data;
++    const struct tsa_attribute *attrs;
++    uint32_t i, j;
++    if (!data || bytes < sizeof(*h) || bytes > TSA_MAX_BYTES ||
++        h->version != 1 || h->count > TSA_MAX_ATTRS ||
++        !tsa_range(bytes, sizeof(*h), (uint64_t)h->count * sizeof(*attrs)))
++        return TSA_INVALID;
++    attrs = (const struct tsa_attribute *)(h + 1);
++    for (i = 0; i < h->count; ++i) {
++        const struct tsa_attribute *a = attrs + i;
++        if (!a->name_bytes || a->name_bytes > 65532 || (a->name_bytes & 1) ||
++            !tsa_range(bytes, a->name, a->name_bytes) || a->reserved ||
++            a->count > TSA_MAX_BYTES / 8) return TSA_INVALID;
++        for (j = 0; j < a->name_bytes; j += 2)
++            if (!tsa_u16((const char *)data + a->name + j)) return TSA_INVALID;
++        for (j = 0; j < i; ++j)
++            if (attrs[j].name_bytes == a->name_bytes &&
++                tsa_equal((const char *)data + attrs[j].name,
++                          (const char *)data + a->name, a->name_bytes))
++                return TSA_INVALID;
++        switch (a->type) {
++        case 1: case 2: case 6:
++            if (!tsa_range(bytes, a->values, (uint64_t)a->count * 8)) return TSA_INVALID;
++            if (a->type == 6)
++                for (j = 0; j < a->count; ++j) {
++                    uint64_t value;
++                    memcpy(&value, (const char *)data + a->values + j * 8, 8);
++                    if (value > 1) return TSA_INVALID;
++                }
++            break;
++        case 3:
++            if (!tsa_range(bytes, a->values,
++                           (uint64_t)a->count * sizeof(struct tsa_string))) return TSA_INVALID;
++            for (j = 0; j < a->count; ++j) {
++                struct tsa_string s;
++                memcpy(&s, (const char *)data + a->values + j * sizeof(s), sizeof(s));
++                if (s.bytes > 65532 || (s.bytes & 1) ||
++                    !tsa_range(bytes, s.offset, s.bytes)) return TSA_INVALID;
++            }
++            break;
++        default: return TSA_NOT_SUPPORTED;
++        }
++    }
++    return TSA_SUCCESS;
++}
++
++static inline void tsa_store_destroy(struct tsa_store *s)
++{
++    free(s->data);
++    s->data = NULL;
++    s->bytes = 0;
++}
++
++/* Atomic replacement: invalid or unallocatable data leaves the old state. */
++static inline uint32_t tsa_store_replace(struct tsa_store *s, const void *data,
++                                        uint32_t bytes)
++{
++    uint32_t status = tsa_validate(data, bytes);
++    void *copy;
++    if (status) return status;
++    if (!(copy = malloc(bytes))) return TSA_NO_MEMORY;
++    memcpy(copy, data, bytes);
++    tsa_store_destroy(s);
++    s->data = copy;
++    s->bytes = bytes;
++    return TSA_SUCCESS;
++}
++
++static inline uint32_t tsa_store_clone(struct tsa_store *dest, const struct tsa_store *src)
++{
++    if (!src->data) { tsa_store_destroy(dest); return TSA_SUCCESS; }
++    return tsa_store_replace(dest, src->data, src->bytes);
++}
++
++static inline const void *tsa_store_data(const struct tsa_store *s, uint32_t *bytes)
++{
++    static const struct tsa_header empty = {1, 0};
++    *bytes = s->data ? s->bytes : sizeof(empty);
++    return s->data ? s->data : &empty;
++}
++
++static inline uint32_t tsa_align(uint32_t offset, uint32_t align)
++{
++    return (offset + align - 1) & ~(align - 1);
++}
++
++static inline void tsa_pointer(void *dest, const void *value, uint32_t word)
++{
++    uintptr_t address = (uintptr_t)value;
++    memcpy(dest, &address, word);
++}
++
++static inline void tsa_native_string(char *u, char *text, const void *source,
++                                     uint32_t bytes, uint32_t word)
++{
++    uint16_t length = (uint16_t)bytes, maximum = (uint16_t)(bytes + 2);
++    memcpy(u, &length, 2); memcpy(u + 2, &maximum, 2);
++    tsa_pointer(u + (word == 8 ? 8 : 4), text, word);
++    if (bytes) memcpy(text, source, bytes);
++    memset(text + bytes, 0, 2);
++}
++
++/* names==NULL/count==0 means all; any missing requested name is NOT_FOUND.
++   Caller pointers must be valid as for the native syscall. No data is written
++   on a short buffer or a missing filter. The native pointer-width layout is
++   computed explicitly so server storage never embeds client pointers. */
++static inline uint32_t tsa_query(const void *data, uint32_t bytes,
++                                const struct tsa_name *names, uint32_t count,
++                                void *output, uint32_t capacity, uint32_t *required)
++{
++    const struct tsa_header *h = data;
++    const struct tsa_attribute *attrs;
++    uint32_t selected[TSA_MAX_ATTRS], n = 0, i, j, offset, total, status;
++    uint32_t word = sizeof(void *), us = word == 8 ? 16 : 8;
++    uint32_t attr_bytes = word == 8 ? 40 : 24, header = word == 8 ? 16 : 12;
++    char *out = output;
++    if (!required || (count && !names) || (!count && names) ||
++        count > TSA_MAX_ATTRS) return TSA_INVALID;
++    *required = 0;
++    if ((status = tsa_validate(data, bytes))) return status;
++    attrs = (const struct tsa_attribute *)(h + 1);
++    if (names) {
++        for (i = 0; i < count; ++i) {
++            if (!names[i].text || !names[i].bytes || (names[i].bytes & 1))
++                return TSA_INVALID;
++            for (j = 0; j < h->count; ++j)
++                if (attrs[j].name_bytes == names[i].bytes &&
++                    tsa_equal((const char *)data + attrs[j].name,
++                              names[i].text, names[i].bytes)) break;
++            if (j == h->count) return TSA_NOT_FOUND;
++            selected[n++] = j;
++        }
++    } else {
++        for (i = 0; i < h->count; ++i) selected[n++] = i;
++    }
++    offset = header + n * attr_bytes;
++    for (i = 0; i < n; ++i) {
++        const struct tsa_attribute *a = attrs + selected[i];
++        offset += a->name_bytes + 2;
++        offset = tsa_align(offset, a->type == 3 ? word : 8);
++        offset += a->count * (a->type == 3 ? us : 8);
++        if (offset > TSA_MAX_BYTES) return TSA_INVALID;
++        if (a->type == 3)
++            for (j = 0; j < a->count; ++j) {
++                struct tsa_string s;
++                memcpy(&s, (const char *)data + a->values + j * sizeof(s), sizeof(s));
++                if (s.bytes + 2 > TSA_MAX_BYTES - offset) return TSA_INVALID;
++                offset += s.bytes + 2;
++            }
++        /* Native expansion may exceed the wire size but is bounded too. */
++        if (offset > TSA_MAX_BYTES) return TSA_INVALID;
++    }
++    *required = total = offset;
++    if (capacity < total) return TSA_TOO_SMALL;
++    if (!output) return TSA_INVALID;
++    memset(output, 0, total);
++    out[0] = 1;
++    memcpy(out + 4, &n, 4);
++    if (n) tsa_pointer(out + 8, out + header, word);
++    offset = header + n * attr_bytes;
++    for (i = 0; i < n; ++i) {
++        const struct tsa_attribute *a = attrs + selected[i];
++        char *native = out + header + i * attr_bytes, *values;
++        tsa_native_string(native, out + offset, (const char *)data + a->name,
++                          a->name_bytes, word);
++        memcpy(native + us, &a->type, 2);
++        memcpy(native + us + 4, &a->flags, 4);
++        memcpy(native + us + 8, &a->count, 4);
++        offset = tsa_align(offset + a->name_bytes + 2, a->type == 3 ? word : 8);
++        values = out + offset;
++        tsa_pointer(native + (word == 8 ? 32 : 20), values, word);
++        offset += a->count * (a->type == 3 ? us : 8);
++        if (a->type == 3) {
++            for (j = 0; j < a->count; ++j) {
++                struct tsa_string s;
++                memcpy(&s, (const char *)data + a->values + j * sizeof(s), sizeof(s));
++                tsa_native_string(values + j * us, out + offset,
++                                  (const char *)data + s.offset, s.bytes, word);
++                offset += s.bytes + 2;
++            }
++        } else if (a->count) memcpy(values, (const char *)data + a->values, a->count * 8);
++    }
++    return TSA_SUCCESS;
++}
++
++#endif
+diff --git a/include/winternl.h b/include/winternl.h
+index 80c295f..351d9b6 100644
+--- a/include/winternl.h
++++ b/include/winternl.h
+@@ -4728,6 +4728,7 @@ NTSYSAPI NTSTATUS  WINAPI NtQueryObject(HANDLE, OBJECT_INFORMATION_CLASS, PVOID,
+ NTSYSAPI NTSTATUS  WINAPI NtQueryOpenSubKeys(POBJECT_ATTRIBUTES,PULONG);
+ NTSYSAPI NTSTATUS  WINAPI NtQueryPerformanceCounter(PLARGE_INTEGER, PLARGE_INTEGER);
+ NTSYSAPI NTSTATUS  WINAPI NtQuerySecurityObject(HANDLE,SECURITY_INFORMATION,PSECURITY_DESCRIPTOR,ULONG,PULONG);
++NTSYSAPI NTSTATUS  WINAPI NtQuerySecurityAttributesToken(HANDLE,UNICODE_STRING *,ULONG,void *,ULONG,PULONG);
+ NTSYSAPI NTSTATUS  WINAPI NtQuerySection(HANDLE,SECTION_INFORMATION_CLASS,PVOID,SIZE_T,SIZE_T*);
+ NTSYSAPI NTSTATUS  WINAPI NtQuerySemaphore(HANDLE,SEMAPHORE_INFORMATION_CLASS,PVOID,ULONG,PULONG);
+ NTSYSAPI NTSTATUS  WINAPI NtQuerySymbolicLinkObject(HANDLE,PUNICODE_STRING,PULONG);
+diff --git a/server/protocol.def b/server/protocol.def
+index a405cb9..0d9e7c2 100644
+--- a/server/protocol.def
++++ b/server/protocol.def
+@@ -3498,6 +3498,14 @@ enum caret_state
+     obj_handle_t  new_handle; /* duplicated handle */
+ @END
+ 
++/* Pointer-free token attributes; all handles require TOKEN_QUERY. */
++@REQ(get_token_security_attributes)
++    obj_handle_t  handle;
++@REPLY
++    data_size_t   attributes_len;
++    VARARG(attributes,bytes);
++@END
++
+ @REQ(filter_token)
+     obj_handle_t  handle;          /* handle to the token to duplicate */
+     unsigned int  flags;           /* flags */
+diff --git a/server/request.c b/server/request.c
+index 432a591..dbbc53a 100644
+--- a/server/request.c
++++ b/server/request.c
+@@ -640,7 +640,7 @@ static char *create_server_dir( int force )
+ 
+     /* create the base directory if needed */
+ 
+-#ifdef __ANDROID__  /* there's no /tmp dir on Android */
++#if defined(__ANDROID__) || defined(__APPLE__)  /* keep test-runtime sockets prefix-local */
+     if (asprintf( &base_dir, "%s/.wineserver", config_dir ) == -1)
+         fatal_error( "out of memory\n" );
+ #else
+diff --git a/server/request_handlers.h b/server/request_handlers.h
+index 3a2bbb1..fde3ace 100644
+--- a/server/request_handlers.h
++++ b/server/request_handlers.h
+@@ -233,6 +233,7 @@ DECL_HANDLER(adjust_token_privileges);
+ DECL_HANDLER(get_token_privileges);
+ DECL_HANDLER(check_token_privileges);
+ DECL_HANDLER(duplicate_token);
++DECL_HANDLER(get_token_security_attributes);
+ DECL_HANDLER(filter_token);
+ DECL_HANDLER(access_check);
+ DECL_HANDLER(get_token_sid);
+@@ -543,6 +544,7 @@ static const req_handler req_handlers[REQ_NB_REQUESTS] =
+     (req_handler)req_get_token_privileges,
+     (req_handler)req_check_token_privileges,
+     (req_handler)req_duplicate_token,
++    (req_handler)req_get_token_security_attributes,
+     (req_handler)req_filter_token,
+     (req_handler)req_access_check,
+     (req_handler)req_get_token_sid,
+@@ -1968,6 +1970,10 @@ C_ASSERT( offsetof(struct duplicate_token_request, impersonation_level) == 24 );
+ C_ASSERT( sizeof(struct duplicate_token_request) == 32 );
+ C_ASSERT( offsetof(struct duplicate_token_reply, new_handle) == 8 );
+ C_ASSERT( sizeof(struct duplicate_token_reply) == 16 );
++C_ASSERT( offsetof(struct get_token_security_attributes_request, handle) == 12 );
++C_ASSERT( sizeof(struct get_token_security_attributes_request) == 16 );
++C_ASSERT( offsetof(struct get_token_security_attributes_reply, attributes_len) == 8 );
++C_ASSERT( sizeof(struct get_token_security_attributes_reply) == 16 );
+ C_ASSERT( offsetof(struct filter_token_request, handle) == 12 );
+ C_ASSERT( offsetof(struct filter_token_request, flags) == 16 );
+ C_ASSERT( offsetof(struct filter_token_request, privileges_size) == 20 );
+diff --git a/server/request_trace.h b/server/request_trace.h
+index c635ebe..728a196 100644
+--- a/server/request_trace.h
++++ b/server/request_trace.h
+@@ -2659,6 +2659,17 @@ static void dump_duplicate_token_reply( const struct duplicate_token_reply *req
+     fprintf( stderr, " new_handle=%04x", req->new_handle );
+ }
+ 
++static void dump_get_token_security_attributes_request( const struct get_token_security_attributes_request *req )
++{
++    fprintf( stderr, " handle=%04x", req->handle );
++}
++
++static void dump_get_token_security_attributes_reply( const struct get_token_security_attributes_reply *req )
++{
++    fprintf( stderr, " attributes_len=%u", req->attributes_len );
++    dump_varargs_bytes( ", attributes=", cur_size );
++}
++
+ static void dump_filter_token_request( const struct filter_token_request *req )
+ {
+     fprintf( stderr, " handle=%04x", req->handle );
+@@ -3739,6 +3750,7 @@ static const dump_func req_dumpers[REQ_NB_REQUESTS] =
+     (dump_func)dump_get_token_privileges_request,
+     (dump_func)dump_check_token_privileges_request,
+     (dump_func)dump_duplicate_token_request,
++    (dump_func)dump_get_token_security_attributes_request,
+     (dump_func)dump_filter_token_request,
+     (dump_func)dump_access_check_request,
+     (dump_func)dump_get_token_sid_request,
+@@ -4049,6 +4061,7 @@ static const dump_func reply_dumpers[REQ_NB_REQUESTS] =
+     (dump_func)dump_get_token_privileges_reply,
+     (dump_func)dump_check_token_privileges_reply,
+     (dump_func)dump_duplicate_token_reply,
++    (dump_func)dump_get_token_security_attributes_reply,
+     (dump_func)dump_filter_token_reply,
+     (dump_func)dump_access_check_reply,
+     (dump_func)dump_get_token_sid_reply,
+@@ -4359,6 +4372,7 @@ static const char * const req_names[REQ_NB_REQUESTS] =
+     "get_token_privileges",
+     "check_token_privileges",
+     "duplicate_token",
++    "get_token_security_attributes",
+     "filter_token",
+     "access_check",
+     "get_token_sid",
+diff --git a/server/security.h b/server/security.h
+index f4dff67..c284f51 100644
+--- a/server/security.h
++++ b/server/security.h
+@@ -62,6 +62,7 @@ struct ace
+ /* token functions */
+ 
+ extern struct token *get_token_obj( struct process *process, obj_handle_t handle, unsigned int access );
++extern int token_replace_security_attributes( struct token *token, const void *data, unsigned int bytes );
+ extern struct token *token_create_admin( unsigned primary, int impersonation_level, int elevation, unsigned int session_id );
+ extern int token_assign_label( struct token *token, const struct sid *label );
+ extern struct token *token_duplicate( struct token *src_token, unsigned primary,
+diff --git a/server/token.c b/server/token.c
+index 5ce7298..bbffc96 100644
+--- a/server/token.c
++++ b/server/token.c
+@@ -39,6 +39,7 @@
+ #include "process.h"
+ #include "request.h"
+ #include "security.h"
++#include "wine/token_security.h"
+ 
+ #define MAX_SUBAUTH_COUNT 1
+ 
+@@ -115,6 +116,7 @@ struct token
+     struct acl    *default_dacl;    /* the default DACL to assign to objects created by this user */
+     int            impersonation_level; /* impersonation level this token is capable of if non-primary token */
+     int            elevation;       /* elevation type */
++    struct tsa_store security_attributes; /* pointer-free, validated activation attributes */
+ };
+ 
+ struct privilege
+@@ -441,6 +443,7 @@ static void token_destroy( struct object *obj )
+     token = (struct token *)obj;
+ 
+     free( token->user );
++    tsa_store_destroy( &token->security_attributes );
+ 
+     LIST_FOR_EACH_SAFE( cursor, cursor_next, &token->privileges )
+     {
+@@ -494,6 +497,8 @@ static struct token *create_token( unsigned int primary, unsigned int session_id
+         token->default_dacl = NULL;
+         token->primary_group = NULL;
+         token->elevation = elevation;
++        token->security_attributes.data = NULL;
++        token->security_attributes.bytes = 0;
+ 
+         /* copy user */
+         token->user = memdup( user, sid_len( user ));
+@@ -584,6 +589,7 @@ struct token *token_duplicate( struct token *src_token, unsigned primary,
+     struct token *token = NULL;
+     struct privilege *privilege;
+     struct group *group;
++    unsigned int attributes_status;
+ 
+     if (!primary &&
+         (impersonation_level < SecurityAnonymous ||
+@@ -599,6 +605,13 @@ struct token *token_duplicate( struct token *src_token, unsigned primary,
+                           0, impersonation_level, src_token->elevation );
+     if (!token) return token;
+ 
++    if ((attributes_status = tsa_store_clone( &token->security_attributes, &src_token->security_attributes )))
++    {
++        set_error( attributes_status );
++        release_object( token );
++        return NULL;
++    }
++
+     /* copy groups */
+     token->primary_group = NULL;
+     LIST_FOR_EACH_ENTRY( group, &src_token->groups, struct group, entry )
+@@ -740,6 +753,20 @@ struct token *get_token_obj( struct process *process, obj_handle_t handle, unsig
+     return (struct token *)get_handle_obj( process, handle, access, &token_ops );
+ }
+ 
++/* Internal provisioning seam only; no client request or public setter grants
++ * permission to create package identities. Callers must have genuine data. */
++int token_replace_security_attributes( struct token *token, const void *data, unsigned int bytes )
++{
++    unsigned int status = tsa_store_replace( &token->security_attributes, data, bytes );
++    if (status)
++    {
++        set_error( status );
++        return 0;
++    }
++    allocate_luid( &token->modified_id );
++    return 1;
++}
++
+ struct token *token_create_admin( unsigned primary, int impersonation_level, int elevation, unsigned int session_id )
+ {
+     struct token *token = NULL;
+@@ -1555,6 +1582,20 @@ DECL_HANDLER(get_token_info)
+     }
+ }
+ 
++DECL_HANDLER(get_token_security_attributes)
++{
++    struct token *token;
++    const void *data;
++    unsigned int bytes;
++
++    if (!(token = get_token_obj( current->process, req->handle, TOKEN_QUERY ))) return;
++    data = tsa_store_data( &token->security_attributes, &bytes );
++    reply->attributes_len = bytes;
++    if (get_reply_max_size() < bytes) set_error( STATUS_BUFFER_TOO_SMALL );
++    else set_reply_data( data, bytes );
++    release_object( token );
++}
++
+ DECL_HANDLER(get_token_default_dacl)
+ {
+     struct token *token;

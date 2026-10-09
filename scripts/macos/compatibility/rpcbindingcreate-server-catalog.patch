@@ -1,0 +1,48 @@
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -17,6 +17,7 @@
+  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+  */
+ #define COBJMACROS
++#define WIN32_NO_STATUS
+ #include "objbase.h"
+ #include "initguid.h"
+ #include "roapi.h"
+@@ -24,6 +25,8 @@
+ #include "roerrorapi.h"
+ #include "winstring.h"
+ #include "errhandlingapi.h"
++#undef WIN32_NO_STATUS
++#include "ntstatus.h"
+ 
+ #include "combase_private.h"
+ 
+@@ -32,6 +35,8 @@
+ WINE_DEFAULT_DEBUG_CHANNEL(combase);
+ 
+ LONG WINAPI GetCurrentPackageFamilyName(UINT32 *length, WCHAR *name);
++
++#include "rpcbindingcreate-server-catalog.c"
+ 
+ static void xbox_prereq_stack(const char *operation)
+ {
+@@ -494,18 +499,8 @@
+  */
+ HRESULT WINAPI RoGetServerActivatableClasses(HSTRING name, HSTRING **classes, DWORD *count)
+ {
+-    UINT32 family_length = 0;
+-    LONG status;
+     xbox_prereq_stack("RoGetServerActivatableClasses-enter");
+-    if (!classes || !count) return E_POINTER;
+-    *classes = NULL;
+-    *count = 0;
+-    status = GetCurrentPackageFamilyName(&family_length, NULL);
+-    if (status == APPMODEL_ERROR_NO_PACKAGE) return REGDB_E_CLASSNOTREG;
+-    if (status != ERROR_INSUFFICIENT_BUFFER) return HRESULT_FROM_WIN32(status ? status : ERROR_INVALID_DATA);
+-    ERR("XBOX_SERVER_ENUM name=%s: package-scoped server-class catalog query unsupported; no classes fabricated.\n",
+-        debugstr_hstring(name));
+-    return E_NOTIMPL;
++    return xodus_get_server_classes(name, classes, count);
+ }
+ 
+ /***********************************************************************

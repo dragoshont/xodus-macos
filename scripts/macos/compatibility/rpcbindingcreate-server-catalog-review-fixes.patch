@@ -1,0 +1,34 @@
+--- a/dlls/combase/rpcbindingcreate-server-catalog.c
++++ b/dlls/combase/rpcbindingcreate-server-catalog.c
+@@ -139,18 +139,28 @@
+         return status == ERROR_FILE_NOT_FOUND || status == ERROR_PATH_NOT_FOUND ?
+             REGDB_E_CLASSNOTREG : HRESULT_FROM_WIN32(status);
+     status = RegQueryValueExW(key, L"ActivatableClasses", NULL, &type, NULL, &bytes);
+-    if (status || type != REG_MULTI_SZ || bytes < 4 || bytes > 128 * 1024 || bytes % 2)
++    if (status)
++    {
++        RegCloseKey(key);
++        return status == ERROR_FILE_NOT_FOUND ? E_INVALIDARG : HRESULT_FROM_WIN32(status);
++    }
++    if (type != REG_MULTI_SZ || bytes < 4 || bytes > 128 * 1024 || bytes % 2)
+     { RegCloseKey(key); return E_INVALIDARG; }
+     if (!(data = malloc(bytes))) { RegCloseKey(key); return E_OUTOFMEMORY; }
+     status = RegQueryValueExW(key, L"ActivatableClasses", NULL, &type, (BYTE *)data, &bytes);
+     RegCloseKey(key);
+-    if (status || type != REG_MULTI_SZ || bytes < 4 || bytes % 2 ||
++    if (status)
++    {
++        free(data);
++        return status == ERROR_FILE_NOT_FOUND ? E_INVALIDARG : HRESULT_FROM_WIN32(status);
++    }
++    if (type != REG_MULTI_SZ || bytes < 4 || bytes % 2 ||
+         data[bytes / 2 - 1] || data[bytes / 2 - 2])
+     { free(data); return E_INVALIDARG; }
+     hr = xodus_decode_server_classes(data, bytes, classes, count);
+     free(data);
+     if (FAILED(hr)) return hr;
+-    ERR("XBOX_SERVER_CATALOG package=%s application=%s server=%s actual_classes=%lu\n",
++    TRACE("XBOX_SERVER_CATALOG package=%s application=%s server=%s actual_classes=%lu\n",
+         debugstr_w(package), debugstr_w(application), debugstr_hstring(name), *count);
+     return S_OK;
+ }

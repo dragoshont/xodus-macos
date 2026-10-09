@@ -1,0 +1,16 @@
+--- a/dlls/sechost/Makefile.in
++++ b/dlls/sechost/Makefile.in
+@@ -9,4 +9,5 @@
+ 	service.c \
+ 	wait_service.c \
+ 	svcctl.idl \
++	transient_security.c \
+ 	trace.c
+--- a/dlls/sechost/sechost.spec
++++ b/dlls/sechost/sechost.spec
+@@ -97 +97 @@
+-@ stub FreeTransientObjectSecurityDescriptor
++@ stdcall FreeTransientObjectSecurityDescriptor(ptr)
+@@ -181 +181 @@
+-@ stub QueryTransientObjectSecurityDescriptor
++@ stdcall QueryTransientObjectSecurityDescriptor(long wstr ptr)

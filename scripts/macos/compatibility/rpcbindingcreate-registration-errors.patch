@@ -1,0 +1,17 @@
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -509,10 +509,14 @@
+ HRESULT WINAPI RoRegisterActivationFactories(HSTRING *classes, PFNGETACTIVATIONFACTORY *callbacks,
+                                              UINT32 count, RO_REGISTRATION_COOKIE *cookie)
+ {
++    struct apartment *apt;
+     ERR("XBOX_FACTORY_REGISTER classes=%p callbacks=%p count=%u cookie=%p\n",
+         classes, callbacks, count, cookie);
+     xbox_prereq_stack("RoRegisterActivationFactories-enter");
+     if (!cookie) return E_POINTER;
++    *cookie = NULL;
++    if (!(apt = apartment_get_current_or_mta())) return CO_E_NOTINITIALIZED;
++    apartment_release(apt);
+     if (!count || !classes || !callbacks) return E_INVALIDARG;
+     ERR("Out-of-process WinRT factory registration transport is unsupported; no factories registered.\n");
+     return E_NOTIMPL;

@@ -1,0 +1,3 @@
+LIBRARY "combase-server-shutdown-delay"
+EXPORTS
+    CoRegisterServerShutdownDelay @69 NONAME

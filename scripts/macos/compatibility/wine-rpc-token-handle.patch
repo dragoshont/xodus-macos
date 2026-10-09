@@ -1,0 +1,288 @@
+--- a/include/ndrtypes.h
++++ b/include/ndrtypes.h
+@@ -205,7 +205,7 @@
+ 
+     FC_UNUSED2, /* 0x3a */
+     FC_UNUSED3, /* 0x3b */
+-    FC_UNUSED4, /* 0x3c */
++    FC_SYSTEM_HANDLE, /* 0x3c */
+ 
+     FC_STRUCTPAD1, /* 0x3d */
+     FC_STRUCTPAD2, /* 0x3e */
+--- a/dlls/rpcrt4/rpc_binding.h
++++ b/dlls/rpcrt4/rpc_binding.h
+@@ -173,6 +173,7 @@
+                               const RPC_SYNTAX_IDENTIFIER *TransferSyntax, const RPC_SYNTAX_IDENTIFIER *InterfaceId,
+                               BOOL *from_cache);
+ RPC_STATUS RPCRT4_CloseBinding(RpcBinding* Binding, RpcConnection* Connection);
++RPC_STATUS RPCRT4_GetLocalPeerProcessId(PRPC_MESSAGE message, ULONG *pid);
+ 
+ void rpcrt4_conn_release_and_wait(RpcConnection *connection);
+ 
+--- a/dlls/rpcrt4/rpc_transport.c
++++ b/dlls/rpcrt4/rpc_transport.c
+@@ -908,6 +908,23 @@
+     RpcConnection_np *connection = (RpcConnection_np *)conn;
+ 
+     return GetNamedPipeClientProcessId(connection->pipe, pid) ? RPC_S_OK : RPC_S_INVALID_BINDING;
++}
++
++RPC_STATUS RPCRT4_GetLocalPeerProcessId(PRPC_MESSAGE message, ULONG *pid)
++{
++    RpcBinding *binding;
++    RpcConnection *connection;
++    RpcConnection_np *pipe;
++
++    if (!message || !(binding = message->Handle) || !pid)
++        return RPC_S_INVALID_BINDING;
++    connection = binding->server ? binding->FromConn : message->ReservedForRuntime;
++    if (!connection || strcmp(connection->ops->name, "ncalrpc"))
++        return RPC_S_PROTSEQ_NOT_SUPPORTED;
++    pipe = (RpcConnection_np *)connection;
++    if (connection->server)
++        return GetNamedPipeClientProcessId(pipe->pipe, pid) ? RPC_S_OK : RPC_S_INVALID_BINDING;
++    return GetNamedPipeServerProcessId(pipe->pipe, pid) ? RPC_S_OK : RPC_S_INVALID_BINDING;
+ }
+ 
+ /**** ncacn_ip_tcp support ****/
+--- a/dlls/rpcrt4/ndr_marshall.c
++++ b/dlls/rpcrt4/ndr_marshall.c
+@@ -167,6 +167,8 @@
+                                    unsigned char *pMemory,
+                                    PFORMAT_STRING pFormat,
+                                    PFORMAT_STRING pPointer);
++
++#include "ndr_token_handle.c"
+ 
+ const NDR_MARSHALL NdrMarshaller[NDR_TABLE_SIZE] = {
+   0,
+@@ -210,7 +212,8 @@
+   /* 0xb7 */
+   NdrRangeMarshall,
+   NdrBaseTypeMarshall,
+-  NdrBaseTypeMarshall
++  NdrBaseTypeMarshall,
++  [FC_SYSTEM_HANDLE] = token_handle_marshall
+ };
+ const NDR_UNMARSHALL NdrUnmarshaller[NDR_TABLE_SIZE] = {
+   0,
+@@ -254,7 +257,8 @@
+   /* 0xb7 */
+   NdrRangeUnmarshall,
+   NdrBaseTypeUnmarshall,
+-  NdrBaseTypeUnmarshall
++  NdrBaseTypeUnmarshall,
++  [FC_SYSTEM_HANDLE] = token_handle_unmarshall
+ };
+ const NDR_BUFFERSIZE NdrBufferSizer[NDR_TABLE_SIZE] = {
+   0,
+@@ -298,7 +302,8 @@
+   /* 0xb7 */
+   NdrRangeBufferSize,
+   NdrBaseTypeBufferSize,
+-  NdrBaseTypeBufferSize
++  NdrBaseTypeBufferSize,
++  [FC_SYSTEM_HANDLE] = token_handle_buffer_size
+ };
+ const NDR_MEMORYSIZE NdrMemorySizer[NDR_TABLE_SIZE] = {
+   0,
+@@ -342,7 +347,8 @@
+   /* 0xb7 */
+   NdrRangeMemorySize,
+   NdrBaseTypeMemorySize,
+-  NdrBaseTypeMemorySize
++  NdrBaseTypeMemorySize,
++  [FC_SYSTEM_HANDLE] = token_handle_memory_size
+ };
+ const NDR_FREE NdrFreer[NDR_TABLE_SIZE] = {
+   0,
+@@ -385,7 +391,8 @@
+   /* 0xb7 */
+   NdrRangeFree,
+   NdrBaseTypeFree,
+-  NdrBaseTypeFree
++  NdrBaseTypeFree,
++  [FC_SYSTEM_HANDLE] = token_handle_free
+ };
+ 
+ typedef struct _NDR_MEMORY_LIST
+--- /dev/null
++++ b/dlls/rpcrt4/ndr_token_handle.c
+@@ -0,0 +1,177 @@
++/* Experimental Wine-to-Wine local token transport; not the Windows ALPC wire ABI. */
++#include "winnt.h"
++#include "rpc_binding.h"
++
++#define TOKEN_WIRE_SIZE 16
++#define TOKEN_WIRE_MAGIC 0x544b483c
++
++static DWORD token_handle_access(PMIDL_STUB_MESSAGE stub, PFORMAT_STRING format)
++{
++    DWORD access;
++
++    if (format[0] != FC_SYSTEM_HANDLE || format[1] != 5)
++        RpcRaiseException(RPC_S_UNSUPPORTED_TYPE);
++    memcpy(&access, format + 2, sizeof(access));
++    if (access != TOKEN_QUERY)
++        RpcRaiseException(RPC_S_UNSUPPORTED_TYPE);
++    return access;
++}
++
++static void token_handle_local_binding(PMIDL_STUB_MESSAGE stub)
++{
++    RpcBinding *binding;
++    if (!stub->RpcMsg || !(binding = stub->RpcMsg->Handle) ||
++        !binding->Protseq || strcmp(binding->Protseq, "ncalrpc"))
++        RpcRaiseException(RPC_S_PROTSEQ_NOT_SUPPORTED);
++}
++
++static void token_handle_validate(HANDLE token)
++{
++    TOKEN_TYPE type;
++    DWORD required;
++
++    TRACE("validating actual input token handle %p\n", token);
++    if (!token) return;
++    if (token == INVALID_HANDLE_VALUE ||
++        !GetTokenInformation(token, TokenType, &type, sizeof(type), &required))
++    {
++        WARN("input token handle %p rejected, last error %lu\n", token, GetLastError());
++        RpcRaiseException(ERROR_INVALID_HANDLE);
++    }
++}
++
++static unsigned char *token_handle_buffer_end(PMIDL_STUB_MESSAGE stub)
++{
++    ULONG_PTR base;
++    if (!stub->RpcMsg || !stub->RpcMsg->Buffer)
++        RpcRaiseException(RPC_X_BAD_STUB_DATA);
++    base = (ULONG_PTR)stub->RpcMsg->Buffer;
++    if (stub->RpcMsg->BufferLength > (ULONG_PTR)-1 - base)
++        RpcRaiseException(RPC_X_BAD_STUB_DATA);
++    return (unsigned char *)(base + stub->RpcMsg->BufferLength);
++}
++
++static void token_handle_buffer_size(PMIDL_STUB_MESSAGE stub, unsigned char *memory,
++                                     PFORMAT_STRING format)
++{
++    token_handle_access(stub, format);
++    token_handle_validate(*(HANDLE *)memory);
++    if (stub->BufferLength > ULONG_MAX - TOKEN_WIRE_SIZE - 7)
++        RpcRaiseException(RPC_X_BAD_STUB_DATA);
++    align_length(&stub->BufferLength, 8);
++    stub->BufferLength += TOKEN_WIRE_SIZE;
++}
++
++static unsigned char *token_handle_marshall(PMIDL_STUB_MESSAGE stub, unsigned char *memory,
++                                           PFORMAT_STRING format)
++{
++    DWORD magic = TOKEN_WIRE_MAGIC, access = token_handle_access(stub, format);
++    ULONGLONG reference = (ULONG_PTR)*(HANDLE *)memory;
++    unsigned char *wire = (unsigned char *)(((ULONG_PTR)stub->Buffer + 7) & ~(ULONG_PTR)7);
++    unsigned char *end = token_handle_buffer_end(stub);
++
++    if (!stub->IsClient)
++        RpcRaiseException(RPC_S_UNSUPPORTED_TYPE);
++    token_handle_local_binding(stub);
++    token_handle_validate(*(HANDLE *)memory);
++    if (wire > end || end - wire < TOKEN_WIRE_SIZE)
++        RpcRaiseException(RPC_X_BAD_STUB_DATA);
++    memcpy(wire, &magic, 4);
++    memcpy(wire + 4, &access, 4);
++    memcpy(wire + 8, &reference, 8);
++    stub->Buffer = wire + TOKEN_WIRE_SIZE;
++    TRACE("local token reference marshalled with query-only access\n");
++    return NULL;
++}
++
++static unsigned char *token_handle_unmarshall(PMIDL_STUB_MESSAGE stub, unsigned char **memory,
++                                             PFORMAT_STRING format, unsigned char must_alloc)
++{
++    unsigned char *wire = (unsigned char *)(((ULONG_PTR)stub->Buffer + 7) & ~(ULONG_PTR)7);
++    unsigned char *end = token_handle_buffer_end(stub);
++    DWORD magic, access = token_handle_access(stub, format), wire_access;
++    ULONGLONG reference;
++    ULONG peer;
++    RPC_STATUS status;
++    HANDLE process, token;
++    TOKEN_TYPE type;
++    DWORD required, error;
++
++    if (stub->IsClient)
++        RpcRaiseException(RPC_S_UNSUPPORTED_TYPE);
++    token_handle_local_binding(stub);
++    if (wire > end || end - wire < TOKEN_WIRE_SIZE)
++        RpcRaiseException(RPC_X_BAD_STUB_DATA);
++    memcpy(&magic, wire, 4);
++    memcpy(&wire_access, wire + 4, 4);
++    memcpy(&reference, wire + 8, 8);
++    if (magic != TOKEN_WIRE_MAGIC || wire_access != access ||
++        reference > (ULONGLONG)(ULONG_PTR)-1 ||
++        (HANDLE)(ULONG_PTR)reference == INVALID_HANDLE_VALUE)
++        RpcRaiseException(RPC_X_BAD_STUB_DATA);
++    if (!reference)
++    {
++        if (must_alloc || !*memory)
++        {
++            *memory = stub->pfnAllocate(sizeof(HANDLE));
++            if (!*memory) RpcRaiseException(RPC_S_OUT_OF_MEMORY);
++        }
++        *(HANDLE *)*memory = NULL;
++        stub->Buffer = wire + TOKEN_WIRE_SIZE;
++        return NULL;
++    }
++    status = RPCRT4_GetLocalPeerProcessId(stub->RpcMsg, &peer);
++    if (status) RpcRaiseException(status);
++    process = OpenProcess(PROCESS_DUP_HANDLE, FALSE, peer);
++    if (!process) RpcRaiseException(GetLastError());
++    if (!DuplicateHandle(process, (HANDLE)(ULONG_PTR)reference, GetCurrentProcess(),
++                         &token, access, FALSE, 0))
++    {
++        error = GetLastError();
++        CloseHandle(process);
++        RpcRaiseException(error);
++    }
++    CloseHandle(process);
++    if (!GetTokenInformation(token, TokenType, &type, sizeof(type), &required))
++    {
++        CloseHandle(token);
++        RpcRaiseException(ERROR_INVALID_HANDLE);
++    }
++    if (must_alloc || !*memory)
++    {
++        *memory = stub->pfnAllocate(sizeof(HANDLE));
++        if (!*memory)
++        {
++            CloseHandle(token);
++            RpcRaiseException(RPC_S_OUT_OF_MEMORY);
++        }
++    }
++    *(HANDLE *)*memory = token;
++    stub->Buffer = wire + TOKEN_WIRE_SIZE;
++    TRACE("actual peer token duplicated with TOKEN_QUERY; receiver owns call-lifetime handle\n");
++    return NULL;
++}
++
++static ULONG token_handle_memory_size(PMIDL_STUB_MESSAGE stub, PFORMAT_STRING format)
++{
++    unsigned char *wire = (unsigned char *)(((ULONG_PTR)stub->Buffer + 7) & ~(ULONG_PTR)7);
++    unsigned char *end = token_handle_buffer_end(stub);
++    token_handle_access(stub, format);
++    if (wire > end || end - wire < TOKEN_WIRE_SIZE ||
++        stub->MemorySize > ULONG_MAX - sizeof(HANDLE))
++        RpcRaiseException(RPC_X_BAD_STUB_DATA);
++    stub->Buffer = wire + TOKEN_WIRE_SIZE;
++    stub->MemorySize += sizeof(HANDLE);
++    return sizeof(HANDLE);
++}
++
++static void token_handle_free(PMIDL_STUB_MESSAGE stub, unsigned char *memory,
++                              PFORMAT_STRING format)
++{
++    token_handle_access(stub, format);
++    if (!stub->IsClient && memory && *(HANDLE *)memory)
++    {
++        if (!CloseHandle(*(HANDLE *)memory)) RpcRaiseException(GetLastError());
++        *(HANDLE *)memory = NULL;
++    }
++}

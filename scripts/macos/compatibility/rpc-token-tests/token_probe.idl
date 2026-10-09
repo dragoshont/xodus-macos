@@ -1,0 +1,9 @@
+[
+    uuid(72b7b240-a0f0-4d30-8d6a-84f08df4df25),
+    version(1.0)
+]
+interface TokenProbe
+{
+    long CheckToken([in] handle_t binding, [in] hyper token);
+    long StopServer([in] handle_t binding);
+}

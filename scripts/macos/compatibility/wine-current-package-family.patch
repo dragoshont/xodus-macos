@@ -1,0 +1,103 @@
+--- a/dlls/kernelbase/version.c
++++ b/dlls/kernelbase/version.c
+@@ -1582,8 +1582,98 @@
+  */
+ LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageFamilyName( UINT32 *length, WCHAR *name )
+ {
+-    FIXME( "(%p %p): stub\n", length, name );
+-    return APPMODEL_ERROR_NO_PACKAGE;
++    struct package_attribute
++    {
++        UNICODE_STRING name;
++        USHORT type, reserved;
++        ULONG flags, count;
++        union { ULONGLONG *integers; UNICODE_STRING *strings; void *pointer; } values;
++    };
++    struct package_attributes
++    {
++        USHORT version, reserved;
++        ULONG count;
++        struct package_attribute *attributes;
++    } *info;
++    UNICODE_STRING attribute_name, *family;
++    struct package_attribute *attribute;
++    HANDLE token;
++    NTSTATUS status;
++    ULONG bytes = 0, allocated;
++    UINT32 required;
++    LONG result;
++    ULONG_PTR base, end, address;
++
++    TRACE( "(%p %p)\n", length, name );
++    if (!length || (*length && !name)) return ERROR_INVALID_PARAMETER;
++    if ((status = NtOpenProcessToken( GetCurrentProcess(), TOKEN_QUERY, &token )))
++        return RtlNtStatusToDosError( status );
++    RtlInitUnicodeString( &attribute_name, L"WIN://SYSAPPID" );
++    status = NtQuerySecurityAttributesToken( token, &attribute_name, 1, NULL, 0, &bytes );
++    if (status == STATUS_NOT_FOUND)
++    {
++        NtClose( token );
++        return APPMODEL_ERROR_NO_PACKAGE;
++    }
++    if (status != STATUS_BUFFER_TOO_SMALL)
++    {
++        NtClose( token );
++        WARN( "Package identity attribute query failed, status %#lx\n", status );
++        return status ? RtlNtStatusToDosError( status ) : ERROR_INVALID_DATA;
++    }
++    if (bytes < sizeof(*info) || bytes > 1024 * 1024)
++    {
++        NtClose( token );
++        WARN( "Invalid package identity attribute size %lu\n", bytes );
++        return ERROR_INVALID_DATA;
++    }
++    allocated = bytes;
++    if (!(info = HeapAlloc( GetProcessHeap(), 0, allocated )))
++    {
++        NtClose( token );
++        return ERROR_NOT_ENOUGH_MEMORY;
++    }
++    status = NtQuerySecurityAttributesToken( token, &attribute_name, 1, info, allocated, &bytes );
++    NtClose( token );
++    if (status)
++    {
++        WARN( "Package identity attribute read failed, status %#lx\n", status );
++        HeapFree( GetProcessHeap(), 0, info );
++        return status == STATUS_NOT_FOUND ? APPMODEL_ERROR_NO_PACKAGE : RtlNtStatusToDosError( status );
++    }
++    result = ERROR_INVALID_DATA;
++    base = (ULONG_PTR)info;
++    end = base + allocated;
++    address = (ULONG_PTR)info->attributes;
++    if (info->version != 1 || info->count != 1 ||
++        address < base || address > end || sizeof(*attribute) > end - address)
++        goto done;
++    attribute = info->attributes;
++    address = (ULONG_PTR)attribute->values.strings;
++    if (attribute->type != 3 || attribute->count < 3 ||
++        address < base || address > end ||
++        attribute->count > (end - address) / sizeof(UNICODE_STRING))
++        goto done;
++    family = &attribute->values.strings[2];
++    address = (ULONG_PTR)family->Buffer;
++    if (!family->Length || family->Length % sizeof(WCHAR) ||
++        family->MaximumLength < family->Length || address < base ||
++        address > end || family->Length > end - address)
++        goto done;
++    required = family->Length / sizeof(WCHAR) + 1;
++    if (*length < required)
++        result = ERROR_INSUFFICIENT_BUFFER;
++    else
++    {
++        memcpy( name, family->Buffer, family->Length );
++        name[required - 1] = 0;
++        result = ERROR_SUCCESS;
++    }
++    *length = required;
++done:
++    if (result == ERROR_INVALID_DATA) WARN( "Malformed package family token attribute\n" );
++    HeapFree( GetProcessHeap(), 0, info );
++    return result;
+ }
+ 
+ 

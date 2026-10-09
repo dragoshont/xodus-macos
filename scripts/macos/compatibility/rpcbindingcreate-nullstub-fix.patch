@@ -1,0 +1,78 @@
+--- a/dlls/rpcrt4/cstub.c
++++ b/dlls/rpcrt4/cstub.c
+@@ -71,7 +71,7 @@
+                                  LPRPCSTUBBUFFER *ppStub)
+ {
+   CStdStubBuffer *This;
+-  IUnknown *pvServer;
++  IUnknown *pvServer = NULL;
+   HRESULT r;
+   TRACE("(%p,%p,%p,%p) %s\n", pUnkServer, vtbl, pPSFactory, ppStub, name);
+   TRACE("iid=%s\n", debugstr_guid(vtbl->header.piid));
+@@ -82,13 +82,15 @@
+     return RPC_E_UNEXPECTED;
+   }
+ 
+-  r = IUnknown_QueryInterface(pUnkServer, riid, (void**)&pvServer);
+-  if(FAILED(r))
+-    return r;
++  if (pUnkServer)
++  {
++    r = IUnknown_QueryInterface(pUnkServer, riid, (void**)&pvServer);
++    if (FAILED(r)) return r;
++  }
+ 
+   This = calloc(1, sizeof(CStdStubBuffer));
+   if (!This) {
+-    IUnknown_Release(pvServer);
++    if (pvServer) IUnknown_Release(pvServer);
+     return E_OUTOFMEMORY;
+   }
+ 
+@@ -140,7 +142,7 @@
+                                             LPRPCSTUBBUFFER *ppStub)
+ {
+     cstdstubbuffer_delegating_t *This;
+-    IUnknown *pvServer;
++    IUnknown *pvServer = NULL;
+     HRESULT r;
+ 
+     TRACE("(%p,%p,%p,%p) %s\n", pUnkServer, vtbl, pPSFactory, ppStub, name);
+@@ -153,13 +155,16 @@
+         return RPC_E_UNEXPECTED;
+     }
+ 
+-    r = IUnknown_QueryInterface(pUnkServer, riid, (void**)&pvServer);
+-    if(FAILED(r)) return r;
++    if (pUnkServer)
++    {
++        r = IUnknown_QueryInterface(pUnkServer, riid, (void**)&pvServer);
++        if (FAILED(r)) return r;
++    }
+ 
+     This = calloc(1, sizeof(*This));
+     if (!This)
+     {
+-        IUnknown_Release(pvServer);
++        if (pvServer) IUnknown_Release(pvServer);
+         return E_OUTOFMEMORY;
+     }
+ 
+@@ -168,7 +173,7 @@
+     if(FAILED(r))
+     {
+         free(This);
+-        IUnknown_Release(pvServer);
++        if (pvServer) IUnknown_Release(pvServer);
+         return r;
+     }
+ 
+@@ -318,7 +323,7 @@
+ 
+     TRACE("(%p)->IsIIDSupported(%s)\n", stub, debugstr_guid(riid));
+ 
+-    if (IsEqualGUID(get_stub_header(stub)->piid, riid))
++    if (stub->pvServerObject && IsEqualGUID(get_stub_header(stub)->piid, riid))
+         return iface;
+     return NULL;
+ }

@@ -1,0 +1,170 @@
+--- a/dlls/combase/Makefile.in
++++ b/dlls/combase/Makefile.in
+@@ -7,6 +7,7 @@
+ SOURCES = \
+ 	apartment.c \
+ 	combase.c \
++	com-system-permissions.c \
+ 	dcom.idl \
+ 	errorinfo.c \
+ 	hglobalstream.c \
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -119,7 +119,7 @@
+ @ stub CoGetProcessIdentifier
+ @ stdcall CoGetStandardMarshal(ptr ptr long ptr long ptr)
+ @ stub CoGetStdMarshalEx
+-@ stub CoGetSystemSecurityPermissions
++@ stdcall CoGetSystemSecurityPermissions(long ptr)
+ @ stdcall CoGetTreatAsClass(ptr ptr)
+ @ stdcall CoImpersonateClient()
+ @ stdcall CoIncrementMTAUsage(ptr)
+--- /dev/null
++++ b/dlls/combase/com-system-permissions.c
+@@ -0,0 +1,146 @@
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#define CoGetSystemSecurityPermissions sdk_CoGetSystemSecurityPermissions
++#include <objbase.h>
++#undef CoGetSystemSecurityPermissions
++#include <stdio.h>
++
++#ifdef __WINESRC__
++#include "wine/debug.h"
++WINE_DEFAULT_DEBUG_CHANNEL(ole);
++#define COM_POLICY_LOG(...) ERR(__VA_ARGS__)
++#else
++#define COM_POLICY_LOG(...) fprintf(stderr, __VA_ARGS__)
++#endif
++
++#define MAX_DESCRIPTOR_BYTES (1024 * 1024)
++
++static int bounded_sid(const BYTE *data, DWORD bytes, DWORD offset)
++{
++    DWORD length;
++    if (!offset) return 1;
++    if (offset < sizeof(SECURITY_DESCRIPTOR_RELATIVE) || offset > bytes || bytes - offset < 8)
++        return 0;
++    length = 8 + 4 * data[offset + 1];
++    return data[offset + 1] <= SID_MAX_SUB_AUTHORITIES && length <= bytes - offset;
++}
++
++static int bounded_acl(const BYTE *data, DWORD bytes, DWORD offset)
++{
++    const ACL *acl;
++    DWORD at, i;
++    if (!offset) return 1;
++    if (offset < sizeof(SECURITY_DESCRIPTOR_RELATIVE) || offset > bytes ||
++        bytes - offset < sizeof(ACL)) return 0;
++    acl = (const ACL *)(data + offset);
++    if (acl->AclSize < sizeof(ACL) || acl->AclSize > bytes - offset) return 0;
++    at = sizeof(ACL);
++    for (i = 0; i < acl->AceCount; ++i)
++    {
++        const ACE_HEADER *ace;
++        if (at > acl->AclSize || acl->AclSize - at < sizeof(ACE_HEADER)) return 0;
++        ace = (const ACE_HEADER *)(data + offset + at);
++        if (ace->AceSize < sizeof(ACE_HEADER) || ace->AceSize > acl->AclSize - at) return 0;
++        at += ace->AceSize;
++    }
++    return 1;
++}
++
++static int bounded_descriptor(const BYTE *data, DWORD bytes)
++{
++    const SECURITY_DESCRIPTOR_RELATIVE *sd;
++    if (bytes < sizeof(SECURITY_DESCRIPTOR_RELATIVE)) return 0;
++    sd = (const SECURITY_DESCRIPTOR_RELATIVE *)data;
++    return sd->Revision == SECURITY_DESCRIPTOR_REVISION && (sd->Control & SE_SELF_RELATIVE) &&
++           bounded_sid(data, bytes, sd->Owner) && bounded_sid(data, bytes, sd->Group) &&
++           bounded_acl(data, bytes, sd->Dacl) && bounded_acl(data, bytes, sd->Sacl);
++}
++
++HRESULT xodus_read_com_permissions(HKEY machine, int kind, PSECURITY_DESCRIPTOR *out)
++{
++    static const WCHAR *const values[] = {
++        L"DefaultLaunchPermission", L"DefaultAccessPermission",
++        L"MachineLaunchRestriction", L"MachineAccessRestriction"
++    };
++    HKEY key;
++    DWORD bytes = 0, type = 0;
++    LONG status;
++    PSECURITY_DESCRIPTOR descriptor;
++    SECURITY_DESCRIPTOR_CONTROL control;
++    DWORD revision;
++
++    if (kind < 0 || kind > 3 || !out) return E_INVALIDARG;
++    if (kind >= 2)
++    {
++        status = RegOpenKeyExW(machine, L"Software\\Policies\\Microsoft\\Windows NT\\DCOM",
++                               0, KEY_QUERY_VALUE, &key);
++        if (status == ERROR_SUCCESS)
++        {
++            status = RegQueryValueExW(key, values[kind], NULL, &type, NULL, &bytes);
++            if (status != ERROR_FILE_NOT_FOUND) goto read_value;
++            RegCloseKey(key);
++        }
++        else if (status != ERROR_FILE_NOT_FOUND)
++            return HRESULT_FROM_WIN32(status);
++    }
++    status = RegOpenKeyExW(machine, L"Software\\Microsoft\\Ole", 0, KEY_QUERY_VALUE, &key);
++    if (status == ERROR_FILE_NOT_FOUND)
++    {
++        COM_POLICY_LOG("COM permissions: no authoritative machine policy or resolver defaults\n");
++        return E_FAIL;
++    }
++    if (status != ERROR_SUCCESS) return HRESULT_FROM_WIN32(status);
++    status = RegQueryValueExW(key, values[kind], NULL, &type, NULL, &bytes);
++read_value:
++    if (status != ERROR_SUCCESS)
++    {
++        RegCloseKey(key);
++        if (status == ERROR_FILE_NOT_FOUND)
++        {
++            COM_POLICY_LOG("COM permissions: descriptor %d absent; resolver defaults unsupported\n", kind);
++            return E_FAIL;
++        }
++        return HRESULT_FROM_WIN32(status);
++    }
++    if (type != REG_BINARY || bytes < sizeof(SECURITY_DESCRIPTOR_RELATIVE) ||
++        bytes > MAX_DESCRIPTOR_BYTES)
++    {
++        RegCloseKey(key);
++        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
++    }
++    descriptor = LocalAlloc(LMEM_FIXED, bytes);
++    if (!descriptor)
++    {
++        RegCloseKey(key);
++        return E_OUTOFMEMORY;
++    }
++    status = RegQueryValueExW(key, values[kind], NULL, &type, descriptor, &bytes);
++    RegCloseKey(key);
++    if (status != ERROR_SUCCESS)
++    {
++        LocalFree(descriptor);
++        return HRESULT_FROM_WIN32(status);
++    }
++    if (type != REG_BINARY || !bounded_descriptor(descriptor, bytes) ||
++        !IsValidSecurityDescriptor(descriptor) ||
++        !GetSecurityDescriptorControl(descriptor, &control, &revision) ||
++        !(control & SE_SELF_RELATIVE) || GetSecurityDescriptorLength(descriptor) > bytes)
++    {
++        LocalFree(descriptor);
++        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
++    }
++    *out = descriptor;
++    COM_POLICY_LOG("COM permissions: returned actual machine descriptor kind=%d bytes=%lu\n",
++            kind, bytes);
++    return S_OK;
++}
++
++#ifndef XODUS_COM_PERMISSION_TEST
++__declspec(dllexport) HRESULT WINAPI CoGetSystemSecurityPermissions(
++    int kind, PSECURITY_DESCRIPTOR *descriptor)
++{
++    COM_POLICY_LOG("COM permissions: actual caller kind=%d output=%p return=%p\n",
++                   kind, descriptor, __builtin_return_address(0));
++    return xodus_read_com_permissions(HKEY_LOCAL_MACHINE, kind, descriptor);
++}
++#endif

@@ -1,6 +1,9 @@
 use std::collections::HashMap;
+#[cfg(target_os = "macos")]
+use std::collections::HashSet;
+#[cfg(not(target_os = "macos"))]
 use std::os::fd::{AsFd, IntoRawFd};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use msixvc::layout::PAGE_SIZE;
@@ -9,9 +12,12 @@ use nix::sys::signal::{Signal, kill};
 use nix::unistd::Pid;
 #[cfg(target_os = "linux")]
 use rustix::fs::{MemfdFlags, memfd_create};
+#[cfg(not(target_os = "macos"))]
 use rustix::io::{FdFlags, fcntl_getfd, fcntl_setfd};
-#[cfg(not(target_os = "linux"))]
-use tempfile::{tempdir, tempfile, tempfile_in};
+#[cfg(target_os = "macos")]
+use tempfile::tempdir;
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+use tempfile::{tempfile, tempfile_in};
 use tokio::fs::{File, OpenOptions};
 use tokio::process::Command;
 use xodus::tokens::TokenManager;
@@ -24,7 +30,7 @@ fn make_temp_file(_folder: &str) -> std::io::Result<std::fs::File> {
     Ok(std::fs::File::from(fd))
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
 fn make_temp_file(folder: &str) -> std::io::Result<std::fs::File> {
     if folder.is_empty() {
         tempfile()
@@ -34,7 +40,51 @@ fn make_temp_file(folder: &str) -> std::io::Result<std::fs::File> {
 }
 
 #[cfg(target_os = "macos")]
-async fn prepare(lfiles: &HashMap<String, SegmentFile>) -> (impl AsyncFnOnce(), String) {
+fn package_path(path: &str) -> PathBuf {
+    PathBuf::from(path.trim_start_matches('\\').replace('\\', "/"))
+}
+
+#[cfg(target_os = "macos")]
+fn stage_package_tree(
+    source: &Path,
+    target: &Path,
+    relative: &Path,
+    encrypted: &HashSet<PathBuf>,
+) -> std::io::Result<()> {
+    std::fs::create_dir_all(target)?;
+    for entry in std::fs::read_dir(source)? {
+        let entry = entry?;
+        let source_path = entry.path();
+        let relative_path = relative.join(entry.file_name());
+        let target_path = target.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            stage_package_tree(&source_path, &target_path, &relative_path, encrypted)?;
+        } else if !encrypted.contains(&relative_path) {
+            std::os::unix::fs::symlink(source_path, target_path)?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn make_staged_file(folder: &str, path: &str) -> std::io::Result<std::fs::File> {
+    let path = Path::new(folder).join(package_path(path));
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .read(true)
+        .write(true)
+        .open(path)
+}
+
+#[cfg(target_os = "macos")]
+async fn prepare(
+    lfiles: &HashMap<String, SegmentFile>,
+    source: &Path,
+) -> (impl AsyncFnOnce(), String) {
     let disk_size: u64 = lfiles
         .iter()
         .filter(|f| f.1.keep_encrypted)
@@ -82,6 +132,18 @@ async fn prepare(lfiles: &HashMap<String, SegmentFile>) -> (impl AsyncFnOnce(), 
         .await
         .unwrap();
     assert!(mnt.success());
+    let encrypted = lfiles
+        .iter()
+        .filter(|(_, file)| file.keep_encrypted)
+        .map(|(path, _)| package_path(path))
+        .collect();
+    stage_package_tree(
+        source,
+        Path::new(mount_dir),
+        Path::new(""),
+        &encrypted,
+    )
+    .unwrap();
     let mount_dir_cl = mount_dir.to_string();
     let device_cl = device.to_string();
     (
@@ -108,7 +170,10 @@ async fn prepare(lfiles: &HashMap<String, SegmentFile>) -> (impl AsyncFnOnce(), 
 }
 
 #[cfg(not(target_os = "macos"))]
-async fn prepare(_lfiles: &HashMap<String, SegmentFile>) -> (impl AsyncFnOnce(), String) {
+async fn prepare(
+    _lfiles: &HashMap<String, SegmentFile>,
+    _source: &Path,
+) -> (impl AsyncFnOnce(), String) {
     (async || {}, "".to_owned())
 }
 
@@ -181,14 +246,21 @@ pub async fn run(
 
     let full_key = content_key.unpack(&key).expect("failed to unpack");
 
+    #[cfg(not(target_os = "macos"))]
     let mut fds = vec![];
+    #[cfg(target_os = "macos")]
+    let mut prepared_paths = vec![];
 
-    let (cleanup, mount_dir) = prepare(&lfiles).await;
+    let (cleanup, mount_dir) = prepare(&lfiles, out).await;
 
     for file in &lfiles {
         if !file.1.keep_encrypted {
             continue;
         }
+        #[cfg(target_os = "macos")]
+        let mut game_exe =
+            File::from_std(make_staged_file(&mount_dir, file.0).unwrap());
+        #[cfg(not(target_os = "macos"))]
         let mut game_exe = File::from_std(make_temp_file(&mount_dir).unwrap());
 
         let source_path = out.join(file.0.replace("\\", "/"));
@@ -199,15 +271,23 @@ pub async fn run(
             .await
             .unwrap();
 
-        let stdf = game_exe.into_std().await;
-
-        let mut flags = fcntl_getfd(stdf.as_fd()).unwrap();
-        flags.remove(FdFlags::CLOEXEC);
-        fcntl_setfd(stdf.as_fd(), flags).unwrap();
-
-        fds.push((file.0, stdf.into_raw_fd()));
+        #[cfg(target_os = "macos")]
+        {
+            game_exe.sync_all().await.unwrap();
+            prepared_paths.push(file.0.clone());
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let stdf = game_exe.into_std().await;
+            let mut flags = fcntl_getfd(stdf.as_fd()).unwrap();
+            flags.remove(FdFlags::CLOEXEC);
+            fcntl_setfd(stdf.as_fd(), flags).unwrap();
+            fds.push((file.0, stdf.into_raw_fd()));
+        }
     }
 
+    #[cfg(not(target_os = "macos"))]
+    let mut wn = {
     let mut env_value = String::new();
     let nt_prefix = out_absolute.to_string_lossy().replace("/", "\\");
     let nt_prefix = nt_prefix.trim_end_matches('\\');
@@ -234,14 +314,38 @@ pub async fn run(
 
     let Some(nt_entry) = nt_entry else {
         eprintln!("Could not find .exe");
+        cleanup().await;
         return ExitCode::FAILURE;
     };
 
-    let mut wn = Command::new(wine)
+        Command::new(wine)
         .arg(nt_entry)
         .env("WINE_DLL_FILE_MAP", env_value)
         .spawn()
-        .unwrap();
+        .unwrap()
+    };
+
+    #[cfg(target_os = "macos")]
+    let mut wn = {
+        let selected = exe
+            .as_ref()
+            .and_then(|exe| {
+                prepared_paths
+                    .iter()
+                    .find(|path| path.as_str() == exe.as_str())
+            })
+            .or_else(|| prepared_paths.first());
+        let Some(selected) = selected else {
+            eprintln!("Could not find .exe");
+            cleanup().await;
+            return ExitCode::FAILURE;
+        };
+        Command::new(wine)
+            .arg(Path::new(&mount_dir).join(package_path(selected)))
+            .current_dir(&out_absolute)
+            .spawn()
+            .unwrap()
+    };
 
     let pid = wn.id().unwrap();
 

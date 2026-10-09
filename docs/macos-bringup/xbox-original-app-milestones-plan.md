@@ -4,6 +4,15 @@ Updated: 2026-10-07. Target: the original `XboxPcApp.exe`, application
 `Microsoft.Xbox.AppL`, not the Xodus UI, CE sidecar, installer or a replacement
 authentication flow.
 
+> **PAUSED 2026-10-09 (budget).** Start with
+> [`10-handover-2026-10-09.md`](10-handover-2026-10-09.md). Status: the original app starts and stays
+> alive; XAML reaches its frame path but has never submitted a frame (leading, unverified gate: 0x0 swapchain,
+> `CreateSurfaceFactory` never called). Window, screenshot, sign-in and library are UNTESTED. Final heads:
+> runtime branch `dragoshont-xbox-app-shell-navigation-client` `c1ad528`; composition repo
+> `dragoshont/wine-composition-research` `0e108ba`. Later sections after "Overnight result" are
+> earlier planning; the 2026-10-09 daytime work (brE1 to brE5, v6 to v10, headed run brG1) is
+> summarised in the handover and the side-branch records.
+
 ## Ground truth
 
 | Milestone | Current evidence | Remaining acceptance |

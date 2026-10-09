@@ -1,0 +1,682 @@
+diff --git a/dlls/ntdll/Makefile.in b/dlls/ntdll/Makefile.in
+index 7e2f377..e187a8b 100644
+--- a/dlls/ntdll/Makefile.in
++++ b/dlls/ntdll/Makefile.in
+@@ -56,6 +56,7 @@ SOURCES = \
+ 	unix/process.c \
+ 	unix/registry.c \
+ 	unix/security.c \
++	unix/package_activation.c \
+ 	unix/serial.c \
+ 	unix/server.c \
+ 	unix/signal_arm.c \
+diff --git a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
+index c9d46a3..2474f0b 100644
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -334,6 +334,8 @@
+ @ stdcall -syscall=0x0051 NtQuerySection(long long ptr long ptr)
+ @ stdcall -syscall NtQuerySecurityObject(long long ptr long ptr)
+ @ stdcall -syscall NtQuerySecurityAttributesToken(long ptr long ptr long ptr)
++@ stdcall -syscall NtXodusQueryRegisteredPackage(ptr ptr ptr ptr)
++@ stdcall -syscall NtXodusActivateRegisteredPackage(long ptr ptr)
+ @ stdcall -syscall NtQuerySemaphore (long long ptr long ptr)
+ @ stdcall -syscall NtQuerySymbolicLinkObject(long ptr ptr)
+ @ stdcall -syscall NtQuerySystemEnvironmentValue(ptr ptr long ptr)
+diff --git a/dlls/ntdll/ntsyscalls.h b/dlls/ntdll/ntsyscalls.h
+index 0b33bfe..334bab3 100644
+--- a/dlls/ntdll/ntsyscalls.h
++++ b/dlls/ntdll/ntsyscalls.h
+@@ -266,7 +266,9 @@
+     SYSCALL_ENTRY( 0x0106, NtWow64QueryInformationProcess64, 20 ) \
+     SYSCALL_ENTRY( 0x0107, NtWow64ReadVirtualMemory64, 28 ) \
+     SYSCALL_ENTRY( 0x0108, NtWow64WriteVirtualMemory64, 28 ) \
+-    SYSCALL_ENTRY( 0x0109, __wine_rpc_NtReadFile, 36 )
++    SYSCALL_ENTRY( 0x0109, NtXodusActivateRegisteredPackage, 12 ) \
++    SYSCALL_ENTRY( 0x010a, NtXodusQueryRegisteredPackage, 16 ) \
++    SYSCALL_ENTRY( 0x010b, __wine_rpc_NtReadFile, 36 )
+ #ifdef _WIN64
+ #define ALL_SYSCALLS \
+     SYSCALL_ENTRY( 0x0000, NtAccessCheck, 64 ) \
+@@ -528,7 +530,9 @@
+     SYSCALL_ENTRY( 0x0100, NtWaitForAlertByThreadId, 16 ) \
+     SYSCALL_ENTRY( 0x0101, NtWaitForDebugEvent, 32 ) \
+     SYSCALL_ENTRY( 0x0102, NtWaitForKeyedEvent, 32 ) \
+-    SYSCALL_ENTRY( 0x0103, __wine_rpc_NtReadFile, 72 )
++    SYSCALL_ENTRY( 0x0103, NtXodusActivateRegisteredPackage, 24 ) \
++    SYSCALL_ENTRY( 0x0104, NtXodusQueryRegisteredPackage, 32 ) \
++    SYSCALL_ENTRY( 0x0105, __wine_rpc_NtReadFile, 72 )
+ #else
+ #define ALL_SYSCALLS ALL_SYSCALLS32
+ #endif
+diff --git a/dlls/ntdll/unix/package_activation.c b/dlls/ntdll/unix/package_activation.c
+new file mode 100644
+index 0000000..229582a
+--- /dev/null
++++ b/dlls/ntdll/unix/package_activation.c
+@@ -0,0 +1,60 @@
++/*
++ * Explicit local-catalog activation transport; no identity supplied by client.
++ * SPDX-License-Identifier: LGPL-2.1-or-later
++ */
++#if 0
++#pragma makedep unix
++#endif
++#include <stdarg.h>
++#include "ntstatus.h"
++#define WIN32_NO_STATUS
++#include "windef.h"
++#include "winternl.h"
++#include "unix_private.h"
++
++static int registration_strings( const UNICODE_STRING *package, const UNICODE_STRING *app )
++{
++    return package && app && package->Buffer && app->Buffer && package->Length && app->Length &&
++           !(package->Length & 1) && !(app->Length & 1) &&
++           package->Length <= 2048 && app->Length <= 2048;
++}
++
++NTSTATUS WINAPI NtXodusQueryRegisteredPackage( const UNICODE_STRING *package,
++                                              const UNICODE_STRING *app,
++                                              void *image, ULONG *bytes )
++{
++    NTSTATUS status;
++    ULONG required;
++    if (!registration_strings( package, app ) || !bytes || (*bytes && !image))
++        return STATUS_INVALID_PARAMETER;
++    SERVER_START_REQ( query_registered_package )
++    {
++        req->package_bytes = package->Length;
++        wine_server_add_data( req, package->Buffer, package->Length );
++        wine_server_add_data( req, app->Buffer, app->Length );
++        if (*bytes) wine_server_set_reply( req, image, *bytes );
++        status = wine_server_call( req );
++        required = reply->image_bytes;
++    }
++    SERVER_END_REQ;
++    if (!status || status == STATUS_BUFFER_TOO_SMALL) *bytes = required;
++    return status;
++}
++
++NTSTATUS WINAPI NtXodusActivateRegisteredPackage( HANDLE process,
++                                                 const UNICODE_STRING *package,
++                                                 const UNICODE_STRING *app )
++{
++    NTSTATUS status;
++    if (!registration_strings( package, app )) return STATUS_INVALID_PARAMETER;
++    SERVER_START_REQ( activate_registered_package )
++    {
++        req->process = wine_server_obj_handle( process );
++        req->package_bytes = package->Length;
++        wine_server_add_data( req, package->Buffer, package->Length );
++        wine_server_add_data( req, app->Buffer, app->Length );
++        status = wine_server_call( req );
++    }
++    SERVER_END_REQ;
++    return status;
++}
+diff --git a/dlls/wow64/Makefile.in b/dlls/wow64/Makefile.in
+index 8453e87..7bad976 100644
+--- a/dlls/wow64/Makefile.in
++++ b/dlls/wow64/Makefile.in
+@@ -9,6 +9,7 @@ SOURCES = \
+ 	process.c \
+ 	registry.c \
+ 	security.c \
++	package_activation.c \
+ 	sync.c \
+ 	syscall.c \
+ 	system.c \
+diff --git a/dlls/wow64/package_activation.c b/dlls/wow64/package_activation.c
+new file mode 100644
+index 0000000..f9adffc
+--- /dev/null
++++ b/dlls/wow64/package_activation.c
+@@ -0,0 +1,21 @@
++/* Explicitly unsupported in the x64-only experimental runtime.
++ * SPDX-License-Identifier: LGPL-2.1-or-later
++ */
++#include <stdarg.h>
++#include "ntstatus.h"
++#define WIN32_NO_STATUS
++#include "windef.h"
++#include "winternl.h"
++#include "wow64_private.h"
++
++NTSTATUS WINAPI wow64_NtXodusQueryRegisteredPackage( UINT *args )
++{
++    (void)args;
++    return STATUS_NOT_SUPPORTED;
++}
++
++NTSTATUS WINAPI wow64_NtXodusActivateRegisteredPackage( UINT *args )
++{
++    (void)args;
++    return STATUS_NOT_SUPPORTED;
++}
+diff --git a/include/wine/server_protocol.h b/include/wine/server_protocol.h
+index 59a8d06..aa1150b 100644
+--- a/include/wine/server_protocol.h
++++ b/include/wine/server_protocol.h
+@@ -4886,6 +4886,35 @@ struct get_token_security_attributes_reply
+     char __pad_12[4];
+ };
+ 
++
++struct query_registered_package_request
++{
++    struct request_header __header;
++    data_size_t   package_bytes;
++    /* VARARG(registration,unicode_str); */
++};
++struct query_registered_package_reply
++{
++    struct reply_header __header;
++    data_size_t   image_bytes;
++    /* VARARG(image,unicode_str); */
++    char __pad_12[4];
++};
++
++
++struct activate_registered_package_request
++{
++    struct request_header __header;
++    obj_handle_t  process;
++    data_size_t   package_bytes;
++    /* VARARG(registration,unicode_str); */
++    char __pad_20[4];
++};
++struct activate_registered_package_reply
++{
++    struct reply_header __header;
++};
++
+ struct filter_token_request
+ {
+     struct request_header __header;
+@@ -6404,6 +6433,8 @@ enum request
+     REQ_check_token_privileges,
+     REQ_duplicate_token,
+     REQ_get_token_security_attributes,
++    REQ_query_registered_package,
++    REQ_activate_registered_package,
+     REQ_filter_token,
+     REQ_access_check,
+     REQ_get_token_sid,
+@@ -6718,6 +6749,8 @@ union generic_request
+     struct check_token_privileges_request check_token_privileges_request;
+     struct duplicate_token_request duplicate_token_request;
+     struct get_token_security_attributes_request get_token_security_attributes_request;
++    struct query_registered_package_request query_registered_package_request;
++    struct activate_registered_package_request activate_registered_package_request;
+     struct filter_token_request filter_token_request;
+     struct access_check_request access_check_request;
+     struct get_token_sid_request get_token_sid_request;
+@@ -7030,6 +7063,8 @@ union generic_reply
+     struct check_token_privileges_reply check_token_privileges_reply;
+     struct duplicate_token_reply duplicate_token_reply;
+     struct get_token_security_attributes_reply get_token_security_attributes_reply;
++    struct query_registered_package_reply query_registered_package_reply;
++    struct activate_registered_package_reply activate_registered_package_reply;
+     struct filter_token_reply filter_token_reply;
+     struct access_check_reply access_check_reply;
+     struct get_token_sid_reply get_token_sid_reply;
+@@ -7112,6 +7147,6 @@ union generic_reply
+     struct d3dkmt_mutex_release_reply d3dkmt_mutex_release_reply;
+ };
+ 
+-#define SERVER_PROTOCOL_VERSION 1810
++#define SERVER_PROTOCOL_VERSION 1811
+ 
+ #endif /* __WINE_WINE_SERVER_PROTOCOL_H */
+diff --git a/include/winternl.h b/include/winternl.h
+index 351d9b6..d335ebb 100644
+--- a/include/winternl.h
++++ b/include/winternl.h
+@@ -4729,6 +4729,8 @@ NTSYSAPI NTSTATUS  WINAPI NtQueryOpenSubKeys(POBJECT_ATTRIBUTES,PULONG);
+ NTSYSAPI NTSTATUS  WINAPI NtQueryPerformanceCounter(PLARGE_INTEGER, PLARGE_INTEGER);
+ NTSYSAPI NTSTATUS  WINAPI NtQuerySecurityObject(HANDLE,SECURITY_INFORMATION,PSECURITY_DESCRIPTOR,ULONG,PULONG);
+ NTSYSAPI NTSTATUS  WINAPI NtQuerySecurityAttributesToken(HANDLE,UNICODE_STRING *,ULONG,void *,ULONG,PULONG);
++NTSYSAPI NTSTATUS  WINAPI NtXodusQueryRegisteredPackage(const UNICODE_STRING *,const UNICODE_STRING *,void *,PULONG);
++NTSYSAPI NTSTATUS  WINAPI NtXodusActivateRegisteredPackage(HANDLE,const UNICODE_STRING *,const UNICODE_STRING *);
+ NTSYSAPI NTSTATUS  WINAPI NtQuerySection(HANDLE,SECTION_INFORMATION_CLASS,PVOID,SIZE_T,SIZE_T*);
+ NTSYSAPI NTSTATUS  WINAPI NtQuerySemaphore(HANDLE,SEMAPHORE_INFORMATION_CLASS,PVOID,ULONG,PULONG);
+ NTSYSAPI NTSTATUS  WINAPI NtQuerySymbolicLinkObject(HANDLE,PUNICODE_STRING,PULONG);
+diff --git a/server/Makefile.in b/server/Makefile.in
+index f21aa48..e0b9b29 100644
+--- a/server/Makefile.in
++++ b/server/Makefile.in
+@@ -27,6 +27,7 @@ SOURCES = \
+ 	named_pipe.c \
+ 	object.c \
+ 	process.c \
++	package_activation.c \
+ 	procfs.c \
+ 	ptrace.c \
+ 	queue.c \
+diff --git a/server/package_activation.c b/server/package_activation.c
+new file mode 100644
+index 0000000..39e8a56
+--- /dev/null
++++ b/server/package_activation.c
+@@ -0,0 +1,263 @@
++/*
++ * Prefix-local catalog-backed activation, identity only.
++ * Copyright 2026 Xodus contributors
++ * SPDX-License-Identifier: LGPL-2.1-or-later
++ *
++ * Catalogs are explicit local-developer registrations verified by the registrar.
++ * There is no public arbitrary-attribute setter, Store/sign-in state, sandbox
++ * assertion or capability/privilege grant. Only caller-owned suspended children
++ * with the exact registered image can acquire that registration's identity.
++ */
++#include "config.h"
++#include <errno.h>
++#include <fcntl.h>
++#include <stdint.h>
++#include <stdarg.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/stat.h>
++#include <unistd.h>
++#ifdef __APPLE__
++#include <CommonCrypto/CommonDigest.h>
++#endif
++#include "ntstatus.h"
++#define WIN32_NO_STATUS
++#include "windef.h"
++#include "winternl.h"
++#include "process.h"
++#include "thread.h"
++#include "request.h"
++#include "security.h"
++#include "wine/token_security.h"
++
++#define CATALOG_MAX (4 * 1024 * 1024)
++struct catalog {
++    unsigned char *data;
++    size_t bytes;
++    char *full, *app, *family, *image;
++    unsigned char *files;
++    unsigned int file_count;
++};
++
++static int u32( unsigned char **p, const unsigned char *end, unsigned int *value )
++{
++    if (end - *p < 4) return 0;
++    memcpy( value, *p, 4 ); *p += 4;
++    return 1;
++}
++
++static char *get_string( unsigned char **p, const unsigned char *end )
++{
++    unsigned int bytes, i;
++    char *s;
++    if (!u32( p, end, &bytes ) || !bytes || bytes > 4096 || end - *p < bytes) return NULL;
++    for (i = 0; i < bytes; ++i)
++        if ((*p)[i] < 32 || (*p)[i] > 126) return NULL; /* bounded ASCII catalog ABI */
++    if (!(s = malloc( bytes + 1 ))) return NULL;
++    memcpy( s, *p, bytes ); s[bytes] = 0; *p += bytes;
++    return s;
++}
++
++static void free_catalog( struct catalog *c )
++{
++    free( c->full ); free( c->app ); free( c->family ); free( c->image ); free( c->data );
++    memset( c, 0, sizeof(*c) );
++}
++
++static int file_hash_matches( const char *path, const unsigned char *expected )
++{
++#ifdef __APPLE__
++    int fd;
++    struct stat st;
++    CC_SHA256_CTX ctx;
++    unsigned char buf[65536], actual[CC_SHA256_DIGEST_LENGTH];
++    ssize_t bytes;
++    if (path[0] != '/' || strstr( path, "/../" ) || strstr( path, "/./" ) ||
++        (fd = open( path, O_RDONLY | O_NOFOLLOW )) == -1) return 0;
++    if (fstat( fd, &st ) || !S_ISREG( st.st_mode ))
++    {
++        close( fd ); return 0;
++    }
++    CC_SHA256_Init( &ctx );
++    while ((bytes = read( fd, buf, sizeof(buf) )) > 0)
++        CC_SHA256_Update( &ctx, buf, bytes );
++    close( fd );
++    if (bytes < 0) return 0;
++    CC_SHA256_Final( actual, &ctx );
++    return !memcmp( actual, expected, sizeof(actual) );
++#else
++    return 0;
++#endif
++}
++
++static unsigned int load_catalog( struct catalog *c )
++{
++    const char *prefix = getenv( "WINEPREFIX" );
++    char *path;
++    struct stat st;
++    int fd;
++    unsigned int version, size, reserved, i;
++    unsigned char *p, *end;
++    size_t got = 0;
++    ssize_t n;
++    memset( c, 0, sizeof(*c) );
++    if (!prefix || prefix[0] != '/') return STATUS_NOT_FOUND;
++    if (!(path = malloc( strlen(prefix) + sizeof("/.xodus-local-packages/catalog.bin") )))
++        return STATUS_NO_MEMORY;
++    strcpy( path, prefix ); strcat( path, "/.xodus-local-packages/catalog.bin" );
++    fd = open( path, O_RDONLY | O_NOFOLLOW ); free( path );
++    if (fd == -1) return STATUS_NOT_FOUND;
++    if (fstat( fd, &st ) || !S_ISREG( st.st_mode ) || st.st_uid != getuid() ||
++        (st.st_mode & 0022) || st.st_size < 16 || st.st_size > CATALOG_MAX)
++    {
++        close( fd ); return STATUS_ACCESS_DENIED;
++    }
++    c->bytes = st.st_size;
++    if (!(c->data = malloc( c->bytes ))) { close( fd ); return STATUS_NO_MEMORY; }
++    while (got < c->bytes && (n = read( fd, c->data + got, c->bytes - got )) > 0) got += n;
++    close( fd );
++    if (got != c->bytes || memcmp( c->data, "XPA1", 4 )) goto invalid;
++    p = c->data + 4; end = c->data + c->bytes;
++    if (!u32( &p, end, &version ) || !u32( &p, end, &size ) || !u32( &p, end, &reserved ) ||
++        version != 1 || reserved || size != c->bytes - 16 ||
++        !(c->full = get_string( &p, end )) || !(c->app = get_string( &p, end )) ||
++        !(c->family = get_string( &p, end )) || !(c->image = get_string( &p, end )) ||
++        strncmp( c->image, "\\??\\", 4 ) ||
++        !u32( &p, end, &c->file_count ) || !c->file_count || c->file_count > 8192) goto invalid;
++    c->files = p;
++    for (i = 0; i < c->file_count; ++i)
++    {
++        char *name = get_string( &p, end );
++        int valid = name && end - p >= 32 && file_hash_matches( name, p );
++        free( name );
++        if (!valid) { free_catalog( c ); return STATUS_INVALID_IMAGE_HASH; }
++        p += 32;
++    }
++    if (p != end) goto invalid;
++    return STATUS_SUCCESS;
++invalid:
++    free_catalog( c );
++    return STATUS_INVALID_PARAMETER;
++}
++
++static unsigned short fold( unsigned short c )
++{
++    return c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c;
++}
++
++static int string_matches( const char *ascii, const WCHAR *text, unsigned int bytes )
++{
++    unsigned int i;
++    if (bytes & 1 || strlen(ascii) != bytes / 2) return 0;
++    for (i = 0; i < bytes / 2; ++i)
++        if (fold( (unsigned char)ascii[i] ) != fold( text[i] )) return 0;
++    return 1;
++}
++
++static int requested_registration( struct catalog *c, const void *data, unsigned int bytes,
++                                   unsigned int package_bytes )
++{
++    if (!package_bytes || package_bytes >= bytes || package_bytes & 1 || bytes & 1) return 0;
++    return string_matches( c->full, data, package_bytes ) &&
++           string_matches( c->app, (const WCHAR *)data + package_bytes / 2, bytes - package_bytes );
++}
++
++static unsigned int write_utf16( unsigned char *data, unsigned int *at, const char *text )
++{
++    unsigned int start = *at, i;
++    for (i = 0; text[i]; ++i)
++    {
++        uint16_t ch = (unsigned char)text[i];
++        memcpy( data + *at, &ch, 2 ); *at += 2;
++    }
++    return start;
++}
++
++static int provision_identity( struct process *process, struct catalog *c )
++{
++    unsigned char *data;
++    struct tsa_header *header;
++    struct tsa_attribute *a;
++    struct tsa_string *values;
++    unsigned int at = sizeof(*header) + 2 * sizeof(*a), i, start;
++    const char *strings[3] = { c->full, c->app, c->family };
++    uint64_t claim = ((uint64_t)4 << 32) | 1; /* local DeveloperUnsigned; packaged format only */
++    size_t capacity = 256 + 2 * (strlen(c->full) + strlen(c->app) + strlen(c->family));
++    if (capacity > TSA_MAX_BYTES || !(data = calloc( 1, capacity ))) return 0;
++    header = (struct tsa_header *)data; header->version = 1; header->count = 2;
++    a = (struct tsa_attribute *)(header + 1);
++    a[0].name = write_utf16( data, &at, "WIN://SYSAPPID" );
++    a[0].name_bytes = at - a[0].name;
++    a[1].name = write_utf16( data, &at, "WIN://PKG" );
++    a[1].name_bytes = at - a[1].name;
++    at = (at + 7) & ~7u;
++    a[0].type = 3; a[0].count = 3; a[0].values = at;
++    values = (struct tsa_string *)(data + at); at += 3 * sizeof(*values);
++    for (i = 0; i < 3; ++i)
++    {
++        start = at; values[i].offset = write_utf16( data, &at, strings[i] );
++        values[i].bytes = at - start;
++    }
++    at = (at + 7) & ~7u;
++    a[1].type = 2; a[1].count = 1; a[1].values = at;
++    memcpy( data + at, &claim, sizeof(claim) ); at += sizeof(claim);
++    i = token_replace_security_attributes( process->token, data, at );
++    free( data );
++    return i;
++}
++
++DECL_HANDLER(query_registered_package)
++{
++    struct catalog catalog;
++    unsigned int status = load_catalog( &catalog ), i, bytes;
++    WCHAR *image;
++    if (status) { set_error( status ); return; }
++    if (!requested_registration( &catalog, get_req_data(), get_req_data_size(), req->package_bytes ))
++    {
++        set_error( STATUS_NOT_FOUND ); goto done;
++    }
++    bytes = (strlen(catalog.image) + 1) * sizeof(WCHAR);
++    reply->image_bytes = bytes;
++    if (get_reply_max_size() < bytes) { set_error( STATUS_BUFFER_TOO_SMALL ); goto done; }
++    if (!(image = malloc( bytes ))) { set_error( STATUS_NO_MEMORY ); goto done; }
++    for (i = 0; i < bytes / 2; ++i) image[i] = (unsigned char)catalog.image[i];
++    set_reply_data_ptr( image, bytes );
++done:
++    free_catalog( &catalog );
++}
++
++DECL_HANDLER(activate_registered_package)
++{
++    struct catalog catalog;
++    struct process *process;
++    struct thread *thread;
++    unsigned int status;
++    const char *image;
++    if (!(process = get_process_from_handle( req->process, PROCESS_SET_INFORMATION |
++                                            PROCESS_QUERY_LIMITED_INFORMATION ))) return;
++    if (process->parent_id != current->process->id || process->is_terminating ||
++        process->startup_state != STARTUP_DONE || !process->imagelen ||
++        !token_security_attributes_empty( process->token ))
++    {
++        set_error( STATUS_ACCESS_DENIED ); goto done_process;
++    }
++    LIST_FOR_EACH_ENTRY( thread, &process->thread_list, struct thread, proc_entry )
++        if (!process->suspend && !thread->suspend) { set_error( STATUS_ACCESS_DENIED ); goto done_process; }
++    status = load_catalog( &catalog );
++    if (status) { set_error( status ); goto done_process; }
++    if (!requested_registration( &catalog, get_req_data(), get_req_data_size(), req->package_bytes ))
++    {
++        set_error( STATUS_NOT_FOUND ); goto done_catalog;
++    }
++    image = catalog.image;
++    if (process->imagelen == (strlen(image) - 4) * sizeof(WCHAR)) image += 4;
++    if (!string_matches( image, process->image, process->imagelen ))
++    {
++        set_error( STATUS_INVALID_IMAGE_HASH ); goto done_catalog;
++    }
++    if (!provision_identity( process, &catalog )) set_error( STATUS_NO_MEMORY );
++done_catalog:
++    free_catalog( &catalog );
++done_process:
++    release_object( process );
++}
+diff --git a/server/protocol.def b/server/protocol.def
+index 0d9e7c2..8652f7a 100644
+--- a/server/protocol.def
++++ b/server/protocol.def
+@@ -3506,6 +3506,22 @@ enum caret_state
+     VARARG(attributes,bytes);
+ @END
+ 
++/* Explicit local-developer catalog query. No identity comes from request data. */
++@REQ(query_registered_package)
++    data_size_t   package_bytes;
++    VARARG(registration,unicode_str);
++@REPLY
++    data_size_t   image_bytes;
++    VARARG(image,unicode_str);
++@END
++
++/* Only an owned, still-suspended child matching the catalog image is eligible. */
++@REQ(activate_registered_package)
++    obj_handle_t  process;
++    data_size_t   package_bytes;
++    VARARG(registration,unicode_str);
++@END
++
+ @REQ(filter_token)
+     obj_handle_t  handle;          /* handle to the token to duplicate */
+     unsigned int  flags;           /* flags */
+diff --git a/server/request_handlers.h b/server/request_handlers.h
+index fde3ace..9f4614e 100644
+--- a/server/request_handlers.h
++++ b/server/request_handlers.h
+@@ -234,6 +234,8 @@ DECL_HANDLER(get_token_privileges);
+ DECL_HANDLER(check_token_privileges);
+ DECL_HANDLER(duplicate_token);
+ DECL_HANDLER(get_token_security_attributes);
++DECL_HANDLER(query_registered_package);
++DECL_HANDLER(activate_registered_package);
+ DECL_HANDLER(filter_token);
+ DECL_HANDLER(access_check);
+ DECL_HANDLER(get_token_sid);
+@@ -545,6 +547,8 @@ static const req_handler req_handlers[REQ_NB_REQUESTS] =
+     (req_handler)req_check_token_privileges,
+     (req_handler)req_duplicate_token,
+     (req_handler)req_get_token_security_attributes,
++    (req_handler)req_query_registered_package,
++    (req_handler)req_activate_registered_package,
+     (req_handler)req_filter_token,
+     (req_handler)req_access_check,
+     (req_handler)req_get_token_sid,
+@@ -1974,6 +1978,13 @@ C_ASSERT( offsetof(struct get_token_security_attributes_request, handle) == 12 )
+ C_ASSERT( sizeof(struct get_token_security_attributes_request) == 16 );
+ C_ASSERT( offsetof(struct get_token_security_attributes_reply, attributes_len) == 8 );
+ C_ASSERT( sizeof(struct get_token_security_attributes_reply) == 16 );
++C_ASSERT( offsetof(struct query_registered_package_request, package_bytes) == 12 );
++C_ASSERT( sizeof(struct query_registered_package_request) == 16 );
++C_ASSERT( offsetof(struct query_registered_package_reply, image_bytes) == 8 );
++C_ASSERT( sizeof(struct query_registered_package_reply) == 16 );
++C_ASSERT( offsetof(struct activate_registered_package_request, process) == 12 );
++C_ASSERT( offsetof(struct activate_registered_package_request, package_bytes) == 16 );
++C_ASSERT( sizeof(struct activate_registered_package_request) == 24 );
+ C_ASSERT( offsetof(struct filter_token_request, handle) == 12 );
+ C_ASSERT( offsetof(struct filter_token_request, flags) == 16 );
+ C_ASSERT( offsetof(struct filter_token_request, privileges_size) == 20 );
+diff --git a/server/request_trace.h b/server/request_trace.h
+index 728a196..783c763 100644
+--- a/server/request_trace.h
++++ b/server/request_trace.h
+@@ -2670,6 +2670,25 @@ static void dump_get_token_security_attributes_reply( const struct get_token_sec
+     dump_varargs_bytes( ", attributes=", cur_size );
+ }
+ 
++static void dump_query_registered_package_request( const struct query_registered_package_request *req )
++{
++    fprintf( stderr, " package_bytes=%u", req->package_bytes );
++    dump_varargs_unicode_str( ", registration=", cur_size );
++}
++
++static void dump_query_registered_package_reply( const struct query_registered_package_reply *req )
++{
++    fprintf( stderr, " image_bytes=%u", req->image_bytes );
++    dump_varargs_unicode_str( ", image=", cur_size );
++}
++
++static void dump_activate_registered_package_request( const struct activate_registered_package_request *req )
++{
++    fprintf( stderr, " process=%04x", req->process );
++    fprintf( stderr, ", package_bytes=%u", req->package_bytes );
++    dump_varargs_unicode_str( ", registration=", cur_size );
++}
++
+ static void dump_filter_token_request( const struct filter_token_request *req )
+ {
+     fprintf( stderr, " handle=%04x", req->handle );
+@@ -3751,6 +3770,8 @@ static const dump_func req_dumpers[REQ_NB_REQUESTS] =
+     (dump_func)dump_check_token_privileges_request,
+     (dump_func)dump_duplicate_token_request,
+     (dump_func)dump_get_token_security_attributes_request,
++    (dump_func)dump_query_registered_package_request,
++    (dump_func)dump_activate_registered_package_request,
+     (dump_func)dump_filter_token_request,
+     (dump_func)dump_access_check_request,
+     (dump_func)dump_get_token_sid_request,
+@@ -4062,6 +4083,8 @@ static const dump_func reply_dumpers[REQ_NB_REQUESTS] =
+     (dump_func)dump_check_token_privileges_reply,
+     (dump_func)dump_duplicate_token_reply,
+     (dump_func)dump_get_token_security_attributes_reply,
++    (dump_func)dump_query_registered_package_reply,
++    NULL,
+     (dump_func)dump_filter_token_reply,
+     (dump_func)dump_access_check_reply,
+     (dump_func)dump_get_token_sid_reply,
+@@ -4373,6 +4396,8 @@ static const char * const req_names[REQ_NB_REQUESTS] =
+     "check_token_privileges",
+     "duplicate_token",
+     "get_token_security_attributes",
++    "query_registered_package",
++    "activate_registered_package",
+     "filter_token",
+     "access_check",
+     "get_token_sid",
+@@ -4520,6 +4545,7 @@ static const struct
+     { "INVALID_FILE_FOR_SECTION",    STATUS_INVALID_FILE_FOR_SECTION },
+     { "INVALID_HANDLE",              STATUS_INVALID_HANDLE },
+     { "INVALID_IMAGE_FORMAT",        STATUS_INVALID_IMAGE_FORMAT },
++    { "INVALID_IMAGE_HASH",          STATUS_INVALID_IMAGE_HASH },
+     { "INVALID_IMAGE_NE_FORMAT",     STATUS_INVALID_IMAGE_NE_FORMAT },
+     { "INVALID_IMAGE_NOT_MZ",        STATUS_INVALID_IMAGE_NOT_MZ },
+     { "INVALID_IMAGE_PROTECT",       STATUS_INVALID_IMAGE_PROTECT },
+diff --git a/server/security.h b/server/security.h
+index c284f51..126070b 100644
+--- a/server/security.h
++++ b/server/security.h
+@@ -63,6 +63,7 @@ struct ace
+ 
+ extern struct token *get_token_obj( struct process *process, obj_handle_t handle, unsigned int access );
+ extern int token_replace_security_attributes( struct token *token, const void *data, unsigned int bytes );
++extern int token_security_attributes_empty( struct token *token );
+ extern struct token *token_create_admin( unsigned primary, int impersonation_level, int elevation, unsigned int session_id );
+ extern int token_assign_label( struct token *token, const struct sid *label );
+ extern struct token *token_duplicate( struct token *src_token, unsigned primary,
+diff --git a/server/token.c b/server/token.c
+index bbffc96..4da6319 100644
+--- a/server/token.c
++++ b/server/token.c
+@@ -767,6 +767,12 @@ int token_replace_security_attributes( struct token *token, const void *data, un
+     return 1;
+ }
+ 
++int token_security_attributes_empty( struct token *token )
++{
++    const struct tsa_header *header = token->security_attributes.data;
++    return !header || !header->count;
++}
++
+ struct token *token_create_admin( unsigned primary, int impersonation_level, int elevation, unsigned int session_id )
+ {
+     struct token *token = NULL;

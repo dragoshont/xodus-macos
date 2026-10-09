@@ -1,0 +1,4 @@
+LIBRARY "combase-apartment-ordinal"
+EXPORTS
+    RoRegisterForApartmentShutdown=combase.RoRegisterForApartmentShutdown @120 NONAME
+    RoGetApartmentIdentifier=combase.RoGetApartmentIdentifier @122 NONAME

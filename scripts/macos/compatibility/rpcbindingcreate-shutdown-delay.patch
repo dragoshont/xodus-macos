@@ -1,0 +1,159 @@
+--- a/dlls/combase/combase.c
++++ b/dlls/combase/combase.c
+@@ -136,6 +136,119 @@
+       0, 0, { (DWORD_PTR)(__FILE__ ": registered_classes_cs") }
+ };
+ static CRITICAL_SECTION registered_classes_cs = { &registered_classes_cs_debug, -1, 0, 0, 0, 0 };
++
++struct server_shutdown_delay
++{
++    HANDLE event, changed, thread;
++    HMODULE module;
++    DWORD milliseconds;
++    ULONGLONG deadline, generation;
++    BOOL armed;
++};
++static struct server_shutdown_delay *server_shutdown_delay;
++static BOOL server_shutdown_stopping;
++
++static DWORD WINAPI server_shutdown_delay_thread(void *parameter)
++{
++    struct server_shutdown_delay *delay = parameter;
++    DWORD timeout = INFINITE, result;
++    ULONGLONG generation = 0, now, remaining;
++
++    for (;;)
++    {
++        result = WaitForSingleObject(delay->changed, timeout);
++        EnterCriticalSection(&registered_classes_cs);
++        if (server_shutdown_delay != delay)
++        {
++            LeaveCriticalSection(&registered_classes_cs);
++            break;
++        }
++        now = GetTickCount64();
++        if (result == WAIT_TIMEOUT && delay->armed && delay->generation == generation &&
++            !com_server_process_refcount && now >= delay->deadline)
++        {
++            delay->armed = FALSE;
++            if (!SetEvent(delay->event))
++                ERR("Shutdown-delay event delivery failed, error %lu.\n", GetLastError());
++            else
++            {
++                server_shutdown_stopping = TRUE;
++                TRACE("Actual release-to-zero shutdown event delivered; server stopping.\n");
++            }
++        }
++        timeout = INFINITE;
++        if (delay->armed)
++        {
++            remaining = delay->deadline > now ? delay->deadline - now : 0;
++            timeout = min(remaining, (ULONGLONG)MAXDWORD - 1);
++        }
++        generation = delay->generation;
++        LeaveCriticalSection(&registered_classes_cs);
++    }
++    FreeLibraryAndExitThread(delay->module, 0);
++    return 0;
++}
++
++static void destroy_server_shutdown_delay(struct server_shutdown_delay *delay)
++{
++    if (!delay) return;
++    SetEvent(delay->changed);
++    /* The worker takes registered_classes_cs; never join it under that lock. */
++    WaitForSingleObject(delay->thread, INFINITE);
++    CloseHandle(delay->thread);
++    CloseHandle(delay->changed);
++    CloseHandle(delay->event);
++    free(delay);
++}
++
++HRESULT WINAPI CoRegisterServerShutdownDelay(HANDLE event, DWORD milliseconds)
++{
++    struct server_shutdown_delay *delay = NULL, *previous;
++    EVENT_BASIC_INFORMATION info;
++    NTSTATUS status;
++    HRESULT hr;
++    struct apartment *apt;
++
++    if ((!event) != (!milliseconds)) return E_INVALIDARG;
++    if (event)
++    {
++        if (!(apt = apartment_get_current_or_mta())) return CO_E_NOTINITIALIZED;
++        apartment_release(apt);
++        status = NtQueryEvent(event, EventBasicInformation, &info, sizeof(info), NULL);
++        if (status) return HRESULT_FROM_WIN32(RtlNtStatusToDosError(status));
++        if (!(delay = calloc(1, sizeof(*delay)))) return E_OUTOFMEMORY;
++        if (!DuplicateHandle(GetCurrentProcess(), event, GetCurrentProcess(), &delay->event,
++                             EVENT_MODIFY_STATE | SYNCHRONIZE, FALSE, 0) ||
++            !(delay->changed = CreateEventW(NULL, FALSE, FALSE, NULL)) ||
++            !GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
++                               (const WCHAR *)CoRegisterServerShutdownDelay, &delay->module))
++            goto failed;
++        delay->milliseconds = milliseconds;
++        if (!(delay->thread = CreateThread(NULL, 0, server_shutdown_delay_thread, delay, 0, NULL)))
++            goto failed;
++    }
++    EnterCriticalSection(&registered_classes_cs);
++    if (delay && server_shutdown_stopping)
++    {
++        LeaveCriticalSection(&registered_classes_cs);
++        destroy_server_shutdown_delay(delay);
++        return CO_E_SERVER_STOPPING;
++    }
++    previous = server_shutdown_delay;
++    server_shutdown_delay = delay;
++    if (delay) SetEvent(delay->changed);
++    LeaveCriticalSection(&registered_classes_cs);
++    destroy_server_shutdown_delay(previous);
++    TRACE("Shutdown delay %s, interval %lu; no initial timer.\n", delay ? "registered" : "revoked", milliseconds);
++    return S_OK;
++failed:
++    hr = HRESULT_FROM_WIN32(GetLastError());
++    if (delay->module) FreeLibrary(delay->module);
++    if (delay->changed) CloseHandle(delay->changed);
++    if (delay->event) CloseHandle(delay->event);
++    free(delay);
++    return hr;
++}
+ 
+ IUnknown * com_get_registered_class_object(const struct apartment *apt, REFCLSID rclsid, DWORD clscontext)
+ {
+@@ -3197,6 +3310,12 @@
+ 
+     EnterCriticalSection(&registered_classes_cs);
+     refs = ++com_server_process_refcount;
++    if (server_shutdown_delay)
++    {
++        server_shutdown_delay->armed = FALSE;
++        ++server_shutdown_delay->generation;
++        SetEvent(server_shutdown_delay->changed);
++    }
+     LeaveCriticalSection(&registered_classes_cs);
+ 
+     TRACE("refs before: %ld\n", refs - 1);
+@@ -3216,6 +3335,13 @@
+     EnterCriticalSection(&registered_classes_cs);
+ 
+     refs = --com_server_process_refcount;
++    if (!refs && server_shutdown_delay && !server_shutdown_stopping)
++    {
++        server_shutdown_delay->deadline = GetTickCount64() + server_shutdown_delay->milliseconds;
++        server_shutdown_delay->armed = TRUE;
++        ++server_shutdown_delay->generation;
++        SetEvent(server_shutdown_delay->changed);
++    }
+     /* FIXME: suspend objects */
+ 
+     LeaveCriticalSection(&registered_classes_cs);
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -74,6 +74,7 @@
+ @ stdcall CleanupTlsOleState(ptr)
+ @ stub ClearCleanupFlag
+ @ stdcall CoAddRefServerProcess()
++@ stdcall CoRegisterServerShutdownDelay(ptr long)
+ @ stub CoAllowUnmarshalerCLSID
+ @ stub CoCancelCall
+ @ stdcall CoCopyProxy(ptr ptr)

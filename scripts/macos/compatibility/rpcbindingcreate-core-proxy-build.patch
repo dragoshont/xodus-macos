@@ -1,0 +1,28 @@
+--- a/dlls/ole32/Makefile.in
++++ b/dlls/ole32/Makefile.in
+@@ -31,6 +31,9 @@
+ 	ole2.c \
+ 	ole2stubs.c \
+ 	ole32_main.c \
++	rpcbindingcreate_inspectable.idl \
++	rpcbindingcreate_activation.idl \
++	rpcbindingcreate_proxy_iids.c \
+ 	ole32_objidl.idl \
+ 	ole32_oleidl.idl \
+ 	ole32_unknwn.idl \
+@@ -43,4 +46,4 @@
+ 	storage32.c \
+ 	usrmarshal.c
+ 
+-dlldata_EXTRADEFS = -DENTRY_PREFIX=OLE32_ -DPROXY_CLSID=CLSID_PSFactoryBuffer -DWINE_REGISTER_DLL
++dlldata_EXTRADEFS = -DENTRY_PREFIX=OLE32_ -DPROXY_CLSID=CLSID_PSFactoryBuffer -DWINE_REGISTER_DLL -DPROXY_DELEGATION
+--- a/dlls/ole32/compobj_private.h
++++ b/dlls/ole32/compobj_private.h
+@@ -37,6 +37,7 @@
+ #include "dcom.h"
+ #include "winreg.h"
+ #include "winternl.h"
++#include "inspectable.h"
+ 
+ DEFINE_OLEGUID( CLSID_DfMarshal, 0x0000030b, 0, 0 );
+ 

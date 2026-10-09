@@ -1,0 +1,45 @@
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -31,6 +31,8 @@
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(combase);
+ 
++LONG WINAPI GetCurrentPackageFamilyName(UINT32 *length, WCHAR *name);
++
+ static void xbox_prereq_stack(const char *operation)
+ {
+     void *frames[24];
+@@ -492,12 +494,18 @@
+  */
+ HRESULT WINAPI RoGetServerActivatableClasses(HSTRING name, HSTRING **classes, DWORD *count)
+ {
++    UINT32 family_length = 0;
++    LONG status;
+     xbox_prereq_stack("RoGetServerActivatableClasses-enter");
+-    FIXME("(%p, %p, %p): stub\n", name, classes, count);
+-
+-    if (count)
+-        *count = 0;
+-    return S_OK;
++    if (!classes || !count) return E_POINTER;
++    *classes = NULL;
++    *count = 0;
++    status = GetCurrentPackageFamilyName(&family_length, NULL);
++    if (status == APPMODEL_ERROR_NO_PACKAGE) return REGDB_E_CLASSNOTREG;
++    if (status != ERROR_INSUFFICIENT_BUFFER) return HRESULT_FROM_WIN32(status ? status : ERROR_INVALID_DATA);
++    ERR("XBOX_SERVER_ENUM name=%s: package-scoped server-class catalog query unsupported; no classes fabricated.\n",
++        debugstr_hstring(name));
++    return E_NOTIMPL;
+ }
+ 
+ /***********************************************************************
+@@ -506,6 +514,9 @@
+ HRESULT WINAPI RoRegisterActivationFactories(HSTRING *classes, PFNGETACTIVATIONFACTORY *callbacks,
+                                              UINT32 count, RO_REGISTRATION_COOKIE *cookie)
+ {
++    ERR("XBOX_FACTORY_REGISTER classes=%p callbacks=%p count=%u cookie=%p\n",
++        classes, callbacks, count, cookie);
++    xbox_prereq_stack("RoRegisterActivationFactories-enter");
+     if (!cookie) return E_POINTER;
+     if (!count || !classes || !callbacks) return E_INVALIDARG;
+     ERR("Out-of-process WinRT factory registration transport is unsupported; no factories registered.\n");

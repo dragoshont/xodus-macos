@@ -1,0 +1,32 @@
+--- a/dlls/kernelbase/debug.c
++++ b/dlls/kernelbase/debug.c
+@@ -422,6 +422,29 @@
+     CONTEXT ctx;
+ 
+     WARN( "(%p, %p, %lx)\n", record, context, flags );
++    {
++        void *frames[32];
++        WCHAR path[MAX_PATH];
++        HMODULE module;
++        unsigned int i, count = RtlCaptureStackBackTrace( 0, ARRAY_SIZE(frames), frames, NULL );
++        ERR( "XBOX_FAILFAST code=%08lx address=%p parameters=%lu\n",
++             record ? record->ExceptionCode : STATUS_FAIL_FAST_EXCEPTION,
++             record ? record->ExceptionAddress : __builtin_return_address(0),
++             record ? record->NumberParameters : 0 );
++        if (record)
++            for (i = 0; i < min(record->NumberParameters, EXCEPTION_MAXIMUM_PARAMETERS); ++i)
++                ERR( "XBOX_FAILFAST_PARAMETER %u=%Ix\n", i, record->ExceptionInformation[i] );
++        for (i = 0; i < count; ++i)
++        {
++            if (GetModuleHandleExW( GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
++                                  GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
++                                  (WCHAR *)frames[i], &module ) &&
++                GetModuleFileNameW( module, path, ARRAY_SIZE(path) ))
++                ERR( "XBOX_FAILFAST_FRAME %u %s+%Ix\n", i, debugstr_w(path),
++                     (ULONG_PTR)frames[i] - (ULONG_PTR)module );
++            else ERR( "XBOX_FAILFAST_FRAME %u %p\n", i, frames[i] );
++        }
++    }
+ 
+     if (flags & FAIL_FAST_NO_HARD_ERROR_DLG)
+         TerminateProcess( GetCurrentProcess(), STATUS_FAIL_FAST_EXCEPTION );

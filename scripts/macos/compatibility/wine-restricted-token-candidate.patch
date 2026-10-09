@@ -1,0 +1,714 @@
+--- a/server/token.c
++++ b/server/token.c
+@@ -106,8 +106,13 @@
+     struct object  obj;             /* object header */
+     struct luid    token_id;        /* system-unique id of token */
+     struct luid    modified_id;     /* new id allocated every time token is modified */
++    struct luid    authentication_id;
+     struct list    privileges;      /* privileges available to the token */
+     struct list    groups;          /* groups that the user of this token belongs to (sid_and_attributes) */
++    struct list    restricted_groups;
++    int            has_restrictions;
++    int            restricted;
++    int            write_restricted;
+     struct sid    *user;            /* SID of user this token represents */
+     struct sid    *owner;           /* SID of owner (points to user or one of groups) */
+     struct sid    *primary_group;   /* SID of user's primary group (points to one of groups) */
+@@ -458,6 +463,13 @@
+         free( group );
+     }
+ 
++    LIST_FOR_EACH_SAFE( cursor, cursor_next, &token->restricted_groups )
++    {
++        struct group *group = LIST_ENTRY( cursor, struct group, entry );
++        list_remove( &group->entry );
++        free( group );
++    }
++
+     free( token->default_dacl );
+ }
+ 
+@@ -487,6 +499,11 @@
+             allocate_luid( &token->modified_id );
+         list_init( &token->privileges );
+         list_init( &token->groups );
++        list_init( &token->restricted_groups );
++        token->authentication_id.low_part = token->authentication_id.high_part = 0;
++        token->has_restrictions = 0;
++        token->restricted = 0;
++        token->write_restricted = 0;
+         token->primary = primary;
+         token->session_id = session_id;
+         /* primary tokens don't have impersonation levels */
+@@ -507,6 +524,8 @@
+             release_object( token );
+             return NULL;
+         }
++        token->owner = token->user;
++        if (primary_group == ~0u) token->primary_group = token->user;
+ 
+         /* copy groups */
+         for (i = 0; i < group_count; i++)
+@@ -632,11 +651,30 @@
+         list_add_tail( &token->groups, &newgroup->entry );
+         if (src_token->primary_group == &group->sid)
+         {
+-            token->owner = &newgroup->sid;
+             token->primary_group = &newgroup->sid;
+         }
+-    }
++        if (src_token->owner == &group->sid) token->owner = &newgroup->sid;
++    }
++    if (src_token->primary_group == src_token->user) token->primary_group = token->user;
++    if (src_token->owner == src_token->user) token->owner = token->user;
+     assert( token->primary_group );
++
++    token->has_restrictions = src_token->has_restrictions;
++    token->authentication_id = src_token->authentication_id;
++    token->restricted = src_token->restricted;
++    token->write_restricted = src_token->write_restricted;
++    LIST_FOR_EACH_ENTRY( group, &src_token->restricted_groups, struct group, entry )
++    {
++        size_t size = offsetof( struct group, sid.sub_auth[group->sid.sub_count] );
++        struct group *newgroup = mem_alloc( size );
++        if (!newgroup)
++        {
++            release_object( token );
++            return NULL;
++        }
++        memcpy( newgroup, group, size );
++        list_add_tail( &token->restricted_groups, &newgroup->entry );
++    }
+ 
+     /* copy privileges */
+     LIST_FOR_EACH_ENTRY( privilege, &src_token->privileges, struct privilege, entry )
+@@ -932,7 +970,8 @@
+ 
+     LIST_FOR_EACH_ENTRY( group, &token->groups, struct group, entry )
+     {
+-        if (!(group->attrs & SE_GROUP_ENABLED)) continue;
++        if (!(group->attrs & SE_GROUP_ENABLED) && !(deny && (group->attrs & SE_GROUP_USE_FOR_DENY_ONLY)))
++            continue;
+         if (!deny && (group->attrs & SE_GROUP_USE_FOR_DENY_ONLY)) continue;
+         if (equal_sid( &group->sid, sid )) return TRUE;
+     }
+@@ -946,7 +985,16 @@
+  *
+  * If both returned value and 'status' are STATUS_SUCCESS then access is granted.
+  */
+-static unsigned int token_access_check( struct token *token,
++static int token_access_sid_present( struct token *token, const struct sid *sid, int deny, int restricted )
++{
++    struct group *group;
++    if (!restricted) return token_sid_present( token, sid, deny );
++    LIST_FOR_EACH_ENTRY( group, &token->restricted_groups, struct group, entry )
++        if (equal_sid( &group->sid, sid )) return TRUE;
++    return FALSE;
++}
++
++static unsigned int token_access_check_pass( struct token *token, int restricted,
+                                  const struct security_descriptor *sd,
+                                  unsigned int desired_access,
+                                  struct luid_attr *privs,
+@@ -1034,7 +1082,7 @@
+     /* NOTE: SeTakeOwnershipPrivilege is not checked for here - it is instead
+      * checked when a "set owner" call is made, overriding the access rights
+      * determined here. */
+-    if (token_sid_present( token, owner, FALSE ))
++    if (!restricted && token_sid_present( token, owner, FALSE ))
+     {
+         current_access |= (STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE);
+         if (desired_access == current_access)
+@@ -1054,7 +1102,7 @@
+         switch (ace->type)
+         {
+         case ACCESS_DENIED_ACE_TYPE:
+-            if (token_sid_present( token, sid, TRUE ))
++            if (token_access_sid_present( token, sid, TRUE, restricted ))
+             {
+                 unsigned int access = map_access( ace->mask, mapping );
+                 if (desired_access & MAXIMUM_ALLOWED)
+@@ -1067,7 +1115,7 @@
+             }
+             break;
+         case ACCESS_ALLOWED_ACE_TYPE:
+-            if (token_sid_present( token, sid, FALSE ))
++            if (token_access_sid_present( token, sid, FALSE, restricted ))
+             {
+                 unsigned int access = map_access( ace->mask, mapping );
+                 if (desired_access & MAXIMUM_ALLOWED)
+@@ -1093,6 +1141,40 @@
+         else
+             *granted_access = 0;
+ 
++    *status = *granted_access ? STATUS_SUCCESS : STATUS_ACCESS_DENIED;
++    return STATUS_SUCCESS;
++}
++
++static unsigned int token_access_check( struct token *token,
++                                 const struct security_descriptor *sd,
++                                 unsigned int desired_access,
++                                 struct luid_attr *privs,
++                                 unsigned int *priv_count,
++                                 const struct generic_map *mapping,
++                                 unsigned int *granted_access,
++                                 unsigned int *status )
++{
++    unsigned int ret, restricting_access, restricting_status, restricted_desired = desired_access;
++
++    ret = token_access_check_pass( token, FALSE, sd, desired_access, privs, priv_count,
++                                  mapping, granted_access, status );
++    if (ret || *status || !token->restricted) return ret;
++    if (token->write_restricted && !(desired_access & MAXIMUM_ALLOWED))
++        restricted_desired &= mapping->write;
++    if (!restricted_desired) return ret;
++    ret = token_access_check_pass( token, TRUE, sd, restricted_desired, NULL, NULL,
++                                  mapping, &restricting_access, &restricting_status );
++    if (ret)
++    {
++        *granted_access = 0;
++        return ret;
++    }
++    if (token->write_restricted)
++        *granted_access &= restricting_access | ~mapping->write;
++    else
++        *granted_access &= restricting_access;
++    if (!(desired_access & MAXIMUM_ALLOWED) && (*granted_access & desired_access) != desired_access)
++        *granted_access = 0;
+     *status = *granted_access ? STATUS_SUCCESS : STATUS_ACCESS_DENIED;
+     return STATUS_SUCCESS;
+ }
+@@ -1223,7 +1305,8 @@
+         return;
+     }
+ 
+-    if (req->primary_group < 0 || req->primary_group >= req->group_count)
++    if (req->primary_group < -1 || req->primary_group >= req->group_count ||
++        req->owner_group < -1 || req->owner_group >= req->group_count)
+     {
+         set_error( STATUS_INVALID_PARAMETER );
+         return;
+@@ -1277,7 +1360,30 @@
+         dacl = default_dacl = create_default_dacl( &domain_users_sid );
+ 
+     token = create_token( req->primary, default_session_id, user, groups, req->group_count,
+-                          privs, req->priv_count, dacl, NULL, req->primary_group, req->impersonation_level, 0 );
++                          privs, req->priv_count, dacl, NULL, req->primary_group,
++                          req->impersonation_level, TokenElevationTypeDefault );
++    if (token)
++    {
++        token->authentication_id = req->token_id;
++        token->owner = token->user;
++        if (req->owner_group >= 0)
++        {
++            struct group *group;
++            i = 0;
++            LIST_FOR_EACH_ENTRY( group, &token->groups, struct group, entry )
++                if (i++ == req->owner_group)
++                {
++                    if (!(group->attrs & SE_GROUP_OWNER))
++                    {
++                        set_error( STATUS_INVALID_OWNER );
++                        release_object( token );
++                        token = NULL;
++                    }
++                    else token->owner = &group->sid;
++                    break;
++                }
++        }
++    }
+     if (token)
+     {
+         reply->token = alloc_handle( current->process, token, req->access, objattr->attributes );
+@@ -1423,6 +1529,21 @@
+ }
+ 
+ /* creates a restricted version of a token */
++static int validate_filter_sids( const struct sid *sid, data_size_t bytes, unsigned int *count )
++{
++    *count = 0;
++    while (bytes)
++    {
++        if (!sid_valid_size( sid, bytes ) || sid->revision != SID_REVISION ||
++            sid->sub_count > SID_MAX_SUB_AUTHORITIES)
++            return FALSE;
++        bytes -= sid_len( sid );
++        (*count)++;
++        sid = (const struct sid *)((const char *)sid + sid_len( sid ));
++    }
++    return TRUE;
++}
++
+ DECL_HANDLER(filter_token)
+ {
+     struct token *src_token;
+@@ -1430,20 +1551,88 @@
+     if ((src_token = (struct token *)get_handle_obj( current->process, req->handle, TOKEN_DUPLICATE, &token_ops )))
+     {
+         const struct luid_attr *filter_privileges = get_req_data();
+-        unsigned int priv_count, group_count;
+-        const struct sid *filter_groups;
++        unsigned int priv_count, group_count, restrict_count, i;
++        data_size_t bytes = get_req_data_size();
++        const struct sid *filter_groups, *restrict_sids;
+         struct token *token;
+-
+-        priv_count = min( req->privileges_size, get_req_data_size() ) / sizeof(struct luid_attr);
++        struct group *group;
++        struct list *cursor, *next;
++
++        if ((req->flags & ~(DISABLE_MAX_PRIVILEGE | WRITE_RESTRICTED)) ||
++            ((req->flags & WRITE_RESTRICTED) && src_token->restricted && !src_token->write_restricted))
++        {
++            set_error( STATUS_NOT_SUPPORTED );
++            release_object( src_token );
++            return;
++        }
++        if (req->privileges_size > bytes || req->privileges_size % sizeof(struct luid_attr) ||
++            req->disable_sids_size > bytes - req->privileges_size)
++        {
++            set_error( STATUS_INVALID_PARAMETER );
++            release_object( src_token );
++            return;
++        }
++        priv_count = req->privileges_size / sizeof(struct luid_attr);
+         filter_groups = (const struct sid *)((char *)filter_privileges + priv_count * sizeof(struct luid_attr));
+-        group_count = get_sid_count( filter_groups, get_req_data_size() - priv_count * sizeof(struct luid_attr) );
++        restrict_sids = (const struct sid *)((const char *)filter_groups + req->disable_sids_size);
++        if (!validate_filter_sids( filter_groups, req->disable_sids_size, &group_count ) ||
++            !validate_filter_sids( restrict_sids, bytes - req->privileges_size - req->disable_sids_size,
++                                   &restrict_count ))
++        {
++            set_error( STATUS_INVALID_SID );
++            release_object( src_token );
++            return;
++        }
+ 
+         token = token_duplicate( src_token, src_token->primary, src_token->impersonation_level, NULL,
+                                  filter_privileges, priv_count, filter_groups, group_count );
+         if (token)
+         {
+             unsigned int access = get_handle_access( current->process, req->handle );
++            token->has_restrictions = TRUE;
++            allocate_luid( &token->modified_id );
++            if (req->flags & DISABLE_MAX_PRIVILEGE)
++            {
++                LIST_FOR_EACH_SAFE( cursor, next, &token->privileges )
++                {
++                    struct privilege *privilege = LIST_ENTRY( cursor, struct privilege, entry );
++                    if (!is_equal_luid( privilege->luid, SeChangeNotifyPrivilege )) privilege_remove( privilege );
++                }
++            }
++            if (restrict_count)
++            {
++                if (src_token->restricted)
++                {
++                    LIST_FOR_EACH_SAFE( cursor, next, &token->restricted_groups )
++                    {
++                        group = LIST_ENTRY( cursor, struct group, entry );
++                        if (filter_group( group, restrict_sids, restrict_count )) continue;
++                        list_remove( cursor );
++                        free( group );
++                    }
++                    if (list_empty( &token->restricted_groups ))
++                    {
++                        set_error( STATUS_INVALID_PARAMETER );
++                        goto done;
++                    }
++                }
++                else
++                {
++                    for (i = 0; i < restrict_count; i++)
++                    {
++                        if (!(group = mem_alloc( offsetof( struct group, sid.sub_auth[restrict_sids->sub_count] ) )))
++                            goto done;
++                        group->attrs = SE_GROUP_MANDATORY | SE_GROUP_ENABLED_BY_DEFAULT | SE_GROUP_ENABLED;
++                        copy_sid( &group->sid, restrict_sids );
++                        list_add_tail( &token->restricted_groups, &group->entry );
++                        restrict_sids = (const struct sid *)((const char *)restrict_sids + sid_len( restrict_sids ));
++                    }
++                    token->restricted = TRUE;
++                    token->write_restricted = !!(req->flags & WRITE_RESTRICTED);
++                }
++            }
+             reply->new_handle = alloc_handle_no_access_check( current->process, token, access, 0 );
++done:
+             release_object( token );
+         }
+         release_object( src_token );
+@@ -1576,8 +1765,9 @@
+     {
+         unsigned int group_count = 0;
+         const struct group *group;
+-
+-        LIST_FOR_EACH_ENTRY( group, &token->groups, const struct group, entry )
++        const struct list *groups = req->restricted ? &token->restricted_groups : &token->groups;
++
++        LIST_FOR_EACH_ENTRY( group, groups, const struct group, entry )
+         {
+             if (req->attr_mask && !(group->attrs & req->attr_mask)) continue;
+             group_count++;
+@@ -1592,7 +1782,7 @@
+ 
+             if (attr_ptr)
+             {
+-                LIST_FOR_EACH_ENTRY( group, &token->groups, const struct group, entry )
++                LIST_FOR_EACH_ENTRY( group, groups, const struct group, entry )
+                 {
+                     if (req->attr_mask && !(group->attrs & req->attr_mask)) continue;
+                     sid = copy_sid( sid, &group->sid );
+@@ -1614,6 +1804,7 @@
+     {
+         reply->token_id = token->token_id;
+         reply->modified_id = token->modified_id;
++        reply->authentication_id = token->authentication_id;
+         reply->session_id = token->session_id;
+         reply->primary = token->primary;
+         reply->impersonation_level = token->impersonation_level;
+@@ -1627,6 +1818,7 @@
+             reply->is_elevated = token->elevation == TokenElevationTypeFull;
+         reply->group_count = list_count( &token->groups );
+         reply->privilege_count = list_count( &token->privileges );
++        reply->restriction_flags = !!token->has_restrictions | (!!token->restricted << 1);
+         release_object( token );
+     }
+ }
+--- a/dlls/ntdll/unix/security.c
++++ b/dlls/ntdll/unix/security.c
+@@ -59,7 +59,7 @@
+     void *groups_info;
+     BYTE *p;
+     SID *sid;
+-    int primary_group = -1;
++    int primary_group = -1, owner_group = -1;
+ 
+     TRACE( "(%p,0x%08x,%p,%d,%p,%p,%p,%p,%p,%p,%p,%p,%p)\n", handle, access, attr,
+             type, token_id, expire, user, groups, privs, owner, group, dacl, source );
+@@ -87,10 +87,23 @@
+             primary_group = i;
+     }
+ 
+-    if (primary_group == -1)
++    if (primary_group == -1 && !is_equal_sid( group->PrimaryGroup, user->User.Sid ))
+     {
+         free( objattr );
+         return STATUS_INVALID_PRIMARY_GROUP;
++    }
++
++    if (!is_equal_sid( owner->Owner, user->User.Sid ))
++    {
++        for (i = 0; i < groups->GroupCount; i++)
++            if (is_equal_sid( owner->Owner, groups->Groups[i].Sid ) &&
++                (groups->Groups[i].Attributes & SE_GROUP_OWNER))
++                owner_group = i;
++        if (owner_group == -1)
++        {
++            free( objattr );
++            return STATUS_INVALID_OWNER;
++        }
+     }
+ 
+     groups_info = malloc( groups_size );
+@@ -129,6 +142,7 @@
+         wine_server_add_data( req, groups_info, groups_size );
+ 
+         req->primary_group = primary_group;
++        req->owner_group = owner_group;
+ 
+         req->priv_count = privs->PrivilegeCount;
+         wine_server_add_data( req, privs->Privileges, privs->PrivilegeCount * sizeof(privs->Privileges[0]) );
+@@ -400,7 +414,7 @@
+         sizeof(TOKEN_ELEVATION_TYPE), /* TokenElevationType */
+         sizeof(TOKEN_LINKED_TOKEN), /* TokenLinkedToken */
+         sizeof(TOKEN_ELEVATION), /* TokenElevation */
+-        0,    /* TokenHasRestrictions */
++        sizeof(BOOLEAN), /* TokenHasRestrictions */
+         0,    /* TokenAccessInformation */
+         0,    /* TokenVirtualizationAllowed */
+         sizeof(DWORD), /* TokenVirtualizationEnabled */
+@@ -419,7 +433,7 @@
+         0,    /* TokenDeviceGroups */
+         0,    /* TokenRestrictedDeviceGroups */
+         0,    /* TokenSecurityAttributes */
+-        0,    /* TokenIsRestricted */
++        sizeof(DWORD), /* TokenIsRestricted */
+         0     /* TokenProcessTrustLevel */
+     };
+ 
+@@ -460,16 +474,19 @@
+ 
+     case TokenGroups:
+     case TokenLogonSid:
++    case TokenRestrictedSids:
+     {
+         /* reply buffer is always shorter than output one */
+         void *buffer = malloc( length );
+         TOKEN_GROUPS *groups = info;
+         ULONG i, count, needed_size;
+ 
++        if (length && !buffer) return STATUS_NO_MEMORY;
+         SERVER_START_REQ( get_token_groups )
+         {
+             req->handle = wine_server_obj_handle( token );
+             req->attr_mask = (class == TokenLogonSid) ? SE_GROUP_LOGON_ID : 0;
++            req->restricted = (class == TokenRestrictedSids);
+             wine_server_set_reply( req, buffer, length );
+             status = wine_server_call( req );
+ 
+@@ -571,8 +588,8 @@
+             {
+                 statistics->TokenId.LowPart  = reply->token_id.low_part;
+                 statistics->TokenId.HighPart = reply->token_id.high_part;
+-                statistics->AuthenticationId.LowPart  = 0; /* FIXME */
+-                statistics->AuthenticationId.HighPart = 0; /* FIXME */
++                statistics->AuthenticationId.LowPart  = reply->authentication_id.low_part;
++                statistics->AuthenticationId.HighPart = reply->authentication_id.high_part;
+                 statistics->ExpirationTime.u.HighPart = 0x7fffffff;
+                 statistics->ExpirationTime.u.LowPart  = 0xffffffff;
+                 statistics->TokenType = reply->primary ? TokenPrimary : TokenImpersonation;
+@@ -598,6 +615,21 @@
+             req->handle = wine_server_obj_handle( token );
+             status = wine_server_call( req );
+             if (status == STATUS_SUCCESS) *type = reply->primary ? TokenPrimary : TokenImpersonation;
++        }
++        SERVER_END_REQ;
++        break;
++
++    case TokenHasRestrictions:
++    case TokenIsRestricted:
++        SERVER_START_REQ( get_token_info )
++        {
++            req->handle = wine_server_obj_handle( token );
++            status = wine_server_call( req );
++            if (!status)
++            {
++                if (class == TokenHasRestrictions) *(BOOLEAN *)info = !!(reply->restriction_flags & 1);
++                else *(DWORD *)info = !!(reply->restriction_flags & 2);
++            }
+         }
+         SERVER_END_REQ;
+         break;
+@@ -852,57 +884,82 @@
+                                TOKEN_PRIVILEGES *privileges, TOKEN_GROUPS *restrict_sids, HANDLE *new_token )
+ {
+     data_size_t privileges_len = 0;
+-    data_size_t sids_len = 0;
+-    SID *sids = NULL;
++    data_size_t sids_len[2] = {0, 0};
++    SID *sids[2] = {NULL, NULL};
++    TOKEN_GROUPS *lists[2] = {disable_sids, restrict_sids};
++    ULONG n, i, len;
+     unsigned int status;
+ 
+     TRACE( "%p %#x %p %p %p %p\n", token, flags, disable_sids, privileges,
+            restrict_sids, new_token );
+ 
+-    if (flags)
+-        FIXME( "flags %#x unsupported\n", flags );
+-
+-    if (restrict_sids)
+-        FIXME( "support for restricting sids not yet implemented\n" );
++    if (flags & ~(DISABLE_MAX_PRIVILEGE | WRITE_RESTRICTED)) return STATUS_NOT_SUPPORTED;
+ 
+     if (privileges)
++    {
++        if (privileges->PrivilegeCount > ~0u / sizeof(LUID_AND_ATTRIBUTES)) return STATUS_INVALID_PARAMETER;
+         privileges_len = privileges->PrivilegeCount * sizeof(LUID_AND_ATTRIBUTES);
+-
+-    if (disable_sids)
+-    {
+-        DWORD len, i;
++    }
++
++    for (n = 0; n < 2; n++)
++    {
+         BYTE *tmp;
+-
+-        for (i = 0; i < disable_sids->GroupCount; i++)
+-        {
+-            SID *sid = disable_sids->Groups[i].Sid;
+-            sids_len += offsetof( SID, SubAuthority[sid->SubAuthorityCount] );
+-        }
+-
+-        sids = malloc( sids_len );
+-        if (!sids) return STATUS_NO_MEMORY;
+-
+-        for (i = 0, tmp = (BYTE *)sids; i < disable_sids->GroupCount; i++, tmp += len)
+-        {
+-            SID *sid = disable_sids->Groups[i].Sid;
++        if (!lists[n]) continue;
++
++        for (i = 0; i < lists[n]->GroupCount; i++)
++        {
++            SID *sid = lists[n]->Groups[i].Sid;
++            if (sid->Revision != SID_REVISION || sid->SubAuthorityCount > SID_MAX_SUB_AUTHORITIES)
++            {
++                status = STATUS_INVALID_SID;
++                goto done;
++            }
+             len = offsetof( SID, SubAuthority[sid->SubAuthorityCount] );
+-            memcpy( tmp, disable_sids->Groups[i].Sid, len );
+-        }
+-    }
+-
++            if (sids_len[n] > ~0u - len)
++            {
++                status = STATUS_INVALID_PARAMETER;
++                goto done;
++            }
++            sids_len[n] += len;
++        }
++
++        if (!sids_len[n]) continue;
++        if (!(sids[n] = malloc( sids_len[n] )))
++        {
++            status = STATUS_NO_MEMORY;
++            goto done;
++        }
++
++        for (i = 0, tmp = (BYTE *)sids[n]; i < lists[n]->GroupCount; i++, tmp += len)
++        {
++            SID *sid = lists[n]->Groups[i].Sid;
++            len = offsetof( SID, SubAuthority[sid->SubAuthorityCount] );
++            memcpy( tmp, sid, len );
++        }
++    }
++
++    if (sids_len[0] > ~0u - privileges_len || sids_len[1] > ~0u - privileges_len - sids_len[0])
++    {
++        status = STATUS_INVALID_PARAMETER;
++        goto done;
++    }
+     SERVER_START_REQ( filter_token )
+     {
+         req->handle          = wine_server_obj_handle( token );
+         req->flags           = flags;
+         req->privileges_size = privileges_len;
+-        wine_server_add_data( req, privileges->Privileges, privileges_len );
+-        wine_server_add_data( req, sids, sids_len );
++        req->disable_sids_size = sids_len[0];
++        if (privileges_len) wine_server_add_data( req, privileges->Privileges, privileges_len );
++        wine_server_add_data( req, sids[0], sids_len[0] );
++        wine_server_add_data( req, sids[1], sids_len[1] );
+         status = wine_server_call( req );
+         if (!status) *new_token = wine_server_ptr_handle( reply->new_handle );
+     }
+     SERVER_END_REQ;
+ 
+-    free( sids );
++done:
++    free( sids[0] );
++    free( sids[1] );
+     return status;
+ }
+ 
+--- a/server/protocol.def
++++ b/server/protocol.def
+@@ -3513,6 +3513,7 @@
+     abstime_t      expire;         /* expiration time */
+     int            group_count;
+     int            primary_group;
++    int            owner_group; /* -1 selects the user SID */
+     int            priv_count;
+     /* VARARG(objattr,object_attributes);  */
+     /* VARARG(user,sid); */
+@@ -3621,8 +3622,10 @@
+     obj_handle_t  handle;          /* handle to the token to duplicate */
+     unsigned int  flags;           /* flags */
+     data_size_t   privileges_size; /* size of privileges */
++    data_size_t   disable_sids_size; /* size of disabled groups */
+     VARARG(privileges,luid_attr,privileges_size); /* privileges to remove from new token */
+-    VARARG(disable_sids,sid);      /* array of groups to remove from new token */
++    VARARG(disable_sids,sid,disable_sids_size); /* array of groups to disable */
++    VARARG(restrict_sids,sid);     /* restricting SIDs */
+ @REPLY
+     obj_handle_t  new_handle;      /* filtered handle */
+ @END
+@@ -3650,6 +3653,7 @@
+ @REQ(get_token_groups)
+     obj_handle_t    handle;       /* handle to the token */
+     unsigned int    attr_mask;    /* mask for wanted attributes */
++    int             restricted;   /* query restricting SIDs instead of normal groups */
+ @REPLY
+     data_size_t     attr_len;     /* length needed to store attrs */
+     data_size_t     sid_len;      /* length needed to store sids */
+@@ -3952,6 +3956,7 @@
+ @REPLY
+     struct luid    token_id;      /* locally-unique identifier of the token */
+     struct luid    modified_id;   /* locally-unique identifier of the modified version of the token */
++    struct luid    authentication_id; /* caller-supplied logon identity */
+     unsigned int   session_id;    /* token session id */
+     int            primary;       /* is the token primary or impersonation? */
+     int            impersonation_level; /* level of impersonation */
+@@ -3959,6 +3964,7 @@
+     int            is_elevated;   /* is the token elevated as per GetTokenInformation(TokenElevation) */
+     int            group_count;   /* the number of groups the token is a member of */
+     int            privilege_count; /* the number of privileges the token has */
++    unsigned int   restriction_flags; /* bit 0: filtered, bit 1: restricting-SID checks */
+ @END
+ 
+ 
+--- a/include/wine/server_protocol.h
++++ b/include/wine/server_protocol.h
+@@ -4844,13 +4844,13 @@
+     abstime_t      expire;
+     int            group_count;
+     int            primary_group;
++    int            owner_group;
+     int            priv_count;
+ 
+ 
+ 
+ 
+ 
+-    char __pad_52[4];
+ };
+ struct create_token_reply
+ {
+@@ -5016,8 +5016,11 @@
+     obj_handle_t  handle;
+     unsigned int  flags;
+     data_size_t   privileges_size;
++    data_size_t   disable_sids_size;
+     /* VARARG(privileges,luid_attr,privileges_size); */
+-    /* VARARG(disable_sids,sid); */
++    /* VARARG(disable_sids,sid,disable_sids_size); */
++    /* VARARG(restrict_sids,sid); */
++    char __pad_28[4];
+ };
+ struct filter_token_reply
+ {
+@@ -5065,7 +5068,7 @@
+     struct request_header __header;
+     obj_handle_t    handle;
+     unsigned int    attr_mask;
+-    char __pad_20[4];
++    int             restricted;
+ };
+ struct get_token_groups_reply
+ {
+@@ -5573,6 +5576,7 @@
+     struct reply_header __header;
+     struct luid    token_id;
+     struct luid    modified_id;
++    struct luid    authentication_id;
+     unsigned int   session_id;
+     int            primary;
+     int            impersonation_level;
+@@ -5580,7 +5584,7 @@
+     int            is_elevated;
+     int            group_count;
+     int            privilege_count;
+-    char __pad_52[4];
++    unsigned int   restriction_flags;
+ };
+ 
+ 
+@@ -7457,6 +7461,6 @@
+     struct alpc_receive_port_reply alpc_receive_port_reply;
+ };
+ 
+-#define SERVER_PROTOCOL_VERSION 1816
++#define SERVER_PROTOCOL_VERSION 1818
+ 
+ #endif /* __WINE_WINE_SERVER_PROTOCOL_H */

@@ -1,0 +1,220 @@
+--- a/dlls/combase/apartment.c
++++ b/dlls/combase/apartment.c
+@@ -30,6 +30,7 @@
+ #include "windef.h"
+ #include "winbase.h"
+ #include "servprov.h"
++#include "roapi.h"
+ 
+ #include "combase_private.h"
+ 
+@@ -59,6 +60,107 @@
+       0, 0, { (DWORD_PTR)(__FILE__ ": apt_cs") }
+ };
+ static CRITICAL_SECTION apt_cs = { &apt_cs_debug, -1, 0, 0, 0, 0 };
++
++struct shutdown_registration
++{
++    struct list entry;
++    struct apartment *apt;
++    IApartmentShutdown *callback;
++    ULONG_PTR cookie;
++};
++
++static struct list shutdown_registrations = LIST_INIT(shutdown_registrations);
++static ULONG_PTR next_shutdown_cookie;
++
++HRESULT apartment_register_shutdown_callback(IApartmentShutdown *callback,
++                                             UINT64 *identifier, void **cookie)
++{
++    struct shutdown_registration *registration;
++    struct apartment *apt;
++    IAgileObject *agile;
++    HRESULT hr;
++
++    if (!callback || !identifier || !cookie) return E_INVALIDARG;
++    *identifier = 0;
++    *cookie = NULL;
++    if (!(apt = apartment_get_current_or_mta())) return CO_E_NOTINITIALIZED;
++    hr = IApartmentShutdown_QueryInterface(callback, &IID_IAgileObject, (void **)&agile);
++    if (FAILED(hr))
++    {
++        apartment_release(apt);
++        return RO_E_MUST_BE_AGILE;
++    }
++    IAgileObject_Release(agile);
++    if (!(registration = malloc(sizeof(*registration))))
++    {
++        apartment_release(apt);
++        return E_OUTOFMEMORY;
++    }
++    IApartmentShutdown_AddRef(callback);
++    EnterCriticalSection(&apt_cs);
++    if (apt->being_destroyed || next_shutdown_cookie == ~(ULONG_PTR)0)
++    {
++        LeaveCriticalSection(&apt_cs);
++        IApartmentShutdown_Release(callback);
++        free(registration);
++        apartment_release(apt);
++        return E_UNEXPECTED;
++    }
++    registration->apt = apt;
++    registration->callback = callback;
++    registration->cookie = ++next_shutdown_cookie;
++    list_add_tail(&shutdown_registrations, &registration->entry);
++    *identifier = apartment_getoxid(apt);
++    *cookie = (void *)registration->cookie;
++    LeaveCriticalSection(&apt_cs);
++    apartment_release(apt);
++    return S_OK;
++}
++
++HRESULT apartment_unregister_shutdown_callback(void *cookie)
++{
++    struct shutdown_registration *registration, *found = NULL;
++    if (!cookie) return E_INVALIDARG;
++    EnterCriticalSection(&apt_cs);
++    LIST_FOR_EACH_ENTRY(registration, &shutdown_registrations, struct shutdown_registration, entry)
++    {
++        if (registration->cookie == (ULONG_PTR)cookie)
++        {
++            found = registration;
++            list_remove(&registration->entry);
++            break;
++        }
++    }
++    LeaveCriticalSection(&apt_cs);
++    if (!found) return HRESULT_FROM_WIN32(ERROR_INVALID_HANDLE);
++    IApartmentShutdown_Release(found->callback);
++    free(found);
++    return S_OK;
++}
++
++static void apartment_notify_shutdown(struct apartment *apt)
++{
++    struct shutdown_registration *registration, *next;
++    struct list callbacks = LIST_INIT(callbacks);
++    EnterCriticalSection(&apt_cs);
++    LIST_FOR_EACH_ENTRY_SAFE(registration, next, &shutdown_registrations,
++                            struct shutdown_registration, entry)
++    {
++        if (registration->apt == apt)
++        {
++            list_remove(&registration->entry);
++            list_add_tail(&callbacks, &registration->entry);
++        }
++    }
++    LeaveCriticalSection(&apt_cs);
++    LIST_FOR_EACH_ENTRY_SAFE(registration, next, &callbacks, struct shutdown_registration, entry)
++    {
++        list_remove(&registration->entry);
++        IApartmentShutdown_OnUninitialize(registration->callback, apartment_getoxid(apt));
++        IApartmentShutdown_Release(registration->callback);
++        free(registration);
++    }
++}
+ 
+ static struct list dlls = LIST_INIT(dlls);
+ 
+@@ -497,6 +599,7 @@
+         struct list *cursor, *cursor2;
+ 
+         TRACE("destroying apartment %p, oxid %s\n", apt, wine_dbgstr_longlong(apt->oxid));
++        apartment_notify_shutdown(apt);
+ 
+         if (apt->local_server)
+         {
+--- a/dlls/combase/combase_private.h
++++ b/dlls/combase/combase_private.h
+@@ -20,6 +20,8 @@
+ #include "wine/list.h"
+ 
+ extern HINSTANCE hProxyDll;
++HRESULT apartment_register_shutdown_callback(IApartmentShutdown *, UINT64 *, void **);
++HRESULT apartment_unregister_shutdown_callback(void *);
+ 
+ struct apartment
+ {
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -442,12 +442,16 @@
+  */
+ HRESULT WINAPI RoGetApartmentIdentifier(UINT64 *identifier)
+ {
+-    FIXME("(%p): stub\n", identifier);
++    struct apartment *apt;
+ 
+     if (!identifier)
+         return E_INVALIDARG;
+ 
+-    *identifier = 0xdeadbeef;
++    *identifier = 0;
++    if (!(apt = apartment_get_current_or_mta()))
++        return CO_E_NOTINITIALIZED;
++    *identifier = apartment_getoxid(apt);
++    apartment_release(apt);
+     return S_OK;
+ }
+ 
+@@ -457,17 +461,12 @@
+ HRESULT WINAPI RoRegisterForApartmentShutdown(IApartmentShutdown *callback,
+         UINT64 *identifier, APARTMENT_SHUTDOWN_REGISTRATION_COOKIE *cookie)
+ {
+-    HRESULT hr;
+-
+-    FIXME("(%p, %p, %p): stub\n", callback, identifier, cookie);
+-
+-    hr = RoGetApartmentIdentifier(identifier);
+-    if (FAILED(hr))
+-        return hr;
+-
+-    if (cookie)
+-        *cookie = (void *)0xcafecafe;
+-    return S_OK;
++    return apartment_register_shutdown_callback(callback, identifier, (void **)cookie);
++}
++
++HRESULT WINAPI RoUnregisterForApartmentShutdown(APARTMENT_SHUTDOWN_REGISTRATION_COOKIE cookie)
++{
++    return apartment_unregister_shutdown_callback(cookie);
+ }
+ 
+ /***********************************************************************
+@@ -488,9 +487,17 @@
+ HRESULT WINAPI RoRegisterActivationFactories(HSTRING *classes, PFNGETACTIVATIONFACTORY *callbacks,
+                                              UINT32 count, RO_REGISTRATION_COOKIE *cookie)
+ {
+-    FIXME("(%p, %p, %d, %p): stub\n", classes, callbacks, count, cookie);
+-
+-    return S_OK;
++    if (!cookie) return E_POINTER;
++    if (!count || !classes || !callbacks) return E_INVALIDARG;
++    ERR("Out-of-process WinRT factory registration transport is unsupported; no factories registered.\n");
++    return E_NOTIMPL;
++}
++
++void WINAPI RoRevokeActivationFactories(RO_REGISTRATION_COOKIE cookie)
++{
++    if (cookie)
++        WARN("No activation registration owns cookie %p; out-of-process registration is unsupported.\n",
++             cookie);
+ }
+ 
+ /***********************************************************************
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -313,12 +313,12 @@
+ @ stub RoReportFailedDelegate
+ @ stdcall RoReportUnhandledError(ptr)
+ @ stub RoResolveRestrictedErrorInfoReference
+-@ stub RoRevokeActivationFactories
++@ stdcall RoRevokeActivationFactories(ptr)
+ @ stdcall RoSetErrorReportingFlags(long)
+ @ stub RoTransformError
+ @ stub RoTransformErrorW
+ @ stdcall RoUninitialize()
+-@ stub RoUnregisterForApartmentShutdown
++@ stdcall RoUnregisterForApartmentShutdown(ptr)
+ @ stub SetCleanupFlag
+ @ stdcall SetErrorInfo(long ptr)
+ @ stdcall SetRestrictedErrorInfo(ptr)

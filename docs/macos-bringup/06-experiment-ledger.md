@@ -1,0 +1,261 @@
+# macOS Hogwarts Game Pass experiment ledger
+
+Last updated: 2026-10-01
+
+This is the durable handoff journal for the Hogwarts Legacy PC Game Pass
+bring-up on Apple Silicon. Update it after every experiment that changes the
+highest proven milestone, eliminates a hypothesis, or identifies a new
+blocker. Do not record credentials, tokens, license payloads, CDN URLs, or
+proprietary runtime traces.
+
+## Current position
+
+**Highest proven end-to-end point:** the WinGDK executable starts through the
+decrypted macOS package overlay, private AF_UNIX-capable CrossOver Wine, and
+D3DMetal. Public runtime code now completes task-queue creation, asynchronous
+XUser dispatch, proof-key generation, Schannel TLS, endpoint download, JSON
+object/array parsing, and endpoint vector enumeration.
+
+**Current blocker:** public XUser branch `44d97de` reaches the explicit
+`get_rps_tickets()` stub. The native Xodus service already exposes the required
+MSA token response over AF_UNIX, but connecting that service response to XUser
+is GDK semantic work and requires a human clean-room implementation. See
+[`07-xuser-ticket-clean-room-brief.md`](07-xuser-ticket-clean-room-brief.md).
+
+The game currently retries initialization instead of reaching sustained
+interactive startup. No game launch is intentionally left running.
+
+## Status ledger
+
+| Area | Status | Evidence | How it was addressed |
+| --- | --- | --- | --- |
+| Remote Mac control | Complete | SSH alias `xodus-mac`; Aqua LaunchAgent requests succeed | Installed a dedicated SSH key and allowlisted `com.xodus.remote-launch` actions. |
+| Native Xodus build | Complete | Format, Clippy, tests, and release build pass | Installed the macOS/Rust toolchain and recorded reproducible bootstrap and doctor scripts. |
+| Keychain access | Complete | Xodus login and unattended package operations work | Moved Keychain-dependent commands into the logged-in Aqua namespace; user approved **Always Allow**. |
+| Graphics control | Complete | Steam Hogwarts reaches shader preparation under D3DMetal | Installed CrossOver 26.3 and selected `CX_GRAPHICS_BACKEND=d3dmetal`. |
+| Performance overlay | Complete | Persistent bottle settings | Enabled `MTL_HUD_ENABLED=1` and `DXVK_HUD=fps,frametimes,gpuload,memory`. |
+| UK entitlement | Complete | Product `9MT5NJ5W7B8Z`, market `GB` | Kept login locale separate from catalog market and passed `--market GB`. |
+| Package extraction | Complete | 541 files, 113 directories, approximately 93.7 GiB | Streamed and extracted the licensed MSIXVC package with eight parallel jobs. |
+| Encrypted executable preparation | Complete | WinGDK executable starts from a prepared path | Added a macOS RAM-disk package overlay containing decrypted PE files at their real relative paths and symlinks for unencrypted content. |
+| Stock CrossOver AF_UNIX | Blocked by upstream capability | Winsock error `10047` | Confirmed stock CrossOver lacks Windows AF_UNIX; did not add application workarounds. |
+| Private Wine AF_UNIX | Complete | `AF_UNIX_PRIVATE_WINE_OK` | Applied public Xodus Wine AF_UNIX commit `6b7313c1bd` and public file-map commit `183d5d90b6` to matching CrossOver source, then built a coherent x86_64 loader/server/runtime. |
+| First GDK interface identification | Complete | GUID `{073b7dcb-1fcf-4030-94be-e3c9eb623428}` | Identified it from public Xodus IDL/docs as `XThreadingImpl`. |
+| Initial task queue | Complete in private experiment | `XTaskQueueCreate(SerializedThreadPool, SerializedThreadPool)` succeeds | Replaced the in-tree stub with the public PR #18 C++ XThreading implementation. |
+| PR #18 strict build | Locally repaired | MinGW build succeeds | Corrected the public AF_UNIX socket global from `HANDLE` to the Winsock type `SOCKET`; this is transport/type correctness, not GDK semantics. |
+| XUser dispatch | Complete in private experiment | `XUserAddAsync`, provider begin/work/result callbacks execute | Built public branch `origin/xuser` at `44d97de` and delegated its internal XThreading queries to the public PR #18 runtime. |
+| XUser credential initialization | Complete in private experiment | RSA and ECDSA key generation succeed | Rebuilt private Wine bcrypt with public GnuTLS support and forced the matching builtin PE/Unix pair. |
+| Xbox HTTPS | Complete in private experiment | Isolated WinHTTP request returns HTTP 200 | Rebuilt private Wine Schannel with public GnuTLS support and forced builtin `secur32`. |
+| Async COM apartment | Complete in private experiment | `Windows.Data.Json` activation succeeds on task workers | Initialized a COM MTA around generic task-pool callbacks. |
+| Endpoint JSON parsing | Complete in private experiment | Endpoint document parses and enumerates | Backported public Wine master `windows.web` JSON code at `6d1b09405774c4f234ed3fa0088a9706deb7ad49` and added standard `IVector<IJsonValue*>` size access. |
+| RPS ticket acquisition | Human clean-room blocker | `get_rps_tickets()` explicit stub | Existing native service protocol is documented in `07-xuser-ticket-clean-room-brief.md`; no public runtime implementation exists. |
+| Sustained Game Pass startup | Not complete | Initialization retries | Depends on the human clean-room RPS ticket bridge, then observing the next public API boundary. |
+
+## Experiment journal
+
+### 2026-09-30: host and control plane
+
+- Configured the M5 Max Mac as the authoritative execution host.
+- Installed Apple Command Line Tools, Homebrew, Rust, build tools, Edge,
+  Playwright, CrossOver, MinGW, Wine build dependencies, Vulkan/MoltenVK, and
+  diagnostic tools.
+- Added SSH, Aqua LaunchAgent, service, GUI-launch, bootstrap, doctor, and
+  status tooling.
+- Verified native Xodus workspace checks.
+- **Result:** the host can be controlled remotely without moving
+  Keychain-dependent work into a non-GUI SSH namespace.
+
+### 2026-09-30: Windows graphics control
+
+- Installed Windows Steam in a dedicated CrossOver bottle.
+- Diagnosed Steam's update behavior and session conflict with native macOS
+  Steam.
+- Downloaded and launched the owned Windows Hogwarts Legacy Steam build.
+- Confirmed D3DMetal and visible shader preparation.
+- **Result:** the hardware, CrossOver bottle, and D3DMetal path are viable
+  independently of Game Pass runtime integration.
+
+### 2026-10-01: UK Game Pass package
+
+- Completed Xodus Microsoft login and permanent Keychain approval.
+- Queried the UK catalog and selected the entitled x64 MSIXVC base package.
+- Acquired the license and completed resumable extraction to
+  `~/Games/Xodus/HogwartsLegacy-Xbox`.
+- **Result:** package download, license acquisition, and extraction are no
+  longer blockers.
+
+### 2026-10-01: macOS decrypted package overlay
+
+- Stock CrossOver does not implement Xodus Wine's `WINE_DLL_FILE_MAP`.
+- Added a macOS-only RAM-disk staging overlay:
+  - decrypted encrypted PE files are written at their actual package-relative
+    paths;
+  - unencrypted files are symlinked from the extracted package;
+  - the staged executable is passed to ordinary Wine;
+  - early executable-selection failure now cleans up the RAM disk.
+- **Result:** the Game Pass WinGDK executable creates a Wine window with
+  D3DMetal loaded.
+- **Remaining cleanup risk:** if the Wine child becomes orphaned, process and
+  RAM-disk cleanup may still require explicit termination.
+
+### 2026-10-01: AF_UNIX-capable CrossOver Wine
+
+- Confirmed stock CrossOver returns `WSAEAFNOSUPPORT` for Windows AF_UNIX.
+- Applied public Xodus Wine AF_UNIX and file-map commits to official CrossOver
+  26.3.0 source.
+- Built a coherent private x86_64 Wine tree rather than mixing a patched
+  `ws2_32` into the stock runtime.
+- Added `scripts/macos/private-xodus-crossover-wine.sh` to preserve the
+  CrossOver bottle and GPTK/D3DMetal environment.
+- **Result:** direct Windows-to-native `/tmp/xodus.sock` transport succeeds.
+
+### 2026-10-01: XThreading diagnosis
+
+- A narrow `+xgameruntime,+gdkc` trace identified the first failed call:
+
+  ```text
+  XTaskQueueCreate(work=SerializedThreadPool,
+                   completion=SerializedThreadPool) -> E_NOTIMPL
+  ```
+
+- Public PR #18 commit `8dd2aa0` contains the complete C++ XThreading/task
+  queue implementation but declares its Winsock socket as `HANDLE`.
+- Changed that declaration to `SOCKET` in the private external build tree and
+  rebuilt successfully with strict MinGW.
+- **Result:** Hogwarts passes task-queue creation.
+
+### 2026-10-01: composite public runtime
+
+- PR #18 implements XThreading but not XUser.
+- The Wine in-tree runtime exposes XUser but initially contains stubs for both
+  `XUserAddAsync` and XAsync.
+- Public branch `origin/xuser` at `44d97de` implements asynchronous XUser
+  addition, while public PR #18 provides the required task queue and XAsync
+  machinery.
+- Built a private composition:
+  - primary `xgameruntime.dll`: PR #18 XThreading;
+  - fallback `xgameruntime_legacy.dll`: public `origin/xuser`;
+  - unknown primary interfaces delegate to the fallback;
+  - fallback XThreading queries delegate back to the primary.
+- **Result:** provider operations `Begin`, `DoWork`, `Cleanup`, and
+  `XUserAddResult` execute. This is the furthest runtime progress so far.
+
+### 2026-10-01: bcrypt blocker
+
+- `user_Initialize` fails while creating its asymmetric key.
+- Added CrossOver's bundled x86_64 `libgnutls.30.dylib` directory to
+  `DYLD_FALLBACK_LIBRARY_PATH`.
+- Added the private Wine `bcrypt` and `ws2_32` Unix-library directories to
+  `WINEDLLPATH`.
+- Installed a matching private `bcrypt.dll` in the experimental bottle, with
+  the original retained as `bcrypt.dll.before-xodus-private`.
+- Built and ran a minimal BCrypt RSA smoke executable under the exact private
+  wrapper.
+- **Result:** all three approaches reproduce the same
+  `__wine_unixlib_handle == 0` failure. GnuTLS itself can be loaded under
+  Rosetta, so the remaining issue is the Wine builtin PE-to-Unix companion
+  path, not missing cryptographic libraries.
+
+### 2026-10-01: bcrypt and Schannel resolution
+
+- Instrumented only the private bcrypt build and confirmed
+  `__wine_init_unix_call()` returned `STATUS_ENTRYPOINT_NOT_FOUND`.
+- Found that the original private `bcrypt.so` was a 4 KiB empty backend because
+  the build was configured without GnuTLS headers.
+- Installed GnuTLS headers, enabled the public Wine GnuTLS backend, rebuilt the
+  x86_64 Unix companion, and forced builtin `bcrypt`.
+- Isolated RSA smoke result:
+
+  ```text
+  BCryptOpenAlgorithmProvider(RSA): 0x00000000
+  BCryptGenerateKeyPair(2048):      0x00000000
+  ```
+
+- Rebuilt the public Wine Schannel Unix companion with the same headers and
+  forced builtin `secur32`.
+- Isolated WinHTTP request to the Xbox title-management endpoint completed with
+  HTTP 200.
+- **Result:** proof-key generation and TLS are no longer blockers.
+
+### 2026-10-01: COM and Wine JSON resolution
+
+- Endpoint JSON initially failed because task-pool workers had no COM
+  apartment.
+- Initialized a generic COM MTA around private task-pool callbacks.
+- Wine then reached its explicit `Windows.Data.Json` object-parser stub.
+- Backported the exact public Wine master implementation at
+  `6d1b09405774c4f234ed3fa0088a9706deb7ad49`.
+- Added the standard `IVector<IJsonValue*>` interface required only for array
+  size enumeration; unsupported mutation methods remain explicit stubs.
+- **Result:** the complete 17.5 KiB endpoint and signature-policy document is
+  parsed and enumerated.
+
+### 2026-10-01: clean-room XUser boundary
+
+- The next executed call is:
+
+  ```text
+  get_rps_tickets(allowUi=FALSE, userTicket, deviceTicket) -> E_NOTIMPL
+  ```
+
+- Searched all public xgameruntime branches, Xodus Wine branches, and indexed
+  GitHub forks; no implementation exists.
+- The native service already exposes `MSA_TOKEN_REQUEST` and
+  `MSA_TOKEN_RESPONSE` over `/tmp/xodus.sock`.
+- **Result:** further progress requires a human clean-room implementation of
+  the XUser-to-service ticket bridge. The exact contract is documented in
+  `07-xuser-ticket-clean-room-brief.md`.
+
+## Current private experimental composition
+
+These files are intentionally not proposed for upstreaming:
+
+```text
+Primary runtime:
+  ~/src/xgameruntime-pr18/build/windows-x64/bin/xgameruntime.dll
+
+Fallback runtime:
+  ~/src/build/xodus-wine-macos-x86_64/dlls/xgameruntime/
+    x86_64-windows/xgameruntime.dll
+
+Bottle installation:
+  .../drive_c/windows/system32/xgameruntime.dll
+  .../drive_c/windows/system32/xgameruntime_legacy.dll
+
+Private CrossOver Wine:
+  ~/src/build/crossover-wine-xodus-full-26.3.0-x86_64
+```
+
+Public provenance used:
+
+| Component | Revision |
+| --- | --- |
+| xgameruntime PR #18 | `8dd2aa0` |
+| xgameruntime `oot-cpp` | `c5e6ac1` |
+| xgameruntime `xuser` | `44d97de` |
+| xgameruntime `xasync` reference | `bfecf58` |
+| xgameruntime `xtaskqueue` reference | `90ba727` |
+| Xodus Wine AF_UNIX | `6b7313c1bd` |
+| Xodus Wine file map | `183d5d90b6` |
+| CrossOver source archive SHA-256 | `ac99c8ca4b3848f3e81784135f023df266b61c2345726ea55a50b3e030dd6872` |
+
+## Next actions
+
+1. Have a human implement and review the clean-room ticket bridge described in
+   `07-xuser-ticket-clean-room-brief.md`.
+2. Validate the bridge with synthetic XML and token-redacted integration logs.
+3. Rerun with only `+xgameruntime,+gdkc` and record the next public API
+   boundary.
+4. Keep all GDK semantic behavior sourced from existing public code or
+   human clean-room work.
+5. Keep the Mac checkout authoritative and update this ledger after each
+   milestone or eliminated hypothesis.
+
+## Operational notes
+
+- Market must remain `GB`.
+- Keychain-dependent Xodus operations must run in the Aqua LaunchAgent.
+- Temporary passwordless sudo remains enabled until the user explicitly asks
+  for removal.
+- The CrossOver bottle retains the legacy name `GroundedControl` for script
+  compatibility.
+- Never enable token-bearing or proprietary Microsoft runtime traces.

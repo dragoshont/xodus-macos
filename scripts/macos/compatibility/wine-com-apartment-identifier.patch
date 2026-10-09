@@ -1,0 +1,21 @@
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -442,12 +442,16 @@
+  */
+ HRESULT WINAPI RoGetApartmentIdentifier(UINT64 *identifier)
+ {
+-    FIXME("(%p): stub\n", identifier);
++    struct apartment *apt;
+ 
+     if (!identifier)
+         return E_INVALIDARG;
+ 
+-    *identifier = 0xdeadbeef;
++    *identifier = 0;
++    if (!(apt = apartment_get_current_or_mta()))
++        return CO_E_NOTINITIALIZED;
++    *identifier = apartment_getoxid(apt);
++    apartment_release(apt);
+     return S_OK;
+ }
+ 

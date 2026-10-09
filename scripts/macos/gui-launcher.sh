@@ -257,6 +257,44 @@ PY
                 rm -f "$expect_script"
             fi
             ;;
+        xodus-hogwarts-launch)
+            cli="$HOME/src/xodus-macos/target/release/xodus-cli"
+            source="$HOME/Games/Xodus/HogwartsLegacy-Xbox"
+            wine="$HOME/src/xodus-macos/scripts/macos/private-xodus-crossover-wine.sh"
+            bottle="$HOME/Library/Application Support/CrossOver/Bottles/GroundedControl"
+            stock_server="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wineserver"
+            private_server="$HOME/src/build/crossover-wine-xodus-full-26.3.0-x86_64/server/wineserver"
+            if [[ ! -x "$cli" || ! -x "$wine" ]]; then
+                echo "Release xodus-cli or CrossOver wrapper is missing." >"$stderr_log"
+                status=1
+            elif [[ ! -f "$source/.xodus-streaming.msixvc" ]]; then
+                echo "Completed Hogwarts Xodus package is missing." >"$stderr_log"
+                status=1
+            else
+                game_config="$source/MicrosoftGame.config"
+                msa_app_id="$(/usr/bin/xmllint --xpath 'string(/Game/MSAAppId)' "$game_config" 2>/dev/null || true)"
+                msa_full_trust="$(/usr/bin/xmllint --xpath 'string(/Game/MSAFullTrust)' "$game_config" 2>/dev/null || true)"
+                if [[ -z "$msa_app_id" ]]; then
+                    echo "Hogwarts MicrosoftGame.config has no MSAAppId." >"$stderr_log"
+                    status=1
+                else
+                    WINEPREFIX="$bottle" "$stock_server" -k 2>/dev/null || true
+                    WINEPREFIX="$bottle" "$private_server" -k 2>/dev/null || true
+                    sleep 2
+                    XODUS_MSA_APP_ID="$msa_app_id" \
+                        XODUS_MSA_FULL_TRUST="$msa_full_trust" \
+                        XODUS_LOG=warn \
+                        XODUS_WINE_DEBUG=+xgameruntime,+gdkc \
+                        "$cli" run \
+                        "$source" \
+                        "$wine" \
+                        --exe 'Phoenix\Binaries\WinGDK\HogwartsLegacy.exe' \
+                        --market GB \
+                        >"$stdout_log" 2>"$stderr_log"
+                    status=$?
+                fi
+            fi
+            ;;
         start-xodus-hogwarts-stream)
             destination="$HOME/Games/Xodus/HogwartsLegacy-Xbox"
             runs_root="$HOME/xodus-runs"

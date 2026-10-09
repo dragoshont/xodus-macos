@@ -1,0 +1,336 @@
+--- a/include/rpcdce.h
++++ b/include/rpcdce.h
+@@ -117,6 +117,8 @@
+ #define RPC_C_BINDING_INFINITE_TIMEOUT 10
+ #define RPC_C_BINDING_MIN_TIMEOUT 0
+ #define RPC_C_BINDING_DEFAULT_TIMEOUT 5
++#define RPC_C_OPT_BINDING_NONCAUSAL 9
++#define RPC_BHO_NONCAUSAL 1
+ #define RPC_C_BINDING_MAX_TIMEOUT 9
+ 
+ #define RPC_C_CANCEL_INFINITE_TIMEOUT -1
+@@ -269,6 +271,31 @@
+     ULONG ImpersonationType;
+ } RPC_SECURITY_QOS, *PRPC_SECURITY_QOS;
+ 
++typedef struct _RPC_BINDING_HANDLE_TEMPLATE_V1_W
++{
++    ULONG Version, Flags, ProtocolSequence;
++    RPC_WSTR NetworkAddress, StringEndpoint;
++    union { RPC_WSTR Reserved; } u1;
++    UUID ObjectUuid;
++} RPC_BINDING_HANDLE_TEMPLATE_V1_W;
++
++typedef struct _RPC_BINDING_HANDLE_SECURITY_V1_W
++{
++    ULONG Version;
++    RPC_WSTR ServerPrincName;
++    ULONG AuthnLevel, AuthnSvc;
++    SEC_WINNT_AUTH_IDENTITY_W *AuthIdentity;
++    RPC_SECURITY_QOS *SecurityQos;
++} RPC_BINDING_HANDLE_SECURITY_V1_W;
++
++typedef struct _RPC_BINDING_HANDLE_OPTIONS_V1
++{
++    ULONG Version, Flags, ComTimeout, CallTimeout;
++} RPC_BINDING_HANDLE_OPTIONS_V1;
++
++RPC_STATUS RPC_ENTRY RpcBindingCreateW(RPC_BINDING_HANDLE_TEMPLATE_V1_W *,
++    RPC_BINDING_HANDLE_SECURITY_V1_W *, RPC_BINDING_HANDLE_OPTIONS_V1 *, RPC_BINDING_HANDLE *);
++
+ typedef struct _RPC_SECURITY_QOS_V2_W
+ {
+     ULONG Version;
+--- a/dlls/rpcrt4/rpc_binding.c
++++ b/dlls/rpcrt4/rpc_binding.c
+@@ -259,8 +259,27 @@
+   TRACE("(Binding == ^%p)\n", Binding);
+ 
+   if (!Binding->server) {
+-     return RpcAssoc_GetClientConnection(Binding->Assoc, InterfaceId,
++     HANDLE previous = NULL;
++     RPC_STATUS status;
++     if (Binding->QOS && Binding->QOS->fast_local_token)
++     {
++         if (!OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE, TRUE, &previous) &&
++             GetLastError() != ERROR_NO_TOKEN)
++             return RPC_S_ACCESS_DENIED;
++         if (!SetThreadToken(NULL, Binding->QOS->fast_local_token))
++         {
++             if (previous) CloseHandle(previous);
++             return RPC_S_ACCESS_DENIED;
++         }
++     }
++     status = RpcAssoc_GetClientConnection(Binding->Assoc, InterfaceId,
+          TransferSyntax, Binding->AuthInfo, Binding->QOS, Binding->CookieAuth, Connection, from_cache);
++     if (Binding->QOS && Binding->QOS->fast_local_token)
++     {
++         if (!SetThreadToken(NULL, previous)) status = RPC_S_ACCESS_DENIED;
++         if (previous) CloseHandle(previous);
++     }
++     return status;
+   } else {
+     /* we already have a connection with acceptable binding, so use it */
+     if (Binding->FromConn) {
+@@ -978,6 +997,8 @@
+   if (status != RPC_S_OK) return status;
+ 
+   DestBinding->ObjectUuid = SrcBinding->ObjectUuid;
++  DestBinding->fast_static = SrcBinding->fast_static;
++  DestBinding->noncausal = SrcBinding->noncausal;
+   DestBinding->BlockingFn = SrcBinding->BlockingFn;
+   DestBinding->Protseq = strdup(SrcBinding->Protseq);
+   DestBinding->NetworkAddr = strdup(SrcBinding->NetworkAddr);
+@@ -1005,6 +1026,7 @@
+ 
+     TRACE("(%p)\n", Binding);
+ 
++    if (bind->fast_static) return RPC_S_OK;
+     free(bind->Endpoint);
+     bind->Endpoint = NULL;
+     if (bind->Assoc) RpcAssoc_Release(bind->Assoc);
+@@ -1233,6 +1255,8 @@
+         return RPC_S_OUT_OF_RESOURCES;
+ 
+     qos->refs = 1;
++    qos->fast_local_token = NULL;
++    qos->effective_only = FALSE;
+     qos->qos = malloc(sizeof(*qos->qos));
+     if (!qos->qos) goto error;
+     qos->qos->Version = qos_src->Version;
+@@ -1346,6 +1370,7 @@
+ 
+     if (!refs)
+     {
++        if (qos->fast_local_token) CloseHandle(qos->fast_local_token);
+         if (qos->qos->AdditionalSecurityInfoType == RPC_C_AUTHN_INFO_TYPE_HTTP)
+         {
+             if (qos->qos->u.HttpCredentials->TransportCredentials)
+@@ -1372,6 +1397,9 @@
+ 
+     if (!qos1 || !qos2)
+         return FALSE;
++    if (qos1->fast_local_token != qos2->fast_local_token ||
++        qos1->effective_only != qos2->effective_only)
++        return FALSE;
+ 
+     TRACE("qos1 = { %ld %ld %ld %ld }, qos2 = { %ld %ld %ld %ld }\n",
+         qos1->qos->Capabilities, qos1->qos->IdentityTracking,
+@@ -1492,12 +1520,18 @@
+     TRACE("%p %p %p %p %p %p %lu %p\n", Binding, ServerPrincName, AuthnLevel,
+           AuthnSvc, AuthIdentity, AuthzSvc, RpcQosVersion, SecurityQOS);
+ 
++    if (!bind || bind->server) return RPC_S_INVALID_BINDING;
+     if (!bind->AuthInfo) return RPC_S_BINDING_HAS_NO_AUTH;
+ 
+     if (SecurityQOS)
+     {
+-        FIXME("QOS not implemented\n");
+-        return RPC_S_INVALID_BINDING;
++        if (RpcQosVersion != RPC_C_SECURITY_QOS_VERSION)
++            return RPC_S_INVALID_ARG;
++        if (!bind->QOS || !bind->QOS->qos)
++        {
++            WARN("No actual security QOS is attached to the binding.\n");
++            return RPC_S_INVALID_BINDING;
++        }
+     }
+ 
+     if (ServerPrincName)
+@@ -1508,6 +1542,13 @@
+             if (!*ServerPrincName) return RPC_S_OUT_OF_MEMORY;
+         }
+         else *ServerPrincName = NULL;
++    }
++    if (SecurityQOS)
++    {
++        SecurityQOS->Version = RPC_C_SECURITY_QOS_VERSION;
++        SecurityQOS->Capabilities = bind->QOS->qos->Capabilities;
++        SecurityQOS->IdentityTracking = bind->QOS->qos->IdentityTracking;
++        SecurityQOS->ImpersonationType = bind->QOS->qos->ImpersonationType;
+     }
+     if (AuthnLevel) *AuthnLevel = bind->AuthInfo->AuthnLevel;
+     if (AuthnSvc) *AuthnSvc = bind->AuthInfo->AuthnSvc;
+@@ -1902,6 +1943,104 @@
+     ERR("AcquireCredentialsHandleW failed with error 0x%08lx\n", r);
+     return RPC_S_SEC_PKG_ERROR;
+   }
++}
++
++/* Fast local creation owns its template data through the existing binding,
++ * authentication, QOS and association lifetimes. No server is contacted here. */
++RPC_STATUS WINAPI RpcBindingCreateW(RPC_BINDING_HANDLE_TEMPLATE_V1_W *template,
++    RPC_BINDING_HANDLE_SECURITY_V1_W *security, RPC_BINDING_HANDLE_OPTIONS_V1 *options,
++    RPC_BINDING_HANDLE *result)
++{
++    RPC_SECURITY_QOS defaults = {1, RPC_C_QOS_CAPABILITIES_DEFAULT,
++        RPC_C_QOS_IDENTITY_STATIC, RPC_C_IMP_LEVEL_IMPERSONATE};
++    RPC_SECURITY_QOS *qos = security && security->SecurityQos ? security->SecurityQos : &defaults;
++    RPC_BINDING_HANDLE handle = NULL;
++    RPC_WSTR string = NULL;
++    RpcBinding *binding;
++    HANDLE token = NULL;
++    RPC_STATUS status;
++    ULONG level = security ? security->AuthnLevel : RPC_C_AUTHN_LEVEL_PKT_PRIVACY;
++    ULONG service = security ? security->AuthnSvc : RPC_C_AUTHN_WINNT;
++
++    if (!result) return ERROR_INVALID_PARAMETER;
++    *result = NULL;
++    if (!template || template->Version != 1 || template->Flags & ~1 ||
++        template->u1.Reserved || (security && security->Version != 1) ||
++        (options && options->Version != 1))
++        return ERROR_INVALID_PARAMETER;
++    if (template->ProtocolSequence != 3) return RPC_S_CANNOT_SUPPORT;
++    if (template->NetworkAddress && template->NetworkAddress[0])
++        return RPC_S_CANNOT_SUPPORT;
++    if (options && ((options->Flags & ~1) || options->CallTimeout ||
++        options->ComTimeout != RPC_C_BINDING_DEFAULT_TIMEOUT))
++    {
++        WARN("fast local options unsupported: flags %#lx com %lu call %lu\n",
++            options->Flags, options->ComTimeout, options->CallTimeout);
++        return RPC_S_CANNOT_SUPPORT;
++    }
++    if (qos->Version != 1 || qos->Capabilities ||
++        qos->IdentityTracking > RPC_C_QOS_IDENTITY_DYNAMIC ||
++        (qos->ImpersonationType != RPC_C_IMP_LEVEL_IDENTIFY &&
++         qos->ImpersonationType != RPC_C_IMP_LEVEL_IMPERSONATE) ||
++        (security && security->AuthIdentity))
++    {
++        WARN("fast local security/QOS feature unsupported\n");
++        return RPC_S_CANNOT_SUPPORT;
++    }
++    if (service == RPC_C_AUTHN_DEFAULT) service = RPC_C_AUTHN_WINNT;
++    if (level == RPC_C_AUTHN_LEVEL_DEFAULT && service != RPC_C_AUTHN_NONE)
++        level = RPC_C_AUTHN_LEVEL_PKT_PRIVACY;
++    if (service != RPC_C_AUTHN_NONE && service != RPC_C_AUTHN_WINNT)
++        return RPC_S_CANNOT_SUPPORT;
++    if (service == RPC_C_AUTHN_NONE && level != 0 && level != RPC_C_AUTHN_LEVEL_NONE)
++        return ERROR_INVALID_PARAMETER;
++    if (service != RPC_C_AUTHN_NONE && level == RPC_C_AUTHN_LEVEL_NONE)
++        return ERROR_INVALID_PARAMETER;
++    status = RpcStringBindingComposeW(NULL, (RPC_WSTR)L"ncalrpc", template->NetworkAddress,
++                                     template->StringEndpoint, NULL, &string);
++    if (status) return status;
++    status = RpcBindingFromStringBindingW(string, &handle);
++    RpcStringFreeW(&string);
++    if (status) return status;
++    binding = handle;
++    /* ncalrpc already reserves an exclusive connection for each active call:
++     * concurrent/async calls allocate independently, without a per-binding
++     * serialization queue. Retain the SDK property without inventing an ALPC
++     * call flag or changing the existing association/context-handle lifetime. */
++    binding->noncausal = options && (options->Flags & 1);
++    if (template->Flags & 1)
++        status = RpcBindingSetObject(handle, &template->ObjectUuid);
++    if (!status)
++        status = RpcBindingSetAuthInfoExW(handle, security ? security->ServerPrincName : NULL,
++            level, service, NULL, RPC_C_AUTHZ_NONE, qos);
++    if (status) goto failed;
++    binding->QOS->effective_only = !security;
++    if (qos->IdentityTracking == RPC_C_QOS_IDENTITY_STATIC)
++    {
++        if (!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY | TOKEN_DUPLICATE, TRUE, &token))
++        {
++            if (GetLastError() != ERROR_NO_TOKEN ||
++                !OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_DUPLICATE, &token))
++            {
++                status = RPC_S_ACCESS_DENIED;
++                goto failed;
++            }
++        }
++        if (!DuplicateTokenEx(token, TOKEN_QUERY | TOKEN_IMPERSONATE | TOKEN_DUPLICATE,
++                             NULL, SecurityImpersonation, TokenImpersonation,
++                             &binding->QOS->fast_local_token))
++            status = RPC_S_ACCESS_DENIED;
++        CloseHandle(token);
++        if (status) goto failed;
++    }
++    binding->fast_static = template->StringEndpoint && template->StringEndpoint[0];
++    TRACE("fast local binding created, static endpoint %u identity %lu auth %lu/%lu\n",
++          binding->fast_static, qos->IdentityTracking, level, service);
++    *result = handle;
++    return RPC_S_OK;
++failed:
++    RpcBindingFree(&handle);
++    return status;
+ }
+ 
+ /***********************************************************************
+@@ -1931,12 +2070,27 @@
+ /***********************************************************************
+  *             RpcBindingSetOption (RPCRT4.@)
+  */
++RPC_STATUS WINAPI RpcBindingInqOption(RPC_BINDING_HANDLE handle, ULONG option, ULONG_PTR *value)
++{
++    RpcBinding *binding = handle;
++    if (!binding || !value || binding->server) return RPC_S_INVALID_ARG;
++    if (option != RPC_C_OPT_BINDING_NONCAUSAL) return RPC_S_CANNOT_SUPPORT;
++    *value = binding->noncausal;
++    return RPC_S_OK;
++}
++
+ RPC_STATUS WINAPI RpcBindingSetOption(RPC_BINDING_HANDLE BindingHandle, ULONG Option, ULONG_PTR OptionValue)
+ {
+     TRACE("(%p, %ld, %Id)\n", BindingHandle, Option, OptionValue);
+ 
+     switch (Option)
+     {
++    case RPC_C_OPT_BINDING_NONCAUSAL:
++        if (!BindingHandle || ((RpcBinding *)BindingHandle)->server ||
++            strcmp(((RpcBinding *)BindingHandle)->Protseq, "ncalrpc"))
++            return RPC_S_CANNOT_SUPPORT;
++        ((RpcBinding *)BindingHandle)->noncausal = !!OptionValue;
++        break;
+     case RPC_C_OPT_COOKIE_AUTH:
+     {
+         RPC_C_OPT_COOKIE_AUTH_DESCRIPTOR *cookie = (RPC_C_OPT_COOKIE_AUTH_DESCRIPTOR *)OptionValue;
+--- a/dlls/rpcrt4/rpc_binding.h
++++ b/dlls/rpcrt4/rpc_binding.h
+@@ -53,6 +53,8 @@
+ typedef struct _RpcQualityOfService
+ {
+     LONG refs;
++    HANDLE fast_local_token;
++    BOOL effective_only;
+ 
+     RPC_SECURITY_QOS_V2_W *qos;
+ } RpcQualityOfService;
+@@ -127,6 +129,8 @@
+   LONG refs;
+   struct _RpcBinding* Next;
+   BOOL server;
++  BOOL fast_static;
++  BOOL noncausal;
+   UUID ObjectUuid;
+   LPSTR Protseq;
+   LPSTR NetworkAddr;
+--- a/dlls/rpcrt4/rpc_transport.c
++++ b/dlls/rpcrt4/rpc_transport.c
+@@ -144,6 +144,8 @@
+         }
+         if (Connection->QOS->qos->IdentityTracking == RPC_C_QOS_IDENTITY_DYNAMIC)
+             dwFlags |= SECURITY_CONTEXT_TRACKING;
++        if (Connection->QOS->effective_only)
++            dwFlags |= SECURITY_EFFECTIVE_ONLY;
+     }
+     pipe = CreateFileA(pname, GENERIC_READ|GENERIC_WRITE, 0, NULL,
+                        OPEN_EXISTING, dwFlags | FILE_FLAG_OVERLAPPED, 0);
+--- a/dlls/rpcrt4/rpcrt4.spec
++++ b/dlls/rpcrt4/rpcrt4.spec
+@@ -341,6 +341,7 @@
+ @ stdcall RpcAsyncInitializeHandle(ptr long)
+ @ stub RpcAsyncRegisterInfo
+ @ stdcall RpcBindingCopy(ptr ptr)
++@ stdcall RpcBindingCreateW(ptr ptr ptr ptr)
+ @ stdcall RpcBindingFree(ptr)
+ @ stdcall RpcBindingFromStringBindingA(str  ptr)
+ @ stdcall RpcBindingFromStringBindingW(wstr ptr)
+@@ -353,7 +354,7 @@
+ @ stdcall RpcBindingInqAuthInfoExW(ptr ptr ptr ptr ptr ptr long ptr)
+ @ stdcall RpcBindingInqAuthInfoW(ptr ptr ptr ptr ptr ptr)
+ @ stdcall RpcBindingInqObject(ptr ptr)
+-@ stub RpcBindingInqOption
++@ stdcall RpcBindingInqOption(ptr long ptr)
+ @ stdcall RpcBindingReset(ptr)
+ @ stdcall RpcBindingServerFromClient(ptr ptr)
+ @ stdcall RpcBindingSetAuthInfoA(ptr str long long ptr long)

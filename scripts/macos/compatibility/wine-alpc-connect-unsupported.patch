@@ -1,0 +1,21 @@
+--- a/dlls/ntdll/Makefile.in
++++ b/dlls/ntdll/Makefile.in
+@@ -14,6 +14,7 @@
+ SOURCES = \
+ 	actctx.c \
+ 	alpc.c \
++	alpc_connect.c \
+ 	atom.c \
+ 	crypt.c \
+ 	debugbuffer.c \
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -157,7 +157,8 @@
+ # @ stub NtAllocateUserPhysicalPages
+ @ stdcall -syscall NtAllocateUuids(ptr ptr ptr ptr)
+ @ stdcall -syscall=0x0018 NtAllocateVirtualMemory(long ptr long ptr long long)
+ @ stdcall -syscall NtAllocateVirtualMemoryEx(long ptr ptr long long ptr long)
++@ stdcall NtAlpcConnectPortEx(ptr ptr ptr ptr long ptr ptr ptr ptr ptr ptr)
+ @ stub -syscall=0x004c NtApphelpCacheControl
+ @ stdcall -syscall NtAreMappedFilesTheSame(ptr ptr)
+ @ stdcall -syscall NtAssignProcessToJobObject(long long)

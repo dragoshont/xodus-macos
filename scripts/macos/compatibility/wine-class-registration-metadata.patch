@@ -1,0 +1,22 @@
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -35,6 +35,8 @@
+ WINE_DEFAULT_DEBUG_CHANNEL(combase);
+ 
+ #include "rpcbindingcreate-server-catalog.c"
++#include "rpcbindingcreate-attributes.c"
++#include "rpcbindingcreate-class-registration.c"
+ 
+ struct activatable_class_data
+ {
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -293,7 +293,7 @@
+ @ stub RoClearError
+ @ stub RoFailFastWithErrorContext
+ @ stub RoFreeParameterizedTypeExtra
+-@ stub RoGetActivatableClassRegistration
++@ stdcall RoGetActivatableClassRegistration(ptr ptr)
+ @ stdcall RoGetActivationFactory(ptr ptr ptr)
+ @ stdcall RoGetAgileReference(long ptr ptr ptr)
+ @ stdcall RoGetApartmentIdentifier(ptr)

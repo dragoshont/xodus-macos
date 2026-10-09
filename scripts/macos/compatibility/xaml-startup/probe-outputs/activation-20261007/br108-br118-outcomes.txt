@@ -718,3 +718,26 @@ conclusion: HEADLESS WALL CONFIRMED. XAML stops after NotifyDirty; it never subm
   (CCoreServices::EnableRender gated on IsXamlVisible / CoreWindow.get_Visible), the null winemac driver
   leaves the CoreWindow non-visible, so XAML's render walk never fires. Decisive next test = HEADED run
   with a real winemac window (8dac agrees headed is the cheapest/important test).
+=== brG1 (2026-10-09 17:1x) HEADED run (Aqua, winemac.drv, v10) ===
+setup: foreground freed by coordinator; caffeinate -u (own pid) to wake display; gui/501 LaunchAgent; v10 installed.
+result: ALIVE, exit 92, 0 fail-fast. winemac.drv engaged; WM_SHOWWINDOW SW_SHOW fired on hwnd 0x20072 (a window WAS shown).
+  BUT XAML still stops at NotifyDirty -> GetFrameStatistics S_OK -> 2nd visual listeners -> nothing. NO Commit / CreateWindowTarget.
+  => the render gate is NOT winemac/Win32 window visibility.
+screenshots: ALL FAILED -- /usr/sbin/screencapture -x returns "could not create image from display" (display asleep / Screen
+  Recording TCC). 0 shots captured. Needs a physically awake panel or window-targeted capture + permission. Reported to coordinator.
+
+=== brE6 (2026-10-09 17:2x) EXPERIMENT X-01 force-visible (headless, v10) ===
+change: binary-patched Windows.UI.Xaml.dll CJupiterWindow::UpdateWindowVisibility+0x6f (RVA 0x3fdbfb) setne dl (0F95C2)
+  -> mov dl,1;nop (B20190), forcing the 'visible' arg to CCoreServices::SetWindowVisibility=1 regardless of ICoreWindow get_Visible.
+result: ALIVE exit 92, NO change -- still stops at NotifyDirty, no Commit. Reverted after (XAML back to 0F95C2).
+  => forcing XAML's visibility flag does NOT unblock the frame submit. The gate is deeper.
+
+=== KEY DIAGNOSIS (from brG1/brE6 logs) ===
+- D3D IS active: wined3d_cs thread, DXGI factory/output, d3d11 device created.
+- wined3d Vulkan swapchain created with "Image count 0 is not supported (2-3)" -> swapchain surface is 0x0 (no backbuffer).
+- Render-target creation path: WindowsGraphicsDeviceManager::WaitForD3DDependentResourceCreation (0x157912)
+  -> DCompTreeHost::EnsureResources (0x157ac4) [where CreateWindowTarget would be issued].
+- Non-fatal: unregistered COM classes {0134a8b2-3407-4b45-ad25-e9f7c92a80bc} and {228826af-02e1-4226-a9e0-99a855e455a6}
+  (present in ALL runs incl. frame-path ones; app still ALIVE). GamingServices FindPackages is a Wine stub (app JS polls it).
+- Hypothesis: the CoreWindow/render-target size is 0x0 (hence swapchain Image count 0), so even with render enabled XAML
+  produces no pixels and never binds a window target. Next: confirm CoreWindow Bounds under the broker; make it report 1280x800.

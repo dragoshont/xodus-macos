@@ -122,3 +122,5 @@ Each new entry is appended below as the experiment proceeds (id, run, sha256, cl
 | E-03 | brE3 | wincomp_exp8.dll (visual methods S_OK no state INV-08; NotifyDirty callback INV-07) | 748a41784db49e53 | EXPERIMENT-STUB | run once; removed |
 | E-04 | brE4 | wincomp_exp9.dll (Commit/Wait S_OK, GetFrameStatistics QPC 60/1, INV-09) | a8e0dbef9dc56f55 | EXPERIMENT-STUB | run once; removed |
 | E-05 | brE5 | wincomp_exp10.dll (DeviceInternal 3-8, Partner4 45/46/57 benign, INV-10) | 8efa3539ae3644c1 | EXPERIMENT-STUB | run once; removed; new slots never reached (headless wall) |
+| X-01 | brE6 | Windows.UI.Xaml.dll UpdateWindowVisibility+0x6f setne dl -> mov dl,1 (force render-enable) | RVA 0x3fdbfb 0F95C2->B20190 | EXPERIMENT-STUB (NATIVE-COPY patch) | tested; NO effect; reverted (.preXvis backup) |
+| G-01 | brG1 | headed Aqua run (winemac window shown) + screencapture | n/a | DIAGNOSTIC | window shown but no XAML Commit; screencapture failed (display asleep/TCC) |

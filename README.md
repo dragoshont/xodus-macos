@@ -10,6 +10,23 @@
 > [!CAUTION]
 > This is an unofficial project - use at your own risk. It is not affiliated with, endorsed by, or sponsored by Microsoft or XBOX; all trademarks, product names, and company names or logos mentioned herein are the property of their respective owners.
 
+## macOS bring-up of the original Xbox PC app (paused 2026-10-09)
+
+This branch/fork (`dragoshont/xodus-macos`) investigates running Xbox-PC games and the **unchanged original
+Xbox PC app** (`XboxPcApp.exe`, `Microsoft.Xbox.AppL`) on Apple-silicon macOS through Wine/CrossOver, with
+no VM as the product runtime and no forged authentication, identity or service results. The goal is a visible
+window, genuine sign-in and the real account library. Games were exercised standalone (see below); the Xbox app
+starts and stays alive under Wine but has **never drawn a frame**, so window, sign-in and library are untested.
+
+The work was driven by an AI coding agent ("Copilot") supervised with the **Architrave** agent workflow
+(`architrave.config.json`, `.github/agents`, the `architrave` skill: mission supervisor, bounded worker sessions,
+durable evidence and honesty gates). A coordinator session ran a runtime/startup worker and a private
+composition-research worker; every experimental shortcut is logged in a ledger. Project paused for budget.
+
+**Start here:** [`docs/macos-bringup/10-handover-2026-10-09.md`](docs/macos-bringup/10-handover-2026-10-09.md)
+(status, blocker, next step, where code lives), then `docs/macos-bringup/xbox-original-app-milestones-plan.md`
+and `docs/macos-bringup/06-experiment-ledger.md`.
+
 ## Current state of the project
 
 The project can now login, download packages and obtain licenses for games.

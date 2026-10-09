@@ -224,3 +224,34 @@ uninstall/reinstall is still unqualified.
 
 Caffeinate is running to prevent idle sleep; it does not bypass screen locking.
 No account, save or installed-app reset/replacement occurred.
+
+The owner subsequently confirmed **"game works great"** and explicitly resumed
+the launcher's UI/UX work. The successful current session is owner-accepted;
+the actual reinstall remains a separate unqualified lifecycle check. The game
+is not interrupted for app packaging or interface work.
+
+### Launcher candidate after owner acceptance
+
+App commit `02e67f8` is committed and pushed. It retains Discover results and
+per-tab searches, adds manual sliding hero/recent-game controls, fences muted
+hero playback by visibility and app/game lifecycle, presents Launching/Stopping
+before generic Play/Stop, and gives empty Downloads a Browse games action.
+The bounded adversarial fix batch prevents unrelated background checks from
+blanking Downloads and uses static artwork on macOS 14, where viewport visibility
+cannot be observed by the newer SwiftUI API.
+Discover also observes the outer vertical carousel viewport, not just its
+selected horizontal slide, before allowing playback.
+
+Debug and shipping Release builds pass, as do 175 presentation and 981 native
+fixture checks. The final disconnected Downloads own-view render was inspected;
+it is not installed-product or animated-media acceptance. Exact-source CI is
+`dragoshont/xodus-macos-app` run `38002242443`, initially in progress.
+Installed app `39fd687` remains unchanged. The durable UI Run's policy check
+denies signing; a scoped packaging/sign/deploy grant is required before replacing
+it, preserving the frozen credential broker and signed CLI.
+
+CrossOver's official installation/trial handoff and signed detection are in the
+candidate. Alternate-engine execution is not delivered: the native client
+implements a pure `runtime-plan`, while the current install/setup/stop writer
+uses CrossOver-specific bottles and tools. A picker cannot substitute for an
+execution contract with per-game isolation and save-preserving migration.

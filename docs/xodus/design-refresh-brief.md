@@ -72,8 +72,10 @@ before native input/capture; source and neutral UI checks may proceed.
 Final neutral source evidence: Debug build, 175 preview/layout checks and
 967 native-session checks passed; shipping-configuration Release compilation
 passed. All review fix batches are committed/pushed. Exact CI passed for
-`67ed6fa`, `bb9ced6` and `ad7ead4`; final `a0c5aba` exact CI is pending at this
-checkpoint. No new source is installed: the preserved app remains `39fd687`,
+`67ed6fa`, `bb9ced6` and `ad7ead4`; final `a0c5aba` exact CI
+[`37956191963`](https://github.com/dragoshont/xodus-macos-app/actions/runs/37956191963)
+also passed with its SHA independently matched. No new source is installed:
+the preserved app remains `39fd687`,
 with no signing, deployment, account changes, game launch or licence operation
 in these UI review rounds.
 

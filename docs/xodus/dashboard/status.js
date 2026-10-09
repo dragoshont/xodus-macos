@@ -2,7 +2,7 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-09T19:02:32+03:00",
+  updatedAt: "2026-10-09T19:14:22+03:00",
   phase: "macOS UI only — three adversarial review rounds complete in source",
   paused: false,
   pauseReason: "",
@@ -54,7 +54,7 @@ window.XODUS_STATUS = {
         { id: "P4", title: "Xbox profile and achievements", hours: 1.25, status: "done", done: "Real profile, gamer identity/G score and achievement views with account-safe paging/cache/errors", evidence: "39fd687 installed; real Profile and achievement-game list captured. Per-game drilldown and complete acceptance remain R09/R15." },
         { id: "P5", title: "Consoles and browser remote play", hours: 0.75, status: "done", done: "Actual console inventory where supported; verified official browser handoff, never invented devices or deep links", evidence: "Actual console shown from backend cache; publisher's browser Remote Play and setup links wired. No native streaming, wake commands or invented device links." },
         { id: "P6", title: "Native Engines page", hours: 0.75, status: "done", done: "CrossOver and configured alternatives, observed components/readiness, safe defaults and honest experimental states", evidence: "Dedicated native Engines destination installed via Account, Settings and keyboard/menu; existing governed runtime section reused." },
-        { id: "P7", title: "Final native UI acceptance", hours: 1.25, status: "blocked", done: "Exact final UI CI, package and native capture/interaction after foreground release", evidence: "Three independent source-review rounds complete, final source UX PASS; 175 preview/967 native checks green. a0c5aba not installed; foreground release, live catalogue/VoiceOver and screenshots remain." }
+        { id: "P7", title: "Final native UI acceptance", hours: 1.25, status: "blocked", done: "Package and native capture/interaction after foreground release", evidence: "Three source-review rounds complete; exact a0c5aba CI 37956191963 green, source UX PASS, 175 preview/967 native checks. Not installed; foreground release, live catalogue/VoiceOver and screenshots remain." }
       ],
 
   remainingWork: [
@@ -65,7 +65,7 @@ window.XODUS_STATUS = {
     { id: "R05", priority: "P1", state: "partial", work: "Acquisition semantics", next: "Paid/free/trial/bundle rights remain unknown unless the service supplies evidence." },
     { id: "R06", priority: "P1", state: "partial", work: "Partial/offline inventory and account change", next: "Preserve qualified last-complete data; never leak account A access into account B." },
     { id: "R07", priority: "P1", state: "partial", work: "Editions, region, language and PC identity", next: "Propagate exact product/SKU/package; distinguish console, base game and DLC." },
-    { id: "R08", priority: "P1", state: "source", work: "Uninstalled native UI review fixes", next: "Final a0c5aba candidate: three source reviews/fix batches complete; final exact CI/package/native acceptance required. Installed app remains 39fd687." },
+    { id: "R08", priority: "P1", state: "source", work: "Uninstalled native UI review fixes", next: "Final a0c5aba candidate: three source reviews/fix batches and exact CI 37956191963 pass; package/native acceptance still required. Installed app remains 39fd687." },
     { id: "R09", priority: "P1", state: "unverified", work: "Final native all-view walkthrough", next: "Engines, dual access, achievement drilldown, keyboard, resizing and installed-page captures." },
     { id: "R10", priority: "P1", state: "unverified", work: "Remote Play browser destination", next: "Observe exact official browser URL and working fallback; opening Safari alone is partial proof." },
     { id: "R11", priority: "P1", state: "partial", work: "Final end-to-end game journey", next: "Scoped install/play/stop/repair/remove/save-restore acceptance on the final UX." },
@@ -106,7 +106,7 @@ window.XODUS_STATUS = {
   uxReviews: [
     { round: "1", subject: "67ed6fa — Library/actions/catalogue", verdict: "REVISE", fixes: "bb9ced6: remove dead catalogue continuation at the bound and stale action-copy assertions", evidence: "300-game paging; 528-entry feed stops at 512 with no extra producer calls; native poster pixels align" },
     { round: "2", subject: "bb9ced6 — native all-view experience", verdict: "REVISE", fixes: "ad7ead4: human Account error copy, disclosure-only diagnostics, labelled progress and shared grid", evidence: "Primary error copy omits raw codes while exact closed diagnostic safety tests remain green" },
-    { round: "3", subject: "ad7ead4 — final integrated source", verdict: "PASS", fixes: "a0c5aba: final game-access/download/recent-activity progress accessibility labels", evidence: "175 preview + 967 native checks and Release compilation pass; real screenshots/VoiceOver/live catalogue still pending" }
+    { round: "3", subject: "ad7ead4 — final integrated source", verdict: "PASS", fixes: "a0c5aba: final game-access/download/recent-activity progress accessibility labels", evidence: "Exact CI 37956191963, 175 preview + 967 native checks and Release compilation pass; real screenshots/VoiceOver/live catalogue still pending" }
   ],
 
   capabilityInventory: [
@@ -200,6 +200,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-09T19:14:22+03:00", text: "Exact final UI source a0c5aba passed CI 37956191963. Three-round source work verified; installed app remains unchanged pending native foreground release." },
     { at: "2026-10-09T19:02:32+03:00", text: "Three adversarial UI source rounds and fixes complete. Final source a0c5aba pushed; installed app untouched; native foreground/CI/release acceptance pending." },
     { at: "2026-10-09T17:26:17+03:00", text: "User resumes all remaining work using SDD. Canonical 43-criterion program created; eligible Library slice implementing, Minecraft exact identity traced independently." },
     { at: "2026-10-09T17:11:00+03:00", text: "User stops implementation. Verified 43 remaining-work items; personal Library eligibility and Minecraft account/edition inconsistency are first priorities." },

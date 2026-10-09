@@ -19,6 +19,12 @@ frontend fix batch between rounds.
 
 ## Verified baseline
 
+This table is the preserved inventory baseline. The later UI-only three-round
+candidate is now `a0c5aba` with exact CI `37956191963` green; installed source
+remains `39fd687`. The Xbox foreground hold was released at 19:15, but the Mac
+is independently locked. Exact release inputs are prepared, not signed or
+deployed. See [the current UI review/release checkpoint](design-refresh-brief.md#user-requested-three-round-adversarial-ux-cycle).
+
 | Item | Verified state |
 | --- | --- |
 | Installed application | `39fd687adc65398442c76b0f3bdfffa183af7ae9`, exact CI `37854735645` passed. Launcher SHA-256 `da24ce152bff853586f2d8e2299752a653cace19e38a896ac68c5bfb24837ab9`. |

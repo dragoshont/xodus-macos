@@ -2,11 +2,11 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-09T19:14:22+03:00",
+  updatedAt: "2026-10-09T19:20:52+03:00",
   phase: "macOS UI only — three adversarial review rounds complete in source",
   paused: false,
   pauseReason: "",
-  program: { id: "xodus-sdd-program-20261009", activeSlice: "Final native UI acceptance after three independent source reviews", scope: "macOS UI and Architrave only; all non-UI phases paused and preserved" },
+  program: { id: "xodus-sdd-program-20261009", activeSlice: "Exact UI release prepared; awaiting local Mac unlock", scope: "macOS UI and Architrave only; all non-UI phases paused and preserved" },
   baseline: { installed: "39fd687", source: "a0c5aba", backend: "a3036bf", note: "Final UI candidate is source only. No backend, engine, account, save or installed-app mutation in the three review rounds." },
   budget: { totalHours: 48, spentHours: 43.25, note: "Historical budget/used-hours estimate retained; user allows time for macOS UI. Non-UI program phases remain paused; no invented elapsed-hour accounting." },
 
@@ -54,7 +54,7 @@ window.XODUS_STATUS = {
         { id: "P4", title: "Xbox profile and achievements", hours: 1.25, status: "done", done: "Real profile, gamer identity/G score and achievement views with account-safe paging/cache/errors", evidence: "39fd687 installed; real Profile and achievement-game list captured. Per-game drilldown and complete acceptance remain R09/R15." },
         { id: "P5", title: "Consoles and browser remote play", hours: 0.75, status: "done", done: "Actual console inventory where supported; verified official browser handoff, never invented devices or deep links", evidence: "Actual console shown from backend cache; publisher's browser Remote Play and setup links wired. No native streaming, wake commands or invented device links." },
         { id: "P6", title: "Native Engines page", hours: 0.75, status: "done", done: "CrossOver and configured alternatives, observed components/readiness, safe defaults and honest experimental states", evidence: "Dedicated native Engines destination installed via Account, Settings and keyboard/menu; existing governed runtime section reused." },
-        { id: "P7", title: "Final native UI acceptance", hours: 1.25, status: "blocked", done: "Package and native capture/interaction after foreground release", evidence: "Three source-review rounds complete; exact a0c5aba CI 37956191963 green, source UX PASS, 175 preview/967 native checks. Not installed; foreground release, live catalogue/VoiceOver and screenshots remain." }
+        { id: "P7", title: "Final native UI acceptance", hours: 1.25, status: "blocked", done: "Package and native capture/interaction after local Mac unlock", evidence: "Xbox foreground released. Mac independently confirmed locked. Exact a0c5aba commit/tree/CI and one-use package recipe prepared; no signing or app replacement. Local unlock, live catalogue/VoiceOver and screenshots remain." }
       ],
 
   remainingWork: [
@@ -200,6 +200,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-09T19:20:52+03:00", text: "Xbox foreground released; Mac is still locked. Immutable a0c5aba release source and package inputs staged, signing/deployment unstarted pending local unlock." },
     { at: "2026-10-09T19:14:22+03:00", text: "Exact final UI source a0c5aba passed CI 37956191963. Three-round source work verified; installed app remains unchanged pending native foreground release." },
     { at: "2026-10-09T19:02:32+03:00", text: "Three adversarial UI source rounds and fixes complete. Final source a0c5aba pushed; installed app untouched; native foreground/CI/release acceptance pending." },
     { at: "2026-10-09T17:26:17+03:00", text: "User resumes all remaining work using SDD. Canonical 43-criterion program created; eligible Library slice implementing, Minecraft exact identity traced independently." },

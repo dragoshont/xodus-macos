@@ -60,8 +60,16 @@ User refinement (2026-10-09):
 
 Current scope: **macOS UI only**. Backend/engine/composition work and other
 program phases are paused and preserved. No automatic restart schedule was
-created by this lane. The prior Mac foreground hold still requires release
-before native input/capture; source and neutral UI checks may proceed.
+created by this lane. Native input/capture requires a released foreground and
+an unlocked Mac; source and neutral UI checks may proceed without either.
+
+**Release checkpoint, 19:20:** the Xbox lane released its foreground at 19:15.
+The Mac itself is independently confirmed locked, which is a separate human
+gate. Exact `a0c5aba` source/tree and prior signed-input receipt are staged under
+`~/xodus-app-tooling/app-ui-review-a0c5aba-20261009/`; the one-use package recipe
+passes syntax checks and refuses a locked console. No signing job has been
+loaded and the installed app is unchanged. Local unlock is required before
+the controlled package/install/native acceptance sequence.
 
 | Round | Frozen subject | Review and follow-up |
 | --- | --- | --- |

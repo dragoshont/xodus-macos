@@ -467,6 +467,18 @@ static HRESULT coreui_factory(UINT64 id, IUnknown **out)
         blog("factory {118B4CE1} vtbl[3](viewId=%#llx) -> %#lx", (unsigned long long)coreui_view_id, hr2);
         if (FAILED(hr2)) { IUnknown_Release(*out); *out = NULL; hr = hr2; }
     }
+    if (SUCCEEDED(hr))
+    {
+        IUnknown *cwf = NULL;
+        BOOLEAN reuse = 0xcc;
+        HRESULT hr3 = IUnknown_QueryInterface(*out, &IID_CoreWindowFactory, (void **)&cwf);
+        if (SUCCEEDED(hr3))
+        {
+            hr3 = ((const struct core_window_factory_vtbl *)cwf->lpVtbl)->get_WindowReuseAllowed(cwf, &reuse);
+            IUnknown_Release(cwf);
+        }
+        blog("factory ICoreWindowFactory::get_WindowReuseAllowed -> %#lx reuse=%u", hr3, reuse);
+    }
 done:
     if (aumid) msg_release(aumid);
     if (contract) msg_release(contract);

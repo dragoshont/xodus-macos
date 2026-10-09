@@ -442,3 +442,49 @@ On 0340 between theme load (themeresources.xbf from 21H1 resources, dwrite load)
 there is no traced activity (pure in-Xaml work), only dwritetextanalyzer_QueryInterface
 {b7e6163e-...-365e} not implemented (private twin of IDWriteTextAnalyzer ...365d; likely benign).
 Hypothesis "framework classes unregistered" alone: DROPPED as sole cause (rows kept, they are correct data).
+
+== br154 (2026-10-09 03:55) relay on WinRT error APIs ==
+Result: EXIT 92, no change. On 0340 Windows.UI.Xaml calls RoOriginateErrorW(0x802b000a, 96, msg) right before
+the throw (relay prints pointers only).
+
+== br155 (2026-10-09 04:00) DIAGNOSTIC: combase RoOriginateErrorW FIXME -> ERR printing the message ==
+combase sha1 b4dc811c (DIAGNOSTIC, revert before final patch). Result: EXIT 92, message measured:
+  "Failed to assign to property 'Windows.UI.Xaml.Application.RequestedTheme'. [Line: 0 Position: 0]"
+STATIC root cause (native 26100 Windows.UI.Xaml.dll + PDB 2A7B381F...):
+  FrameworkApplication::put_RequestedThemeImpl (0x570d3c) fails 0x80131515 unless byte [this+0x100] != 0.
+  FrameworkApplication ctor (0x5e7664) sets it 1; DXamlCore::EnsureCoreApplicationInitialized (0x3ef190)
+  clears it at 0x3ef29a. FrameworkView::Initialize (0x33ef90): reads ICoreApplicationView::get_IsMain;
+  only if IsMain -> FrameworkApplication::MainASTAInitialize (0x61dee8) invokes the Application.Start
+  callback (App ctor -> InitializeComponent -> LoadComponent App.xaml) BEFORE EnsureCoreApplicationInitialized.
+  => our view is not main, so App.xaml is parsed after the theme is locked.
+twinapi.appcore (STATIC): CoreApplicationView::get_IsMain (0x93550) = [[view+0xd8]+0x68], written by
+  CoreApplicationViewAgileContainer::RuntimeClassInitialize(WindowType,...) (0x21e34): +0x68 = (type==1).
+  Type 1 only from CreateMainView (0x25744). CoreApplication::ActivateForeground (0x272c0) calls
+  GetWindowFactory (vtbl+0xd0) then ICoreWindowFactory::get_WindowReuseAllowed (factory vtbl+0x38):
+  if FALSE it creates a NEW view with WindowType 2 (0x2757b..0x275b7, MakeAndInitialize 0x27d84) -> IsMain
+  false; if TRUE it reuses the existing main view (0x27643).
+  Server factory (CoreUIComponents CoreUICreateICoreWindowFactoryEx 0x25fc0): reuse byte +0x98 =
+  !(flags & 0x10); CoreWindowFactory::get_WindowReuseAllowed (0x1775d0) returns it.
+  Client proxy (twinapi CImmersiveWindowFactoryProxy::get_WindowReuseAllowed 0xdf420) returns [this+0x7c]
+  (= proxy+0x84, ctor default 1; it is the 1-byte field after GUID/RECT+DWORD in the additional data,
+  read in v_UnmarshalAdditionalData 0x89270 at +0x5c). Our own (non-coreui) broker factory wrote 0 there.
+
+== br156 (2026-10-09 03:18) MEASUREMENT: broker logs server factory get_WindowReuseAllowed ==
+Change: shellhost-broker.c coreui_factory() QIs ICoreWindowFactory and logs get_WindowReuseAllowed (no
+behaviour change). Result: EXIT 92, "factory ICoreWindowFactory::get_WindowReuseAllowed -> 0 reuse=1"
+(CoreUICreateICoreWindowFactoryEx flags=0x140: reuse = !(flags & 0x10) = 1). Same RequestedTheme error.
+
+== br157 (03:24) DIAGNOSTIC winedbg on FrameworkView::Initialize/MainASTAInitialize ==
+FAILED as a measurement: attached just after windows.ui.xaml mapped; all 6 breakpoints "Invalid address",
+winedbg then lost the process (app itself alive, EXIT 92). Not repeated.
+
+== br158 (03:27) DIAGNOSTIC: windows.ui.xaml.dll byte patch forcing IsMain branch ==
+Patch (local prefix copy only, never committed; original saved $S/windows.ui.xaml.dll.orig-af71ca0a, md5
+af71ca0a...; patched md5 c0e71149...): RVA/file 0x33eff1 jne->nop;jmp so FrameworkView::Initialize always
+calls MainASTAInitialize before EnsureCoreApplicationInitialized.
+Result: EXIT 92, NO CHANGE: identical RequestedTheme RoOriginateErrorW, no Microsoft.UI.Xaml/RN/hermes/dcomp.
+=> "IsMain false locks the theme" hypothesis DROPPED (either IsMain was already true, or the assignment
+fails downstream). put_RequestedThemeImpl also returns the HRESULT of FrameworkTheming::SetRequestedTheme
+(0x5711cc -> 0x65bad4 -> 0x36b754 theme refresh), and the parser message does not carry the HRESULT. Next:
+measure the HRESULT that put_RequestedTheme returns (cxxobj/wil failure trace) before changing anything.
+LoadComponent(XboxPcApp.xaml): NO. Microsoft.ReactNative.dll / hermes.dll: NO. dcomp/Composition: NO.

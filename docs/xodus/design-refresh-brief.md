@@ -245,7 +245,7 @@ selected horizontal slide, before allowing playback.
 Debug and shipping Release builds pass, as do 175 presentation and 981 native
 fixture checks. The final disconnected Downloads own-view render was inspected;
 it is not installed-product or animated-media acceptance. Exact-source CI is
-`dragoshont/xodus-macos-app` run `38002242443`, initially in progress.
+`dragoshont/xodus-macos-app` run `38002242443`, passed on the full-Xcode runner.
 Installed app `39fd687` remains unchanged. The durable UI Run's policy check
 denies signing; a scoped packaging/sign/deploy grant is required before replacing
 it, preserving the frozen credential broker and signed CLI.

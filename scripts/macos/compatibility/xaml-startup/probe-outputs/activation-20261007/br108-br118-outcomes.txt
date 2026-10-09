@@ -683,3 +683,10 @@ log tail (deduped):
   second visual: 8x SetPropertyChangedListener(NULL); QI fe93b735 NOINTERFACE (tolerated)
   no further compositor calls; no commit / render tick observed.
 next: CreateInsetClip must return an InsetClip object. Prefix restored to br171 (3d8392a3).
+=== brE2 (2026-10-09 ~08:15) EXPERIMENT ===
+installed: wincomp_exp7.dll sha256 383256090e1929653494549c0c144395c37c3e34b40a5cb66b0f178c31cfbbde
+  (composition owner: all unimplemented ICompositor Create* return benign any-QI objects, INV-06)
+result: ALIVE, exit 92, 0 fail-fast.
+log tail: InsetClip created (QI-ANY 1ccd2a52) -> NOTIMPL IVisual(117e202d) slot=15 caller=WinUI2+0x134442 args=12e3b88
+  (slot 15 = put_Clip(clip), 0-based vtable count, INFERRED); second visual listeners; fe93b735 NOINTERFACE; no commit/render tick.
+next: IVisual put_* must hold state. Prefix restored to br171.

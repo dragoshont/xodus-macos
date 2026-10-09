@@ -121,3 +121,4 @@ Each new entry is appended below as the experiment proceeds (id, run, sha256, cl
 | E-02 | brE2 | wincomp_exp7.dll (ICompositor Create* benign any-QI objects, INV-06) | 383256090e192965 | EXPERIMENT-STUB | run once; removed |
 | E-03 | brE3 | wincomp_exp8.dll (visual methods S_OK no state INV-08; NotifyDirty callback INV-07) | 748a41784db49e53 | EXPERIMENT-STUB | run once; removed |
 | E-04 | brE4 | wincomp_exp9.dll (Commit/Wait S_OK, GetFrameStatistics QPC 60/1, INV-09) | a8e0dbef9dc56f55 | EXPERIMENT-STUB | run once; removed |
+| E-05 | brE5 | wincomp_exp10.dll (DeviceInternal 3-8, Partner4 45/46/57 benign, INV-10) | 8efa3539ae3644c1 | EXPERIMENT-STUB | run once; removed; new slots never reached (headless wall) |

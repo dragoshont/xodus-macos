@@ -706,3 +706,15 @@ result: ALIVE, exit 92, 0 fail-fast.
 log tail: InsetClip -> NotifyDirty -> 'EXPERIMENT GetFrameStatistics S_OK' -> second visual listeners -> nothing further.
   no Commit / WaitForCommitCompletion / second frame. App JS keeps running (FindPackages GamingServices polls).
 next: find what gates XAML's frame tick (visibility/occlusion under headless null driver vs owed callback).
+=== brE5 (2026-10-09 17:08) EXPERIMENT ===
+installed: wincomp_exp10.dll sha256 8efa3539ae3644c1af1a9cf5178553d27c03cdf55191d5b140ed9f5f4849f3ae
+  (composition owner INV-10: DeviceInternal slots 3-8 benign SetCommitCompletionEvent+batch ids; Partner4 slots 45/46/57 benign)
+result: ALIVE, exit 92, 0 fail-fast. Prefix restored to br171 (3d8392a3).
+log tail: identical wall to brE4 -- InsetClip -> NotifyDirty -> GetFrameStatistics S_OK -> second visual listeners -> nothing.
+  v10's NEW slots (DeviceInternal 3-8, Partner4 45/46/57) were NEVER REACHED: no grep hits in brE5-original.stderr.log.
+  Confirmed absent: Commit, WaitForCommitCompletion, CreateWindowTarget, RegisterCallbackThread, SetRoot.
+conclusion: HEADLESS WALL CONFIRMED. XAML stops after NotifyDirty; it never submits a frame, so no render
+  target is created and none of the frame/commit partner slots are exercised. Per native-render analysis
+  (CCoreServices::EnableRender gated on IsXamlVisible / CoreWindow.get_Visible), the null winemac driver
+  leaves the CoreWindow non-visible, so XAML's render walk never fires. Decisive next test = HEADED run
+  with a real winemac window (8dac agrees headed is the cheapest/important test).

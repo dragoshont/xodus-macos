@@ -690,3 +690,12 @@ result: ALIVE, exit 92, 0 fail-fast.
 log tail: InsetClip created (QI-ANY 1ccd2a52) -> NOTIMPL IVisual(117e202d) slot=15 caller=WinUI2+0x134442 args=12e3b88
   (slot 15 = put_Clip(clip), 0-based vtable count, INFERRED); second visual listeners; fe93b735 NOINTERFACE; no commit/render tick.
 next: IVisual put_* must hold state. Prefix restored to br171.
+=== brE3 (2026-10-09 ~08:25) EXPERIMENT ===
+installed: wincomp_exp8.dll sha256 748a41784db49e53568d6f48da7e1df68391823300e4cd6811b86a7051a1d1e9
+  (composition owner 2b83492: IVisual/IContainerVisual/ISpriteVisual/VisualCollection remaining methods S_OK no state, INV-08;
+   CreateInteropCompositor callback stored, cb->NotifyDirty (slot 3) on visual put/insert, INV-07)
+result: FAIL-FAST c0000602 (exit 3221227010). MILESTONE: XAML frame path entered after NotifyDirty.
+log: InsetClip -> EXPERIMENT NotifyDirty -> NOTIMPL d14b6158 slot=5 caller=Windows.UI.Xaml.dll+0x20f13f
+  = RefreshRateInfo::UpdateRefreshInterval(DCompTreeHost*)+0x4f (PDB symbol, MEASURED)
+  slot 5 = GetFrameStatistics(DCOMPOSITION_FRAME_STATISTICS*) (IDCompositionDevice order, INFERRED) -> RaiseFailFastException same thread 0340.
+next: real GetFrameStatistics (QPC/QPF, 60 Hz), then Commit/WaitForCommitCompletion. Prefix restored to br171.

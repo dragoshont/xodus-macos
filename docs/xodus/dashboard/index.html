@@ -230,10 +230,12 @@ function render(s) {
   const remaining = items.filter(i => !["done", "deferred"].includes(i.status)).reduce((a, i) => a + i.hours, 0);
   document.getElementById("headline").textContent =
     s.paused ? "Implementation stopped. Remaining work inventoried." :
+      s.program ? "SDD implementation in progress." :
       remaining === 0 ? `Approved delivery complete · ${spent} of ${total} hours used.` : `${spent} of ${total} hours used. ${Math.max(total - spent, 0)} left · ${remaining} h of planned work open.`;
   const current = items.find(i => i.status === "now") || items.find(i => i.status === "next");
   document.getElementById("lede").textContent =
     s.paused ? s.pauseReason :
+      s.program ? `${(s.remainingWork || []).length} tracked requirements. First active slice: ${s.program.activeSlice}. Features close only with their acceptance evidence.` :
       `${shippedCount} slices shipped in this budget, ${done} of ${items.length} planned items done. ${current ? `Now: ${current.id} — ${current.title}.` : ""}`;
   document.getElementById("updated").textContent = `Updated ${fmtTime(s.updatedAt)} · ${ago(s.updatedAt)}`;
   document.getElementById("budget").textContent = `${spent} of ${total} h`;

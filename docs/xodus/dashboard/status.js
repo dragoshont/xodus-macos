@@ -6,6 +6,7 @@ window.XODUS_STATUS = {
   phase: "SDD program resumed — access-qualified Library first",
   paused: false,
   pauseReason: "",
+  program: { id: "xodus-sdd-program-20261009", activeSlice: "SDD-LIB-01..08: eligible personal Library" },
   baseline: { installed: "39fd687", source: "fcf8a36", backend: "a3036bf", note: "Installed app and source differ. Historical completion labels refer to bounded slices, not full Xbox parity or release acceptance." },
   budget: { totalHours: 48, spentHours: 43.25, note: "Historical budget/used-hours estimate retained; no new total estimate for all 43 rows. User authorizes SDD implementation; foreground/auth/release gates preserved." },
 

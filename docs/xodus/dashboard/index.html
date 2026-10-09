@@ -74,6 +74,7 @@
   .state.now, .state.next { color: var(--now); } .state.now::before, .state.next::before { background: var(--now); }
   .state.blocked { color: var(--risk); } .state.blocked::before { background: var(--risk); }
   .state.deferred { color: var(--ink-3); } .state.deferred::before { background: var(--ink-3); }
+  .state.paused { color: var(--ink-2); } .state.paused::before { background: var(--ink-3); }
   .state.planned { color: var(--ink-3); }
 
   /* Shipped history: a single ruled timeline */
@@ -166,8 +167,18 @@
   </section>
 
   <h2>Work plan</h2>
-  <p class="sub">Each item closes only after a real run in the installed app. Width in the bar above is proportional to its estimate.</p>
+  <p class="sub">Historical slices are not full parity or release acceptance. The stopped-work inventory below is the current triage source. Width in the bar is proportional to the earlier estimates.</p>
   <div class="backlog" id="backlog"></div>
+
+  <h2>Remaining work — implementation stopped</h2>
+  <p class="sub">P0: access correctness. P1: complete existing behavior and acceptance. P2: broader feature triage. P3: general-release gates. All work is paused; these priorities do not authorize execution. <a href="../remaining-capability-inventory.md">Full inventory, evidence and acceptance</a>.</p>
+  <p class="sub" id="remaining-summary"></p>
+  <div class="inventory-wrap">
+    <table class="inventory">
+      <thead><tr><th scope="col">ID / priority</th><th scope="col">Remaining capability</th><th scope="col">Required outcome</th><th scope="col">Current evidence</th></tr></thead>
+      <tbody id="remaining-inventory"></tbody>
+    </table>
+  </div>
 
   <h2>Xbox capability inventory</h2>
   <p class="sub">One-to-one comparison in progress. Implemented is not full parity: each feature retains its real data, native/browser delivery mode and remaining verification. <a href="../xbox-parity-plan.md">Parity plan and acceptance</a>.</p>
@@ -195,11 +206,11 @@
   <p class="sub">Most recent first.</p>
   <div class="feed" id="feed"></div>
 
-  <footer>Data: <code>docs/xodus/dashboard/status.js</code> · Plan: <code>docs/xodus/remaining-work-plan.md</code></footer>
+  <footer>Data: <code>docs/xodus/dashboard/status.js</code> · Current inventory: <a href="../remaining-capability-inventory.md">remaining-capability-inventory.md</a> · <a href="../remaining-work-plan.md">Historical delivery evidence</a></footer>
 </main>
 
 <script>
-const STATE_LABEL = { done: "Done", now: "In progress", next: "Next", planned: "Planned", blocked: "Blocked", deferred: "Deferred" };
+const STATE_LABEL = { done: "Done", now: "In progress", next: "Next", planned: "Planned", blocked: "Blocked", deferred: "Deferred", paused: "Paused" };
 const PARITY_LABEL = { matched: "Matched", planned: "Planned", unproven: "Unproven", deferred: "Deferred", out: "Out of scope" };
 const KIND_LABEL = { built: "Built new", extended: "Extended", configured: "Configured", used: "Used as a service", rejected: "Researched, not adopted", process: "Process" };
 let previous = {};
@@ -218,10 +229,12 @@ function render(s) {
   const shippedCount = budgetShipped.length;
   const remaining = items.filter(i => !["done", "deferred"].includes(i.status)).reduce((a, i) => a + i.hours, 0);
   document.getElementById("headline").textContent =
-    remaining === 0 ? `Approved delivery complete · ${spent} of ${total} hours used.` : `${spent} of ${total} hours used. ${Math.max(total - spent, 0)} left · ${remaining} h of planned work open.`;
+    s.paused ? "Implementation stopped. Remaining work inventoried." :
+      remaining === 0 ? `Approved delivery complete · ${spent} of ${total} hours used.` : `${spent} of ${total} hours used. ${Math.max(total - spent, 0)} left · ${remaining} h of planned work open.`;
   const current = items.find(i => i.status === "now") || items.find(i => i.status === "next");
   document.getElementById("lede").textContent =
-    `${shippedCount} slices shipped in this budget, ${done} of ${items.length} planned items done. ${current ? `Now: ${current.id} — ${current.title}.` : ""}`;
+    s.paused ? s.pauseReason :
+      `${shippedCount} slices shipped in this budget, ${done} of ${items.length} planned items done. ${current ? `Now: ${current.id} — ${current.title}.` : ""}`;
   document.getElementById("updated").textContent = `Updated ${fmtTime(s.updatedAt)} · ${ago(s.updatedAt)}`;
   document.getElementById("budget").textContent = `${spent} of ${total} h`;
   document.getElementById("phase").textContent = s.budget.note || s.phase;
@@ -239,6 +252,15 @@ function render(s) {
     <div class="h">${i.hours} h</div>
     <div class="state ${esc(i.status)}">${STATE_LABEL[i.status] || esc(i.status)}</div>`).join("");
 
+  const remainingLabels = { missing: "Missing", partial: "Partial", unverified: "Unverified", source: "Source only", deferred: "Deferred" };
+  const remainingItems = s.remainingWork || [];
+  const blockers = remainingItems.filter(i => i.priority === "P0").length;
+  document.getElementById("remaining-summary").textContent = remainingItems.length ?
+    `${remainingItems.length} remaining items · ${blockers} P0 access-correctness items · installed ${s.baseline?.installed || "unknown"} / latest source ${s.baseline?.source || "unknown"}.` :
+    "Remaining inventory has not been loaded.";
+  document.getElementById("remaining-inventory").innerHTML = remainingItems.map(i =>
+    `<tr><td>${esc(i.id)} · ${esc(i.priority)}</td><td>${esc(i.work)}</td><td>${esc(i.next)}</td><td>${remainingLabels[i.state] || esc(i.state)}</td></tr>`
+  ).join("");
   const inventoryLabels = { implemented: "Implemented", review: "Under review", planned: "Planned", research: "Research needed", deferred: "Deferred" };
   document.getElementById("capability-inventory").innerHTML = (s.capabilityInventory || []).map(i =>
     `<tr><td>${esc(i.feature)}</td><td>${esc(i.xbox)}</td><td>${esc(i.xodus)}</td><td>${esc(i.mode)}</td><td class="${esc(i.state)}">${inventoryLabels[i.state] || esc(i.state)}</td></tr>`

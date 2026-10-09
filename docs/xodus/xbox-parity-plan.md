@@ -3,6 +3,13 @@
 Status: expanded intake, 9 October 2026. The prior design delivery is a working
 baseline, not evidence of complete Xbox feature parity.
 
+**Superseded execution state:** the user has stopped implementation and
+requested a [full remaining-work inventory](remaining-capability-inventory.md).
+That stopped-baseline inventory is now authoritative for triage, including the
+personal-Library eligibility correction and Minecraft's unresolved
+edition/account/package authorization. The ordered delivery below is historical,
+not permission to resume work.
+
 ## User outcome
 
 A lifelong Xbox and PC gamer who has just bought a Mac can recognize their

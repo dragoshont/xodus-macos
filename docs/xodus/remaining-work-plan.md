@@ -1,5 +1,11 @@
 # Xodus remaining-work plan (spec-driven)
 
+**Current status, 9 October 2026:** implementation is stopped by the user.
+[The remaining-capability inventory](remaining-capability-inventory.md) is the
+current triage source: 43 outstanding correctness, acceptance, feature and
+release items. Completion statements below describe historical bounded
+slices, not full Xbox parity or general-release qualification.
+
 Status date: 7 October 2026. Baseline: installed app `0926414` with the
 preserved signed engine. **Proven:** an acquired Xbox PC game (Hogwarts Legacy
 1.0.16.0) can be imported and launched from the app's **Play** button through
@@ -442,12 +448,12 @@ Open (needs the user at the Mac):
 
 ## B6 admission (2026-10-08)
 
-App 2d420d1 (tree c630816), CI run 37737577280 succeeded on the exact SHA. Package z4RPpO receipt 80118680…fe9543 (22 files); launcher a15d9fbd…, auth host e1389298…, C8 c8fe69a3… unchanged; broker 2c40354c…/228448 bytes; deep strict codesign check passed. Native v3 qualification 3de4feee… records both outcomes: exact-reference delete succeeds without a prompt, and when the delete is denied, the old item is kept and no retry happens. Live install of the broker, app replacement and the one-approval migration (bundled with B13) are held until the user is at the Mac.
+App 2d420d1 (tree c630816), CI run 37737577280 succeeded on the exact SHA. Package z4RPpO receipt 80118680ï¿½fe9543 (22 files); launcher a15d9fbdï¿½, auth host e1389298ï¿½, C8 c8fe69a3ï¿½ unchanged; broker 2c40354cï¿½/228448 bytes; deep strict codesign check passed. Native v3 qualification 3de4feeeï¿½ records both outcomes: exact-reference delete succeeds without a prompt, and when the delete is denied, the old item is kept and no retry happens. Live install of the broker, app replacement and the one-approval migration (bundled with B13) are held until the user is at the Mac.
 
 
 ## B6 and B13 live (2026-10-08)
 
-B6: the broker is installed at ~/Library/Application Support/Xodus/CredentialBroker (2c40354c…). The migration needed one user approval (legacyRetained=false). After an identical reinstall (PID 23110), the PC Library loaded 13 games with no prompt. Receipts are in app-b6-broker-2d420d1-20261008/. B13: the com.xodus.service LaunchAgent now runs Runtime/bin/xodus-service (same hash 24e78d53…); service-status reports signedIn=true; no prompt. A stale /tmp/xodus.sock from the old process had to be removed (the service does not unlink it on SIGTERM). Plist backup: com.xodus.service.plist.pre-b13.bak. B14 is open; it needs a fresh macOS account.
+B6: the broker is installed at ~/Library/Application Support/Xodus/CredentialBroker (2c40354cï¿½). The migration needed one user approval (legacyRetained=false). After an identical reinstall (PID 23110), the PC Library loaded 13 games with no prompt. Receipts are in app-b6-broker-2d420d1-20261008/. B13: the com.xodus.service LaunchAgent now runs Runtime/bin/xodus-service (same hash 24e78d53ï¿½); service-status reports signedIn=true; no prompt. A stale /tmp/xodus.sock from the old process had to be removed (the service does not unlink it on SIGTERM). Plist backup: com.xodus.service.plist.pre-b13.bak. B14 is open; it needs a fresh macOS account.
 
 
 Stale socket fixed: com.xodus.service now starts via Runtime/scripts/macos/private-xodus-service-run.sh. It removes /tmp/xodus.sock if nothing answers on it, then execs the same service binary. Stop, start and kill-restart cycles all came back signed in with no prompt.
@@ -464,5 +470,4 @@ Reboot check (2026-10-08): after a restart and FileVault login, com.xodus.servic
 
 ## Native redesign shipped (2026-10-09)
 
-Approved overnight UX scope D1-D9 is complete and installed at app commit e66efaa. Exact CI runs 37833593837 (D3), 37836578991 (D4-D7) and 37840831475 (D8) passed. Installed app/package hashes match; strict signatures pass; C8 c8fe69a3… and credential broker 2c40354c… are preserved; registry remains mode 0600; no Keychain prompt. Runtime acceptance observed Library, Discover, filtered gears search, game detail, real install review without confirmation/download, Downloads, Account/setup and safe Play/Stop. Final evidence is under ~/xodus-app-tooling/app-redesign-e66efaa-20261008/. Xodus is left running on Library. B14 remains deliberately deferred for the separate M5 Mac.
-
+Approved overnight UX scope D1-D9 is complete and installed at app commit e66efaa. Exact CI runs 37833593837 (D3), 37836578991 (D4-D7) and 37840831475 (D8) passed. Installed app/package hashes match; strict signatures pass; C8 c8fe69a3ï¿½ and credential broker 2c40354cï¿½ are preserved; registry remains mode 0600; no Keychain prompt. Runtime acceptance observed Library, Discover, filtered gears search, game detail, real install review without confirmation/download, Downloads, Account/setup and safe Play/Stop. Final evidence is under ~/xodus-app-tooling/app-redesign-e66efaa-20261008/. Xodus is left running on Library. B14 remains deliberately deferred for the separate M5 Mac.

@@ -642,6 +642,12 @@ Wine source delta for these cycles: `wine-xbox-br113-br118-delta.patch`.
 | br142 | bcp47langs GetApplicationLanguages (measured @0x85b0) | next: LanguageListAsMuiForm unimplemented |
 | br143 | bcp47langs LanguageListAsMuiForm (measured @0x5620) + GetUserLanguages real output | passes; app coroutine fails E_NOINTERFACE -> RoFailFast; standard marshal of pinterface {b05f4313-...} has no PSFactory |
 | br144 | DIAGNOSTIC combase marshal_object backtrace + bcp47 Bcp47GetNlsForm/FromLcid/FromHkl | see outcomes file |
+| br145-br153 | package WinRT class catalog (442), WinUI 2.8 rows (137), gameplatformservices, Xaml resources | see outcomes file; App ctor LoadComponent(XboxPcApp.xaml) throws 0x802B000A |
+| br154-br155 | DIAGNOSTIC combase RoOriginateErrorW message | "Failed to assign to property 'Windows.UI.Xaml.Application.RequestedTheme'" |
+| br156 | broker logs CoreWindowFactory WindowReuseAllowed | reuse=1; no change |
+| br157 | DIAGNOSTIC winedbg attach | failed measurement (early attach); not repeated |
+| br158 | DIAGNOSTIC xaml byte patch forcing MainASTAInitialize | no change; IsMain hypothesis dropped |
+| br159 | Wine dwrite IDWritePrivateTextAnalyzer (IID+GetContentReadingDirection from native DWrite.dll 26100.9444 PDB) | see outcomes file |
 **Status at br123:** ShowWindow reached and the app survives XAML startup (headless, alive until the harness alarm). Activated and rendering calls (dcomp/Composition) are not yet observed. Earlier status at br118:
 - Reached: ConnectionComplete, ActivateViewComplete, ReadyToNavigate, presentation deferral and SetWindow.
 - Not reached: Activated, ShowWindow and any rendering call.

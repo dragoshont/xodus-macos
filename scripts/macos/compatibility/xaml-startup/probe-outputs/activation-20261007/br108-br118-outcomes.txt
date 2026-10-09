@@ -488,3 +488,31 @@ fails downstream). put_RequestedThemeImpl also returns the HRESULT of FrameworkT
 (0x5711cc -> 0x65bad4 -> 0x36b754 theme refresh), and the parser message does not carry the HRESULT. Next:
 measure the HRESULT that put_RequestedTheme returns (cxxobj/wil failure trace) before changing anything.
 LoadComponent(XboxPcApp.xaml): NO. Microsoft.ReactNative.dll / hermes.dll: NO. dcomp/Composition: NO.
+
+== br159 (2026-10-09 ~03:50 EEST) OUTCOME: Wine dwrite IDWritePrivateTextAnalyzer ==
+Root cause of br155 RequestedTheme parse failure (measured): first wil failure on UI thread
+  0340:warn:dwrite:dwritetextanalyzer_QueryInterface {b7e6163e-7f46-43b4-84b3-e4e6249c365e} not implemented.
+  caller Windows.UI.Xaml.dll DWriteFontAndScriptServices::Initialize+0xdc (RVA 0x50f3c4), via FrameworkTheming theme refresh.
+STATIC native DWrite.dll 10.0.26100.9444 (PDB): IID = IDWritePrivateTextAnalyzer, tear-off vtbl
+  ??_7ComObject<DWriteTextAnalyzer>::6BIDWritePrivateTextAnalyzer@ (QI/AddRef/Release thunks + 1 method)
+  GetContentReadingDirection @0xcef50(source,pos,len,DWRITE_READING_DIRECTION*,BOOL* ambiguous):
+  *dir=0,*amb=1; null source or pos+len overflow -> E_INVALIDARG; dir=paragraph dir;
+  first char whose bidi class is L / R|AL / B (helper 0xcf00c, trie 0x1c7780) decides:
+  L -> (para&~1), R/AL -> (para&~1)|1, amb=0; B or end -> paragraph dir, amb=1.
+Fix: dlls/dwrite/analyzer.c implements that interface (static tear-off, QI both ways). dwrite.dll md5 79276bc7.
+  windows.ui.xaml.dll restored to original (md5 af71ca0a) before run.
+Run br159: ORIGINAL_APP_EXIT=3 (changed from 92).
+  RequestedTheme error: GONE.  LoadComponent(XboxPcApp.xaml): YES (no parse error).
+  Microsoft.ReactNative.dll: YES  033c:trace:loaddll:build_module Loaded L"...Microsoft.GamingApp\\Microsoft.ReactNative.dll" at 00006FFFF36B0000: native
+  RN modules: LottieReactNative, ReactNativeGameStreaming, ReactNativeAsyncStorage, ReactNativePicker, ReactNativeVideoCPP, ReactNativeWebView (thread 0520).
+  Microsoft.UI.Xaml.dll (WinUI 2.8): YES.  hermes.dll: NO (not reached).
+  wined3d Vulkan d3d11 device: YES (0354).
+  FIRST COMPOSITION TUPLE: YES
+    033c RoGetActivationFactory Windows.UI.Xaml.Hosting.ElementCompositionPreview (Windows.UI.Xaml.dll) OK
+    033c Loaded C:\windows\system32\dcomp.dll builtin
+    033c err:combase:RoGetActivationFactory Failed to find library for L"Windows.UI.Composition.Compositor"
+    -> RoOriginateErrorW 0x802b000a "Cannot create instance of type 'Microsoft.UI.Xaml.Controls.AnimatedVisualPlayer'" (caught)
+  FATAL: 033c Failed to find library for L"Windows.Graphics.Display.DisplayInformation";
+    Microsoft.ReactNative.dll throws C++ hresult 0x80040154 -> check_noexcept "noexcept function propagating exception" -> terminate, exit 3.
+  Native row (measured, this 26100 host): DisplayInformation/DisplayServices -> System32\Windows.Graphics.dll AT=0; Compositor -> System32\dcomp.dll AT=0.
+Next: br160 native Windows.Graphics.dll + measured rows; Compositor tuple sent to composition owner.

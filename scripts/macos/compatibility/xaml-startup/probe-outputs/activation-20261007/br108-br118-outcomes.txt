@@ -664,3 +664,10 @@ brD5 (05:41-05:45) *** DIAGNOSTIC ONLY *** wincomp_diag5.dll (sha256 ce9259361e0
   (tolerated). FINAL SLOT WALK REACHED: system XAML handoff visual is fully set up; WinUI2 then calls bcb4ad45 slot 8.
   Next requirements (composition owner): bcb4ad45 slot 8, fe93b735. Still no VisualPartner slot calls; no pixels; no
   visible window. Prefix restored to br171 clean candidate (C:\wincomp_poc.dll = 3d8392a3).
+FROZEN (05:52, 2026-10-09). No v6 delivered by 05:52. Mac verified: no processes from this prefix; prefix = br171 clean
+  candidate (ntdll 296d4c71, combase e1babffe, shcore e822e291, C:\wincomp_poc.dll = partner POC 3d8392a3 [diagnostic],
+  dcomp_native cd3f0a57, native ICU). Diagnostic logs kept at prefix/drive_c/wincomp_poc.log.brD1..brD5.
+  WORKS: app starts and stays alive under Wine; ReactNative + hermes load; XAML device + first handoff visual set up
+    (with composition owner's DIAGNOSTIC skeleton).
+  BLOCKED: no pixels/visible window; XAML renders through native dcomp partner APIs that Wine lacks.
+  NEXT: composition owner implements bcb4ad45 slot 8 + fe93b735 and real visual/pixel path; rerun (~4 min/cycle).

@@ -671,3 +671,15 @@ FROZEN (05:52, 2026-10-09). No v6 delivered by 05:52. Mac verified: no processes
     (with composition owner's DIAGNOSTIC skeleton).
   BLOCKED: no pixels/visible window; XAML renders through native dcomp partner APIs that Wine lacks.
   NEXT: composition owner implements bcb4ad45 slot 8 + fe93b735 and real visual/pixel path; rerun (~4 min/cycle).
+=== brE1 (2026-10-09 ~08:10) EXPERIMENT (owner directive 07:54) ===
+installed: C:\wincomp_poc.dll = wincomp_exp6.dll sha256 aceab546bd390ab0471972f686d525d91d5626c35d4c7eb5a2bc8aba658678fe
+  (composition owner d98c21a: v5 + ICompositionObject.get_Properties benign S_OK PropertySet, INV-04)
+class: EXPERIMENT-STUB, not in cumulative patch, not br171 candidate.
+result: ALIVE, exit 92 at 420s, 0 fail-fast.
+log tail (deduped):
+  QI-OK SpriteVisual bcb4ad45 -> 'EXPERIMENT pset method (benign S_OK)' (v5 bcb4ad45 slot 8 NOTIMPL gone)
+  NOTIMPL Compositor iid=b403ca50 (ICompositor) slot=15 caller=Microsoft.UI.Xaml.dll(WinUI2)+0xaa96b args=196cd68,...
+    0-based vtable count: slot 15 = CreateInsetClip(out) (INFERRED from ICompositor method order)
+  second visual: 8x SetPropertyChangedListener(NULL); QI fe93b735 NOINTERFACE (tolerated)
+  no further compositor calls; no commit / render tick observed.
+next: CreateInsetClip must return an InsetClip object. Prefix restored to br171 (3d8392a3).

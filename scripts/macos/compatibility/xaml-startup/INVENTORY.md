@@ -114,3 +114,7 @@ All reverted before br171.
 ## Change log
 
 Each new entry is appended below as the experiment proceeds (id, run, sha256, class).
+
+| id | run | what | sha256 | class | status |
+|----|-----|------|--------|-------|--------|
+| E-01 | brE1 | wincomp_exp6.dll (composition owner d98c21a, get_Properties benign S_OK PropertySet) | aceab546bd390ab0 | EXPERIMENT-STUB | run once; removed (prefix back to br171) |

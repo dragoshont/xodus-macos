@@ -648,6 +648,10 @@ Wine source delta for these cycles: `wine-xbox-br113-br118-delta.patch`.
 | br157 | DIAGNOSTIC winedbg attach | failed measurement (early attach); not repeated |
 | br158 | DIAGNOSTIC xaml byte patch forcing MainASTAInitialize | no change; IsMain hypothesis dropped |
 | br159 | Wine dwrite IDWritePrivateTextAnalyzer (IID+GetContentReadingDirection from native DWrite.dll 26100.9444 PDB) | see outcomes file |
+| br161-br164 | native Windows.Graphics.dll rows, ntdll RtlQueryWnfStateData, shcore #244, composition drop-in | DisplayInformation + Compositor activate |
+| br166-br167 | ntdll WNF display state 0x41c61629a3bc1035 (measured empty) | DpiChanged passes |
+| br168 | shcore #251/#253 window monitor listeners (native CWindowTracker semantics) | reaches hermes.dll; needs ICU |
+| br169 | native system ICU (icu/icuuc/icuin) | hermes.dll loads, app alive; first Compositor QI {22118adf} IInteropCompositorFactoryPartner |
 **Status at br123:** ShowWindow reached and the app survives XAML startup (headless, alive until the harness alarm). Activated and rendering calls (dcomp/Composition) are not yet observed. Earlier status at br118:
 - Reached: ConnectionComplete, ActivateViewComplete, ReadyToNavigate, presentation deferral and SetWindow.
 - Not reached: Activated, ShowWindow and any rendering call.

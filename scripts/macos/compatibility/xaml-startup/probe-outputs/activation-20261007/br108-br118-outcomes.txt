@@ -570,4 +570,22 @@ br167 (04:25) CANDIDATE: ntdll models 0x41c61629a3bc1035 like the other measured
   hermes.dll still not loaded. AnimatedVisualPlayer creation still fails (non-fatal).
   Pieces: CANDIDATE = ntdll WNF row, shcore #244, ntdll RtlQueryWnfStateData; DROP-IN (external, by hash) =
   dcomp_native.dll cd3f0a57 + wincomp_poc 198e75e5/22fa6696; DIAGNOSTIC = ntdll cxxobj+backtrace, combase
-  RoOriginateErrorW ERR.
+  RoOriginateErrorW ERR.br168 (04:35) CANDIDATE: Wine shcore #251 RegisterWindowMonitorChangeListener / #253 UnregisterWindowMonitorChangeListener,
+  modelled on native 26300 shcore + PDB (CWindowTracker): E_INVALIDARG unless hwnd belongs to the calling thread,
+  listener AddRef'd and tracked per window, cookie = listener pointer, per-thread WH_CALLWNDPROC hook notifies
+  listener vtbl[3] on WM_WINDOWPOSCHANGED(move/size)/WM_DPICHANGED, listeners dropped on WM_NCDESTROY.
+  Unregister releases by (hwnd,cookie). shcore md5 e822e291 (baseline .pre-wmcl).
+  RESULT: #251 passes. The app reaches hermes.dll for the first time; load fails: icuuc.dll/icuin.dll (Windows
+  system ICU, needed by hermes.dll) not found -> hermes_set_inspector lookup -> null call, exit 0xC0000005.
+br169 (04:40) CANDIDATE (native, measured host files): system32 icu.dll + icuuc.dll + icuin.dll copied from the Windows
+  11 x64 host (72.1.0.4; icuuc/icuin are forwarders to icu.dll; icu.dll imports only api-sets + msvcp_win).
+  Composition owner's logging v2 POC (sha256 c6fae472, logs to C:\wincomp_poc.log) installed.
+  RESULT: hermes.dll LOADED ("0580: Loaded ...Microsoft.GamingApp\hermes.dll ... native", after icu.dll).
+  App stays ALIVE to the end of the 420 s window (exit 92). No fatal. AnimatedVisualPlayer still fails (non-fatal).
+  FIRST COMPOSITOR TUPLE (C:\wincomp_poc.log): DllGetActivationFactory Windows.UI.Composition.Compositor;
+  QI class=Windows.UI.Composition.Compositor NOINTERFACE {22118adf-23f1-4801-bcfa-66cbf48cc51b}.
+  STATIC (system32 Windows.UI.Xaml.dll 26100 + windows.ui.xaml.pdb 2A7B381FC8C25B7402BAD032E0603FB31): only code ref
+  is DCompTreeHost::CreateWinRTInteropCompositionDevice (RVA 0x5300c0): RoGetActivationFactory(Compositor) ->
+  factory QI {22118adf} (IInteropCompositorFactoryPartner) -> vtbl[6](NULL, DCompInteropCompositorPartnerCallback,
+  {d14b6158-c3fa-4bce-9c1f-b61d8665eab0}, &out). Callback slots: 3 NotifyDirty(), 4 NotifyDeferralState(bool).
+  Tuple sent to composition owner 8dac952d. No visible window yet (XAML has no interop compositor).

@@ -839,7 +839,7 @@ were independently checked by the coordinator.
 ### Overnight result (2026-10-08 22:40 to 2026-10-09 05:50)
 
 Sources: runtime side branch `dragoshont-xbox-app-shell-navigation-client`
-(final `f527d52`, not merged) and the private composition repo
+(final `97fa66a`, frozen 05:52, not merged) and the private composition repo
 `dragoshont/wine-composition-research` (final `2463c117`). Results are
 **owner-reported by the two workers**; the coordinator verified that the cited
 commits exist and read the key outcome records. All runs were **headless**.

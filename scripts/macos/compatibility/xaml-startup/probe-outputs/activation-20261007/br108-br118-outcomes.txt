@@ -516,3 +516,16 @@ Run br159: ORIGINAL_APP_EXIT=3 (changed from 92).
     Microsoft.ReactNative.dll throws C++ hresult 0x80040154 -> check_noexcept "noexcept function propagating exception" -> terminate, exit 3.
   Native row (measured, this 26100 host): DisplayInformation/DisplayServices -> System32\Windows.Graphics.dll AT=0; Compositor -> System32\dcomp.dll AT=0.
 Next: br160 native Windows.Graphics.dll + measured rows; Compositor tuple sent to composition owner.
+br160 (2026-10-09 ~03:30 EEST) native Windows.Graphics.dll 10.0.26100.1 copied to prefix system32 + 6 measured
+  ActivatableClassId rows (DisplayMonitor, LogicalDisplayReference, HdmiDisplayInformation, DisplayInformation,
+  DisplayProperties, DisplayServices; AT=0 Thr=0 Trust=0; Imaging rows excluded). Exit 3 unchanged: DllMain imports
+  unimplemented ntdll.RtlQueryWnfStateData -> init fails -> RN noexcept 0x80040154 -> terminate.
+br161 (03:48) ntdll RtlQueryWnfStateData + RtlQueryWnfStateDataWithExplicitScope implemented per native x64 26100
+  ntdll (0x96d40 tail-calls WithExplicitScope 0x96d70: 0x1000 stack buffer, NtQueryWnfStateData, failure -> return
+  status, success -> *stamp, return callback(name,stamp,type,ctx,buf,size)). ntdll.dll md5 f363fcd2.
+  RESULT: EXIT 92 (alive at 420 s; was 3). Windows.Graphics.dll DllMain retval=1 (state 41c61629a3bc1035 not
+  modelled -> OBJECT_NAME_NOT_FOUND, tolerated), "Found library Windows.Graphics.dll for DisplayInformation".
+  No terminate. Microsoft.ReactNative.dll loaded (native); hermes.dll NOT loaded yet. Compositor still unregistered
+  (AnimatedVisualPlayer failure caught). UI thread keeps cycling CoreWindow/HolographicViewProperties activations.
+  Compositor POC 51a2639 (sha256 22fa6696...) staged at /tmp on the Mac but NOT installed: it needs the staging dcomp
+  series; waiting for the composition owner's patch against this tree.

@@ -10,6 +10,13 @@ dependency-ready slices, records genuine unsupported/human-gated outcomes, and
 does not manufacture service capabilities. The Xbox lane's 17:11 foreground hold
 remains in force until an explicit release; source work can proceed without it.
 
+**Subsequent user-directed scope correction:** only Exodus macOS UI and
+Architrave work may continue. Non-UI backend, engine/composition and broader
+service implementation are paused and preserved. The 43 rows remain the
+inventory, not permission to resume those lanes. The active UI work includes
+three sequential independent adversarial UX reviews with one consolidated
+frontend fix batch between rounds.
+
 ## Verified baseline
 
 | Item | Verified state |

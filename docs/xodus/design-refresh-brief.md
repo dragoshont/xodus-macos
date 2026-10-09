@@ -9,7 +9,7 @@ User refinement (2026-10-09):
 - Overall intent: native macOS feel with an Xbox soul. Native controls and materials carry the interaction; real artwork, Game Pass, ownership, achievements and friends carry the gaming identity. The cloud icon is inspiration, not a mandatory visual prescription.
 - Prefer Apple's cloud-download affordance and large native action buttons.
 - For an owned, uninstalled game, use the SF Symbol `icloud.and.arrow.down` with an accessible Download label. In heroes/details, keep the visible label alongside the symbol; compact cards may use the symbol with a help tag and VoiceOver label.
-- Keep large native Play buttons for installed games. Game Pass installation stays clearly labelled Install; the cloud symbol must not imply ownership, cloud gaming or cloud-save support.
+- Keep large native Play buttons for installed games. When Game Pass package access is not yet verified, the primary action is **Check Game Pass access** and opens the existing protected review; **Install** belongs to the confirmed consent step. The cloud symbol must not imply ownership, cloud gaming or cloud-save support.
 - Download/Install still opens the compatibility and storage review before any transfer; it never launches automatically.
 - Implemented and installed at app commit `1d721c2`; exact CI `37846438226` passed. Existing composition, credential broker, engine and install-review safeguards are preserved.
 
@@ -55,3 +55,38 @@ User refinement (2026-10-09):
 ## Process
 - Build Library first, natively, against real data (live profile) and the fixture. Capture at 1440×980 in Dark and Light and send to the user for sign-off before other screens.
 - No backend contract change. Existing verification, admission and C8 pins apply; normal Quit/replace with the user's library preserved.
+
+## User-requested three-round adversarial UX cycle
+
+Current scope: **macOS UI only**. Backend/engine/composition work and other
+program phases are paused and preserved. No automatic restart schedule was
+created by this lane. The prior Mac foreground hold still requires release
+before native input/capture; source and neutral UI checks may proceed.
+
+| Round | Frozen subject | Review and follow-up |
+| --- | --- | --- |
+| 1 | Library/actions/catalogue candidate `67ed6fa` | Independent REVISE; fixes `bb9ced6`: hide impossible continuation at the 512-entry bound, expose its partial-limit reason, remove the unused action-copy helper/test. Synthetic 300-entry pagination and 528-entry bounded-stop/no-extra-call regressions pass. |
+| 2 | All native views at `bb9ced6` | Independent REVISE; fixes `ad7ead4`: primary Account failure copy is human-readable, closed machine diagnostics stay in a disclosure, anonymous progress gets accessibility descriptions and the unused catalogue grid matches shared alignment. |
+| 3 | Integrated source `ad7ead4` | Independent source UX PASS. Final small batch `a0c5aba` labels game-service, Game Pass, indeterminate download and recent-activity progress. Real manual VoiceOver, new compositor screenshots and live catalogue totals remain native acceptance gates. |
+
+Final neutral source evidence: Debug build, 175 preview/layout checks and
+967 native-session checks passed; shipping-configuration Release compilation
+passed. All review fix batches are committed/pushed. Exact CI passed for
+`67ed6fa`, `bb9ced6` and `ad7ead4`; final `a0c5aba` exact CI is pending at this
+checkpoint. No new source is installed: the preserved app remains `39fd687`,
+with no signing, deployment, account changes, game launch or licence operation
+in these UI review rounds.
+
+Round-two coverage mistakenly looked at the fixture Downloads file; final
+round traced the actual shipping `LiveActivityView` in `LiveRootView.swift`.
+The final source PASS does not certify full release accessibility or all
+43 service capabilities. No fourth source-review loop is started.
+
+Live Apple HIG content was inspected for
+[Collections](https://developer.apple.com/design/human-interface-guidelines/collections),
+[Lists and tables](https://developer.apple.com/design/human-interface-guidelines/lists-and-tables),
+[Buttons](https://developer.apple.com/design/human-interface-guidelines/buttons)
+and [Progress indicators](https://developer.apple.com/design/human-interface-guidelines/progress-indicators).
+Artwork-led content uses a predictable native grid, text-heavy account/jobs use
+appropriate native list/form structures, primary buttons name actions rather
+than states, and catalogue progress never invents a total or completion percent.

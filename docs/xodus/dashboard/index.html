@@ -170,6 +170,15 @@
   <p class="sub">Historical slices are not full parity or release acceptance. The stopped-work inventory below is the current triage source. Width in the bar is proportional to the earlier estimates.</p>
   <div class="backlog" id="backlog"></div>
 
+  <h2>Three adversarial UX rounds</h2>
+  <p class="sub">Sequential independent source reviews with one consolidated fix batch between rounds. Source PASS is not installed-product or manual accessibility acceptance. Non-UI work remains paused.</p>
+  <div class="inventory-wrap">
+    <table class="inventory">
+      <thead><tr><th scope="col">Round / subject</th><th scope="col">Verdict</th><th scope="col">Fix batch</th><th scope="col">Evidence / remaining gate</th></tr></thead>
+      <tbody id="ux-reviews"></tbody>
+    </table>
+  </div>
+
   <h2>Remaining work — SDD program</h2>
   <p class="sub">P0: access correctness. P1: complete existing behavior and acceptance. P2: broader features and service feasibility. P3: general-release gates. Implementation is dependency-driven; a tracked requirement is not a shipped feature. <a href="../remaining-capability-inventory.md">Full inventory, frozen first slice and acceptance</a>.</p>
   <p class="sub" id="remaining-summary"></p>
@@ -253,6 +262,10 @@ function render(s) {
     <div><div class="t">${esc(i.title)}</div><div class="d">${esc(i.evidence || i.done)}</div></div>
     <div class="h">${i.hours} h</div>
     <div class="state ${esc(i.status)}">${STATE_LABEL[i.status] || esc(i.status)}</div>`).join("");
+
+  document.getElementById("ux-reviews").innerHTML = (s.uxReviews || []).map(r =>
+    `<tr><td>${esc(r.round)} · ${esc(r.subject)}</td><td>${esc(r.verdict)}</td><td>${esc(r.fixes)}</td><td>${esc(r.evidence)}</td></tr>`
+  ).join("");
 
   const remainingLabels = { active: "Implementing", missing: "Missing", partial: "Partial", unverified: "Unverified", source: "Source only", deferred: "Deferred / gated" };
   const remainingItems = s.remainingWork || [];

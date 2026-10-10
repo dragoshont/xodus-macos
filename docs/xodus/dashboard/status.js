@@ -2,13 +2,31 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-10T19:04:49+03:00",
+  updatedAt: "2026-10-10T23:34:00+03:00",
   phase: "Streamlined launcher signed — safe installation blocked",
   paused: false,
   pauseReason: "Owner says game works great and directs launcher UI/UX continuation. Preserve running game; no app replacement during active play. Other backend/composition work remains paused. Actual uninstall/reinstall is still unqualified.",
   program: { id: "xodus-sdd-program-20261009", activeSlice: "Launcher: direct Install/details, internal validation, priority details, hover previews and centered carousel dots", scope: "User-directed launcher UI/UX and engine setup. CrossOver remains default. Alternative-engine execution must use a real launch contract, not the existing planning-only picker." },
   baseline: { installed: "02e67f8", source: "02e67f8", backend: "a3036bf", note: "Installed02e67f8 remains unchanged. Newfac58d6 source is committed, pushed, CI-passed and signed with the existing certificate. All22 candidate files and original signed CLI/frozen broker were independently verified. Replacement stopped before rename because the running launcher refused graceful Quit, including in GUI Terminal. A separately verified candidate is staged; no force termination, game/save/runtime change or installed replacement. Previous39fd687 rollback remains. Visual/media acceptance and alternate-engine execution remain pending." },
   budget: { totalHours: 48, spentHours: 43.25, note: "Historical budget/used-hours estimate retained; user allows time for macOS UI. Non-UI program phases remain paused; no invented elapsed-hour accounting." },
+
+  // Capability milestones, mirrored to GitHub Project #5 (one issue each in xodus-macos-app).
+  // State reflects the installed build, not what is merely committed. pct is directional.
+  milestonesBoard: "https://github.com/users/dragoshont/projects/5",
+  milestonesSummary: "The Exodus fork was taken off-upstream, given a native macOS launcher, and made to install and play MSIXVC games. MVP = M0 + M2 + M6. UWP/EAppx and engine routing are the honest gaps.",
+  milestones: [
+    { m: "M0", issue: 1, title: "Native launcher UI (MVP shell)", state: "done", mvp: true, pct: 85, note: "SwiftUI app: Library, Discover, hero carousel, install/play/stop, Account. Final clean-Mac walkthrough pending." },
+    { m: "M2", issue: 3, title: "CrossOver integration", state: "done", mvp: true, pct: 95, note: "Signed-bundle detection, version check, CodeWeavers trial/redirect, re-check on return." },
+    { m: "M6", issue: 7, title: "MSIXVC support", state: "done", mvp: true, pct: 90, note: "NMS, Hogwarts, Lara, Fortnite, Gears 5 install and play. The proven core." },
+    { m: "M7", issue: 8, title: "Install / remove / update games", state: "now", pct: 55, note: "Install/check/Play/Stop/repair/remove for MSIXVC. Missing pause/resume, queue, updates, move, crash recovery." },
+    { m: "M8", issue: 9, title: "Socials", state: "now", pct: 50, note: "Friends/following/presence/profile reads shipped. No writes (party, invites, LFG)." },
+    { m: "M9", issue: 10, title: "Portability & onboarding", state: "now", pct: 40, note: "Device-code login works on dev Mac. Fresh-Mac install, notarization, onboarding deferred." },
+    { m: "M1", issue: 2, title: "Multiple package-type support", state: "now", pct: 35, note: "MSIXVC/EAppx/Appx labels shown from catalog, but only MSIXVC installs. Label is a fact, not a capability." },
+    { m: "M4", issue: 5, title: "UWP support", state: "blocked", pct: 30, note: "Cuphead/Celeste fail under stock CrossOver. Clean-room mrt100 .NET-Native shim rebuilt and contract-verified; XAML composition wall remains. No frame yet." },
+    { m: "M5", issue: 6, title: "EAppx support", state: "blocked", pct: 25, note: "EAppxBundle titles not installable/playable. Package identity/activation seams progressing in the side session." },
+    { m: "M3", issue: 4, title: "Engine detect / switch / default / per-game", state: "blocked", pct: 20, note: "Engines hub describes providers but nothing routes a game to a chosen runner at launch. Highest trust risk." },
+    { m: "M10", issue: 11, title: "Account tiers (free / subscription)", state: "blocked", pct: 10, note: "Only an Active boolean; no paid/free/trial/subscription semantics." }
+  ],
 
   shipped: [
     { id: "F0", title: "Feasibility and direction", detail: "Heroic plugin path reviewed adversarially; chose a native macOS launcher over the Xodus fork", proof: "BOUNDED_GO review", date: "Oct 1" },
@@ -202,6 +220,8 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-10T23:34:00+03:00", text: "Capability milestones captured on GitHub Project #5: 11 milestones (M0–M10) with adversarial verdicts and exit criteria. MVP = native launcher + CrossOver + MSIXVC. UWP/EAppx and engine routing are the open gaps. Dashboard now mirrors the board." },
+    { at: "2026-10-10T23:30:00+03:00", text: "Clean-room mrt100 .NET-Native shim rebuilt from the recovered contract (one export, 20+4 vtable slots) in private repo xodus-winrt-shims. Smoke test passes identically against the shim and the real System32 copy. REA can't analyse native Windows DLLs; Ghidra headless recovered the contract. In-bottle slot trace still pending, coordinated with the Cuphead session." },
     { at: "2026-10-10T00:13:21+03:00", text: "Implemented the NMS shader correction against its actual captured SPIR-V. Original renderer rebuild reproduces its exact bytes; only the isolated MSL archive changes. Real failing shader plus ten other captured vertex shaders compile after the fix; wideLines real-device parity and nine wrapper/assembly checks pass. NMS-only candidate installed with rollback, no shared-engine or save/account reset. Mac locked after owner went to bed; live qualification held." },
     { at: "2026-10-09T21:02:40+03:00", text: "NMS-only candidate prepared: pinned renderer creates a real wideLines Vulkan device and nine inert wrapper/staging checks pass. No runtime deployment or relaunch; explicit consent hold for its existing Metal-private-API path. Other engine work stays paused." },
     { at: "2026-10-09T20:25:00+03:00", text: "User unlocked the Mac; independent unlock confirmation obtained. Later UI feedback superseded the old release candidate. Freshly installed NMS 7.6 crash subsequently became the user's top priority; unfinished UI source is preserved." },

@@ -3,11 +3,11 @@
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
   updatedAt: "2026-10-10T01:53:38+03:00",
-  phase: "NMS owner confirms good gameplay — launcher UI/UX resumed",
+  phase: "Launcher 02e67f8 installed — live UI acceptance pending",
   paused: false,
   pauseReason: "Owner says game works great and directs launcher UI/UX continuation. Preserve running game; no app replacement during active play. Other backend/composition work remains paused. Actual uninstall/reinstall is still unqualified.",
   program: { id: "xodus-sdd-program-20261009", activeSlice: "Launcher: Discover retention and sliding animated heroes, aligned games, useful Downloads and CrossOver onboarding", scope: "User-directed launcher UI/UX and engine setup. CrossOver remains default. Alternative-engine execution must use a real launch contract, not the existing planning-only picker." },
-  baseline: { installed: "39fd687", source: "02e67f8", backend: "a3036bf", note: "Installed app unchanged. Launcher candidate committed and pushed; Debug and shipping Release compile, 175 presentation and 981 native checks pass. NMS-only transport/JSON/renderer repairs remain persistent. Shared runtime, account and saves were not reset. Packaging/signing/deployment await an exact policy grant." },
+  baseline: { installed: "02e67f8", source: "02e67f8", backend: "a3036bf", note: "Owner-approved launcher packaged and installed using the existing signer through local Terminal; SSH signing failed. Installed signature and all 22 package files independently verified; process remains alive. Exact signed CLI and frozen credential broker preserved. Previous39fd687 bundle retained for rollback; games, saves and runtime untouched. Live visual/media acceptance and alternate-engine execution remain pending." },
   budget: { totalHours: 48, spentHours: 43.25, note: "Historical budget/used-hours estimate retained; user allows time for macOS UI. Non-UI program phases remain paused; no invented elapsed-hour accounting." },
 
   shipped: [

@@ -255,3 +255,16 @@ candidate. Alternate-engine execution is not delivered: the native client
 implements a pure `runtime-plan`, while the current install/setup/stop writer
 uses CrossOver-specific bottles and tools. A picker cannot substitute for an
 execution contract with per-game isolation and save-preserving migration.
+
+The owner subsequently approved packaging, signing and installation. SSH signing
+continued to fail after local Keychain unlock, but the same signer succeeded in
+the user's GUI Terminal context. A short local packaging runner avoided terminal
+command-length issues and disabled generated Python bytecode in the frozen
+source checkout. Package verification passed; after normal Quit at an observed
+game/download-idle boundary, `02e67f8` replaced the installed launcher.
+The complete 22-file inventory and strict deep signature were independently
+verified after installation, and the new launcher process remained alive.
+The original signed CLI and credential broker bytes are unchanged; the previous
+`39fd687` bundle is retained for rollback. No game, save or shared-runtime mutation
+occurred. Live visual/media acceptance and functional alternate engines remain
+unqualified; installation is not full product acceptance.

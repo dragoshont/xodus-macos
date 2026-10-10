@@ -287,24 +287,35 @@ NT-layer syscall `ntdll.NtQueryWnfStateData` directly (right after
 `RtlQueryWnfStateData` stub ("WNF query backend unavailable", non-fatal), but it
 does **not export** the Nt layer — so the missing import is a **static, load-time
 bind failure** that aborts the worker (`game exit 0x80000100, 0 windows at ~16s`).
-A `WINEDLLOVERRIDES`/`--dll` override cannot add a missing export.
+A `WINEDLLOVERRIDES`/`--dll` override cannot add a missing export. **The patch's
+job is to stop the abort** (unresolved import → raise at bind); the return value
+is a separate, evidence-driven choice.
 
-- **Oracle** (read-only, genuine ntdll): the queried state `0x41c61629a3bc1035`
-  decodes (public WNF XOR key) to a **well-known, Session-scoped** state
-  (combase/globalization). Genuine `NtQueryWnfStateData` returns **STATUS_SUCCESS,
-  changestamp 5, 0 bytes** — the state is **present but empty**. combase handles
-  that empty case natively, so SUCCESS+empty is the **faithful** answer (more so
-  than `OBJECT_NAME_NOT_FOUND`).
-- **Shim** (`src/ntdll_wnf/wnf.c`): return `STATUS_SUCCESS`, `*ChangeStamp=0`
-  (honest initial — no backend to count publishes; genuine had 5, documented
-  divergence), `*BufferLength=0`. Reports every state present-but-empty, mirroring
-  the existing `RtlQueryWnfStateData` graceful philosophy — **not** a general WNF
-  store. No real pub/sub state store is needed for this leg.
-- **Validation** (`test/ntdll_wnf_test.c`): same-host A/B vs genuine for the exact
-  Cuphead state — **8/8, 0 failures** (ours `cs=0 len=0` vs genuine `cs=5 len=0`;
-  only the documented change stamp differs).
-- **Integration:** add to `dlls/ntdll/ntdll.spec` (plain PE function, **NOT**
-  `-syscall` — no kernel backend):
+- **Oracle** (read-only, genuine ntdll): Cuphead's state `0x41c61629a3bc1035`
+  decodes (public WNF XOR key) to a **well-known, Session-scoped** state and
+  returns **STATUS_SUCCESS, changestamp 5, 0 bytes** (registered + currently
+  empty). But **unknown/unregistered** state names return
+  **STATUS_INVALID_PARAMETER with out params untouched** — genuine does **not**
+  invent a present-empty state for arbitrary names.
+- **Decision — honest failure, not fabricated success:** one observed empty state
+  doesn't prove all states are present-empty, and with no WNF backend the stub
+  can't distinguish "registered-empty" from "unknown". A blanket SUCCESS+empty
+  would be a false capability claim (wrong for every unknown state). First pass
+  returns an explicit, honest, non-aborting **STATUS_NOT_IMPLEMENTED** and writes
+  **no** fabricated out params — mirroring the engine's existing
+  `RtlQueryWnfStateData` behavior. Agreed by the bottle owner and the Celeste
+  source owner. (A narrow-Cuphead SUCCESS variant for that one state is gated
+  behind a build define, used only if runtime proves the caller needs it.)
+- **Validation** (`test/ntdll_wnf_test.c`): documents genuine's real contract
+  (both the registered-empty success and the unknown-state INVALID_PARAMETER) and
+  asserts ours is an honest, non-fabricating, non-aborting stub — **11/11, 0
+  failures**.
+- **Integration:** build in the **catalog** Wine tree
+  (`~/xodus-app-tooling/celeste/wine-source`, owned by the Celeste session), NOT
+  the afunix tree (different ABI — missing NtXodus syscalls, differing rpc IDs).
+  Add to `dlls/ntdll/ntdll.spec` (plain PE function, **NOT** `-syscall` — adds no
+  syscall-table slots, so it can't perturb the NtXodus `0x0103/0x0104/0x0106` or
+  rpc `0x0105/0x010b` IDs):
   `@ stdcall NtQueryWnfStateData(ptr ptr ptr ptr ptr ptr)` + a
   `ZwQueryWnfStateData` alias; compile `src/ntdll_wnf/wnf.c` next to the existing
   `RtlQueryWnfStateData` stub and rebuild the `ntdll.so`/`ntdll.dll` pair. See

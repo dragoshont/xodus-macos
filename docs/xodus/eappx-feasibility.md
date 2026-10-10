@@ -967,7 +967,8 @@ declared IDs, property sizing/full-buffer clearing, pointer lifetime, invalid
 arguments and output preservation. The unpackaged executable adds four
 no-package/null-output checks. Matching-source kernelbase and both tests built;
 all these checks and prior token/sandbox/family/profapi/COM/generation controls
-passed in the integrated tuple.
+passed in the integrated tuple. The identical unpackaged executable also passed
+all four checks against genuine kernelbase on the Windows host.
 
 The authentic system32 twinapi placement passed six direct factory/interface
 checks and was then exercised by actual Cuphead. Both registered native
@@ -1007,3 +1008,57 @@ explicit failures rather than skipping later cleanup. Official feed/source
 matching remains checked before mutation. These are experimental runtime
 results; Cuphead gameplay, rendering, input and general EAppx support remain
 unverified.
+
+The collaborator's initial SHCORE candidate returned S_OK/100 without a DPI
+query or CoreWindow QI. Its native oracle actually returned 140; omitting value
+comparisons did not establish parity. That candidate was rejected. A subsequent
+measured-effective-DPI candidate is still distinct from Windows' recommended
+scale heuristic (the native host returned 140 while effective DPI was 168,
+or 175%). Neither discrepancy is represented as genuine scaling fidelity.
+
+A private, **failure-only** SHCORE argument probe added ordinal 265, logged
+argument presence, left its output untouched and returned E_NOTIMPL. Actual
+Cuphead passed `coreWindow=NULL` and a non-NULL scale output. It continued after
+that explicit unsupported result, reaching
+`bcp47mrm.GetApplicationLanguagesWithUserLanguagesFallback`. This diagnoses the
+reached subset; it is not a scaling implementation or a supported runtime patch.
+The diagnostic is retained only in session artifacts/private matching source,
+not in this repository's reusable patch set.
+
+One attempt stopped before the game because Wine stderr interleaved inside an
+otherwise successful regression's stdout result line. Rather than weaken exact
+assertion checks, the private harness now separates stdout from Wine debug
+stderr for fixtures, regressions and the game. With that change, all prior
+controls passed and the argument observation completed. The seventh shared
+SHCORE module was restored exactly along with the other six; signature
+verification passed.
+
+The user's own Microsoft-signed `C:\Windows\System32\bcp47mrm.dll`,
+version **10.0.26100.9278**, 224,664 bytes, SHA-256
+`c8a840f9681ee5e9bccba59ef94f50ea9eb82db928869c7e3b559f80da077614`,
+was next supplied privately in the owned Cuphead bottle's system32, using the
+wrapper native override. Its destination previously did not exist. Native
+language-provider loading was observed; the next abort was
+**`KERNELBASE.FindPackagesByPackageFamily`**. The game still had zero windows
+at 11 seconds and exit 92 after the bounded timeout. The language DLL and
+StateRepository aliases were removed, the seven shared vendor modules and
+private mrt100/twinapi restored exactly, and the signature verified. No Windows
+binary or language/identity registry state was committed or invented.
+
+`package-family-enumeration-probe.c` is a read-only native oracle for that
+public API. The absolute module path was genuine System32 kernelbase; installed
+Calculator supplied a real main package and two real resource packages.
+The native probe establishes that character-buffer lengths count WCHARs,
+HEAD selects the main package, DIRECT excludes it, and RESOURCE selects actual
+resource packages. A NULL names array with a nonzero input count is invalid.
+An input count of zero suppresses name/property/buffer writes even when the
+character-buffer length is sufficient, but still reports the required outputs.
+Short character buffers return 122; invalid pointers preserve outputs.
+With otherwise valid sizing arguments, an empty family returns 234 and a
+well-formed unknown family returns success/count zero. The frozen Xbox source
+is not adequate authority for these details: it also enumerated neighboring
+directories and inherited a publisher ID. That discovery strategy is not
+imported. A justified implementation must enumerate the actual user's
+registered catalog, including resource-package/filter/property semantics;
+the current process's dependency graph alone is not a complete user catalog.
+No replacement `FindPackagesByPackageFamily` implementation is claimed yet.

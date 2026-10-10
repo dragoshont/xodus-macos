@@ -1,4 +1,5 @@
 pub mod api;
+pub mod appx;
 pub mod auth;
 pub mod clep;
 pub mod hardware;

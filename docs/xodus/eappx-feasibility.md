@@ -138,3 +138,29 @@ The related tests cover old catalog records lacking the new optional metadata,
 the metadata projection's exclusion of key/download fields, SKU deduplication,
 console exclusion and empty catalog handling. Linux/macOS CI must validate this
 slice; this Windows environment currently lacks cargo/rustc.
+
+## Authorized experiment: local manifest inspection
+
+The owner subsequently authorized experimentation and gap completion. Local
+worktree experiments now include `inspect-manifest` for a supplied package or
+bundle manifest. It reads at most 1 MiB, requires a supported manifest root
+namespace, rejects malformed/multi-root/deep XML and DTDs, and does not initialize
+credentials or make network requests. Executable and child-package filenames
+must be relative without traversal; bundle filenames must be distinct ignoring
+case. Errors produce failure, not guessed metadata.
+
+Package output retains executable, EntryPoint, RuntimeBehavior, TrustLevel,
+StartPage, TargetDeviceFamily and PackageDependency fields. Absent attributes
+stay absent/unknown; this is intentionally not an inferred launch verdict.
+Bundle selection is exact-architecture and non-stub, fails when ambiguous or
+missing, and reports only matching/neutral resource candidates. It does not
+silently substitute x64 on ARM64, resolve language/scale resources, verify bundle
+offsets against a payload, extract files or produce an installation receipt.
+Inspection does not replace full XML schema or package signature validation.
+
+Synthetic fixtures exercise modern namespaced activation attributes, missing
+attributes, ordinary XML entities, framework metadata, x64/ARM64 bundles,
+neutral resources, unsafe paths, duplicate names, stubs, ambiguous applications,
+truncation, multiple roots, DTD and size limits. CLI tests verify local operation
+with an unavailable credential service and no output-package creation.
+These are package mechanics, not a Celeste manifest or runtime observation.

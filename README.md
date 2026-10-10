@@ -132,6 +132,16 @@ locations and key fields. This is metadata discovery, not a compatibility verdic
 or an entitlement check. See [the EAppx feasibility plan](docs/xodus/eappx-feasibility.md)
 for the remaining extraction, installation and runtime work.
 
+Inspect a supplied local manifest with
+`xodus-cli inspect-manifest <AppxManifest.xml>`. For a bundle manifest, use
+`xodus-cli inspect-manifest <AppxBundleManifest.xml> --architecture x64` to select
+one exact-architecture, non-stub application and list architecture-compatible
+resource candidates. The command reports executable, activation attributes,
+target families and framework dependencies without credentials, downloads,
+extraction or launch. Missing activation attributes remain unknown. Resource
+candidates are not a language/scale-qualified install plan, and the inspection
+is not full schema, signature or package-integrity validation.
+
 ## Special Thanks
 
 - [XvdTool.Streaming](https://github.com/LukeFZ/XvdTool.Streaming) and [CikExtractor](https://github.com/LukeFZ/CikExtractor) by LukeFZ

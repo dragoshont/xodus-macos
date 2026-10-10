@@ -278,6 +278,40 @@ appeared broken, but the Mac lane traced it to the CrossOver `wine` wrapper
 stripping `WINEDLLOVERRIDES` unless an explicit `--dll` arg is passed; with
 `--dll=twinapi.appcore=n` both return `S_OK` natively — **no reimpl needed**.
 
+### ntdll.dll!NtQueryWnfStateData — done (oracle-validated, shared wall)
+
+The confirmed shared blocker for **both Cuphead and Celeste**. During UWP
+activation Cuphead's native combase/globalization **bcp worker thread** calls the
+NT-layer syscall `ntdll.NtQueryWnfStateData` directly (right after
+`GetCurrentPackageFamilyName`). CrossOver 26.3 ntdll already has a graceful
+`RtlQueryWnfStateData` stub ("WNF query backend unavailable", non-fatal), but it
+does **not export** the Nt layer — so the missing import is a **static, load-time
+bind failure** that aborts the worker (`game exit 0x80000100, 0 windows at ~16s`).
+A `WINEDLLOVERRIDES`/`--dll` override cannot add a missing export.
+
+- **Oracle** (read-only, genuine ntdll): the queried state `0x41c61629a3bc1035`
+  decodes (public WNF XOR key) to a **well-known, Session-scoped** state
+  (combase/globalization). Genuine `NtQueryWnfStateData` returns **STATUS_SUCCESS,
+  changestamp 5, 0 bytes** — the state is **present but empty**. combase handles
+  that empty case natively, so SUCCESS+empty is the **faithful** answer (more so
+  than `OBJECT_NAME_NOT_FOUND`).
+- **Shim** (`src/ntdll_wnf/wnf.c`): return `STATUS_SUCCESS`, `*ChangeStamp=0`
+  (honest initial — no backend to count publishes; genuine had 5, documented
+  divergence), `*BufferLength=0`. Reports every state present-but-empty, mirroring
+  the existing `RtlQueryWnfStateData` graceful philosophy — **not** a general WNF
+  store. No real pub/sub state store is needed for this leg.
+- **Validation** (`test/ntdll_wnf_test.c`): same-host A/B vs genuine for the exact
+  Cuphead state — **8/8, 0 failures** (ours `cs=0 len=0` vs genuine `cs=5 len=0`;
+  only the documented change stamp differs).
+- **Integration:** add to `dlls/ntdll/ntdll.spec` (plain PE function, **NOT**
+  `-syscall` — no kernel backend):
+  `@ stdcall NtQueryWnfStateData(ptr ptr ptr ptr ptr ptr)` + a
+  `ZwQueryWnfStateData` alias; compile `src/ntdll_wnf/wnf.c` next to the existing
+  `RtlQueryWnfStateData` stub and rebuild the `ntdll.so`/`ntdll.dll` pair. See
+  `docs/ntdll-wnf-query-contract.md` in the shims repo. Only
+  `NtQueryWnfStateData` is required now; add siblings only if a later trace shows
+  another missing `Nt*Wnf*` import.
+
 ## Actual Cuphead x64 blocker chain
 
 ```
@@ -288,7 +322,11 @@ stripping `WINEDLLOVERRIDES` unless an explicit `--dll` arg is passed; with
     ──► KERNELBASE.dll!FindPackagesByPackageFamily ✅ (Mac-lane: catalog enumeration)
     ──► KERNELBASE.dll!GetStagedPackagePathByFullName ✅ (Mac-lane: legacy→stagedPath2)
     ──► KERNELBASE.dll!OpenGlobalizationUserSettingsKey ✅ (RE lane: RtlOpenCurrentUser)
-    ──► (next boundary: TBD by the Mac-lane trace); still 0 windows / exit 92
+    ──► ntdll.dll!NtQueryWnfStateData ✅ (RE lane: graceful empty-state stub)
+    ──► UWP CoreWindow stack (Mac-lane owned, next): windows.ui.dll load +
+        Windows.UI.Core.CoreWindow / ViewManagement.ApplicationView /
+        CoreApplication / DisplayInformation + UnityPlayer.AppCallbacks
+        (Cuphead is Unity-UWP); still 0 windows / exit 92
 ```
 
 ## Method & tooling

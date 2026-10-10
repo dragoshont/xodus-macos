@@ -931,6 +931,79 @@ registration names the authentic executable-adjacent copy. With native-only
 selection, ApplicationView's system32 path failed to load. The next private
 harness now preserves the exact bottle twinapi original and prepares the same
 verified genuine twinapi at that system32 location; its cleanup restores the
-bottle original exactly. That placement has not yet been used for a new actual
-game launch. The globalization collaborator owns the corrected packaged oracle
-and contract; simultaneous runtime mutation remains excluded.
+bottle original exactly. Subsequent results are recorded below; simultaneous
+runtime mutation remains excluded.
+
+### Manifest-bound default globalization and private SHCORE probe
+
+The collaborator corrected the globalization contract using genuine
+`OpenPackageInfoByFullName` references on Windows. A two-application
+StartMenuExperienceHost oracle disproved its initial single-context assumption:
+contexts follow manifest application order and carry variable-length `GLOB`
+records, including the actual UTF-16 application ID. The fixed header is 20
+bytes; fields are tag, total size, flags, application-ID byte length including
+NUL, and reserved zero. `"App"` produced 28 bytes; `"FullTrustApp"` produced
+46 bytes. Properties 1 and 2 read flags bits 0 and 1.
+Reference source/evidence: `dragoshont/xodus-winrt-shims` commit `73079cd`.
+The source of non-default flags remains unknown. All sampled genuine contexts
+had zero flags; this supports the **default subset**, not general manifest
+override fidelity or a packaged-current Windows differential.
+
+`kernelbase-package-globalization.patch` exports only the two reached functions,
+implemented in `package-graph-manifest.inc`. Current contexts are allocated from
+the existing identity-checked manifest, one per declared application in order,
+and atomically published with the package-resource cache. They do not hardcode
+Cuphead identity or copy Windows' opaque package-reference offsets into Wine.
+Unpackaged identity and manifest/allocation failures propagate; out-of-range
+indices preserve output. Property queries validate owned context pointers,
+honor native buffer/error behavior, and reject foreign contexts without
+dereferencing them. `GetPackageGlobalizationContext`/open-package references
+and non-default flag sources are **not implemented**.
+
+The private developer fixture now declares `App` and `Secondary`, both using
+the test executable. `package-graph-test.c` retains its 56 graph checks and adds
+21 globalization checks, including two distinct variable-sized records,
+declared IDs, property sizing/full-buffer clearing, pointer lifetime, invalid
+arguments and output preservation. The unpackaged executable adds four
+no-package/null-output checks. Matching-source kernelbase and both tests built;
+all these checks and prior token/sandbox/family/profapi/COM/generation controls
+passed in the integrated tuple.
+
+The authentic system32 twinapi placement passed six direct factory/interface
+checks and was then exercised by actual Cuphead. Both registered native
+providers loaded. Actual Cuphead called
+`GetCurrentPackageGlobalizationContext(0)` and property 2, then advanced to
+CoreWindow activation and missing **SHCORE ordinal 265**. This is an observed
+resource-path advance, not just successful import binding. At 11 seconds the
+original game PID still had zero top-level/visible windows; the 60-second
+experiment timed out with exit 92.
+
+For the next scoped experiment, the user's own Microsoft-signed
+`C:\Windows\System32\shcore.dll`, version **10.0.26100.8117**, 1,022,152 bytes,
+SHA-256 `e7b47e7b381849dd1b32fd67deedd16ad46b50aaf614cdd28e03a7bac7fd72c8`,
+was transferred privately to the test Mac. It was temporarily placed only in
+the owned Cuphead bottle's system32, with wrapper `--dll=...;shcore=n`.
+No binary was committed, packaged or redistributed. The original bottle file,
+82,512 bytes, SHA-256
+`a55b6791154de75575945658eea4d831c97b967ade2325668ca16694630f5cf9`,
+was preserved and restored exactly.
+
+An initial fixture attempt incorrectly inherited `shcore=n` in the separate
+probe bottle, where no native SHCORE was supplied. Its shell dependencies
+failed and the fixture timed out. Cleanup still restored every modified file;
+no actual-game result was claimed for that attempt. The corrected harness
+restricts this override to the owned game bottle. All integrated controls then
+passed. Genuine SHCORE loaded native during actual CoreWindow activation and
+the next delay-load abort became
+**`api-ms-win-gdi-dpiinfo-l1-1-0.dll.GetCurrentDpiInfo`**.
+The game still had zero windows and exit 92. The collaborator owns the bounded
+SHCORE/DPI contract investigation; Wine/native GDI is not replaced speculatively.
+
+Each completed experiment restored all six shared vendor modules, genuine
+private mrt100, bottle twinapi/SHCORE and temporary StateRepository aliases,
+then passed deep/strict vendor signature verification. The private harness now
+attempts every restoration even if an earlier restoration fails, accumulating
+explicit failures rather than skipping later cleanup. Official feed/source
+matching remains checked before mutation. These are experimental runtime
+results; Cuphead gameplay, rendering, input and general EAppx support remain
+unverified.

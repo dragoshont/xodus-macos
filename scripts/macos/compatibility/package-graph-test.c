@@ -27,6 +27,13 @@ typedef LONG (WINAPI *QUERY_NAME)(UINT32 *, WCHAR *);
 typedef LONG (WINAPI *QUERY_ID)(UINT32 *, BYTE *);
 typedef HRESULT (WINAPI *QUERY_MAX_VERSION)(const WCHAR *, UINT64 *);
 typedef LONG (WINAPI *QUERY_STAGED)(const WCHAR *, UINT32, UINT32 *, WCHAR *);
+typedef LONG (WINAPI *QUERY_GLOBALIZATION)(UINT32, void *, void **);
+typedef LONG (WINAPI *QUERY_GLOBALIZATION_PROPERTY)(void *, UINT32, UINT32 *, void *);
+struct globalization_context_view
+{
+    UINT32 tag, size, flags, app_id_bytes, reserved;
+    WCHAR app_id[1];
+};
 
 static unsigned checks, failures;
 static void check(int condition, const char *label)
@@ -36,6 +43,68 @@ static void check(int condition, const char *label)
         failures++;
         printf("FAIL %s\n", label);
     }
+}
+
+static void test_globalization(HMODULE module)
+{
+    QUERY_GLOBALIZATION context = (QUERY_GLOBALIZATION)(ULONG_PTR)GetProcAddress(module, "GetCurrentPackageGlobalizationContext");
+    QUERY_GLOBALIZATION_PROPERTY property = (QUERY_GLOBALIZATION_PROPERTY)(ULONG_PTR)GetProcAddress(module, "GetPackageGlobalizationProperty");
+    unsigned before = checks, failed_before = failures;
+    void *value = (void *)0x1234, *again = NULL;
+    UINT32 size, buffer[2];
+    LONG result;
+
+    check(context && property, "globalization exports present");
+    if (!context || !property) goto done;
+    check(context(0, NULL, NULL) == ERROR_INVALID_PARAMETER, "null context output rejected");
+    check(context(2, NULL, &value) == ERROR_NOT_FOUND && value == (void *)0x1234,
+          "out of range preserves context output");
+    result = context(0, NULL, &value);
+    check(!result && value && value != (void *)0x1234, "manifest-bound default context");
+    if (result || !value || value == (void *)0x1234) goto done;
+    check(!context(0, (void *)0x1234, &again) && again == value,
+          "reserved ignored and process context stable");
+    {
+        struct globalization_context_view *record = value;
+        check(record->tag == 0x424f4c47 && record->size == 28 && record->flags == 0 &&
+              record->app_id_bytes == 8 && !record->reserved && !wcscmp(record->app_id, L"App"),
+              "first context follows native variable-length record");
+        check(!context(1, NULL, &again) && again && again != value,
+              "second declared application has its own context");
+        if (again && again != value) {
+            record = again;
+            check(record->tag == 0x424f4c47 && record->size == 40 && record->flags == 0 &&
+                  record->app_id_bytes == 20 && !wcscmp(record->app_id, L"Secondary"),
+                  "second context uses real declared application id");
+            size = 4; buffer[0] = 0xcccccccc;
+            check(!property(again, 2, &size, buffer) && size == 4 && !buffer[0],
+                  "second default context property");
+        }
+        again = (void *)0x1234;
+        check(context(~0u, NULL, &again) == ERROR_NOT_FOUND && again == (void *)0x1234,
+              "maximum context index preserves output");
+    }
+    for (UINT32 id = 1; id <= 2; id++) {
+        size = 0;
+        check(property(value, id, &size, NULL) == ERROR_INSUFFICIENT_BUFFER && size == 4,
+              "default property sizing");
+        size = 3; buffer[0] = 0xcccccccc;
+        check(property(value, id, &size, buffer) == ERROR_INSUFFICIENT_BUFFER &&
+              size == 4 && buffer[0] == 0xcccccccc, "short property preserves buffer");
+        size = sizeof(buffer); buffer[0] = buffer[1] = 0xcccccccc;
+        check(!property(value, id, &size, buffer) && size == 4 && !buffer[0] && !buffer[1],
+              "default property clears full caller buffer");
+    }
+    size = sizeof(buffer); buffer[0] = buffer[1] = 0xcccccccc;
+    check(property(value, 3, &size, buffer) == ERROR_INVALID_PARAMETER &&
+          size == sizeof(buffer) && buffer[0] == 0xcccccccc, "unknown property preserves outputs");
+    check(property(NULL, 1, &size, buffer) == ERROR_INVALID_PARAMETER, "null property context rejected");
+    check(property(value, 1, NULL, buffer) == ERROR_INVALID_PARAMETER, "null property size rejected");
+    check(property(value, 1, &size, NULL) == ERROR_INVALID_PARAMETER, "null sized property buffer rejected");
+    check(property((void *)0x1234, 1, &size, buffer) == ERROR_INVALID_PARAMETER,
+          "foreign context rejected without dereference");
+done:
+    printf("RESULT package_globalization_checks=%u failures=%u\n", checks - before, failures - failed_before);
 }
 
 int main(void)
@@ -161,5 +230,6 @@ int main(void)
           "null staged package name rejected");
     check(staged(L"", 0, &length, NULL) == ERROR_MORE_DATA, "empty staged name reports native error");
     printf("RESULT package_graph_checks=%u failures=%u\n", checks, failures);
+    test_globalization(kernelbase);
     return failures ? 1 : 0;
 }

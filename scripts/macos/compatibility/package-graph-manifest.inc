@@ -13,12 +13,29 @@ struct package_resources_context
     UINT32 flags[RESCTX_MAX_PROPERTY + 1];
 };
 
+struct package_globalization_context
+{
+    UINT32 tag;
+    UINT32 size;
+    UINT32 flags;
+    UINT32 app_id_bytes;
+    UINT32 reserved;
+    WCHAR app_id[1];
+};
+
+struct package_globalization_entry
+{
+    struct package_globalization_entry *next;
+    struct package_globalization_context context;
+};
+
 struct package_resources
 {
     WCHAR root[MAX_PATH];
     WCHAR *publisher;
     struct package_resources_context package;
     struct package_resources_context application;
+    struct package_globalization_entry *globalization;
 };
 
 static struct package_resources *current_package_resources;
@@ -187,6 +204,7 @@ static BOOL manifest_attribute( const struct manifest_tag *tag, const WCHAR *att
 
 static void free_package_resources( struct package_resources *res )
 {
+    struct package_globalization_entry *entry, *next;
     unsigned int i;
 
     if (!res) return;
@@ -195,6 +213,11 @@ static void free_package_resources( struct package_resources *res )
     {
         HeapFree( GetProcessHeap(), 0, res->package.values[i] );
         HeapFree( GetProcessHeap(), 0, res->application.values[i] );
+    }
+    for (entry = res->globalization; entry; entry = next)
+    {
+        next = entry->next;
+        HeapFree( GetProcessHeap(), 0, entry );
     }
     HeapFree( GetProcessHeap(), 0, res );
 }
@@ -379,7 +402,55 @@ static LONG parse_package_manifest( const WCHAR *root, const WCHAR *full_name, c
             depth++;
         }
     }
-    if (identity && app_found) ret = ERROR_SUCCESS;
+    if (identity && app_found)
+    {
+        struct package_globalization_entry **tail = &res->globalization;
+        depth = 0;
+        p = text;
+        while (manifest_next_tag( p, end, &tag ))
+        {
+            p = tag.next;
+            if (tag.closing) { depth--; continue; }
+            if (depth == 2 && manifest_local_name_is( stack[1].name, stack[1].len, L"Applications" ) &&
+                manifest_local_name_is( tag.name, tag.name_len, L"Application" ))
+            {
+                struct package_globalization_entry *entry;
+                SIZE_T bytes;
+                value = NULL;
+                if (!manifest_attribute( &tag, L"Id", &value ) || !value || !value[0])
+                {
+                    HeapFree( GetProcessHeap(), 0, value );
+                    ret = ERROR_BAD_FORMAT;
+                    goto done;
+                }
+                bytes = (wcslen(value) + 1) * sizeof(WCHAR);
+                if (!(entry = HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY,
+                        offsetof(struct package_globalization_entry, context.app_id) + bytes )))
+                {
+                    HeapFree( GetProcessHeap(), 0, value );
+                    ret = ERROR_NOT_ENOUGH_MEMORY;
+                    goto done;
+                }
+                entry->context.tag = 0x424f4c47;
+                entry->context.size = offsetof(struct package_globalization_context, app_id) + bytes;
+                entry->context.app_id_bytes = bytes;
+                memcpy( entry->context.app_id, value, bytes );
+                HeapFree( GetProcessHeap(), 0, value );
+                *tail = entry;
+                tail = &entry->next;
+            }
+            if (!tag.empty)
+            {
+                if (depth < ARRAY_SIZE(stack))
+                {
+                    stack[depth].name = tag.name;
+                    stack[depth].len = tag.name_len;
+                }
+                depth++;
+            }
+        }
+        ret = ERROR_SUCCESS;
+    }
     else if (identity) WARN( "Application %s not found in %s\n", debugstr_w(app_id), debugstr_w(path) );
 done:
     if (ret == ERROR_BAD_FORMAT) WARN( "Malformed package manifest %s\n", debugstr_w(path) );
@@ -423,7 +494,7 @@ static LONG get_current_package_resources( struct package_resources **out )
     {
         WARN( "No manifest for %s above the main module, error %ld\n", debugstr_w(full_name), ret );
         free_package_resources( res );
-        return ret == ERROR_BAD_FORMAT ? ERROR_BAD_FORMAT : ERROR_NOT_FOUND;
+        return ret;
     }
     TRACE( "package %s root %s\n", debugstr_w(full_name), debugstr_w(res->root) );
     if (InterlockedCompareExchangePointer( (void **)&current_package_resources, res, NULL ))
@@ -932,5 +1003,54 @@ LONG WINAPI GetStagedPackagePathByFullName2( const WCHAR *full_name, PackagePath
     if (*length < required) { *length = required; return ERROR_INSUFFICIENT_BUFFER; }
     memcpy( path, node.root, required * sizeof(WCHAR) );
     *length = required;
+    return ERROR_SUCCESS;
+}
+
+/* Default contexts in the native packaged oracle had both property bits clear.
+ * The source of non-default bits is not established; this is the default subset,
+ * not an implementation of manifest-specific globalization overrides. */
+LONG WINAPI GetCurrentPackageGlobalizationContext( UINT32 index, void *reserved, void **context )
+{
+    struct package_resources *resources;
+    struct package_globalization_entry *entry;
+    LONG status;
+
+    TRACE( "(%u %p %p)\n", index, reserved, context );
+    if (!context) return ERROR_INVALID_PARAMETER;
+    if ((status = get_current_package_resources( &resources ))) return status;
+    for (entry = resources->globalization; entry && index; entry = entry->next) index--;
+    if (!entry) return ERROR_NOT_FOUND;
+    *context = &entry->context;
+    TRACE( "returning manifest-bound default globalization context\n" );
+    return ERROR_SUCCESS;
+}
+
+LONG WINAPI GetPackageGlobalizationProperty( void *context, UINT32 property, UINT32 *size, void *buffer )
+{
+    struct package_resources *resources;
+    struct package_globalization_entry *entry;
+    UINT32 value;
+    LONG status;
+
+    TRACE( "(%p %u %p %p)\n", context, property, size, buffer );
+    if (!context || !size || (*size && !buffer) || (property != 1 && property != 2))
+        return ERROR_INVALID_PARAMETER;
+    if ((status = get_current_package_resources( &resources ))) return status;
+    for (entry = resources->globalization; entry; entry = entry->next)
+        if (context == &entry->context) break;
+    if (!entry)
+    {
+        WARN( "Unsupported globalization context, not owned by the current manifest\n" );
+        return ERROR_INVALID_PARAMETER;
+    }
+    if (*size < sizeof(value))
+    {
+        *size = sizeof(value);
+        return ERROR_INSUFFICIENT_BUFFER;
+    }
+    value = (entry->context.flags >> (property - 1)) & 1;
+    memset( buffer, 0, *size );
+    memcpy( buffer, &value, sizeof(value) );
+    *size = sizeof(value);
     return ERROR_SUCCESS;
 }

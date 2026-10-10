@@ -1163,6 +1163,73 @@ directed this lane back to Celeste. Concurrent bottles do not permit concurrent
 shared CrossOver module replacement; future shared-tuple experiments require
 explicit ownership coordination.
 
+### Renewed Celeste original-image activation
+
+With the user's renewed Celeste priority, an untouched-vendor launch in
+`Xodus-Celeste-Clean` again exits 5 with the original write AV: ntdll RVA
+`0x45216`, destination Celeste.dll security-cookie RVA `0x2b9718`. The app's
+actual native dependencies include SDL2/FNA3D and .NET Native 2.2; a Unity/Cuphead
+runtime equivalence is not inferred.
+
+Preparing truthful local activation exposed two distinct format details.
+The preserved child EAppx's signature offset (`1264949258`) is beyond the
+extracted child stream, but references the signature bytes in the original
+outer bundle. The original 10,987-byte PKCX signature was recovered from that
+bounded outer region; PKCS7 signature math and its signed AXBM digest match the
+actual child's blockmap. No credential/key operation or replacement signature
+was used; signer-chain trust is still not claimed.
+
+The Celeste blockmap explicitly marks encrypted files. Their Block hashes bind
+ciphertext, not extracted plaintext. The signed FileHash matches every nonempty
+decrypted original file. A zero-byte GUID-named entry has no blocks/FileHash;
+its signed size and actual empty file uniquely bind empty content. The
+experimental catalog verifier now requires signed FileHash for nonempty
+encrypted plaintext, continues ordinary block validation for unencrypted files,
+and records that ciphertext blocks were not checked by this registration step.
+Six independently signed synthetic cases cover these domains, missing/wrong
+digests, unknown encryption and the empty-file exception. This is not a
+post-hoc hash receipt substituted for a signed plaintext digest.
+
+The verified original main/framework registration contains 1,260 file receipts,
+with real .NET Native Framework/Runtime 2.2 and VCLibs manifests. Its honest
+activation origin is local developer origin 4, not authenticated Store
+installation, AppContainer isolation or inferred privilege grants.
+
+Under the coordinator's serialized shared-tuple lease, the four current
+matching-source modules plus private genuine mrt100 were tested. The readonly,
+writable and initialized cookie controls and named delayed-import callback
+control pass. Actual original Celeste activation and token claims pass 13
+checks. Native mrt100 loads, then the application exits `4103` (`0x1007`) after
+about 643 ms; original PID observation reports zero windows. The precise
+reached fatal activation is
+`Windows.ApplicationModel.Core.CoreApplication`: `RoGetActivationFactory`
+returns `0x80040154` (class not registered), followed by the language exception.
+An earlier MemoryManager activation also fails, but its fatality is not proved.
+Explorer additionally logs a WineMac driver failure in the SSH context; the
+next rendering probe must use the GUI login context, not infer a graphics
+defect from that observation.
+
+Receipt prefix: `celeste-registered-genuine-mrt100`. All four shared vendor
+modules were restored byte-for-byte, the temporary genuine runtime removed,
+and deep/strict signature verification passed. The lease was explicitly released
+to the Cuphead owner. Next bounded probe: the already measured genuine twinapi
+CoreApplication factory in this game's own bottle, from GUI context, with
+restorable registration and no fabricated interfaces.
+
+The subsequent leased GUI-login probe binds genuine CoreApplication successfully.
+Its temporary registration is
+`HKLM\Software\Microsoft\WindowsRuntime\ActivatableClassId\Windows.ApplicationModel.Core.CoreApplication`,
+with DllPath `C:\windows\system32\twinapi.appcore.dll` and wrapper
+`--dll=twinapi.appcore=n`. Direct native controls verify CoreApplication IID
+`1ada0e3e-e4a2-4123-b451-dc96bf800419` and ApplicationView IID
+`a28d7594-8c41-4e13-9719-5164796fe4c7`; these are factory/interface checks, not
+CoreWindow creation. Actual Celeste passes the missing-class boundary and
+reaches unimplemented `combase.CoGetSystemSecurityPermissions`. Exit remains
+4103 with zero windows (~710 ms); the SSH-context WineMac warning is not present
+in this GUI trace. Four vendor modules, bottle twinapi and temporary registration
+were restored/removed, private mrt100 removed, and signature verified before the
+lease was released. Receipt prefix: `celeste-registered-core-provider`.
+
 The required `python gates/gate_runner.py quality-gate` invocation returned
 exit 2 because that runner is absent from this worktree. The focused
 matching-source build/activated-fixture/actual-game receipts above are separate

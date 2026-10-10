@@ -6,6 +6,99 @@ not download or launch a game. Subsequently authorized Mac experiments obtained
 and legitimately decrypted the actual package, then reproduced a native loader
 failure. Celeste is **not playable**; see the final runtime evidence section.
 
+## Package format versus application runtime: catalog census
+
+EAppx is encrypted Appx, not an application model. Microsoft documents
+[packaged desktop applications](https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-behind-the-scenes)
+separately from UWP: `RuntimeBehavior="packagedClassicApp"` or `"win32App"`
+versus `"windowsApp"`, and `TrustLevel="mediumIL"` versus `"appContainer"`.
+Older Desktop Bridge manifests can identify a full-trust executable through
+`EntryPoint="Windows.FullTrustApplication"` and full-trust extensions.
+Packages may also contain both UWP and desktop processes. A filename, executable
+extension, missing .NET Native dependency or absent `runFullTrust` capability
+alone does not establish the runtime or playability.
+
+The anonymous GB PC Game Pass census on 2026-10-10 contains **521 products**:
+372 MSIXVC, 10 EAppx, 5 EAppxBundle, 4 Appx, 1 AppxBundle, 2 MsixBundle, and 127
+with no Desktop package in the selected catalog projection. The last category
+does not itself prove a third-party launcher, absent entitlement or impossibility
+of a separate PC edition. Cuphead and Celeste were separately inspected; they
+are not in this particular Game Pass snapshot.
+
+There is a concrete encrypted-package desktop candidate:
+**World of Warships (`9NK9K07FDPJV`)**. An independent public catalog observation
+reports EAppxBundle
+`7458BE2C.WorldofWarships_15.9.0.2_neutral_~_x4tje2y229k00`,
+`runFullTrust`, `Microsoft.VCLibs.140.00.UWPDesktop` and the application extension
+`fullTrustProcess-fullTrustProcess`. This proves a desktop-process declaration
+inside an encrypted package; it does not prove that every process is desktop,
+that the bundle was inspected, or that the game plays in CrossOver.
+Broken Age (`9MZZNL8J2MSZ`) similarly declares full trust and UWPDesktop VCLibs,
+but its current catalog format is **Appx**, not EAppx.
+
+`gamepass-package-inventory.sqlite` preserves the 521-product census, source,
+market and date. `products` keeps packaging, architecture, capabilities and
+dependency signals separate from `runtime_evidence`. The
+`encrypted_desktop_candidates` view returns World of Warships. No gameplay
+verdict is inferred. This initial database preserves one selected Desktop
+projection per product, not every SKU/architecture/version variant.
+`package-runtime-evidence.json` records the separately checked candidate
+declarations, without license, key or download fields.
+
+To regenerate a new database from the public snapshot:
+
+```powershell
+python scripts\package_inventory.py <snapshot.json> <new-inventory.sqlite> --market GB --observed-at 2026-10-10 --evidence docs\xodus\package-runtime-evidence.json
+```
+
+The input is an array with `id`, `title`, `fmt`, `arch`, `fullTrust`,
+`customInstall`, `fw` (semicolon-separated frameworks), `drivers` (count) and
+`attrs`. Unexpected fields are not persisted. Use `--snapshot-encoding cp1252`
+for the original Windows-encoded census; UTF-8 is the default. The builder
+refuses overwrite, malformed/duplicate records and evidence for absent products.
+It does not fetch payloads or credentials. Refreshing the snapshot is separate
+from importing it; observations are dated, not silently carried onto new versions.
+
+Example query:
+
+```sql
+SELECT product_id, title, package_format
+FROM encrypted_desktop_candidates;
+```
+
+## Reuse of the original Xbox-app runtime work
+
+The preserved `dragoshont-xbox-app-shell-navigation-client` branch at
+`c1ad528` contains **the exact two APIs reached by Cuphead**:
+`CheckTokenMembershipEx` and `RtlQueryWnfStateData`. Its sprint README also
+records successful activation of `DisplayInformation` with native
+Windows.Graphics.dll and supporting shcore changes. The earlier conclusion
+that there was no reusable local candidate was incomplete: this branch is
+directly relevant and should be evaluated before another implementation.
+
+However, relevance is not conformance or playable-game proof. The token API
+checks token type, impersonation level and AppContainer state; it is not simply
+a success stub. The WNF implementation models three hardcoded states measured
+as empty on one Windows build. It allocates subscriptions but never delivers
+display/DPI or language-change notifications. A native empty-state observation
+does not establish correct ongoing host behavior. Neither this WNF layer nor
+the experimental XAML composition drop-ins should be called a production-ready
+CrossOver repair.
+
+The Xbox-app handover explicitly records no submitted XAML frame, no visible
+content proof and no sign-in/library proof. Its compositor work addresses XAML's
+private composition interfaces; Cuphead uses Unity, so that entire rendering
+stack is not established as a requirement for Cuphead. Package identity,
+activation, WinRT resources and display prerequisites are potential shared
+seams. Adopt only the reached, tested APIs on a matching runtime, not the whole
+113-file research patch.
+
+Celeste is also an observed UWP/.NET Native package and may benefit from those
+shared seams after its separate loader/delayed-import failures are resolved.
+Its next runtime path has not been observed past those failures; Cuphead's
+exact downstream gaps must not be asserted for Celeste without a trace.
+Neither game is currently playable.
+
 ## Decision
 
 **BOUNDED_GO for discovery and the package pipeline; DEFER a playable-Celeste

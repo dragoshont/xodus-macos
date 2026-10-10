@@ -1,0 +1,18 @@
+[
+  {
+    "product_id": "9NK9K07FDPJV",
+    "kind": "catalog-declaration",
+    "runtime_type": "contains-desktop-process",
+    "source": "Microsoft Display Catalog, GB; package 7458BE2C.WorldofWarships_15.9.0.2_neutral_~_x4tje2y229k00",
+    "detail": "EAppxBundle; runFullTrust; fullTrustProcess-fullTrustProcess extension; Microsoft.VCLibs.140.00.UWPDesktop. Actual game launch and package manifest unverified.",
+    "observed_at": "2026-10-10"
+  },
+  {
+    "product_id": "9MZZNL8J2MSZ",
+    "kind": "catalog-declaration",
+    "runtime_type": "contains-desktop-process",
+    "source": "Microsoft Display Catalog, GB; package DoubleFineProductionsInc.BrokenAge_1.0.0.0_x64__s9zt93y1rpe5a",
+    "detail": "Appx; runFullTrust and Microsoft.VCLibs.110.00.UWPDesktop. Desktop capability signal; actual application entry point and game launch unverified.",
+    "observed_at": "2026-10-10"
+  }
+]

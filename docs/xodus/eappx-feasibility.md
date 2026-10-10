@@ -158,6 +158,22 @@ No actual kernelbase override, shared installation change or game relaunch was
 performed. The standalone DLL's earlier narrow contract pass remains distinct
 from this failed source-built core-module loading experiment.
 
+Follow-up inspection showed that the supported CrossOver wrapper rebuilds
+`WINEDLLPATH` from bottle configuration, explaining why exporting that variable
+did not select the candidate. A fresh, explicitly owned
+`Xodus-Cuphead-Kernelbase-Probe` bottle was therefore created with the documented
+`--param Wine:DllPath=...` setting, candidate-only staging first and vendor paths
+retained. Its effective kernelbase still lacked the added export (127).
+A second controlled test put the candidate at that probe bottle's actual
+system32 kernelbase path and used a bottle-scoped `kernelbase=n,b` override.
+The effective export was still absent. The probe bottle's original kernelbase
+was restored byte-for-byte in `finally`, and its owned wineserver stopped.
+No existing game bottle, installed app bundle or shared Wine engine was changed.
+These distinct loading attempts establish that neither a standalone DLL nor
+the attempted supported bottle path currently provides the missing core export.
+Further deployment requires resolving builtin core-module selection, not
+repeating these commands or reporting the source build as runtime support.
+
 ## Decision
 
 **BOUNDED_GO for discovery and the package pipeline; DEFER a playable-Celeste

@@ -283,6 +283,16 @@ No game launch or shared runtime change occurred; the owned wineserver was
 stopped after each probe. Native Windows DLL redistribution remains undecided
 and these private experimental copies must not be shipped.
 
+The private authoritative CoreApplication provider
+`twinapi.appcore.dll` (Microsoft-signed, version 10.0.26100.1,
+2,443,552 bytes) was subsequently supplied in the same experiment. Exact
+registry-backed mappings for CoreApplication and CoreWindow, with
+probe-scoped `twinapi.appcore,windows.ui=n`, allowed both genuine factories to
+activate (S_OK, non-null objects) through otherwise official CrossOver.
+This still does not create a view or supply package identity. A combined
+actual-game diagnostic is prepared to distinguish that boundary from isolated
+factory success; it requires a separately confirmed shared-runtime/launch hold.
+
 ## Decision
 
 **BOUNDED_GO for discovery and the package pipeline; DEFER a playable-Celeste

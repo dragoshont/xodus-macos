@@ -164,3 +164,24 @@ neutral resources, unsafe paths, duplicate names, stubs, ambiguous applications,
 truncation, multiple roots, DTD and size limits. CLI tests verify local operation
 with an unavailable credential service and no output-package creation.
 These are package mechanics, not a Celeste manifest or runtime observation.
+
+The seven manifest unit tests and two local-manifest CLI tests passed on Linux
+and macOS in [CI run 38071081756](https://github.com/dragoshont/xodus-macos/actions/runs/38071081756).
+The initial experiment exposed a quick-xml API-version mismatch; the reader was
+corrected to the repository's string API before the passing run.
+
+Further real-data discovery did not obtain a package: `winget show --id
+BWMQL2RPWBHB --source msstore` found no entry. The public catalog had no
+`PackageDownloadUris`; its `PackageUri` used Microsoft's
+`productingestionbin1.blob.core.windows.net` host but an 88-byte, anonymous range
+probe returned HTTP 400. Redirects were disabled and no keys, licenses, account
+tokens, CDN query strings or payload bytes were exported. This ingestion URI is
+not established as a working distribution URL. Do not retry unchanged or treat
+it as a download implementation.
+
+The next gate remains an entitled installed manifest or a working authorized
+distribution path. The new authorization permits experiments, but unavailable
+entitled data/tooling still blocks real Celeste extraction and launch proof.
+The Architrave deterministic gate also remains unconfigured in this repository;
+invocation of the installed gate reported `architrave.config.json not found`
+with exit 2. Linux/macOS CI is observed; an Architrave PASS is not.

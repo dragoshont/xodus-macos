@@ -220,6 +220,36 @@ not register a class, alter the game or substitute a runtime. Full UWP launch
 requires selecting the game-backed package activation and host window path,
 not returning a synthetic display object from an unpackaged launch.
 
+### Failure-explicit display diagnostic
+
+After an explicit deployment/launch hold, a scratch-only matched-source ntdll
+diagnostic exposed the reached WNF query/subscribe APIs returning
+`STATUS_NOT_IMPLEMENTED` rather than Wine's missing-export exception. It did
+not publish empty states, return success, fabricate change stamps or issue
+notifications. With this diagnostic and the tested kernelbase repair,
+the genuine Windows `DisplayInformation` statics factory returned **S_OK**.
+`GetForCurrentView` then returned **0x80040154**, with actual missing activation
+classes `Windows.ApplicationModel.Core.CoreApplication` and
+`Windows.UI.Core.CoreWindow`.
+
+This discriminates factory initialization from real view activation: the
+native factory tolerates unavailable WNF on this observed path, while an
+actual current view is still absent. It does not prove notifications unnecessary
+for the game or justify shipping the diagnostic as WNF support.
+The genuine Windows registry identifies the class providers as
+`twinapi.appcore.dll` and `Windows.UI.dll`; vendor modules with those filenames
+exist, but the matched source has no observed implementations of these classes.
+The earlier Xbox work has a catalog-backed activation and shell-broker seam,
+not a standalone CoreWindow drop-in.
+
+Both shared DLLs were restored byte-for-byte in `finally`, deep/strict vendor
+signature passed, and only the owned bottle's wineserver was stopped. The parent
+deployment lane was released immediately. The failure-only WNF patch was then
+removed from the experimental source and ntdll rebuilt successfully, so it is
+not left in the reusable candidate. Diagnostic scripts/logs remain private
+scratch evidence, not production compatibility components. Cuphead remains
+unplayable; the next coherent target is genuine package/view activation.
+
 ## Decision
 
 **BOUNDED_GO for discovery and the package pipeline; DEFER a playable-Celeste

@@ -1277,6 +1277,31 @@ This recipe does not replace the additional profapi/SHCORE/language/
 StateRepository experimental providers already observed in Cuphead's lane,
 nor establish cross-title support.
 
+The final focused `+ole,+rpc,+seh` probe was admitted by the coordinator but
+**refused before any mutation** because other Wine processes were active:
+an NMS winewrapper (`--wait-children` on the real NMS executable), services in
+`Xodus-BQVQTL3PCH05`, and Cuphead bottle services. These are not this lane's
+owned Celeste launch. No unrelated game was stopped, no shared module changed,
+and vendor signature verification still passed. Receipt prefix:
+`celeste-registered-core-policy-trace` (owner exit 1, preflight refusal).
+The exact E_INVALIDARG return site remains unobserved; retry requires a new
+receipt label and genuinely quiescent shared runtime, not merely a lease.
+
+A read-only comparison also prevents an unsafe WNF module merge.
+`~/src/crossover-wine-xodus-afunix-26.3.0` and this lane's
+`~/xodus-app-tooling/celeste/wine-source` have the same vendor VERSION
+(`Wine version 11.0`), but **different server protocol and syscall ABI**.
+The former lacks all NtXodus catalog transports and has x64
+`__wine_rpc_NtReadFile` at `0x0102` versus this lane's `0x0105`;
+x86 is `0x0108` versus `0x010b`. This lane additionally carries x64 activation
+`0x0103`, query `0x0104`, family `0x0106`, and x86 activation/query
+`0x0109`/`0x010a`. Therefore a WNF-built ntdll pair from the former tree is not
+compatible with this lane's existing server/kernelbase tuple merely because
+both are CrossOver 26.3.0. The bounded WNF source change must be ported into the
+catalog-bearing tree under exclusive source ownership, preserving existing
+IDs/protocol and rebuilding/regression-checking the coherent tuple. Both owners
+were notified before any mixed deployment.
+
 The required `python gates/gate_runner.py quality-gate` invocation returned
 exit 2 because that runner is absent from this worktree. The focused
 matching-source build/activated-fixture/actual-game receipts above are separate

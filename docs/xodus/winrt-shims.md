@@ -236,25 +236,29 @@ handle, closed with `RegCloseKey`).
 - **ABI** (Ghidra, confirmed from the prologue — ecx/rdx/r8), returns **NTSTATUS**:
   `OpenGlobalizationUserSettingsKey(ACCESS_MASK samDesired, PVOID reserved, PHKEY phkResult)`.
   The OUT handle is the **3rd** arg; `NULL` → `STATUS_INVALID_PARAMETER`
-  (`0xC000000D`) before any open. `reserved` is consulted only on the
-  multi-user-in-session server SKU (ignored on desktop / in a bottle).
+  (`0xC000000D`) before any open. `reserved` is passed to the multi-user-in-session
+  (SKU 3) opener and may be a session/user token — it was **not** probed on a
+  desktop SKU, so it is **not** assumed universally ignored.
 - **Runtime oracle** (`NtQueryKey(KeyNameInformation)` on the returned handle):
   for every access mask genuine returns the **current-user hive root**
   `\REGISTRY\USER\<SID>` (== `HKEY_CURRENT_USER`). The decompiled SKU branches all
   collapse to that root when no machine-level
-  `HKLM\…\CommonGlobUserSettings\RedirectedKey` redirection is configured —
-  **always true in a Wine bottle** (that policy is the "redirected" companion the
-  Mac lane asked about).
+  `HKLM\…\CommonGlobUserSettings\RedirectedKey` redirection is configured — the
+  common case, but that policy **can** be set (it is the "redirected" companion
+  the Mac lane asked about); it is a not-configured default, not "always absent".
 - **Clean-room impl** (`src/kernelbase_glob/globalization.c`): opens the
   current-user root directly via the documented ntdll API
   `RtlOpenCurrentUser(sam, phk)`, reproducing the observable key **without**
-  copying the SKU/redirection internals.
+  copying the SKU internals. **Known-unsupported divergence:** it opens that root
+  unconditionally and does **not** honor a configured redirection — faithful for a
+  single-user bottle with no such policy, to be revisited if one is ever set.
 - **Validation** (`test/kernelbase_globkey_test.c`): same-host A/B — **ours opens
   the byte-identical registry key as genuine for all 4 access masks**, exact
   NTSTATUS parity, matching `NULL`-guard. Status value of
-  `QueryGlobalizationUserSettingsStatus` is SKU-dependent (genuine `2` on this
-  multi-session box vs `0` on a desktop/bottle), so it is **not** host-pinned.
-  **24/24, 0 failures.**
+  `QueryGlobalizationUserSettingsStatus` is SKU-dependent (genuine `2` observed on
+  this multi-session box; the SKU==2 decompile branch yields `0`, not directly
+  observed), so it is **not** host-pinned. The **Mac lane integrates `Open` only,
+  not the `Query` status stub.** **24/24, 0 failures.**
 - **Integration:** uncomment + implement in `dlls/kernelbase/kernelbase.spec`
   `@ stdcall OpenGlobalizationUserSettingsKey(long ptr ptr)` (and, for
   completeness, `QueryGlobalizationUserSettingsStatus(ptr ptr)`), compiling

@@ -173,6 +173,43 @@ per-monitor DPI path — so the genuine binary just moves the wall.
   `265 stdcall -noname GetScaleFactorForCoreWindow(ptr ptr)` and compile
   `src/shcore/shcore_265.c` into the module.
 
+### bcp47mrm.dll!GetApplicationLanguagesWithUserLanguagesFallback — done (native-validated)
+
+The boundary after SHCORE #265: .NET Native / MRT resource resolution imports
+`bcp47mrm.dll!GetApplicationLanguagesWithUserLanguagesFallback` **by name**. Wine
+ships a `bcp47mrm` module but doesn't export this function, so the bind fails at
+load (no override can add a missing export). With the genuine DLL the Mac lane
+saw Cuphead advance to `KERNELBASE.FindPackagesByPackageFamily`, so one faithful
+export unblocks the language step.
+
+- **Recovered** the contract (Ghidra decompile of genuine 10.0.26100.9278, export
+  ord 7 at RVA 0x4B70 + a read-only native oracle):
+  `LONG(PCWSTR packageFullName, UINT32 *pRequiredChars, PWSTR buffer, ULONGLONG flags)`.
+  Two-call **size-query/fill** ABI — `pRequiredChars` is **OUT-only** (required
+  chars incl. NUL; input ignored), `buffer==NULL` → size query, the list is a
+  **`;`-delimited** BCP-47 string. `pRequiredChars==NULL` → `E_POINTER`; `flags`
+  reserved (no observable effect).
+- **Oracle decode:** the result is derived from the **user/system** language
+  profile, *not* the process override (`SetProcessPreferredUILanguages` had no
+  effect) — the user's preferred language(s) the app supports, with a
+  user-language fallback. On an en-US host every probed package returned
+  `"en-US"`.
+- **Clean-room impl** (`src/bcp47mrm/bcp47mrm_applang.c`) builds the list from the
+  live user locale (`GetUserPreferredUILanguages` → `GetUserDefaultLocaleName` →
+  `en-US`) via a pure, unit-tested `bcp47_join_multisz` with safe truncation —
+  **never fabricates tags**. Narrowing to a package's manifest resource languages
+  is deferred to the Mac-lane package/catalog provider (needs the installed
+  manifest, not available in-process); `packageFullName`/`flags` are accepted for
+  ABI compatibility.
+- **Validation** (`test/bcp47mrm_applang_test.c`): pure-join table,
+  measured-consistency (ours == `;`-join of the live
+  `GetUserPreferredUILanguages`, proving it's not hard-coded), error guards, and
+  a read-only genuine System32 pin. **0 failures**; ours == genuine `"en-US"` on
+  this host (value not asserted — host-locale dependent).
+- **Integration:** add to `dlls/bcp47mrm/bcp47mrm.spec`
+  `@ stdcall GetApplicationLanguagesWithUserLanguagesFallback(wstr ptr ptr int64)`
+  and compile `src/bcp47mrm/bcp47mrm_applang.c` into the module.
+
 ### WinRT UI shims — built, awaiting a trace that reaches them
 
 Loadable **logging** shims for `Windows.Graphics`, `Windows.UI`,
@@ -192,7 +229,7 @@ stripping `WINEDLLOVERRIDES` unless an explicit `--dll` arg is passed; with
 .NET Native startup ──(mrt100 ✅)──► StateRepository / PackageFamilyNameFromFullName
     ──► profapi.dll #114 ✅ ──► KERNELBASE.dll!GetCurrentPackageGlobalizationContext ✅
     ──► SHCORE.dll #265 (GetScaleFactorForCoreWindow) ✅
-    ──► bcp47mrm.dll!GetApplicationLanguagesWithUserLanguagesFallback (in progress, this lane)
+    ──► bcp47mrm.dll!GetApplicationLanguagesWithUserLanguagesFallback ✅
     ──► KERNELBASE.dll!FindPackagesByPackageFamily (Mac-lane owned: catalog enumeration)
     ──► (next boundary: TBD by the Mac-lane trace)
 ```

@@ -102,19 +102,31 @@ After profapi #114, the next **unresolved import** was
 doesn't export the package-globalization family, so the import fails to bind at
 load time — a missing export a `--dll`/`WINEDLLOVERRIDES` override can't fix.
 
-- **Reimplemented** 3 exports clean-room from a Ghidra decompile:
+- **Reimplemented** 3 exports clean-room from a Ghidra decompile + a read-only
+  packaged native oracle:
   `GetCurrentPackageGlobalizationContext`, `GetPackageGlobalizationContext`,
   `GetPackageGlobalizationProperty`.
-- **Honest semantics:** under Wine the process isn't package-activated, so no
-  globalization state exists — exactly a non-packaged process on Windows, where
-  genuine returns `APPMODEL_ERROR_NO_PACKAGE` (0x3d54). We return that, with no
-  invented locale/context.
-- **Validation:** `GetCurrentPackageGlobalizationContext` native A/B vs the
-  genuine System32 `kernelbase` is **identical** (0x3d54 + `*out` preserved;
-  NULL out → 0x57). The two siblings are spec-validated (genuine takes an opaque
-  owned block that faults if fabricated, and neither is reached by Cuphead).
+- **Corrected semantics (packaged):** an earlier pass assumed the process is
+  unpackaged under Wine and returned `APPMODEL_ERROR_NO_PACKAGE` (0x3d54). The
+  Mac lane proved the suspended Cuphead image is **catalog-activated with real
+  package identity**, so it hits the *packaged* branch. Genuine returns a
+  constant **28-byte "GLOB" context** (tag "GLOB", size 0x1c, flags@+8 = 0,
+  inline UTF-16 ApplicationId "App" at +0x14). The oracle (read-only
+  `OpenPackageInfoByFullName`, no activation/mutation) confirmed flags = 0 across
+  **all 123 installed packages**, and Cuphead's manifest has no globalization
+  element → flags 0 is authentic for Cuphead. `0x3d54` is now returned only for a
+  genuinely unpackaged process.
+- **Validation:** rewrote the test as a **genuine-ref differential** — feeds the
+  SAME genuine `PACKAGE_INFO_REFERENCE`/context to genuine and ours.
+  `GetPackageGlobalizationContext` returns genuine's own context pointer;
+  `GetPackageGlobalizationProperty` identical; unpackaged
+  `GetCurrentPackageGlobalizationContext` A/B → 0x3d54. **0 failures.** Reserved
+  arg resolved: ignored on x64 (width immaterial). 1st arg of
+  `GetPackageGlobalizationContext` confirmed to be a `PACKAGE_INFO_REFERENCE`.
 - **Integration:** `kernelbase` is a core/KnownDLL — no overlay possible; the
-  exports go into Wine's `kernelbase.spec` + source (snippet provided).
+  exports go into Wine's `kernelbase.spec` + source (snippet provided). Wire the
+  current-package path to emit the GLOB context (inline the live ApplicationId;
+  flags from the manifest, 0 until a package is found that sets a bit).
 
 ### WinRT UI shims — built, awaiting a trace that reaches them
 

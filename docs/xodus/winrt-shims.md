@@ -95,6 +95,27 @@ The boundary *after* mrt100 on the real Cuphead run is
   Wine `.spec` patch. Must go in the prefix `system32`, not next to the exe
   (system DLLs resolve from system32). Mac-lane integration in progress.
 
+### kernelbase.dll package globalization — done (native-validated)
+
+After profapi #114, the next **unresolved import** was
+`KERNELBASE.dll!GetCurrentPackageGlobalizationContext`. Wine's `kernelbase`
+doesn't export the package-globalization family, so the import fails to bind at
+load time — a missing export a `--dll`/`WINEDLLOVERRIDES` override can't fix.
+
+- **Reimplemented** 3 exports clean-room from a Ghidra decompile:
+  `GetCurrentPackageGlobalizationContext`, `GetPackageGlobalizationContext`,
+  `GetPackageGlobalizationProperty`.
+- **Honest semantics:** under Wine the process isn't package-activated, so no
+  globalization state exists — exactly a non-packaged process on Windows, where
+  genuine returns `APPMODEL_ERROR_NO_PACKAGE` (0x3d54). We return that, with no
+  invented locale/context.
+- **Validation:** `GetCurrentPackageGlobalizationContext` native A/B vs the
+  genuine System32 `kernelbase` is **identical** (0x3d54 + `*out` preserved;
+  NULL out → 0x57). The two siblings are spec-validated (genuine takes an opaque
+  owned block that faults if fabricated, and neither is reached by Cuphead).
+- **Integration:** `kernelbase` is a core/KnownDLL — no overlay possible; the
+  exports go into Wine's `kernelbase.spec` + source (snippet provided).
+
 ### WinRT UI shims — built, awaiting a trace that reaches them
 
 Loadable **logging** shims for `Windows.Graphics`, `Windows.UI`,
@@ -103,11 +124,17 @@ match System32 exactly). Each logs every call to `XODUS_SHIM_LOG`, so the real
 runtime-class needs are discovered from traces rather than reimplemented blind.
 They are forward-looking — Cuphead's current chain has not reached them.
 
+Note: `twinapi.appcore` CoreApplication/ApplicationView factories initially
+appeared broken, but the Mac lane traced it to the CrossOver `wine` wrapper
+stripping `WINEDLLOVERRIDES` unless an explicit `--dll` arg is passed; with
+`--dll=twinapi.appcore=n` both return `S_OK` natively — **no reimpl needed**.
+
 ## Actual Cuphead x64 blocker chain
 
 ```
 .NET Native startup ──(mrt100 ✅)──► StateRepository / PackageFamilyNameFromFullName
-    ──► profapi.dll #114 ✅ ──► (next boundary: TBD by the Mac-lane trace)
+    ──► profapi.dll #114 ✅ ──► KERNELBASE.dll!GetCurrentPackageGlobalizationContext ✅
+    ──► (next boundary: TBD by the Mac-lane trace with corrected --dll providers)
 ```
 
 ## Method & tooling

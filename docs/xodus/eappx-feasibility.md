@@ -250,6 +250,39 @@ not left in the reusable candidate. Diagnostic scripts/logs remain private
 scratch evidence, not production compatibility components. Cuphead remains
 unplayable; the next coherent target is genuine package/view activation.
 
+### Manifest-backed Unity activation
+
+The actual Cuphead manifest declares `UnityPlayer.AppCallbacks` and
+`UnityPlayer.XamlViewManager` in-process classes in its original
+`UnityPlayer.dll`, threading model `both`. This means Unity alone does not
+exclude XAML-related requirements; the prior separation from Xbox's rendering
+work remains a hypothesis until the game takes its real view path.
+
+Only these actual classes were registered in the owned Cuphead bottle, using
+their original payload module and manifest data. The generalized
+`cuphead-resource-probe.exe <class> [--activate]` distinguishes factory lookup
+from instance construction. Both factories succeeded under official CrossOver.
+The genuine XamlViewManager instance also constructed (S_OK, non-null object).
+AppCallbacks initially failed instance construction at missing
+`Windows.UI.Core.CoreCursor`.
+
+The authoritative local Windows activation registry maps CoreCursor to
+Microsoft-signed `Windows.UI.dll` version 10.0.26100.7840, 1,439,464 bytes.
+A private copy remains only in the Mac experiment, not the repository or a
+shipping component. Registering its actual class mapping alone selected Wine's
+builtin with the same name, which returned class unavailable. An explicit
+**owned-probe-only** `windows.ui=n` override selected the genuine component.
+Then AppCallbacks instance construction succeeded (S_OK, non-null object).
+The trace also reported absent `ExtendedExecutionSession`, but that absence
+did not prevent this constructor from succeeding.
+
+These console probes ran `--no-gui` and reported no GUI driver for auxiliary
+windows. They prove factory/constructor advancement, not graphics, actual
+CoreWindow activation, package registration, input, entitlement or gameplay.
+No game launch or shared runtime change occurred; the owned wineserver was
+stopped after each probe. Native Windows DLL redistribution remains undecided
+and these private experimental copies must not be shipped.
+
 ## Decision
 
 **BOUNDED_GO for discovery and the package pipeline; DEFER a playable-Celeste

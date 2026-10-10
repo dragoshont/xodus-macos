@@ -268,3 +268,39 @@ The original signed CLI and credential broker bytes are unchanged; the previous
 `39fd687` bundle is retained for rollback. No game, save or shared-runtime mutation
 occurred. Live visual/media acceptance and functional alternate engines remain
 unqualified; installation is not full product acceptance.
+
+### Owner-directed streamlined flow and hover previews
+
+App source `fac58d6` supersedes the earlier manual check/review flow: games offer
+Install or details, with Play for installed titles. Install runs the existing
+package/entitlement/storage safeguards internally before transfer; progress,
+cancellation and real failures remain visible. Repair/removal retain their
+protected flows. Details load selected-title metadata independently of bulk
+artwork and no longer expose unverified-access, PC-package or Mac-support
+diagnostics. Game Pass catalogue membership is separate from download rights;
+Discover continues loading the available catalogue in the background.
+
+Hero trailers are muted hover previews, with all existing viewport, app, power
+and accessibility fences. Known-duration previews begin 35 percent into the
+trailer, capped at 60 seconds; this is not a semantic guarantee of skipping
+credits. Centered clickable dots replace Discover's previous/next controls,
+with hidden scroll indicators. Continue Playing uses native trackpad scrolling.
+A higher streaming bitrate and bottom-only contrast scrim replace the washed-out
+whole-frame treatment. Actual hover/video appearance remains unobserved.
+
+The source is committed and pushed; 176 presentation and 992 native fixture
+checks, Debug/shipping Release, and exact full-Xcode CI
+`dragoshont/xodus-macos-app` run `38065402103` passed. The existing GUI Keychain
+signer produced the package; its strict signature, 22-file inventory and exact
+preserved signed CLI/frozen broker were independently checked. Public-art native
+preview became ready, but screen capture was unavailable; this is not visual
+acceptance or streaming proof. The bounded reviewer did not establish a source
+defect but returned REVISE for insufficient accessible evidence, not semantic PASS.
+
+Installation stopped before replacement: the running `02e67f8` launcher refused
+normal Quit from SSH and GUI Terminal with Apple event `-128` (User canceled).
+The launcher and its owned management CLI remain alive. A verified candidate
+copy is staged separately; the original installed bundle, games, saves,
+runtime and previous rollback are unchanged. No force termination or repeated
+replacement was attempted. The scoped deployment Run records the shutdown
+blocker; safe installation and live acceptance are still pending.

@@ -128,6 +128,42 @@ load time — a missing export a `--dll`/`WINEDLLOVERRIDES` override can't fix.
   current-package path to emit the GLOB context (inline the live ApplicationId;
   flags from the manifest, 0 until a package is found that sets a bit).
 
+### shcore.dll ordinal 265 — done (native-validated)
+
+After globalization, **CoreWindow activation** calls into SHCORE and the next
+**unresolved import** is `SHCORE.dll` **ordinal 265** — a no-name export Wine's
+`shcore` doesn't define (confirmed on upstream master and the CrossOver tree).
+Dropping in the genuine SHCORE resolves it but then drags in the *next* missing
+import, `api-ms-win-gdi-dpiinfo-l1-1-0.dll!GetCurrentDpiInfo`, via its
+per-monitor DPI path — so the genuine binary just moves the wall.
+
+- **Recovered** the contract clean-room (Ghidra decompile + read-only native
+  oracle; corroborated by prior-art notes):
+  `HRESULT GetScaleFactorForCoreWindow(IUnknown *coreWindow, DEVICE_SCALE_FACTOR *pScale)`
+  — ordinal 265 at RVA 0x19FA0. Genuine defaults `*pScale = 100`, QIs
+  `coreWindow` for ICoreWindowInterop `{45D64A29-A63E-4CB6-B498-5781D298CB4F}`
+  (vtable slot 3 → HWND), then does a per-monitor DPI query (NULL → primary
+  monitor). Oracle on a 140%-DPI host: `ord265(NULL) → S_OK, s = 140` — real,
+  deterministic per-monitor scaling.
+- **Clean-room impl** returns `S_OK + 100` (`SCALE_100_PERCENT`) without QI or
+  DPI queries. That is the faithful answer under Wine's 100% bottle (Wine's own
+  `GetScaleFactorForMonitor` is a FIXME stub that already returns 100), AND it
+  deliberately **avoids the gdi DpiInfo path**, so `GetCurrentDpiInfo` is never
+  reached via SHCORE.
+- **Validation:** native A/B (`test/shcore_265_test.c`) — genuine loaded by
+  absolute System32 path, no-name export resolved by ordinal, self-test-trap
+  guard. **0 failures.** The differential pins genuine's ABI/return/NULL
+  semantics with real (non-default, 140%) scaling evidence and confirms ABI
+  compatibility; it deliberately does **not** assert value equality (100 vs host
+  DPI is by design).
+- **Integration:** `shcore` is a system DLL — no overlay possible. Add to
+  `dlls/shcore/shcore.spec`:
+  `265 stdcall -noname GetScaleFactorForCoreWindow(ptr ptr)` and compile
+  `src/shcore/shcore_265.c` into the module. Caveat: if a future trace shows
+  Cuphead passing a **non-NULL** CoreWindow and needing a real per-window scale,
+  revisit (Wine's `GetDpiForMonitor` delegates to a real
+  `GetDpiForMonitorInternal` that could back a genuine NULL-primary slice).
+
 ### WinRT UI shims — built, awaiting a trace that reaches them
 
 Loadable **logging** shims for `Windows.Graphics`, `Windows.UI`,
@@ -146,7 +182,8 @@ stripping `WINEDLLOVERRIDES` unless an explicit `--dll` arg is passed; with
 ```
 .NET Native startup ──(mrt100 ✅)──► StateRepository / PackageFamilyNameFromFullName
     ──► profapi.dll #114 ✅ ──► KERNELBASE.dll!GetCurrentPackageGlobalizationContext ✅
-    ──► (next boundary: TBD by the Mac-lane trace with corrected --dll providers)
+    ──► SHCORE.dll #265 (GetScaleFactorForCoreWindow) ✅
+    ──► (next boundary: TBD by the Mac-lane trace)
 ```
 
 ## Method & tooling

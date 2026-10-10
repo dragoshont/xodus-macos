@@ -1,0 +1,113 @@
+diff --git a/server/token.c b/server/token.c
+--- a/server/token.c
++++ b/server/token.c
+@@ -117,2 +117,3 @@
+     int            elevation;       /* elevation type */
++    unsigned int   integrity_level; /* inherited token label, not a host sandbox */
+     struct tsa_store security_attributes; /* pointer-free, validated activation attributes */
+@@ -502,2 +503,3 @@
+         token->elevation = elevation;
++        token->integrity_level = SECURITY_MANDATORY_HIGH_RID;
+         token->security_attributes.data = NULL;
+@@ -606,2 +608,3 @@
+     if (!token) return token;
++    token->integrity_level = src_token->integrity_level;
+ 
+@@ -1591,1 +1594,29 @@
++DECL_HANDLER(get_token_integrity)
++{
++    struct token *token;
++
++    if (!(token = get_token_obj( current->process, req->handle, TOKEN_QUERY ))) return;
++    reply->level = token->integrity_level;
++    release_object( token );
++}
++
++DECL_HANDLER(set_token_integrity)
++{
++    struct token *token;
++
++    if (!(token = get_token_obj( current->process, req->handle, TOKEN_ADJUST_DEFAULT ))) return;
++    if (req->level > token->integrity_level)
++        set_error( STATUS_PRIVILEGE_NOT_HELD );
++    else
++    {
++        token->integrity_level = req->level;
++        allocate_luid( &token->modified_id );
++    }
++    release_object( token );
++}
++
+ DECL_HANDLER(get_token_security_attributes)
+diff --git a/server/protocol.def b/server/protocol.def
+--- a/server/protocol.def
++++ b/server/protocol.def
+@@ -4000,7 +4000,22 @@
+ @REQ(activate_registered_package)
+     obj_handle_t  process;
+     data_size_t   package_bytes;
+     VARARG(registration,unicode_str);
+ @END
++
++/* Token label updates are limited to lowering; no host sandbox is implied. */
++@REQ(get_token_integrity)
++    obj_handle_t handle;
++@REPLY
++    unsigned int level;
++@END
++
++@REQ(set_token_integrity)
++    obj_handle_t handle;
++    unsigned int level;
++@END
+diff --git a/dlls/ntdll/unix/security.c b/dlls/ntdll/unix/security.c
+--- a/dlls/ntdll/unix/security.c
++++ b/dlls/ntdll/unix/security.c
+@@ -688,16 +688,25 @@
+     case TokenIntegrityLevel:
+         {
+-            /* report always "S-1-16-12288" (high mandatory level) for now */
+-            static const SID high_level = {SID_REVISION, 1, {SECURITY_MANDATORY_LABEL_AUTHORITY},
+-                                                            {SECURITY_MANDATORY_HIGH_RID}};
++            SID level = {SID_REVISION, 1, {SECURITY_MANDATORY_LABEL_AUTHORITY}, {0}};
+ 
+             TOKEN_MANDATORY_LABEL *tml = info;
+             PSID psid = tml + 1;
+ 
++            SERVER_START_REQ( get_token_integrity )
++            {
++                req->handle = wine_server_obj_handle( token );
++                status = wine_server_call( req );
++                if (!status) level.SubAuthority[0] = reply->level;
++            }
++            SERVER_END_REQ;
++            if (status) break;
+             tml->Label.Sid = psid;
+             tml->Label.Attributes = SE_GROUP_INTEGRITY | SE_GROUP_INTEGRITY_ENABLED;
+-            memcpy( psid, &high_level, sizeof(SID) );
++            memcpy( psid, &level, sizeof(SID) );
+         }
+         break;
+@@ -984,5 +993,25 @@
+     case TokenIntegrityLevel:
+-        FIXME( "TokenIntegrityLevel stub!\n" );
+-        ret = STATUS_SUCCESS;
++        {
++            static const SID_IDENTIFIER_AUTHORITY authority = SECURITY_MANDATORY_LABEL_AUTHORITY;
++            const TOKEN_MANDATORY_LABEL *label = info;
++            const SID *sid;
++
++            if (length < sizeof(*label)) return STATUS_INFO_LENGTH_MISMATCH;
++            sid = label->Label.Sid;
++            if (!sid || sid->Revision != SID_REVISION || sid->SubAuthorityCount != 1 ||
++                memcmp( &sid->IdentifierAuthority, &authority, sizeof(authority) ))
++                return STATUS_INVALID_SID;
++            SERVER_START_REQ( set_token_integrity )
++            {
++                req->handle = wine_server_obj_handle( token );
++                req->level = sid->SubAuthority[0];
++                ret = wine_server_call( req );
++            }
++            SERVER_END_REQ;
++        }
+         break;

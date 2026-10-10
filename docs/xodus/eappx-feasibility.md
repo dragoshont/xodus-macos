@@ -680,3 +680,165 @@ That work must preserve actual host-derived behavior and CrossOver compatibility
 a separate runtime, a substituted game edition, or a purchase needs a separate
 owner decision. Installer integration remains unfinished and must not mark this
 application supported based on successful extraction.
+
+### Matching-source package and token continuation
+
+The owner subsequently authorized reversible wineserver repairs, conditional on
+using the latest official CrossOver and matching vendor source, and private use
+of genuine Windows components from their own installation. CrossOver
+26.3.0.39832 and the official 26.3.0 source were reconfirmed before these repairs.
+The fresh source archive is 149,054,023 bytes, SHA-256
+`ac99c8ca4b3848f3e81784135f023df266b61c2345726ea55a50b3e030dd6872`.
+This is an observed release check, not a claim that this version stays latest.
+
+The token/explicit-activation groundwork was reused from the Xbox-app
+investigation; bounded package-claims and manifest parsing slices were taken
+from its frozen `97fa66a` runtime. The whole cumulative runtime was not imported.
+These are experimental source candidates, not changes to the production
+installer or a replacement for CrossOver.
+
+The original reused server protocol inserted requests among vendor requests,
+renumbering existing operations and crashing unmodified vendor clients.
+Moving extensions to the end was insufficient until `tools/make_requests`
+regenerated the headers. The regenerated candidate preserves every original
+vendor request ordinal. New token/activation/integrity requests remain
+append-only. Server, Unix ntdll, PE ntdll and kernelbase must be built and tested
+as a coherent tuple; mixing protocol generations is not supported.
+
+Authentic Cuphead registration also exposed a BlockMap interpretation error.
+EAppx `Block` hashes cover uncompressed encrypted bytes, not the extracted
+plaintext. The signature-bound 2015 `FileHash` extension authenticates the
+plaintext. `appx_file_integrity.py` keeps per-block verification for unencrypted
+files, requires a valid signed plaintext hash for nonempty encrypted files, and
+rejects size/hash/flag errors. A zero-length encrypted file may omit `FileHash`;
+it still must have declared and actual size zero. Eight synthetic tests pass.
+All 808 original Cuphead files and genuine declared frameworks passed the
+private registrar's plaintext checks.
+
+The retained registrar additionally checks receipts, PKCS7 signature mathematics,
+signed AXBM binding, manifest identity/architecture and dependency closure.
+Signature mathematics is not signer-chain trust, and this registrar does not
+establish full original ZIP AXPC/AXCD/AXCT coverage. Previously acquired original
+package integrity was checked separately. Registration is explicitly local
+developer registration, origin 4, with 836 original game/framework files; it is
+not a Store-install receipt, user authentication, AppContainer, or entitlement
+grant. Activation is bound to the actual original executable and manifest.
+
+| Discriminating control | Verified result |
+|---|---|
+| Integrated token attributes/claims | 21 assertions; absent identity and invalid handles do not report claims |
+| Suspended original-image activation | 21 assertions; mismatched images rejected, launcher stays unpackaged |
+| Package-graph generation oracle | 11 assertions on native Windows and the candidate |
+| Explicit developer graph fixture | 56 assertions; head and three genuine Microsoft framework dependencies |
+| Sandbox token-state oracle | 9 assertions on native Windows and the candidate |
+| Package-family conversion oracle | 17 assertions on native Windows and the integrated candidate |
+| Profile storage ordinal 114 oracle | 4 read-only assertions on native Windows and the integrated candidate |
+
+The graph fixture is self-signed test data, not a substitute game identity.
+Its publisher differs from Microsoft's: framework publisher IDs are derived
+from their own actual manifest publishers using SHA-256 of UTF-16 and the
+Windows publisher-ID encoding. Dependencies resolve their declared name,
+publisher, minimum version and architecture. Current identity, package paths,
+AUMID, OS max-tested version and staged paths follow the activated token and
+actual manifests. No mutable directory or dynamic dependency is invented.
+
+Vendor token integrity queries always reported high integrity, and its setter
+returned success without storing a label. That was insufficient for an honest
+`RtlCheckSandboxedToken`. The candidate stores token-local integrity, preserves
+the high vendor baseline initially, copies labels on duplication, checks
+query/set access and allows lowering. Raising a lowered label returns the
+native-observed privilege-not-held result. This does not enforce a macOS
+sandbox or create an AppContainer/capability grant.
+
+The package API patch sequence uses `package-graph-identity.inc` and
+`package-graph-manifest.inc` in kernelbase's `version.c`. In the existing private
+build, changing these includes alone did not invalidate `version.o`; rebuilding
+that known generated object explicitly is required when updating them.
+The protocol patches require the earlier Xbox token/activation groundwork and
+freshly generated protocol tables. These prerequisites must not be mistaken for
+a self-contained, production-ready installation command.
+
+### Private StateRepository dependency experiment
+
+After the verified staged-path repair, the actual original Cuphead image reached
+the missing export
+`ext-ms-onecore-appmodel-staterepository-cache-l1-1-0.dll.SRCacheManager_Open`.
+The Xbox investigation's cache provider is only a partial, failure-explicit
+registry implementation; it never established an initialized working cache.
+It was not used to fabricate repository state.
+
+The owner's genuine Windows `Windows.StateRepositoryCore.dll`, Microsoft-signed,
+version 10.0.26100.9444, 133,744 bytes, SHA-256
+`6d274c7630fadee57f0b4ff8ef66e818b800b52e557e7aa8a3905c779002f295`,
+was privately tested in the Cuphead bottle under its native name and the reached
+API-set alias. No Windows registry database or another game's identity was
+copied. Actual startup then advanced to missing
+`KERNELBASE.PackageFamilyNameFromFullName`. This is an observed dependency delta,
+not proof that the Windows repository service/cache works under Wine.
+The alias files were removed after the test. No native binary is committed or
+redistributed.
+
+Each shared-runtime experiment saves exact vendor originals, shuts down only
+the owned bottle, restores all four modules byte-for-byte, and checks
+CrossOver's deep/strict code signature. Successful harness cleanup and an
+alive-for-ten-seconds process do not indicate a running game: these actual
+launches timed out and were terminated at 60 seconds with original-image exit
+92. Screen capture returned 1, and no usable game window/frame/input was proven.
+The private failure-only WNF diagnostic explicitly reports unavailable state;
+it is not WNF support and is excluded from reusable patch claims.
+
+The owner has now authorized broader test-Mac repair/reinstall/bottle work and
+joint work with the mrt100 reimplementation session. That session owns mrt100
+semantics; this lane owns Mac runtime mutation and controlled original-game
+tests. A genuine-versus-candidate mrt100 trace is the next shared-runtime
+comparison, not an automatic support verdict. Cuphead declares
+`UnityPlayer.XamlViewManager`; XAML/composition/rendering remains unproven.
+Celeste and other EAppx/UWP titles need their own actual activation, rendering,
+input and gameplay evidence. Licensed installer integration remains unfinished.
+
+### Joint mrt100 comparison and current boundary
+
+The mrt100 session supplied its independently authored x64 service candidate.
+The exact v0.1.0 release (source
+`668bc7249b7eb0a9edb1be9821c9a995b349fbe2`, SHA-256
+`9b067d6cbf550473ac1aea0f18ab8ae20792b99b9dbe8c4cb87ae4cd6a1651e0`)
+and revised v0.1.1 (source `2913748`, SHA-256
+`ffb3edee63b7608ae65dd971981689d456777940aa5aac37ea37260b6292ddc8`)
+were each compared against the genuine private mrt100 under the same actual
+Cuphead activation path. Both passed the observed .NET Native startup slice
+and reached the same next failure as genuine, `profapi.dll` ordinal 114.
+Their traces contained 29 startup entries: service acquisition, interface
+query, write-watch reserve, commit, memory-load query and high-priority
+thread creation. GC thread scanning and COM wait were not reached; this does
+not prove those semantics, later execution, or gameplay. The genuine private
+mrt100 was restored exactly after each comparison.
+
+Private native profapi placement next to the executable and then in the bottle's
+system32 did not replace the reached provider. Load traces showed `profapi.dll`
+still loaded as builtin. This was treated as a placement/provider-selection
+failure, not evidence that the real Windows ordinal returned success.
+The native test component was Microsoft-signed 10.0.26100.9444, 179,192 bytes,
+SHA-256 `ce53b082348fae6b4bef396c542a7415f39e1b28928233a9cc1b516311fb32c6`.
+Both placements were withdrawn, including byte-exact restoration of the
+preexisting bottle's profapi.
+
+The matching vendor profapi source was then extended only at ordinal 114,
+with `profapi-storage.c` and `wine-profapi-storage.patch`. The helper opens
+existing HKCU AppContainer storage registry paths using the actual requested
+access and returns the registry's HRESULT. It creates no key, AppContainer,
+package identity, or cache. Missing state remains an explicit file-not-found
+failure. The four-case native oracle binds the actual Windows system DLL:
+NULL package preserves the output sentinel and returns E_INVALIDARG; invalid
+package with NULL output requires no dereference; a missing package clears the
+output and returns file-not-found, including empty optional segments.
+The same unchanged executable passed against the integrated Wine candidate.
+
+The resulting controlled launch used the coherent server/ntdll/kernelbase
+tuple plus matching-source profapi, genuine private StateRepositoryCore, and
+mrt100 v0.1.1. It advanced past ordinal 114 to the missing
+`KERNELBASE.GetCurrentPackageGlobalizationContext` export. The original game
+still timed out at 60 seconds with exit 92; no frame or gameplay was observed.
+All five shared vendor modules and the genuine private mrt100 were restored
+byte-for-byte, temporary StateRepository aliases removed, and deep/strict
+CrossOver signature verification passed. Globalization context/locale/resource
+semantics are the next shared investigation, not an empty-success stub.

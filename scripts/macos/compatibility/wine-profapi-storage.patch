@@ -1,0 +1,14 @@
+diff --git a/dlls/profapi/Makefile.in b/dlls/profapi/Makefile.in
+--- a/dlls/profapi/Makefile.in
++++ b/dlls/profapi/Makefile.in
+@@ -1 +1,4 @@
+ MODULE    = profapi.dll
++IMPORTS   = advapi32
++
++SOURCES = profapi-storage.c
+diff --git a/dlls/profapi/profapi.spec b/dlls/profapi/profapi.spec
+--- a/dlls/profapi/profapi.spec
++++ b/dlls/profapi/profapi.spec
+@@ -14 +14 @@
+-114 stub -noname @
++114 stdcall -noname ProfApiOpenAppContainerStorageKeyW(wstr wstr wstr long ptr)

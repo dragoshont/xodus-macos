@@ -1,0 +1,14 @@
+diff --git a/package-activation-catalog.py b/package-activation-catalog.py
+--- a/package-activation-catalog.py
++++ b/package-activation-catalog.py
+@@ -12,1 +12,2 @@
+ import xml.etree.ElementTree as ET
++from appx_file_integrity import verify_plaintext
+@@ -76,10 +77,1 @@
+-        with path.open("rb") as stream:
+-            for block in item.findall("{*}Block"):
+-                if hashlib.sha256(stream.read(65536)).digest() != base64.b64decode(block.get("Hash"), validate=True):
+-                    raise ValueError("BlockMap block mismatch: " + relative)
+-            if stream.read(1):
+-                raise ValueError("BlockMap omitted bytes: " + relative)
++        verify_plaintext(path, item)

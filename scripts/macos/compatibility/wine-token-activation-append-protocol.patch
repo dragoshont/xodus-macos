@@ -1,0 +1,60 @@
+diff --git a/server/protocol.def b/server/protocol.def
+--- a/server/protocol.def
++++ b/server/protocol.def
+@@ -3499,27 +3499,3 @@
+-/* Pointer-free token attributes; all handles require TOKEN_QUERY. */
+-@REQ(get_token_security_attributes)
+-    obj_handle_t  handle;
+-@REPLY
+-    data_size_t   attributes_len;
+-    VARARG(attributes,bytes);
+-@END
+-
+-/* Explicit local-developer catalog query. No identity comes from request data. */
+-@REQ(query_registered_package)
+-    data_size_t   package_bytes;
+-    VARARG(registration,unicode_str);
+-@REPLY
+-    data_size_t   image_bytes;
+-    VARARG(image,unicode_str);
+-@END
+-
+-/* Only an owned, still-suspended child matching the catalog image is eligible. */
+-@REQ(activate_registered_package)
+-    obj_handle_t  process;
+-    data_size_t   package_bytes;
+-    VARARG(registration,unicode_str);
+-@END
+-
+ @REQ(filter_token)
+     obj_handle_t  handle;          /* handle to the token to duplicate */
+     unsigned int  flags;           /* flags */
+@@ -9999,6 +9999,31 @@
+     unsigned __int64    fence_value;    /* semaphore fence value */
+     data_size_t         runtime_size;   /* size of client runtime data */
+     VARARG(runtime,bytes);              /* client runtime data */
+ @END
++
++/* Append extensions so unchanged vendor clients retain request ordinals. */
++@REQ(get_token_security_attributes)
++    obj_handle_t  handle;
++@REPLY
++    data_size_t   attributes_len;
++    VARARG(attributes,bytes);
++@END
++
++/* Explicit local-developer catalog query. */
++@REQ(query_registered_package)
++    data_size_t   package_bytes;
++    VARARG(registration,unicode_str);
++@REPLY
++    data_size_t   image_bytes;
++    VARARG(image,unicode_str);
++@END
++
++/* Only an owned, suspended child matching the catalog may receive identity. */
++@REQ(activate_registered_package)
++    obj_handle_t  process;
++    data_size_t   package_bytes;
++    VARARG(registration,unicode_str);
++@END

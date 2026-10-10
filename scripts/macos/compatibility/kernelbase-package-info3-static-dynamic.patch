@@ -1,0 +1,14 @@
+diff --git a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
+--- a/dlls/kernelbase/version.c
++++ b/dlls/kernelbase/version.c
+@@ -1910,2 +1910,10 @@
++    /* The explicit local catalog provisions only a verified static graph.
++     * No dynamic dependency creation API is implemented in this candidate. */
++    if (type == 17)
++    {
++        if (!length || (*length && (!buffer || !count))) return E_INVALIDARG;
++        *length = 0;
++        if (count) *count = 0;
++        return S_OK;
++    }
+     FIXME( "Package graph information type %u is not implemented\n", type );

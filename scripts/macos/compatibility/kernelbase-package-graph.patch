@@ -1,0 +1,16 @@
+diff --git a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
+--- a/dlls/kernelbase/kernelbase.spec
++++ b/dlls/kernelbase/kernelbase.spec
+@@ -1,0 +1,1 @@
++@ stdcall GetCurrentPackageInfo2(long long ptr ptr ptr)
+diff --git a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
+--- a/dlls/kernelbase/version.c
++++ b/dlls/kernelbase/version.c
+@@ -1870,6 +1870,8 @@
+     memcpy(id->publisherId, publisher_id, sizeof(*id->publisherId) * len);
+     id->publisherId[len] = 0;
+ 
+     return ERROR_SUCCESS;
+ }
++#include "package-graph-identity.inc"
++#include "package-graph-manifest.inc"

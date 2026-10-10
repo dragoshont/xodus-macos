@@ -732,7 +732,7 @@ grant. Activation is bound to the actual original executable and manifest.
 | Explicit developer graph fixture | 56 assertions; head and three genuine Microsoft framework dependencies |
 | Sandbox token-state oracle | 9 assertions on native Windows and the candidate |
 | Package-family conversion oracle | 17 assertions on native Windows and the integrated candidate |
-| Profile storage ordinal 114 oracle | 4 read-only assertions on native Windows and the integrated candidate |
+| Profile storage ordinal 114 oracle | 12 assertions on native Windows and CrossOver, including explicit synthetic-key cleanup |
 
 The graph fixture is self-signed test data, not a substitute game identity.
 Its publisher differs from Microsoft's: framework publisher IDs are derived
@@ -842,3 +842,20 @@ All five shared vendor modules and the genuine private mrt100 were restored
 byte-for-byte, temporary StateRepository aliases removed, and deep/strict
 CrossOver signature verification passed. Globalization context/locale/resource
 semantics are the next shared investigation, not an empty-success stub.
+
+The expanded profile storage test explicitly binds system32 and refuses to
+overwrite an existing test key. It creates only the named
+`Xodus.ProfApiStorageTest` synthetic fixture, verifies real root/child/subkey
+handles and missing-child failure, then checks removal of its exact known keys.
+The unchanged executable passed 12 assertions on native Windows and the
+matching-source CrossOver module. This fixture is not game registration or
+AppContainer creation. The isolated CrossOver control restored profapi exactly
+and passed the deep/strict signature check without another blocked game launch.
+
+Screen evidence was separately diagnosed: the Mac has one active, awake
+2560-by-1440 display, but the probing process reports
+`CGPreflightScreenCaptureAccess=false`. Screen capture failure therefore cannot
+establish that no window was rendered. The private activation harness now
+records top-level window count, visibility and dimensions for the actual game
+PID only; these observations will supplement, not replace, frame/input/gameplay
+verification. No capture permission bypass was attempted.

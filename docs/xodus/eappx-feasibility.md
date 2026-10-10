@@ -200,6 +200,26 @@ This is genuine resource-factory activation advancement, **not** resource lookup
 conformance, game activation, display support or gameplay. The candidate is not
 left installed and no persistent playable-support verdict is justified.
 
+### Display factory versus current-view requirement
+
+`cuphead-display-probe.c` measures the documented base display ABI without
+hardcoded DPI/orientation or fabricated events. It queries the real statics
+factory, calls `GetForCurrentView`, and only queries actual display properties
+if a view was returned. Its native Windows control successfully obtained the
+factory but `GetForCurrentView` returned `0x80070490` (element not found) and a
+null object in this ordinary unpackaged console process. Consequently, merely
+implementing a display activation factory is not a complete game-launch
+solution: a real current-view/CoreWindow activation context is another seam
+that must be verified. This control does not prove Cuphead reaches that exact
+error, and it was not counted as display conformance or gameplay.
+
+The display probe compiles with the existing mingw toolchain using
+`-Wall -Wextra -Werror -lruntimeobject -lole32`. Its interface method ordering
+and GUIDs follow the public `Windows.Graphics.Display` declarations; it does
+not register a class, alter the game or substitute a runtime. Full UWP launch
+requires selecting the game-backed package activation and host window path,
+not returning a synthetic display object from an unpackaged launch.
+
 ## Decision
 
 **BOUNDED_GO for discovery and the package pipeline; DEFER a playable-Celeste

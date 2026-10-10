@@ -67,8 +67,54 @@ The WinRT UI DLL list above is forward-looking for the XAML path.
   identically against our DLL and the real System32 copy**, confirming the
   recovered vtable order, IIDs, QueryInterface/`E_NOINTERFACE` behaviour,
   memory ops and the exchange tear-off.
-- **Open:** which slots Cuphead actually calls needs an in-bottle trace
-  (the build has `XODUS_MRT100_LOG` env-gated logging for exactly this);
-  slot-19 parameter order and the x86 ABI still want runtime confirmation.
-  Any bottle test must be coordinated with the Cuphead runtime session and run
-  only in a private, owned bottle — never the shared CrossOver install.
+- **In-bottle result:** the Mac lane ran a genuine-vs-reimplementation A/B on
+  the actual x64 Cuphead package. **Our mrt100 passed .NET Native startup
+  identically to the genuine DLL, with no observed divergence**, and both
+  reached the *same* next boundary. The trace showed Cuphead's real mrt100
+  surface on startup is just 6 slots — `QueryInterface(IF1)`,
+  `ReserveWriteWatch`, `Commit`, `GetMemoryLoad`,
+  `CreateSuspendedHighPrioThread` (slot 15/19 not reached). v0.1.1 added a
+  Wine-robust exception-state gate to the stack scan and fixed a log-init race;
+  it A/B'd as a verified bounded delta.
+
+### profapi.dll ordinal 114 — done (native-validated)
+
+The boundary *after* mrt100 on the real Cuphead run is
+`unimplemented function profapi.dll.114`, reached through the genuine
+`StateRepositoryCore.dll`. Wine stubs all 17 profapi ordinals.
+
+- **Contract (Ghidra):** ordinal 114 is a registry helper that opens
+  `HKCU\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\<pkg>[\Children\<child>][\<subkey>]`
+  with a caller-supplied `REGSAM`; returns `S_OK` / `E_INVALIDARG` /
+  `HRESULT_FROM_WIN32`.
+- **Validation:** a native A/B (`test/profapi_ord114_test.c`) calls our function
+  and the genuine `profapi.dll` ordinal 114 side by side — **identical return
+  codes and key-returned state, 0 failures.**
+- **Integration:** standalone native-override `profapi.dll` (ord 114 real, the
+  rest logged) needs no Wine rebuild since Wine stubs them all; or a one-line
+  Wine `.spec` patch. Must go in the prefix `system32`, not next to the exe
+  (system DLLs resolve from system32). Mac-lane integration in progress.
+
+### WinRT UI shims — built, awaiting a trace that reaches them
+
+Loadable **logging** shims for `Windows.Graphics`, `Windows.UI`,
+`CoreMessaging`, `dcomp` and `CoreUIComponents` are built (x64; export tables
+match System32 exactly). Each logs every call to `XODUS_SHIM_LOG`, so the real
+runtime-class needs are discovered from traces rather than reimplemented blind.
+They are forward-looking — Cuphead's current chain has not reached them.
+
+## Actual Cuphead x64 blocker chain
+
+```
+.NET Native startup ──(mrt100 ✅)──► StateRepository / PackageFamilyNameFromFullName
+    ──► profapi.dll #114 ✅ ──► (next boundary: TBD by the Mac-lane trace)
+```
+
+## Method & tooling
+
+The per-DLL reverse-engineering playbook, the decision tree (decompile vs
+logging shim), the clean-room discipline, and the bottle-side load-provenance
+lessons are documented in the shims repo at `docs/METHODOLOGY.md`. Note: **REA
+(rea.tools) is not usable here** — it inspects a running web page's JavaScript
+over a browser debug connection, not native Windows PE DLLs. The toolchain is
+Ghidra headless + pefile + zig.

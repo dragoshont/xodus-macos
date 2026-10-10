@@ -2,7 +2,7 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-11T00:40:00+03:00",
+  updatedAt: "2026-10-11T01:05:00+03:00",
   phase: "Streamlined launcher signed — safe installation blocked",
   paused: false,
   pauseReason: "Owner says game works great and directs launcher UI/UX continuation. Preserve running game; no app replacement during active play. Other backend/composition work remains paused. Actual uninstall/reinstall is still unqualified.",
@@ -25,7 +25,7 @@ window.XODUS_STATUS = {
     { m: "M4", issue: 5, title: "UWP support", state: "blocked", pct: 30, note: "Cuphead/Celeste fail under stock CrossOver. Clean-room mrt100 .NET-Native shim rebuilt and contract-verified; XAML composition wall remains. No frame yet." },
     { m: "M5", issue: 6, title: "EAppx support", state: "blocked", pct: 25, note: "EAppxBundle titles not installable/playable. Package identity/activation seams progressing in the side session." },
     { m: "M3", issue: 4, title: "Engine detect / switch / default / per-game", state: "now", pct: 25, note: "Engines hub describes providers but nothing routes a game to a chosen runner at launch. Highest trust risk. In active development — autopilot child session adding a pure routing decision (type x override x default x availability) that the launch path consumes (Oct 11)." },
-    { m: "M10", issue: 11, title: "Account tiers (free / subscription)", state: "now", pct: 15, note: "Only an Active boolean; no paid/free/trial/subscription semantics. In active development — autopilot child session modeling free/Game Pass/owned tiers and eligibility from entitlement + Game Pass access, not local install (Oct 11)." }
+    { m: "M10", issue: 11, title: "Account tiers (free / subscription)", state: "done", pct: 80, note: "Two-axis AccountEntitlements (free/Game Pass plan/owned) with pure derive(); eligibility classifier where install alone yields only installedUnknown, never Owned. PR #12 merged-ready, CI green. Perks/leaving-soon deferred (no real source). (Oct 11)" }
   ],
 
   shipped: [
@@ -220,6 +220,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-11T01:05:00+03:00", text: "M10 (account tiers) landed green: PR #12 into the app foundation branch, native-fixtures CI passed (swift build + management/self/live checks + SVG reproducibility). Two-axis AccountEntitlements (free / Game Pass plan / owned) with a pure derive(), plus an eligibility classifier where a local install alone yields only installedUnknown — never Owned. Game Pass perks/leaving-soon deferred: no real data source, so faking it was refused. Celeste child branch (dragoshont-celeste-eappx-support) was blocked on push creds; I published it from the coordinator worktree (now at a33ff91). M7 and M10 app branches are on origin; M1+M3 still building." },
     { at: "2026-10-11T00:40:00+03:00", text: "Overnight autonomous build kicked off: three autopilot child sessions off the app foundation branch, one PR each. M1+M3 (real manifest-based PackageType detection + a pure engine-routing decision the launch path actually consumes; per-game override that isn't installed fails explicitly, never substitutes). M7 (install/remove/update lifecycle: queue, pause/resume/cancel, update detection). M10 (free/Game Pass/owned tiers + eligibility from entitlement & Game Pass access, not local install). macOS app can't build on the Windows host, so all three validate only via GitHub Actions CI; the Mac stays reserved for the Cuphead/mrt100 runtime lane. No UWP/EAppx support claim changes." },
     { at: "2026-10-10T23:30:00+03:00", text: "Clean-room mrt100 .NET-Native shim rebuilt from the recovered contract (one export, 20+4 vtable slots) in private repo xodus-winrt-shims. Smoke test passes identically against the shim and the real System32 copy. REA can't analyse native Windows DLLs; Ghidra headless recovered the contract. In-bottle slot trace still pending, coordinated with the Cuphead session." },
     { at: "2026-10-10T00:13:21+03:00", text: "Implemented the NMS shader correction against its actual captured SPIR-V. Original renderer rebuild reproduces its exact bytes; only the isolated MSL archive changes. Real failing shader plus ten other captured vertex shaders compile after the fix; wideLines real-device parity and nine wrapper/assembly checks pass. NMS-only candidate installed with rollback, no shared-engine or save/account reset. Mac locked after owner went to bed; live qualification held." },

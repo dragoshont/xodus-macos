@@ -301,3 +301,66 @@ These experimental FE3, extraction and launch operations are not integrated
 Store-install commands in the current PR. Product installation receipts,
 framework/package registration, activation and playable-game evidence remain
 required before claiming EAppx Store support.
+
+## Authorized Cuphead experiment
+
+The owner subsequently authorized making Cuphead run, checking for a CrossOver
+update, and testing matching-source drop-in repairs while retaining CrossOver.
+This is a separate experiment from the stopped Celeste lane.
+
+Cuphead's public PC catalog now establishes the previously uncertain format:
+`EAppx`, x64, package
+`StudioMDHR.20872A364DAA1_1.3.8.2_x64__tm1s6a95559gt`. Its console XVC is a
+different payload and was not used. The exact PC application was downloaded
+through official FE3, with declared size 5,399,841,994 bytes and SHA-256
+`5f624bb79bb9192895fc9234f1b2777060f12e68c80f1dc4526f8e15c53e4814`.
+FE3's declared SHA-1 and additional SHA-256 both matched the complete file.
+
+The actual single-package header is EXPH, XTS-AES, one 32-byte key entry.
+An entitled broker key passed the executable's authenticated plaintext hash
+before extraction of the remaining files. Extraction completed for 808 files,
+5,396,705,414 plaintext bytes, with checksum checking enabled. No keys were
+written to disk or exported. The actual activation is `Cuphead.exe`,
+`cuphead.App`, Windows.Desktop >= 10.0.15063.0, with .NET Native Framework 1.3,
+Runtime 1.4, and VCLibs 140. The declared x64 frameworks were acquired and
+verified; the game's own authenticated ClrCompression.dll was retained rather
+than overwritten by a differing framework copy.
+
+The official CrossOver updater advertised `26.3.0.39832`, exactly the installed
+version; no newer official update was available at this observation.
+
+### Actual runtime boundary
+
+| Probe | Observed result |
+|---|---|
+| Untouched application and declared dependencies, stock CrossOver | `mrt100.dll.GetManagedRuntimeService` missing during mrt100_app initialization |
+| Matching vendor-source ntdll candidate | Four synthetic loader checks passed; the actual missing OS runtime remained |
+| Genuine Microsoft-signed mrt100.dll from the owner's Windows system, private experiment only | Application passed .NET Native startup, then failed WinRT activation for DisplayInformation and ResourceContext |
+| Genuine Microsoft-signed display/resource components registered only in the owned Cuphead bottle | Windows.Graphics.dll reached unimplemented `ntdll.RtlQueryWnfStateData`; MrmCoreR.dll reached unimplemented `CheckTokenMembershipEx` |
+
+Cuphead did **not** reproduce Celeste's read-only security-cookie write fault.
+Its runtime callback supplied no DLL failure hook; changing the callback
+handling could not supply the missing OS component. There is no evidence that
+the tested ntdll replacement fixes Cuphead.
+
+The experimental Wine-UWP implementation was also examined as a potential
+component source. Its DisplayInformation code contains fixed orientation/DPI
+values and success-returning event stubs; its documentation requires a special
+DXVK runtime and lists missing input APIs. Neither establishes a faithful,
+playable drop-in solution for this CrossOver/macOS target. Returning invented
+WNF state, token checks, display values, or activation success is not a repair.
+
+All actual launches were bounded to the experiment's own bottle. The ineffective
+ntdll candidate was removed, the complete vendor CrossOver app was restored,
+and deep/strict signature verification plus notarized CodeWeavers Developer ID
+acceptance passed again. The payload, owned bottle, source candidates and logs
+remain under `~/xodus-app-tooling/cuphead/` and the earlier Celeste source-build
+directory; none of the proprietary components or payloads is committed here.
+
+**Cuphead is not playable, and no new EAppx install-and-play support is claimed.**
+The observed remaining work is real UWP display/resource activation and its OS
+API dependencies, not package decryption or the original Celeste loader fix.
+That work must preserve actual host-derived behavior and CrossOver compatibility;
+a separate runtime, a substituted game edition, or a purchase needs a separate
+owner decision. Installer integration remains unfinished and must not mark this
+application supported based on successful extraction.

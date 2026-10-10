@@ -15,7 +15,10 @@ fn local_eappx_extraction_reaches_file_errors_without_credentials() {
             .env("HOME", home.path())
             .env("USERPROFILE", home.path())
             .env("XODUS_LOG", "off")
-            .env("DBUS_SESSION_BUS_ADDRESS", "unix:path=/nonexistent-xodus-test-bus")
+            .env(
+                "DBUS_SESSION_BUS_ADDRESS",
+                "unix:path=/nonexistent-xodus-test-bus",
+            )
             .env("HTTP_PROXY", "http://127.0.0.1:9")
             .env("HTTPS_PROXY", "http://127.0.0.1:9")
             .env("ALL_PROXY", "http://127.0.0.1:9")

@@ -144,7 +144,10 @@ pub struct BundlePackage {
     pub package_type: String,
     #[serde(rename(deserialize = "@Version"))]
     pub version: String,
-    #[serde(default = "neutral_architecture", rename(deserialize = "@Architecture"))]
+    #[serde(
+        default = "neutral_architecture",
+        rename(deserialize = "@Architecture")
+    )]
     pub architecture: String,
     #[serde(rename(deserialize = "@FileName"))]
     pub file_name: String,
@@ -235,7 +238,9 @@ pub fn inspect(bytes: &[u8]) -> Result<Manifest, ManifestError> {
     let mut root = None;
     let mut depth: usize = 0;
     loop {
-        let (namespace, event) = reader.read_resolved_event().map_err(|_| ManifestError::Xml)?;
+        let (namespace, event) = reader
+            .read_resolved_event()
+            .map_err(|_| ManifestError::Xml)?;
         match event {
             Event::Start(ref element) | Event::Empty(ref element) => {
                 if depth == 0 {
@@ -243,18 +248,18 @@ pub fn inspect(bytes: &[u8]) -> Result<Manifest, ManifestError> {
                         return Err(ManifestError::Root);
                     }
                     root = Some(match (element.local_name().as_ref(), namespace) {
-                        (b"Package", ResolveResult::Bound(ns))
+                        ("Package", ResolveResult::Bound(ns))
                             if matches!(
                                 ns.as_ref(),
-                                b"http://schemas.microsoft.com/appx/manifest/foundation/windows10"
-                                    | b"http://schemas.microsoft.com/appx/2010/manifest"
-                                    | b"http://schemas.microsoft.com/appx/2013/manifest"
+                                "http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+                                    | "http://schemas.microsoft.com/appx/2010/manifest"
+                                    | "http://schemas.microsoft.com/appx/2013/manifest"
                             ) =>
                         {
                             "Package"
                         }
-                        (b"Bundle", ResolveResult::Bound(ns))
-                            if ns.as_ref() == b"http://schemas.microsoft.com/appx/2013/bundle" =>
+                        ("Bundle", ResolveResult::Bound(ns))
+                            if ns.as_ref() == "http://schemas.microsoft.com/appx/2013/bundle" =>
                         {
                             "Bundle"
                         }
@@ -276,12 +281,15 @@ pub fn inspect(bytes: &[u8]) -> Result<Manifest, ManifestError> {
             }
             Event::DocType(_) => return Err(ManifestError::Entities),
             Event::GeneralRef(reference) => {
-                let value = std::str::from_utf8(reference.as_ref())
-                    .map_err(|_| ManifestError::Encoding)?;
+                let value = reference.as_ref();
                 let numeric = value
                     .strip_prefix("#x")
                     .and_then(|number| u32::from_str_radix(number, 16).ok())
-                    .or_else(|| value.strip_prefix('#').and_then(|number| number.parse().ok()))
+                    .or_else(|| {
+                        value
+                            .strip_prefix('#')
+                            .and_then(|number| number.parse().ok())
+                    })
                     .and_then(char::from_u32);
                 if depth == 0
                     || (!matches!(value, "amp" | "lt" | "gt" | "quot" | "apos")
@@ -291,7 +299,7 @@ pub fn inspect(bytes: &[u8]) -> Result<Manifest, ManifestError> {
                 }
             }
             Event::Text(text) if depth == 0 => {
-                if !text.as_ref().iter().all(u8::is_ascii_whitespace) {
+                if !text.as_ref().bytes().all(|byte| byte.is_ascii_whitespace()) {
                     return Err(ManifestError::Root);
                 }
             }
@@ -385,8 +393,14 @@ mod tests {
         assert_eq!(selection.application.file_name, "game_x64.appx");
         assert_eq!(selection.resource_candidates.len(), 1);
         assert_eq!(selection.resource_candidates[0].file_name, "resources.appx");
-        assert!(matches!(bundle.select("x86"), Err(ManifestError::NoApplication)));
-        assert!(matches!(bundle.select("auto"), Err(ManifestError::Architecture)));
+        assert!(matches!(
+            bundle.select("x86"),
+            Err(ManifestError::NoApplication)
+        ));
+        assert!(matches!(
+            bundle.select("auto"),
+            Err(ManifestError::Architecture)
+        ));
     }
 
     #[test]
@@ -399,7 +413,11 @@ mod tests {
             panic!("Expected package");
         };
         assert!(package.applications.applications[0].entry_point.is_none());
-        assert!(package.applications.applications[0].runtime_behavior.is_none());
+        assert!(
+            package.applications.applications[0]
+                .runtime_behavior
+                .is_none()
+        );
         assert!(package.applications.applications[0].trust_level.is_none());
     }
 
@@ -414,7 +432,13 @@ mod tests {
 
     #[test]
     fn rejects_unsafe_bundle_and_executable_paths() {
-        for path in ["../bad.appx", r"..\bad.appx", "/bad.appx", r"C:\bad.appx", r"\\host\bad.appx"] {
+        for path in [
+            "../bad.appx",
+            r"..\bad.appx",
+            "/bad.appx",
+            r"C:\bad.appx",
+            r"\\host\bad.appx",
+        ] {
             let xml = BUNDLE.replace("game_x64.appx", path);
             assert!(matches!(inspect(xml.as_bytes()), Err(ManifestError::Path)));
         }
@@ -425,17 +449,29 @@ mod tests {
     #[test]
     fn rejects_duplicate_files_and_ambiguous_or_stub_applications() {
         let xml = BUNDLE.replace("game_arm64.appx", "GAME_X64.APPX");
-        assert!(matches!(inspect(xml.as_bytes()), Err(ManifestError::DuplicateFilename)));
+        assert!(matches!(
+            inspect(xml.as_bytes()),
+            Err(ManifestError::DuplicateFilename)
+        ));
         let xml = BUNDLE.replace(r#"Architecture="arm64""#, r#"Architecture="x64""#);
         let Manifest::Bundle(bundle) = inspect(xml.as_bytes()).unwrap() else {
             panic!("Expected bundle");
         };
-        assert!(matches!(bundle.select("x64"), Err(ManifestError::AmbiguousApplication)));
-        let xml = BUNDLE.replace(r#"Type="application""#, r#"Type="application" IsStub="true""#);
+        assert!(matches!(
+            bundle.select("x64"),
+            Err(ManifestError::AmbiguousApplication)
+        ));
+        let xml = BUNDLE.replace(
+            r#"Type="application""#,
+            r#"Type="application" IsStub="true""#,
+        );
         let Manifest::Bundle(bundle) = inspect(xml.as_bytes()).unwrap() else {
             panic!("Expected bundle");
         };
-        assert!(matches!(bundle.select("x64"), Err(ManifestError::NoApplication)));
+        assert!(matches!(
+            bundle.select("x64"),
+            Err(ManifestError::NoApplication)
+        ));
     }
 
     #[test]

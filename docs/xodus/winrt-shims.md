@@ -143,26 +143,35 @@ per-monitor DPI path — so the genuine binary just moves the wall.
   — ordinal 265 at RVA 0x19FA0. Genuine defaults `*pScale = 100`, QIs
   `coreWindow` for ICoreWindowInterop `{45D64A29-A63E-4CB6-B498-5781D298CB4F}`
   (vtable slot 3 → HWND), then does a per-monitor DPI query (NULL → primary
-  monitor). Oracle on a 140%-DPI host: `ord265(NULL) → S_OK, s = 140` — real,
-  deterministic per-monitor scaling.
-- **Clean-room impl** returns `S_OK + 100` (`SCALE_100_PERCENT`) without QI or
-  DPI queries. That is the faithful answer under Wine's 100% bottle (Wine's own
-  `GetScaleFactorForMonitor` is a FIXME stub that already returns 100), AND it
-  deliberately **avoids the gdi DpiInfo path**, so `GetCurrentDpiInfo` is never
-  reached via SHCORE.
-- **Validation:** native A/B (`test/shcore_265_test.c`) — genuine loaded by
-  absolute System32 path, no-name export resolved by ordinal, self-test-trap
-  guard. **0 failures.** The differential pins genuine's ABI/return/NULL
-  semantics with real (non-default, 140%) scaling evidence and confirms ABI
-  compatibility; it deliberately does **not** assert value equality (100 vs host
-  DPI is by design).
+  monitor). **Cuphead always calls it with `coreWindow == NULL`** (Mac-lane
+  argument diagnostic). Oracle (DPI-aware probe): genuine `ord265(NULL)` ==
+  `GetScaleFactorForMonitor(primary)` = the legacy **recommended**
+  `DEVICE_SCALE_FACTOR` (140 on this host) — an EDID/physical-size heuristic
+  distinct from the live effective scale (168 dpi = 175%) and distinct again from
+  what a DPI-unaware process sees (96 dpi = 100%). That recommended-scale
+  heuristic is a Windows-host concept Wine cannot faithfully model.
+- **Clean-room impl** (`src/shcore/shcore_265.c`):
+  - NULL `coreWindow` → the scale from the bottle's **measured** primary-monitor
+    DPI (`GetDpiForMonitor` → real `GetDpiForMonitorInternal` in Wine, **not** the
+    shcore `GetScaleFactorForMonitor` 100-stub), mapped to the nearest
+    `DEVICE_SCALE_FACTOR` by a pure `shcore_dpi_to_device_scale`. 96 dpi → 100% on
+    a default bottle, but **computed** from live DPI (a scaled Wine DPI yields the
+    right value), with DPI-query errors propagated. Stays off the genuine gdi path
+    so `GetCurrentDpiInfo` is never reached via SHCORE.
+  - non-NULL `coreWindow` → `E_NOTIMPL` (explicit unsupported; confirmed never hit;
+    per-window/ViewPresentation scale not yet established).
+  - NULL `pScale` → `E_INVALIDARG`.
+- **Validation:** native A/B (`test/shcore_265_test.c`) — pure DPI→scale mapping
+  table, measured-consistency (ours == mapping of the independently measured real
+  DPI, proving the value is **not** a constant), explicit unsupported/guard
+  returns, and a genuine pin loaded by absolute System32 path. **0 failures.** It
+  deliberately does **not** assert `genuine == ours`: genuine returns the host
+  *recommended* scale (140, an EDID heuristic), ours returns the bottle *measured*
+  DPI scale (100 on a default bottle) — divergence by design.
 - **Integration:** `shcore` is a system DLL — no overlay possible. Add to
   `dlls/shcore/shcore.spec`:
   `265 stdcall -noname GetScaleFactorForCoreWindow(ptr ptr)` and compile
-  `src/shcore/shcore_265.c` into the module. Caveat: if a future trace shows
-  Cuphead passing a **non-NULL** CoreWindow and needing a real per-window scale,
-  revisit (Wine's `GetDpiForMonitor` delegates to a real
-  `GetDpiForMonitorInternal` that could back a genuine NULL-primary slice).
+  `src/shcore/shcore_265.c` into the module.
 
 ### WinRT UI shims — built, awaiting a trace that reaches them
 
@@ -183,6 +192,8 @@ stripping `WINEDLLOVERRIDES` unless an explicit `--dll` arg is passed; with
 .NET Native startup ──(mrt100 ✅)──► StateRepository / PackageFamilyNameFromFullName
     ──► profapi.dll #114 ✅ ──► KERNELBASE.dll!GetCurrentPackageGlobalizationContext ✅
     ──► SHCORE.dll #265 (GetScaleFactorForCoreWindow) ✅
+    ──► bcp47mrm.dll!GetApplicationLanguagesWithUserLanguagesFallback (in progress, this lane)
+    ──► KERNELBASE.dll!FindPackagesByPackageFamily (Mac-lane owned: catalog enumeration)
     ──► (next boundary: TBD by the Mac-lane trace)
 ```
 

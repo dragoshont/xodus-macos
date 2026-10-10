@@ -63,12 +63,9 @@ __declspec(dllexport) BOOL WINAPI CheckTokenMembershipEx(
             result = TRUE;
             goto done;
         }
-        /* This component has no LPAC membership provider; do not invent membership. */
-        if (flags & 2u)
-        {
-            SetLastError(ERROR_NOT_SUPPORTED);
-            goto done;
-        }
+        /* The runtime has no AppContainer/LPAC membership provider. */
+        SetLastError(ERROR_NOT_SUPPORTED);
+        goto done;
     }
     result = CheckTokenMembership(token, sid, member);
 done:

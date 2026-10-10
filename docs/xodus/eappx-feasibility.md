@@ -104,7 +104,7 @@ Neither game is currently playable.
 `scripts/macos/compatibility/cuphead-token-component.c` evaluates the token
 membership seam using actual token queries and the runtime's existing
 `CheckTokenMembership`. It does not invent group membership or package identity.
-It rejects the unsupported AppContainer/LPAC combination rather than returning
+It rejects requested AppContainer/LPAC membership rather than returning
 a success-shaped result. It is an experimental standalone DLL, not a replacement
 kernelbase, installed API-set forwarder or production installer component.
 
@@ -131,6 +131,18 @@ The genuine resource DLL still binds its import to kernelbase; no import
 rewriting, core-DLL override or shared-bundle deployment was performed.
 Faithful WNF event/state behavior and package activation remain separate
 unresolved prerequisites; the game was not relaunched against unchanged gaps.
+
+`kernelbase-membership-backport.patch` adds the same limited API to the actual
+matching vendor-source kernelbase export, without a DLL-name/ordinal bridge or
+editing the game or genuine Windows resource DLL. In the isolated source/build
+tree, `git apply --recount --unidiff-zero` and
+`make -j4 dlls/kernelbase/x86_64-windows/kernelbase.dll` succeeded. The resulting
+PE exports `CheckTokenMembershipEx`; candidate SHA-256:
+`fb721e42e242f99ed26eda1cb4a84ab3edcaf0217d1fccb6edd4ae917c1651a9`.
+This kernelbase candidate has **not** been loaded or installed. Compilation
+and export inspection are not drop-in ABI compatibility or game-runtime proof.
+The installed CrossOver bundle remained unchanged and passed deep/strict
+signature verification after this build.
 
 ## Decision
 

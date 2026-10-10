@@ -912,3 +912,25 @@ That does not describe this explicitly catalog-activated Cuphead token and
 manifest graph. It was not integrated. Real packaged context/property semantics
 remain required; export binding alone or a contradictory no-package result is
 not a support repair.
+
+The next coherent actual-game experiment included the configured-policy combase
+export and correctly admitted native overrides. It reconfirmed the official
+26.3.0.39832 feed before patching. The missing COM export abort no longer
+appeared; the observed remaining abort was
+`GetCurrentPackageGlobalizationContext`. No COM policy was fabricated or
+installed into the game bottle, and the absence of that abort is not evidence
+of transport authorization or resolver-default parity. The game still had
+zero visible/top-level windows at 11 seconds and timed out with exit 92.
+All six shared runtime modules, the genuine private mrt100 and temporary native
+aliases were restored/removed as appropriate, followed by deep/strict signature
+verification.
+
+The ApplicationView registration separately names bottle system32's
+`twinapi.appcore.dll`. That file is Wine builtin, while the CoreApplication
+registration names the authentic executable-adjacent copy. With native-only
+selection, ApplicationView's system32 path failed to load. The next private
+harness now preserves the exact bottle twinapi original and prepares the same
+verified genuine twinapi at that system32 location; its cleanup restores the
+bottle original exactly. That placement has not yet been used for a new actual
+game launch. The globalization collaborator owns the corrected packaged oracle
+and contract; simultaneous runtime mutation remains excluded.

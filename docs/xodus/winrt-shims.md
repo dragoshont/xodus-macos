@@ -199,13 +199,18 @@ export unblocks the language step.
 - **Clean-room impl** (`src/bcp47mrm/bcp47mrm_applang.c`) builds the list from the
   live user locale (`GetUserPreferredUILanguages`) via a pure, unit-tested
   `bcp47_join_multisz` — **never fabricates tags**: if the OS language API fails
-  the real error is propagated as an HRESULT (`HRESULT_FROM_WIN32` /
-  `E_UNEXPECTED` / `E_OUTOFMEMORY`). Since `pRequiredChars` is OUT-only with no
-  caller capacity, the export always writes the full list. The installed-package
-  manifest-filtering path (the `"und"` case) is **out of scope** — Wine-bottle
-  apps aren't catalog-installed with a real PRI, so genuine itself takes the
-  user-fallback for them; `packageFullName`/`flags` are accepted but don't alter
-  the result, grounded in the oracle evidence.
+  the real error is propagated as an HRESULT (`HRESULT_FROM_WIN32`, or
+  `E_UNEXPECTED` when the API fails but `GetLastError()` is 0 so `S_OK` never
+  leaks; `E_OUTOFMEMORY` on alloc failure). Since `pRequiredChars` is OUT-only
+  with no caller capacity, the export always writes the full list.
+- **SCOPE — subset, not packaged parity.** This returns the user languages, which
+  *coincides* with genuine on a single-language host. The Mac lane confirms
+  Cuphead in the bottle carries **genuine private PRI/manifests** and is
+  **catalog-activation verified**, so the genuine per-package language
+  **selection** path (the lone `"und"` case) **is reachable there**; this shim
+  does not yet perform it. Align `packageFullName` handling to genuine once the
+  Mac-lane native `bcp` work observes the real selection. Not "the only reachable
+  path."
 - **Validation** (`test/bcp47mrm_applang_test.c`): pure-join table,
   measured-consistency, error guards, and — the key differential — **same-host
   A/B equality**: genuine == ours on **HRESULT + required count + value** for
@@ -234,9 +239,11 @@ stripping `WINEDLLOVERRIDES` unless an explicit `--dll` arg is passed; with
 .NET Native startup ──(mrt100 ✅)──► StateRepository / PackageFamilyNameFromFullName
     ──► profapi.dll #114 ✅ ──► KERNELBASE.dll!GetCurrentPackageGlobalizationContext ✅
     ──► SHCORE.dll #265 (GetScaleFactorForCoreWindow) ✅
-    ──► bcp47mrm.dll!GetApplicationLanguagesWithUserLanguagesFallback ✅
-    ──► KERNELBASE.dll!FindPackagesByPackageFamily (Mac-lane owned: catalog enumeration)
-    ──► (next boundary: TBD by the Mac-lane trace)
+    ──► bcp47mrm.dll!GetApplicationLanguagesWithUserLanguagesFallback ✅ (user-languages subset)
+    ──► KERNELBASE.dll!FindPackagesByPackageFamily ✅ (Mac-lane: catalog enumeration)
+    ──► KERNELBASE.dll!GetStagedPackagePathByFullName ✅ (Mac-lane: legacy→stagedPath2)
+    ──► KERNELBASE.dll!OpenGlobalizationUserSettingsKey (mapping on the RE lane)
+    ──► (next boundary: TBD by the Mac-lane trace); still 0 windows / exit 92
 ```
 
 ## Method & tooling

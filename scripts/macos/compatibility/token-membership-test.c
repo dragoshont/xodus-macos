@@ -50,6 +50,26 @@ int main(int argc, char **argv)
         }
     CloseHandle(impersonation);
     CloseHandle(primary);
+    {
+        SID_IDENTIFIER_AUTHORITY authority = SECURITY_NT_AUTHORITY;
+        PSID absent = NULL;
+        BOOL member = TRUE, result;
+        DWORD error;
+        if (!AllocateAndInitializeSid(&authority, 1, 0x7fffffff, 0, 0, 0, 0, 0, 0, 0, &absent))
+            return 2;
+        SetLastError(0x12345678);
+        result = check(NULL, absent, 0, &member);
+        error = GetLastError();
+        if (!result || member || error != 0x12345678) failures++;
+        printf("absent-sid: result=%d member=%d error=%lu\n", result, member, error);
+        FreeSid(absent);
+        member = TRUE;
+        SetLastError(0x12345678);
+        result = check((HANDLE)(ULONG_PTR)0x1234, buffer, 0, &member);
+        error = GetLastError();
+        if (result || member || error != ERROR_INVALID_HANDLE) failures++;
+        printf("invalid-token: result=%d member=%d error=%lu\n", result, member, error);
+    }
     printf("contract: failures=%u\n", failures);
     return failures ? 1 : 0;
 }

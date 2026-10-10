@@ -174,6 +174,32 @@ the attempted supported bottle path currently provides the missing core export.
 Further deployment requires resolving builtin core-module selection, not
 repeating these commands or reporting the source build as runtime support.
 
+### Actual vendor-path test: resource activation advances
+
+The matching loader's `set_dll_path()` unconditionally prepends its own vendor
+`dll_dir` ahead of `WINEDLLPATH`. That explains the ignored bottle candidates.
+After the parent explicitly confirmed no game/Wine process and held deployments,
+one exact x64 vendor kernelbase file was backed up and temporarily replaced with
+the source-built candidate. The official wrapper and existing vendor loader/server
+were retained. The now **14-case** token probe, including absent SID and invalid
+handle, passed against this actual kernelbase export in the owned probe bottle.
+
+A second bounded test used the genuine, privately held Cuphead Windows resource
+component in its already registered owned bottle.
+`cuphead-resource-probe.c` calls `RoGetActivationFactory` for
+`Windows.ApplicationModel.Resources.Core.ResourceContext`, releases its factory
+and uninitializes WinRT. With the real kernelbase repair it returned **S_OK and
+a non-null factory**, exit 0. The earlier unimplemented token-membership
+exception is therefore resolved for this observed activation path. No WNF
+implementation, fake token result, game patch or alternate runtime was involved.
+
+Both tests used `finally` to stop only the owned bottle's wineserver, restore the
+exact vendor backup and verify byte equality plus deep/strict signature. The
+official bundle was restored after each test; parent deployment hold released.
+This is genuine resource-factory activation advancement, **not** resource lookup
+conformance, game activation, display support or gameplay. The candidate is not
+left installed and no persistent playable-support verdict is justified.
+
 ## Decision
 
 **BOUNDED_GO for discovery and the package pipeline; DEFER a playable-Celeste

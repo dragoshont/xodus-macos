@@ -144,6 +144,20 @@ and export inspection are not drop-in ABI compatibility or game-runtime proof.
 The installed CrossOver bundle remained unchanged and passed deep/strict
 signature verification after this build.
 
+A subsequent ABI inventory found all 1,429 vendor named exports retained, with
+only `CheckTokenMembershipEx` added; both binaries import only ntdll. This is
+necessary but not sufficient compatibility evidence. An isolated probe tried
+loading the candidate under the distinct filename `kernelbase-candidate.dll`,
+without replacing actual kernelbase. Default loading did not expose the new
+export (`ERROR_PROC_NOT_FOUND`, 127). An explicit candidate-name-only native
+override failed module loading (`ERROR_MOD_NOT_FOUND`, 126). Neither run entered
+the candidate's membership tests. Builtin core-module loading is therefore an
+additional unresolved integration boundary; these results must not be recorded
+as an API pass. The probe now prints exact load/export/token-setup errors.
+No actual kernelbase override, shared installation change or game relaunch was
+performed. The standalone DLL's earlier narrow contract pass remains distinct
+from this failed source-built core-module loading experiment.
+
 ## Decision
 
 **BOUNDED_GO for discovery and the package pipeline; DEFER a playable-Celeste

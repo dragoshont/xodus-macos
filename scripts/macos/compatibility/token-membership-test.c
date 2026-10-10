@@ -12,10 +12,24 @@ int main(int argc, char **argv)
     HANDLE handles[3];
     HMODULE module = argc > 1 ? LoadLibraryA(argv[1]) : GetModuleHandleA("kernelbase.dll");
     unsigned failures = 0;
+    if (!module)
+    {
+        printf("contract: module load failed error=%lu\n", GetLastError());
+        return 2;
+    }
     check = (void *)GetProcAddress(module, "CheckTokenMembershipEx");
-    if (!check || !CreateWellKnownSid(WinWorldSid, NULL, buffer, &size) ||
+    if (!check)
+    {
+        printf("contract: export resolution failed error=%lu\n", GetLastError());
+        return 2;
+    }
+    if (!CreateWellKnownSid(WinWorldSid, NULL, buffer, &size) ||
         !OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_DUPLICATE, &primary) ||
-        !DuplicateToken(primary, SecurityImpersonation, &impersonation)) return 2;
+        !DuplicateToken(primary, SecurityImpersonation, &impersonation))
+    {
+        printf("contract: token setup failed error=%lu\n", GetLastError());
+        return 2;
+    }
     handles[0] = NULL;
     handles[1] = primary;
     handles[2] = impersonation;

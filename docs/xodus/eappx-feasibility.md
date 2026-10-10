@@ -1073,3 +1073,63 @@ manifests have receipts, but separate registered package records, resource roles
 and enumeration-property metadata are not represented. This is the next
 bounded backend seam; reading unrelated directories or treating receipt files
 as additional user registrations would not supply the missing contract.
+
+### Verified prefix registration inventory and legacy staged path
+
+The first inventory slice now projects exactly the **one main registration**
+represented by the prefix's XPA1 catalog. It does not turn framework file
+receipts into registrations, infer resource packages, or scan neighboring
+directories. `wine-registered-family-query.patch` adds a read-only server request
+that reuses `load_catalog` and its ownership/bounds/original-file hash checks,
+matches the requested family case-insensitively, and returns the registered full
+name. Corrupt/unreadable catalog errors propagate. The kernelbase export
+implements the observed name-array/character-buffer contract and verifies that
+the returned full name derives the requested family. Dynamic and other
+unimplemented inventory modifiers fail explicitly; this is not a Windows-wide
+Store/service catalog implementation. The returned base package-property value
+is zero; Windows deployment-mode/static/resource registration metadata is not
+claimed. The actual language caller passed HEAD and no property output.
+
+The new protocol request is appended after existing requests. The new ntdll
+syscall is **x64 only**, pinned at the next available `0x0106`; x86 support is not
+claimed. An initial build missed syscall regeneration. A two-architecture spec
+attempt then collided because Wine's spec generator groups entries by name.
+Neither incomplete tuple was deployed. The corrected x64-only build preserves
+the original x86 table and the existing x64 syscall tail, including
+`NtXodusActivateRegisteredPackage`, `NtXodusQueryRegisteredPackage` and
+`__wine_rpc_NtReadFile`. Reproduction requires `perl tools/make_requests`,
+`perl tools/make_specfiles` and rebuilding server/Unix ntdll/PE ntdll/kernelbase
+as a coherent tuple; `version.o` must be refreshed after include changes.
+The pinned ID is specific to this already-extended matching source and must not
+be assumed free in another Wine build.
+
+Fifteen activated-fixture checks cover the exact registered full name, no
+invented resource/framework registrations, zero-capacity write suppression,
+short buffers, argument errors and explicit unsupported dynamic inventory.
+The 56 graph/21 globalization/four unpackaged checks and prior activation/token/
+sandbox/family/profapi/COM/generation controls also pass.
+
+With genuine private bcp47mrm, actual Cuphead now calls
+`FindPackagesByPackageFamily` for its original family with HEAD. It advances
+to missing `GetStagedPackagePathByFullName`. The legacy staged-path export was
+then implemented by delegating to the existing
+`GetStagedPackagePathByFullName2(PackagePathType_Install)`, with no new path or
+registry discovery mechanism. Six activated-fixture checks pass. Actual native
+language loading then advances to missing
+**`KERNELBASE.OpenGlobalizationUserSettingsKey`**.
+
+Both actual runs still report zero game windows at the first wait (about
+15 seconds elapsed) and timeout exit 92. Native bcp47mrm, genuine twinapi/mrt100,
+the failure-only SHCORE diagnostic and the original StateRepository provider
+remain private experimental components, not shipped dependencies. Seven shared
+vendor modules, bottle twinapi and genuine mrt100 were restored byte-for-byte;
+temporary language/StateRepository files were removed and deep/strict signature
+verification passed. The clean-room language handoff is not integrated: user
+fallback evidence is useful, but installed-package/PRI selection must not be
+described as unreachable for this genuine manifest/PRI/catalog-activated game.
+The collaborator owns the reached settings-key ABI/semantics.
+
+The required `python gates/gate_runner.py quality-gate` invocation returned
+exit 2 because that runner is absent from this worktree. The focused
+matching-source build/activated-fixture/actual-game receipts above are separate
+evidence, not a substitute quality-gate PASS or completion claim.

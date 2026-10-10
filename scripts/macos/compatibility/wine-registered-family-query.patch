@@ -1,0 +1,91 @@
+diff --git a/server/protocol.def b/server/protocol.def
+--- a/server/protocol.def
++++ b/server/protocol.def
+@@ -1,4 +1,12 @@
+ @REQ(set_token_integrity)
+     obj_handle_t handle;
+     unsigned int level;
+ @END
++
++/* Read-only inventory of the explicit prefix-local main registration. */
++@REQ(query_registered_family)
++    VARARG(family,unicode_str);
++@REPLY
++    data_size_t full_name_bytes;
++    VARARG(full_name,unicode_str);
++@END
++
+diff --git a/server/package_activation.c b/server/package_activation.c
+--- a/server/package_activation.c
++++ b/server/package_activation.c
+@@ -209,1 +209,30 @@
++DECL_HANDLER(query_registered_family)
++{
++    struct catalog catalog;
++    unsigned int status, i, bytes;
++    WCHAR *full;
++
++    if (!get_req_data_size() || (get_req_data_size() & 1) || get_req_data_size() > 2048)
++    {
++        set_error( STATUS_INVALID_PARAMETER );
++        return;
++    }
++    status = load_catalog( &catalog );
++    if (status) { set_error( status ); return; }
++    if (!string_matches( catalog.family, get_req_data(), get_req_data_size() ))
++    {
++        set_error( STATUS_NOT_FOUND );
++        goto done;
++    }
++    bytes = (strlen(catalog.full) + 1) * sizeof(WCHAR);
++    reply->full_name_bytes = bytes;
++    if (get_reply_max_size() < bytes) { set_error( STATUS_BUFFER_TOO_SMALL ); goto done; }
++    if (!(full = malloc( bytes ))) { set_error( STATUS_NO_MEMORY ); goto done; }
++    for (i = 0; i < bytes / sizeof(WCHAR); i++) full[i] = (unsigned char)catalog.full[i];
++    set_reply_data_ptr( full, bytes );
++done:
++    free_catalog( &catalog );
++}
++
+ DECL_HANDLER(query_registered_package)
+diff --git a/dlls/ntdll/unix/package_activation.c b/dlls/ntdll/unix/package_activation.c
+--- a/dlls/ntdll/unix/package_activation.c
++++ b/dlls/ntdll/unix/package_activation.c
+@@ -1,1 +1,23 @@
++NTSTATUS WINAPI NtXodusQueryRegisteredFamily( const UNICODE_STRING *family, void *full, ULONG *bytes )
++{
++    NTSTATUS status;
++    ULONG required;
++
++    if (!family || !family->Buffer || !family->Length || (family->Length & 1) ||
++        family->Length > 2048 || !bytes || (*bytes && !full))
++        return STATUS_INVALID_PARAMETER;
++    SERVER_START_REQ( query_registered_family )
++    {
++        wine_server_add_data( req, family->Buffer, family->Length );
++        if (*bytes) wine_server_set_reply( req, full, *bytes );
++        status = wine_server_call( req );
++        required = reply->full_name_bytes;
++    }
++    SERVER_END_REQ;
++    if (!status || status == STATUS_BUFFER_TOO_SMALL) *bytes = required;
++    return status;
++}
++
+ NTSTATUS WINAPI NtXodusQueryRegisteredPackage( const UNICODE_STRING *package,
+diff --git a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -1,0 +1 @@
++@ stdcall -arch=win64 -syscall=0x0106 NtXodusQueryRegisteredFamily(ptr ptr ptr)
+diff --git a/include/winternl.h b/include/winternl.h
+--- a/include/winternl.h
++++ b/include/winternl.h
+@@ -1,1 +1,2 @@
+ NTSYSAPI NTSTATUS  WINAPI NtXodusQueryRegisteredPackage(const UNICODE_STRING *,const UNICODE_STRING *,void *,PULONG);
++NTSYSAPI NTSTATUS  WINAPI NtXodusQueryRegisteredFamily(const UNICODE_STRING *,void *,PULONG);
+diff --git a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
+--- a/dlls/kernelbase/kernelbase.spec
++++ b/dlls/kernelbase/kernelbase.spec
+@@ -1,0 +1 @@
++@ stdcall FindPackagesByPackageFamily(wstr long ptr ptr ptr ptr ptr)

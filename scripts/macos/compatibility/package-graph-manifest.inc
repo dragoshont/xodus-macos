@@ -1006,6 +1006,11 @@ LONG WINAPI GetStagedPackagePathByFullName2( const WCHAR *full_name, PackagePath
     return ERROR_SUCCESS;
 }
 
+LONG WINAPI GetStagedPackagePathByFullName( const WCHAR *full_name, UINT32 *length, WCHAR *path )
+{
+    return GetStagedPackagePathByFullName2( full_name, PackagePathType_Install, length, path );
+}
+
 /* Default contexts in the native packaged oracle had both property bits clear.
  * The source of non-default bits is not established; this is the default subset,
  * not an implementation of manifest-specific globalization overrides. */
@@ -1052,5 +1057,77 @@ LONG WINAPI GetPackageGlobalizationProperty( void *context, UINT32 property, UIN
     memset( buffer, 0, *size );
     memcpy( buffer, &value, sizeof(value) );
     *size = sizeof(value);
+    return ERROR_SUCCESS;
+}
+
+/* XPA1 inventories one explicitly registered main package. File receipts for
+ * frameworks are not registrations, and unregistered resource files are not
+ * returned as packages. Catalog integrity errors propagate from the server. */
+LONG WINAPI FindPackagesByPackageFamily( const WCHAR *family, UINT32 filters, UINT32 *count,
+                                        WCHAR **names, UINT32 *length, WCHAR *buffer, UINT32 *properties )
+{
+    typedef NTSTATUS (WINAPI *query_family)(const UNICODE_STRING *, void *, ULONG *);
+    WCHAR full[PACKAGE_FULL_NAME_MAX_LENGTH + 1], actual_family[PACKAGE_FAMILY_NAME_MAX_LENGTH + 1];
+    UNICODE_STRING value;
+    query_family query;
+    UINT32 required, family_size = ARRAY_SIZE(actual_family), capacity;
+    ULONG bytes = sizeof(full);
+    NTSTATUS status;
+    LONG error;
+
+    TRACE( "(%s %#x %p %p %p %p %p)\n", debugstr_w(family), filters, count, names, length, buffer, properties );
+    if (!family || !count || !length || (*count && !names) || (*length && !buffer) ||
+        !(filters & 0xf0)) return ERROR_INVALID_PARAMETER;
+    if (!family[0]) return ERROR_MORE_DATA;
+    if (wcslen(family) > PACKAGE_FAMILY_NAME_MAX_LENGTH || !wcschr(family, '_'))
+        return ERROR_INVALID_PARAMETER;
+    if (filters & ~(0xf0 | PACKAGE_FILTER_STATIC))
+    {
+        WARN( "Unsupported registration inventory filters %#x\n", filters );
+        return ERROR_NOT_SUPPORTED;
+    }
+    query = (query_family)GetProcAddress( GetModuleHandleW(L"ntdll.dll"), "NtXodusQueryRegisteredFamily" );
+    if (!query)
+    {
+        WARN( "Verified registration inventory transport unavailable\n" );
+        return ERROR_NOT_SUPPORTED;
+    }
+    RtlInitUnicodeString( &value, family );
+    status = query( &value, full, &bytes );
+    if (status == STATUS_NOT_FOUND || !(filters & PACKAGE_FILTER_HEAD))
+    {
+        if (status && status != STATUS_NOT_FOUND) return RtlNtStatusToDosError(status);
+        *count = *length = 0;
+        return ERROR_SUCCESS;
+    }
+    if (status)
+    {
+        WARN( "Registration inventory query failed, status %#lx\n", status );
+        return RtlNtStatusToDosError(status);
+    }
+    if (!bytes || bytes > sizeof(full) || (bytes & 1) || full[bytes / sizeof(WCHAR) - 1])
+        return ERROR_INVALID_DATA;
+    if ((error = PackageFamilyNameFromFullName( full, &family_size, actual_family )) ||
+        wcsicmp(actual_family, family))
+    {
+        WARN( "Registered full name does not match requested family\n" );
+        return error ? error : ERROR_INVALID_DATA;
+    }
+    required = wcslen(full) + 1;
+    capacity = *count;
+    if (*length < required)
+    {
+        *count = 1;
+        *length = required;
+        return ERROR_INSUFFICIENT_BUFFER;
+    }
+    if (capacity)
+    {
+        memcpy( buffer, full, required * sizeof(WCHAR) );
+        names[0] = buffer;
+        if (properties) properties[0] = 0;
+    }
+    *count = 1;
+    *length = required;
     return ERROR_SUCCESS;
 }

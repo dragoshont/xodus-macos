@@ -29,6 +29,8 @@ typedef HRESULT (WINAPI *QUERY_MAX_VERSION)(const WCHAR *, UINT64 *);
 typedef LONG (WINAPI *QUERY_STAGED)(const WCHAR *, UINT32, UINT32 *, WCHAR *);
 typedef LONG (WINAPI *QUERY_GLOBALIZATION)(UINT32, void *, void **);
 typedef LONG (WINAPI *QUERY_GLOBALIZATION_PROPERTY)(void *, UINT32, UINT32 *, void *);
+typedef LONG (WINAPI *QUERY_FAMILY)(const WCHAR *, UINT32, UINT32 *, WCHAR **, UINT32 *, WCHAR *, UINT32 *);
+typedef LONG (WINAPI *QUERY_STAGED_LEGACY)(const WCHAR *, UINT32 *, WCHAR *);
 struct globalization_context_view
 {
     UINT32 tag, size, flags, app_id_bytes, reserved;
@@ -105,6 +107,85 @@ static void test_globalization(HMODULE module)
           "foreign context rejected without dereference");
 done:
     printf("RESULT package_globalization_checks=%u failures=%u\n", checks - before, failures - failed_before);
+}
+
+static void test_family_inventory(HMODULE module)
+{
+    QUERY_FAMILY find = (QUERY_FAMILY)(ULONG_PTR)GetProcAddress(module, "FindPackagesByPackageFamily");
+    const WCHAR *family = L"Xodus.PackageGraphTest_rjy19t36rmgqt";
+    WCHAR buffer[256], *names[2];
+    UINT32 count, length, needed, properties[2];
+    unsigned before = checks, failed_before = failures;
+
+    check(find != NULL, "registered family inventory export present");
+    if (!find) goto done;
+    count = length = 0;
+    check(find(NULL, 0x10, &count, NULL, &length, NULL, NULL) == ERROR_INVALID_PARAMETER,
+          "null inventory family");
+    check(find(L"", 0x10, &count, NULL, &length, NULL, NULL) == ERROR_MORE_DATA,
+          "empty inventory family native error");
+    check(find(L"invalid", 0x10, &count, NULL, &length, NULL, NULL) == ERROR_INVALID_PARAMETER,
+          "malformed inventory family");
+    check(find(family, 0, &count, NULL, &length, NULL, NULL) == ERROR_INVALID_PARAMETER,
+          "inventory requires selection filter");
+    check(!find(L"Xodus.Unknown_rjy19t36rmgqt", 0x10, &count, NULL, &length, NULL, NULL) &&
+          !count && !length, "unknown catalog family is empty");
+    count = length = 0;
+    check(find(family, 0x50, &count, NULL, &length, NULL, NULL) == ERROR_INSUFFICIENT_BUFFER &&
+          count == 1 && length > 0, "verified main registration sizing");
+    needed = length;
+    count = 2; length = 256; properties[0] = 0xcccccccc;
+    check(!find(family, 0x50, &count, names, &length, buffer, properties) &&
+          count == 1 && length == needed && names[0] == buffer && !properties[0] &&
+          !wcscmp(buffer, L"Xodus.PackageGraphTest_1.0.0.0_x64__rjy19t36rmgqt"),
+          "inventory returns actual registered full name without invented resource records");
+    count = 0; length = 256; buffer[0] = 0xcccc; names[0] = (WCHAR *)0x1234;
+    properties[0] = 0xcccccccc;
+    check(!find(family, 0x10, &count, names, &length, buffer, properties) &&
+          count == 1 && length == needed && buffer[0] == 0xcccc &&
+          names[0] == (WCHAR *)0x1234 && properties[0] == 0xcccccccc,
+          "zero name capacity suppresses writes with native sizing outputs");
+    count = 1; length = needed - 1; buffer[0] = 0xcccc;
+    check(find(family, 0x10, &count, names, &length, buffer, NULL) == ERROR_INSUFFICIENT_BUFFER &&
+          count == 1 && length == needed && buffer[0] == 0xcccc, "short inventory buffer preserves storage");
+    count = 1; length = 256;
+    check(find(family, 0x10, &count, NULL, &length, buffer, NULL) == ERROR_INVALID_PARAMETER &&
+          count == 1 && length == 256, "null names with capacity rejected");
+    check(find(family, 0x10, &count, names, &length, NULL, NULL) == ERROR_INVALID_PARAMETER &&
+          count == 1 && length == 256, "null inventory buffer with capacity rejected");
+    count = length = 0;
+    check(!find(family, 0x40, &count, NULL, &length, NULL, NULL) && !count && !length,
+          "catalog does not invent resource package registrations");
+    check(!find(family, 0x20, &count, NULL, &length, NULL, NULL) && !count && !length,
+          "framework receipts are not main-family registrations");
+    check(find(family, 0x100010, &count, NULL, &length, NULL, NULL) == ERROR_NOT_SUPPORTED,
+          "dynamic inventory explicitly unsupported");
+done:
+    printf("RESULT registered_family_checks=%u failures=%u\n", checks - before, failures - failed_before);
+}
+
+static void test_staged_legacy(HMODULE module, const WCHAR *full_name)
+{
+    QUERY_STAGED_LEGACY query = (QUERY_STAGED_LEGACY)(ULONG_PTR)GetProcAddress(module, "GetStagedPackagePathByFullName");
+    UINT32 length = 0, needed;
+    WCHAR buffer[260];
+    unsigned before = checks, failed_before = failures;
+
+    check(query != NULL, "legacy staged path export");
+    if (!query) goto done;
+    check(query(full_name, &length, NULL) == ERROR_INSUFFICIENT_BUFFER && length > 0,
+          "legacy staged path sizing");
+    needed = length;
+    length = 260;
+    check(!query(full_name, &length, buffer) && length == needed &&
+          wcsstr(buffer, L"\\graph-fixture") != NULL, "legacy staged path returns verified manifest root");
+    length = 0;
+    check(query(L"Unknown_1.0.0.0_x64__8wekyb3d8bbwe", &length, NULL) == ERROR_NOT_FOUND,
+          "legacy staged path does not invent unregistered package");
+    check(query(NULL, &length, NULL) == ERROR_INVALID_PARAMETER, "legacy staged null name");
+    check(query(L"", &length, NULL) == ERROR_MORE_DATA, "legacy staged empty name");
+done:
+    printf("RESULT staged_legacy_checks=%u failures=%u\n", checks - before, failures - failed_before);
 }
 
 int main(void)
@@ -231,5 +312,7 @@ int main(void)
     check(staged(L"", 0, &length, NULL) == ERROR_MORE_DATA, "empty staged name reports native error");
     printf("RESULT package_graph_checks=%u failures=%u\n", checks, failures);
     test_globalization(kernelbase);
+    test_family_inventory(kernelbase);
+    test_staged_legacy(kernelbase, full_name);
     return failures ? 1 : 0;
 }

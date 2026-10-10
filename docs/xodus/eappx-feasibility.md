@@ -859,3 +859,56 @@ establish that no window was rendered. The private activation harness now
 records top-level window count, visibility and dimensions for the actual game
 PID only; these observations will supplement, not replace, frame/input/gameplay
 verification. No capture permission bypass was attempted.
+
+### CrossOver wrapper selection and COM policy
+
+A direct CoreApplication control established a launcher-level error:
+CrossOver's official `bin/wine` wrapper deletes `WINEDLLOVERRIDES` from the
+environment unless overrides are supplied with its supported `--dll` option.
+`--dlloverrides` is not that option. Previous env-only settings therefore did
+not establish provider selection. The copied twinapi file is authentic
+Microsoft `twinapi.appcore.dll` 10.0.26100.1, 2,443,552 bytes, SHA-256
+`0d3e56c5068633f975bcab528267789f520f82a6d6a50f1330104e7597289b43`.
+Without `--dll`, the load trace nevertheless identified the provider as Wine
+builtin, with CoreApplication class-not-available and the reached ApplicationView
+interface unsupported. With `--dll=twinapi.appcore=n`, the identical direct
+factory probe loaded the native module and both actual reached interface IDs
+returned S_OK, matching native Windows outside any package.
+
+The private launch harness now passes overrides through `--dll`; previous
+native-provider conclusions must be interpreted using observed load traces,
+not the environment alone. With correct selection, the actual original Cuphead
+image additionally reached missing `combase.CoGetSystemSecurityPermissions`.
+The resource path still reached missing `GetCurrentPackageGlobalizationContext`.
+The game PID had zero top-level windows and zero visible windows at 11 seconds,
+and the 60-second run timed out with exit 92. All five shared vendor modules
+and genuine mrt100 were again restored exactly and signature-verified.
+
+`com-policy.c` and `wine-com-policy.patch` implement only configured COM policy
+retrieval. They read the actual binary OLE permission/restriction registry values,
+validate bounded self-relative descriptors and return a LocalFree-compatible
+copy. No registry state or allow-all ACL is invented. Missing/malformed policy
+returns a logged E_FAIL; invalid selector/output returns E_INVALIDARG.
+Wine's resolver-backed default policy remains **unimplemented**, unlike the
+four valid descriptors returned on the native Windows oracle. This is partial
+capability, not full COM security parity or proof of authorization enforcement.
+Vendor `CoInitializeSecurity` also remains a success-returning stub; this work
+does not claim that COM transport authorization is enforced.
+
+An isolated probe-bottle fixture tested actual configured descriptor bytes,
+rejection of an out-of-bounds owner SID, and deletion of its temporary policy.
+Five fixture checks and six error/output contract checks passed. No synthetic
+policy was installed into the game bottle. An initial attempt using vendor
+`RtlValidRelativeSecurityDescriptor` incorrectly rejected valid descriptors:
+its implementation compares the BOOLEAN `RtlValidSecurityDescriptor` result
+with STATUS_SUCCESS. This candidate avoids that defective helper and performs
+bounded offset/SID/ACL validation locally; the global ntdll validator was not
+changed. Vendor combase was restored byte-for-byte and the deep/strict signature
+check passed after each isolated test.
+
+The collaborator's first globalization handoff matched only an unpackaged
+Windows process and unconditionally returned APPMODEL_ERROR_NO_PACKAGE.
+That does not describe this explicitly catalog-activated Cuphead token and
+manifest graph. It was not integrated. Real packaged context/property semantics
+remain required; export binding alone or a contradictory no-package result is
+not a support repair.

@@ -1,0 +1,13 @@
+diff --git a/dlls/combase/combase.spec b/dlls/combase/combase.spec
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -122 +122 @@
+-@ stub CoGetSystemSecurityPermissions
++@ stdcall CoGetSystemSecurityPermissions(long ptr)
+diff --git a/dlls/combase/Makefile.in b/dlls/combase/Makefile.in
+--- a/dlls/combase/Makefile.in
++++ b/dlls/combase/Makefile.in
+@@ -9,2 +9,3 @@
+ 	apartment.c \
+ 	combase.c \
++	com-policy.c \

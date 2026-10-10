@@ -124,6 +124,14 @@ initialize stored credentials, provision a device, or contact the Store.
 It is not integrated with Store installation or the MSIXVC launch path, and
 extraction alone does not establish that a game can run.
 
+Inspect public PC package metadata without login or downloading with
+`xodus-cli inspect-product BWMQL2RPWBHB --market US` (Celeste).
+The JSON output contains distinct Windows.Desktop packages, format, identity,
+architectures, framework requirements and application IDs; it excludes download
+locations and key fields. This is metadata discovery, not a compatibility verdict
+or an entitlement check. See [the EAppx feasibility plan](docs/xodus/eappx-feasibility.md)
+for the remaining extraction, installation and runtime work.
+
 ## Special Thanks
 
 - [XvdTool.Streaming](https://github.com/LukeFZ/XvdTool.Streaming) and [CikExtractor](https://github.com/LukeFZ/CikExtractor) by LukeFZ

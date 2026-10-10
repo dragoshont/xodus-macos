@@ -2,6 +2,7 @@ pub mod clep;
 pub mod download;
 pub mod extract;
 pub mod extract_eappx;
+pub mod inspect_product;
 pub mod license;
 pub mod login;
 pub mod logout;

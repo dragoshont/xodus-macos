@@ -13,6 +13,12 @@ mod webview;
 
 #[derive(Subcommand)]
 enum SubCommand {
+    #[command(about = "Inspect public PC package metadata without login or downloading")]
+    InspectProduct {
+        product: String,
+        #[arg(short, long)]
+        market: Option<String>,
+    },
     #[command(about = "Download msixvc or xsp files fo given game")]
     Download {
         product: String,
@@ -158,6 +164,10 @@ async fn main() -> ExitCode {
         .connection_verbose(true)
         .build()
         .unwrap();
+    if let SubCommand::InspectProduct { product, market } = args.command {
+        return commands::inspect_product::run(&client, product, market).await;
+    }
+
     xodus::secrets::init_secrets().expect("Unable to initialize credentials");
     let tokens = TokenManager::with_keychain_and_memory();
 
@@ -176,6 +186,9 @@ async fn main() -> ExitCode {
     }
 
     let code = match args.command {
+        SubCommand::InspectProduct { .. } => {
+            unreachable!("Public product inspection is handled before credential initialization")
+        }
         SubCommand::Download {
             product,
             market,

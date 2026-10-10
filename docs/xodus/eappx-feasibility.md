@@ -1129,6 +1129,40 @@ fallback evidence is useful, but installed-package/PRI selection must not be
 described as unreachable for this genuine manifest/PRI/catalog-activated game.
 The collaborator owns the reached settings-key ABI/semantics.
 
+### Unredirected globalization user key and runtime ownership handoff
+
+The collaborator's clean-room contract at `xodus-winrt-shims` commit `e1585e3`
+establishes the three-argument NTSTATUS ABI for
+`OpenGlobalizationUserSettingsKey(ACCESS_MASK, void *, HANDLE *)`. Its native
+oracle compared opened registry-key names, not just successful status. The
+unredirected desktop subset opens the real current-user hive root with the
+requested access; the ordinary handle is closed with RegCloseKey/NtClose.
+The matching-source implementation checks the machine
+`CommonGlobUserSettings\RedirectedKey` first and explicitly refuses present
+redirection rather than inventing its semantics. Other policy-open/query errors
+propagate; no registry key or language setting is created. The current bottle's
+persisted machine/user registry contained no CommonGlobUserSettings entry.
+Multi-user/server token semantics are not claimed.
+
+The new export passes 16 focused checks: export/provider presence, NULL-output
+NTSTATUS, four access masks, exact opened-key-name equality with
+RtlOpenCurrentUser and ordinary handle closure. The existing integrated controls
+also pass. Actual Cuphead calls it repeatedly with access `0x20019` and a NULL
+second argument; each observed call returns status zero. Native bcp47mrm then
+reaches missing **`ntdll.NtQueryWnfStateData`** on a worker. No selected-language
+output has been observed. Game exit is `0x80000100`, with zero windows at the
+first wait (~16 seconds), not playability. The unobserved
+`QueryGlobalizationUserSettingsStatus` success/default candidate is deliberately
+not integrated.
+
+Receipt prefix: `registered-cuphead-globalization-userkey`. All seven shared
+vendor modules, bottle twinapi and original mrt100 were restored; temporary
+native providers were removed and deep/strict signature verification passed.
+The coordinator subsequently took exclusive Cuphead runtime ownership and
+directed this lane back to Celeste. Concurrent bottles do not permit concurrent
+shared CrossOver module replacement; future shared-tuple experiments require
+explicit ownership coordination.
+
 The required `python gates/gate_runner.py quality-gate` invocation returned
 exit 2 because that runner is absent from this worktree. The focused
 matching-source build/activated-fixture/actual-game receipts above are separate

@@ -1060,6 +1060,44 @@ LONG WINAPI GetPackageGlobalizationProperty( void *context, UINT32 property, UIN
     return ERROR_SUCCESS;
 }
 
+/* Native e1585e3 oracle: the unredirected desktop path opens the current user's
+ * hive. Do not silently apply that subset when machine redirection is present. */
+NTSTATUS WINAPI OpenGlobalizationUserSettingsKey( ACCESS_MASK access, void *reserved, HANDLE *key )
+{
+    static const WCHAR policy[] = L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\CommonGlobUserSettings";
+    UNICODE_STRING name;
+    OBJECT_ATTRIBUTES attr;
+    HANDLE policy_key;
+    ULONG size;
+    NTSTATUS status;
+
+    TRACE( "(%#lx reserved_present=%u %p)\n", access, !!reserved, key );
+    if (!key) return STATUS_INVALID_PARAMETER;
+    RtlInitUnicodeString( &name, policy );
+    InitializeObjectAttributes( &attr, &name, OBJ_CASE_INSENSITIVE, NULL, NULL );
+    status = NtOpenKey( &policy_key, KEY_QUERY_VALUE, &attr );
+    if (!status)
+    {
+        RtlInitUnicodeString( &name, L"RedirectedKey" );
+        status = NtQueryValueKey( policy_key, &name, KeyValuePartialInformation, NULL, 0, &size );
+        NtClose( policy_key );
+        if (status != STATUS_OBJECT_NAME_NOT_FOUND)
+        {
+            WARN( "Globalization redirection unsupported, query status %#lx\n", status );
+            return status == STATUS_BUFFER_TOO_SMALL || status == STATUS_BUFFER_OVERFLOW || !status
+                   ? STATUS_NOT_SUPPORTED : status;
+        }
+    }
+    else if (status != STATUS_OBJECT_NAME_NOT_FOUND && status != STATUS_OBJECT_PATH_NOT_FOUND)
+    {
+        WARN( "Globalization redirection policy open failed, status %#lx\n", status );
+        return status;
+    }
+    status = RtlOpenCurrentUser( access, key );
+    TRACE( "Unredirected current-user globalization key status %#lx\n", status );
+    return status;
+}
+
 /* XPA1 inventories one explicitly registered main package. File receipts for
  * frameworks are not registrations, and unregistered resource files are not
  * returned as packages. Catalog integrity errors propagate from the server. */

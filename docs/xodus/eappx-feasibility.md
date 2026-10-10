@@ -99,6 +99,39 @@ Its next runtime path has not been observed past those failures; Cuphead's
 exact downstream gaps must not be asserted for Celeste without a trace.
 Neither game is currently playable.
 
+### Narrow token-component evaluation
+
+`scripts/macos/compatibility/cuphead-token-component.c` evaluates the token
+membership seam using actual token queries and the runtime's existing
+`CheckTokenMembership`. It does not invent group membership or package identity.
+It rejects the unsupported AppContainer/LPAC combination rather than returning
+a success-shaped result. It is an experimental standalone DLL, not a replacement
+kernelbase, installed API-set forwarder or production installer component.
+
+The accompanying `token-membership-test.c` probes the native kernelbase export
+by default, or a supplied candidate DLL. Twelve cases cover null effective
+token, primary token rejection, impersonation token, flags 0/1/2, invalid flags,
+membership and last-error behavior. Those cases passed against native Windows
+and against the standalone component on both Windows and official CrossOver
+26.3.0.39832. The CrossOver run used only the owned Cuphead bottle and vendor
+wrapper; no shared runtime file or signature was changed.
+
+Build the candidate and probe with the existing mingw toolchain:
+
+```text
+x86_64-w64-mingw32-gcc -Wall -Wextra -Werror -shared -o cuphead-token-component.dll cuphead-token-component.c -ladvapi32
+x86_64-w64-mingw32-gcc -Wall -Wextra -Werror -o token-membership-test.exe token-membership-test.c -ladvapi32
+token-membership-test.exe cuphead-token-component.dll
+```
+
+These controls do not cover restricted groups, actual AppContainer/LPAC tokens,
+thread impersonation transitions or arbitrary invalid pointers. They establish
+a narrow reusable API candidate, not full API conformance or Cuphead advancement.
+The genuine resource DLL still binds its import to kernelbase; no import
+rewriting, core-DLL override or shared-bundle deployment was performed.
+Faithful WNF event/state behavior and package activation remain separate
+unresolved prerequisites; the game was not relaunched against unchanged gaps.
+
 ## Decision
 
 **BOUNDED_GO for discovery and the package pipeline; DEFER a playable-Celeste

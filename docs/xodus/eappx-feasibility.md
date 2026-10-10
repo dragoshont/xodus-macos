@@ -1,8 +1,10 @@
 # Celeste EAppx feasibility and implementation plan
 
 Evidence checked on 2026-10-10. This plan concerns the Microsoft Store PC edition,
-not the Steam, Epic or console edition. No game download, license retrieval,
-runtime launch, deployment or account change was performed.
+not the Steam, Epic or console edition. The initial discovery slices below did
+not download or launch a game. Subsequently authorized Mac experiments obtained
+and legitimately decrypted the actual package, then reproduced a native loader
+failure. Celeste is **not playable**; see the final runtime evidence section.
 
 ## Decision
 
@@ -179,9 +181,111 @@ tokens, CDN query strings or payload bytes were exported. This ingestion URI is
 not established as a working distribution URL. Do not retry unchanged or treat
 it as a download implementation.
 
-The next gate remains an entitled installed manifest or a working authorized
-distribution path. The new authorization permits experiments, but unavailable
-entitled data/tooling still blocks real Celeste extraction and launch proof.
+At that checkpoint the next gate remained an entitled installed manifest or a
+working authorized distribution path. The subsequent experiment below
+supersedes that payload-availability blocker, not the runtime requirement.
 The Architrave deterministic gate also remains unconfigured in this repository;
 invocation of the installed gate reported `architrave.config.json not found`
 with exit 2. Linux/macOS CI is observed; an Architrave PASS is not.
+
+## Authorized Mac experiment: actual package and runtime
+
+The owner explicitly authorized downloading and running Celeste on the Mac in
+an isolated prefix. All package data and experiment artifacts remain on that
+host under `~/xodus-app-tooling/celeste/`; they are not repository fixtures.
+Neither the signed Xodus CLI nor the frozen CredentialBroker was replaced.
+
+The broker-authenticated `packagespc` GetBasePackage operation returned no
+package files for this product. This is a distribution-seam limitation, not
+proof of absent entitlement. The actual working distribution path was the
+catalog's fulfillment update category and Microsoft's FE3 service:
+
+1. Obtain an anonymous service cookie and synchronize the product category.
+2. Advance the returned category dependencies until synchronization stops
+   yielding new update identities, even when `Truncated` is false.
+3. Join core and extended fragments by update ID, not response-array position.
+4. Select the exact catalog package identity and resolve its file locations.
+5. Bind the selected location's file digest to authenticated FE3 file metadata;
+   verify the complete download's declared length and digest.
+
+No third-party embedded authentication token was used. Locations stayed in
+memory and were not printed. FE3's TLS chain required Microsoft's Update root,
+which was obtained from Microsoft's HTTPS certificate distribution and matched
+against the existing Windows trusted root. Trust was scoped to the experimental
+client; TLS verification was not disabled and no system trust store was changed.
+
+Observed package facts:
+
+| Payload property | Observed value |
+|---|---|
+| Downloaded bundle size | 1,264,963,872 bytes |
+| Bundle SHA-256 | `18f395b052b40695240db396f4849c68ce754a073392c89c6a0eb288dc9bea10` |
+| Bundle header | EXBH, XTS-AES, one key entry, 32-byte key |
+| Application child | `Celeste.UWP_20.9.11.2_x64.appx` |
+| Child header | Single encrypted package, XTS-AES, one key entry |
+| Application executable | `Celeste.exe` |
+| Actual activation entry point | `Celeste.UWP.App` |
+| Actual target family | Windows.Desktop >= 10.0.16299.0 |
+| Actual runtime | .NET Native; native `Celeste.dll` and Microsoft framework DLLs |
+
+The existing broker supplied an entitled content key for the catalog content
+ID. Its protocol does not preserve the license key identifier. Consequently,
+the experiment did not infer a general GUID-pair mapping: it required an
+authenticated plaintext SHA-256 for the encrypted executable to prove the
+candidate binding before extracting the rest. Decryption produced a valid PE
+executable with that exact digest; extraction then completed with upstream
+checksum checking enabled for the application files. Key material was not
+exported to files or logs. This observed single-package binding does not replace
+an identity-preserving production key-adapter contract.
+
+The declared x64 frameworks were also obtained directly from FE3 and verified
+against its file metadata and their manifests:
+
+- Microsoft.NET.Native.Framework.2.2, version 2.2.29512.0.
+- Microsoft.NET.Native.Runtime.2.2, version 2.2.28604.0.
+- Microsoft.VCLibs.140.00, version 14.0.33519.0.
+
+### Reproduced native loader failure
+
+The installed CrossOver initially failed before reaching the game with
+`could not exec the wine loader`, and its original application bundle failed
+resource-signature verification. An isolated loader-alias experiment was
+abandoned. Under the owner's reinstall authorization, CrossOver 26.3.0 was
+restored at `/Applications/CrossOver.app` from the matching official CodeWeavers
+installer. Its Developer ID signature, team `9C6B7X7Z8E`, and notarization passed
+verification. The original bundle and all existing bottles were preserved.
+No loader alias or game-binary modification was installed into that bundle.
+
+Using CrossOver's supported wrapper, both a template-derived Celeste bottle
+and a pristine Windows 10 x64 bottle reproduced the same startup failure:
+
+| Failure evidence | Observed value |
+|---|---|
+| Native executable loaded | `Celeste.exe` |
+| Process exit | 5 |
+| Exception | `0xc0000005`, write access violation |
+| Faulting module/instruction | Vendor `ntdll.dll` RVA `0x45216`, `mov [r15], rax` |
+| Write destination | `Celeste.dll` security cookie, RVA `0x2b9718` |
+| Cookie section | `.rdata`, not writable |
+| Initial cookie value | Standard MSVC default `0x2b992ddfa232` |
+| Microsoft SharedLibrary cookie | Also in a non-writable `.rdata` section |
+| Usable Celeste window | Not observed |
+
+The target address in the exception matches the DLL's load-configuration
+security-cookie pointer after relocation. Upstream Wine's
+[`update_load_config`](https://github.com/wine-mirror/wine/blob/master/dlls/ntdll/loader.c)
+initializes that cookie directly. This identifies a concrete loader memory-
+protection compatibility gap before application activation; it does not yet
+establish which later WinRT, input, graphics or Xbox-service APIs will work.
+
+The next useful runtime slice is a faithful source-level loader compatibility
+fix with a synthetic read-only-cookie regression, followed by the actual
+Celeste launch. Changing the game's PE permissions, suppressing integrity or
+license checks, or advertising extraction as a playable installation are not
+accepted substitutes. The user ruled out loader/deployment workarounds;
+deployment of a changed Wine runtime needs its own clarified scope.
+
+These experimental FE3, extraction and launch operations are not integrated
+Store-install commands in the current PR. Product installation receipts,
+framework/package registration, activation and playable-game evidence remain
+required before claiming EAppx Store support.

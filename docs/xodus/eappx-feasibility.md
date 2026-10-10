@@ -1302,6 +1302,26 @@ catalog-bearing tree under exclusive source ownership, preserving existing
 IDs/protocol and rebuilding/regression-checking the coherent tuple. Both owners
 were notified before any mixed deployment.
 
+The fresh quiescent GUI trace establishes a concrete **ABI defect in this
+branch's configured-policy candidate**, rather than a guessed missing policy.
+The original native caller reaches `CoGetSystemSecurityPermissions` with
+`rcx=0x10fd10` (output pointer) and `rdx=2` (kind). The candidate currently
+declares `(int kind, PSECURITY_DESCRIPTOR *output)` and logs
+`(1113360 0000000000000002)`, then returns E_INVALIDARG. That is immediately
+followed by the observed `RoOriginateErrorW(0x80070057)` chain. Its own six
+synthetic controls use the same wrong argument order, so their success is
+**not native ABI validation**. Do not integrate the current COM candidate as a
+faithful binding; the output-first signature needs independent genuine
+System32 verification and correction across implementation/spec/tests before
+the next actual run. Configured-policy-only semantics remain separate from
+unimplemented resolver defaults.
+
+Receipt prefix: `celeste-registered-core-policy-trace-quiescent`. Actual Celeste
+still exits 4103 with zero windows (~722 ms). All five shared modules and bottle
+twinapi were restored, temporary registration/private runtime removed and
+vendor signature verified; the lease was released. The coordinator and native
+contract researcher were sent the exact call and invalidated ABI evidence.
+
 The required `python gates/gate_runner.py quality-gate` invocation returned
 exit 2 because that runner is absent from this worktree. The focused
 matching-source build/activated-fixture/actual-game receipts above are separate

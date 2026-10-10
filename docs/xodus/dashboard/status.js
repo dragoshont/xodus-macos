@@ -2,7 +2,7 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-10T23:34:00+03:00",
+  updatedAt: "2026-10-11T00:40:00+03:00",
   phase: "Streamlined launcher signed — safe installation blocked",
   paused: false,
   pauseReason: "Owner says game works great and directs launcher UI/UX continuation. Preserve running game; no app replacement during active play. Other backend/composition work remains paused. Actual uninstall/reinstall is still unqualified.",
@@ -18,14 +18,14 @@ window.XODUS_STATUS = {
     { m: "M0", issue: 1, title: "Native launcher UI (MVP shell)", state: "done", mvp: true, pct: 85, note: "SwiftUI app: Library, Discover, hero carousel, install/play/stop, Account. Final clean-Mac walkthrough pending." },
     { m: "M2", issue: 3, title: "CrossOver integration", state: "done", mvp: true, pct: 95, note: "Signed-bundle detection, version check, CodeWeavers trial/redirect, re-check on return." },
     { m: "M6", issue: 7, title: "MSIXVC support", state: "done", mvp: true, pct: 90, note: "NMS, Hogwarts, Lara, Fortnite, Gears 5 install and play. The proven core." },
-    { m: "M7", issue: 8, title: "Install / remove / update games", state: "now", pct: 55, note: "Install/check/Play/Stop/repair/remove for MSIXVC. Missing pause/resume, queue, updates, move, crash recovery." },
+    { m: "M7", issue: 8, title: "Install / remove / update games", state: "now", pct: 55, note: "Install/check/Play/Stop/repair/remove for MSIXVC. Missing pause/resume, queue, updates, move, crash recovery. In active development — autopilot child session building the lifecycle state machine + update detection (Oct 11)." },
     { m: "M8", issue: 9, title: "Socials", state: "now", pct: 50, note: "Friends/following/presence/profile reads shipped. No writes (party, invites, LFG)." },
     { m: "M9", issue: 10, title: "Portability & onboarding", state: "now", pct: 40, note: "Device-code login works on dev Mac. Fresh-Mac install, notarization, onboarding deferred." },
-    { m: "M1", issue: 2, title: "Multiple package-type support", state: "now", pct: 35, note: "MSIXVC/EAppx/Appx labels shown from catalog, but only MSIXVC installs. Label is a fact, not a capability." },
+    { m: "M1", issue: 2, title: "Multiple package-type support", state: "now", pct: 35, note: "MSIXVC/EAppx/Appx labels shown from catalog, but only MSIXVC installs. Label is a fact, not a capability. In active development — autopilot child session adding real manifest-based PackageType detection (Oct 11)." },
     { m: "M4", issue: 5, title: "UWP support", state: "blocked", pct: 30, note: "Cuphead/Celeste fail under stock CrossOver. Clean-room mrt100 .NET-Native shim rebuilt and contract-verified; XAML composition wall remains. No frame yet." },
     { m: "M5", issue: 6, title: "EAppx support", state: "blocked", pct: 25, note: "EAppxBundle titles not installable/playable. Package identity/activation seams progressing in the side session." },
-    { m: "M3", issue: 4, title: "Engine detect / switch / default / per-game", state: "blocked", pct: 20, note: "Engines hub describes providers but nothing routes a game to a chosen runner at launch. Highest trust risk." },
-    { m: "M10", issue: 11, title: "Account tiers (free / subscription)", state: "blocked", pct: 10, note: "Only an Active boolean; no paid/free/trial/subscription semantics." }
+    { m: "M3", issue: 4, title: "Engine detect / switch / default / per-game", state: "now", pct: 25, note: "Engines hub describes providers but nothing routes a game to a chosen runner at launch. Highest trust risk. In active development — autopilot child session adding a pure routing decision (type x override x default x availability) that the launch path consumes (Oct 11)." },
+    { m: "M10", issue: 11, title: "Account tiers (free / subscription)", state: "now", pct: 15, note: "Only an Active boolean; no paid/free/trial/subscription semantics. In active development — autopilot child session modeling free/Game Pass/owned tiers and eligibility from entitlement + Game Pass access, not local install (Oct 11)." }
   ],
 
   shipped: [
@@ -220,7 +220,7 @@ window.XODUS_STATUS = {
   ],
 
   events: [
-    { at: "2026-10-10T23:34:00+03:00", text: "Capability milestones captured on GitHub Project #5: 11 milestones (M0–M10) with adversarial verdicts and exit criteria. MVP = native launcher + CrossOver + MSIXVC. UWP/EAppx and engine routing are the open gaps. Dashboard now mirrors the board." },
+    { at: "2026-10-11T00:40:00+03:00", text: "Overnight autonomous build kicked off: three autopilot child sessions off the app foundation branch, one PR each. M1+M3 (real manifest-based PackageType detection + a pure engine-routing decision the launch path actually consumes; per-game override that isn't installed fails explicitly, never substitutes). M7 (install/remove/update lifecycle: queue, pause/resume/cancel, update detection). M10 (free/Game Pass/owned tiers + eligibility from entitlement & Game Pass access, not local install). macOS app can't build on the Windows host, so all three validate only via GitHub Actions CI; the Mac stays reserved for the Cuphead/mrt100 runtime lane. No UWP/EAppx support claim changes." },
     { at: "2026-10-10T23:30:00+03:00", text: "Clean-room mrt100 .NET-Native shim rebuilt from the recovered contract (one export, 20+4 vtable slots) in private repo xodus-winrt-shims. Smoke test passes identically against the shim and the real System32 copy. REA can't analyse native Windows DLLs; Ghidra headless recovered the contract. In-bottle slot trace still pending, coordinated with the Cuphead session." },
     { at: "2026-10-10T00:13:21+03:00", text: "Implemented the NMS shader correction against its actual captured SPIR-V. Original renderer rebuild reproduces its exact bytes; only the isolated MSL archive changes. Real failing shader plus ten other captured vertex shaders compile after the fix; wideLines real-device parity and nine wrapper/assembly checks pass. NMS-only candidate installed with rollback, no shared-engine or save/account reset. Mac locked after owner went to bed; live qualification held." },
     { at: "2026-10-09T21:02:40+03:00", text: "NMS-only candidate prepared: pinned renderer creates a real wideLines Vulkan device and nine inert wrapper/staging checks pass. No runtime deployment or relaunch; explicit consent hold for its existing Metal-private-API path. Other engine work stays paused." },

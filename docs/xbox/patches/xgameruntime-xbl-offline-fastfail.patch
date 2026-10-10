@@ -1,0 +1,91 @@
+--- a/dlls/xgameruntime/private.h
++++ b/dlls/xgameruntime/private.h
+@@ -95,3 +95,15 @@
+ extern IXUserDeviceImpl *x_user_device_impl;
+ 
+ HRESULT WINAPI QueryApiImpl( const GUID *classId, REFIID interfaceId, void **out );
++
++/* Xodus honest-offline gate.
++ * Xodus has no authenticated Xbox Live identity or service path by default, so the
++ * online sign-in / connectivity seam must resolve promptly to a signed-out / offline
++ * result instead of hanging a title indefinitely at "connecting". Opt in to the real
++ * (honest, user-authenticated) online attempt by setting XODUS_XBL_ONLINE=1. */
++static inline BOOL xodus_xbl_online_enabled(void)
++{
++    char value[8];
++    DWORD len = GetEnvironmentVariableA( "XODUS_XBL_ONLINE", value, sizeof(value) );
++    return len >= 1 && len < sizeof(value) && value[0] == '1';
++}
+--- a/dlls/xgameruntime/xnetworking.c
++++ b/dlls/xgameruntime/xnetworking.c
+@@ -183,10 +183,19 @@
+     }
+     cached.connectivityLevel = connected ? XNetworkingConnectivityLevelHint_InternetAccess :
+                                           XNetworkingConnectivityLevelHint_None;
++    if (!xodus_xbl_online_enabled() && cached.connectivityLevel == XNetworkingConnectivityLevelHint_InternetAccess)
++    {
++        /* Honest offline: the host has raw internet, but Xodus has no authenticated Xbox
++         * Live service path (no identity, no tokens). Report local-only reachability so
++         * titles stop waiting on an Xbox Live connection they cannot complete and fall
++         * through to single-player. Set XODUS_XBL_ONLINE=1 to attempt the real path. */
++        cached.connectivityLevel = XNetworkingConnectivityLevelHint_LocalAccess;
++        WARN_(gdkc)( "Xodus honest offline: reporting LocalAccess (no authenticated Xbox Live path).\n" );
++    }
+     measured_at = now;
+     *connectivityHint = cached;
+     ReleaseSRWLockExclusive( &lock );
+-    TRACE( "iface %p, measured host connectivity %u, cost unknown.\n", iface, connectivityHint->connectivityLevel );
++    WARN_(gdkc)( "XNetworkingGetConnectivityHint -> level %u cost %u.\n", cached.connectivityLevel, cached.connectivityCost );
+     return S_OK;
+ }
+ 
+--- a/dlls/xgameruntime/xuser.c
++++ b/dlls/xgameruntime/xuser.c
+@@ -818,6 +818,12 @@
+             break;
+ 
+         case XAsyncOp_DoWork:
++            if (!xodus_xbl_online_enabled())
++            {
++                hr = E_GAMEUSER_NO_DEFAULT_USER;
++                WARN_(gdkc)( "Xodus honest offline: XUserAdd (options %#x) resolving to signed-out; no authenticated Xbox Live user. hr %#lx.\n", context->options, hr );
++                goto complete;
++            }
+             if (!(context->user = calloc( 1, sizeof(*context->user) )))
+             {
+                 hr = E_OUTOFMEMORY;
+@@ -854,6 +860,7 @@
+     HRESULT hr;
+ 
+     TRACE( "iface %p, options %d, async %p.\n", iface, options, async );
++    WARN_(gdkc)( "XUserAddAsync entry options %#x.\n", options );
+ 
+     if (!async) return E_POINTER;
+     if (FAILED(hr = QueryApiImpl( &CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void **)&xthreading ))) return hr;
+@@ -955,8 +962,9 @@
+     if (!user || !state) { WARN_(xodus_user)("State result failed: null argument.\n"); return E_POINTER; }
+     *state = XUserState_SignedOut;
+     if (user->IUser_iface.lpVtbl != &user_vtbl || !user->xuid || !user->userToken)
+-    { WARN_(xodus_user)("State result failed: authenticated handle unavailable.\n"); return E_INVALIDARG; }
++    { WARN_(xodus_user)("State result failed: authenticated handle unavailable.\n"); WARN_(gdkc)("XUserGetState -> SignedOut (no authenticated handle).\n"); return E_INVALIDARG; }
+     *state = XUserState_SignedIn;
++    WARN_(gdkc)("XUserGetState -> SignedIn.\n");
+     TRACE_(xodus_user)("State result status S_OK, actual state SignedIn.\n");
+     return S_OK;
+ }
+@@ -1349,6 +1357,7 @@
+     char *ptr;
+ 
+     TRACE( "iface %p, user %p, options %d, method %s, url %s, headerCount %Iu, headers %p, bodySize %Iu, bodyBuffer %p, async %p.\n", iface, user, options, debugstr_a( method ), debugstr_a( url ), headerCount, headers, bodySize, bodyBuffer, async );
++    WARN_(gdkc)( "XUserGetTokenAndSignatureAsync entry method %s url %s.\n", debugstr_a( method ), debugstr_a( url ) );
+ 
+     contextSize = sizeof(*context) + strlen( url ) + strlen( method ) + 2 + bodySize;
+     for (SIZE_T i = 0; i < headerCount; i++)
+@@ -1422,6 +1431,7 @@
+     int size;
+ 
+     TRACE( "iface %p, user %p, options %d, method %s, url %s, headerCount %Iu, headers %p, bodySize %Iu, bodyBuffer %p, async %p.\n", iface, user, options, debugstr_w( method ), debugstr_w( url ), headerCount, headers, bodySize, bodyBuffer, async );
++    WARN_(gdkc)( "XUserGetTokenAndSignatureUtf16Async entry method %s url %s.\n", debugstr_w( method ), debugstr_w( url ) );
+ 
+     if (!(methodLen = WideCharToMultiByte( CP_UTF8, WC_ERR_INVALID_CHARS, method, -1, NULL, 0, NULL, NULL ))) return HRESULT_FROM_WIN32( GetLastError() );
+     if (!(urlLen = WideCharToMultiByte( CP_UTF8, WC_ERR_INVALID_CHARS, url, -1, NULL, 0, NULL, NULL ))) return HRESULT_FROM_WIN32( GetLastError() );

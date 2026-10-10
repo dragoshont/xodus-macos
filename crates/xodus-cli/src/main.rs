@@ -143,13 +143,21 @@ async fn main() -> ExitCode {
     {
         registry.init();
     }
+    let args = CliArgs::parse();
+    if let SubCommand::ExtractEappx {
+        path,
+        destination,
+        key_file,
+    } = args.command
+    {
+        return commands::extract_eappx::run(path, destination, key_file).await;
+    }
+
     let client = reqwest::ClientBuilder::new()
         .user_agent(format!("xodus-cli/{}", env!("CARGO_PKG_VERSION")))
         .connection_verbose(true)
         .build()
         .unwrap();
-    let args = CliArgs::parse();
-
     xodus::secrets::init_secrets().expect("Unable to initialize credentials");
     let tokens = TokenManager::with_keychain_and_memory();
 
@@ -203,11 +211,9 @@ async fn main() -> ExitCode {
             )
             .await
         }
-        SubCommand::ExtractEappx {
-            path,
-            destination,
-            key_file,
-        } => commands::extract_eappx::run(path, destination, key_file).await,
+        SubCommand::ExtractEappx { .. } => {
+            unreachable!("Local EAppx extraction is handled before credential initialization")
+        }
         SubCommand::Streaming {
             source,
             destination,

@@ -117,6 +117,13 @@ Options:
   -V, --version  Print version
 ```
 
+Local EAppx/EMSIX extraction is available with
+`xodus-cli extract-eappx <package> <destination> --key-file <keyfile>`.
+This command uses only the local package and supplied content keys; it does not
+initialize stored credentials, provision a device, or contact the Store.
+It is not integrated with Store installation or the MSIXVC launch path, and
+extraction alone does not establish that a game can run.
+
 ## Special Thanks
 
 - [XvdTool.Streaming](https://github.com/LukeFZ/XvdTool.Streaming) and [CikExtractor](https://github.com/LukeFZ/CikExtractor) by LukeFZ

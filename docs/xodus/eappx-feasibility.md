@@ -1062,3 +1062,14 @@ imported. A justified implementation must enumerate the actual user's
 registered catalog, including resource-package/filter/property semantics;
 the current process's dependency graph alone is not a complete user catalog.
 No replacement `FindPackagesByPackageFamily` implementation is claimed yet.
+
+Read-only matching-source inspection located the existing trusted transport:
+`server/package_activation.c` and `dlls/ntdll/unix/package_activation.c`,
+`NtXodusQueryRegisteredPackage`. `load_catalog` reads the owned prefix's
+`.xodus-local-packages/catalog.bin`, verifies owner/mode/bounds and every pinned
+original-file SHA-256, and rejects malformed data. Its XPA1/version-1 schema has
+one registered full name, app ID, family and image plus file receipts. Framework
+manifests have receipts, but separate registered package records, resource roles
+and enumeration-property metadata are not represented. This is the next
+bounded backend seam; reading unrelated directories or treating receipt files
+as additional user registrations would not supply the missing contract.

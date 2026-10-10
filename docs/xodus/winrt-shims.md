@@ -189,23 +189,28 @@ export unblocks the language step.
   chars incl. NUL; input ignored), `buffer==NULL` → size query, the list is a
   **`;`-delimited** BCP-47 string. `pRequiredChars==NULL` → `E_POINTER`; `flags`
   reserved (no observable effect).
-- **Oracle decode:** the result is derived from the **user/system** language
-  profile, *not* the process override (`SetProcessPreferredUILanguages` had no
-  effect) — the user's preferred language(s) the app supports, with a
-  user-language fallback. On an en-US host every probed package returned
-  `"en-US"`.
+- **Oracle decode (171-package sweep + edge cases):** the result is derived from
+  the **user/system** language profile, *not* the process override
+  (`SetProcessPreferredUILanguages` had no effect). **`packageFullName` is never
+  rejected** — NULL / empty / malformed / unknown all return the user-language
+  fallback (`"en-US"`); only 1 of 171 installed packages
+  (`Microsoft.Winget.Source`, a language-neutral resource package) returned
+  `"und"`, the lone evidence of installed-package manifest/PRI intersection.
 - **Clean-room impl** (`src/bcp47mrm/bcp47mrm_applang.c`) builds the list from the
-  live user locale (`GetUserPreferredUILanguages` → `GetUserDefaultLocaleName` →
-  `en-US`) via a pure, unit-tested `bcp47_join_multisz` with safe truncation —
-  **never fabricates tags**. Narrowing to a package's manifest resource languages
-  is deferred to the Mac-lane package/catalog provider (needs the installed
-  manifest, not available in-process); `packageFullName`/`flags` are accepted for
-  ABI compatibility.
+  live user locale (`GetUserPreferredUILanguages`) via a pure, unit-tested
+  `bcp47_join_multisz` — **never fabricates tags**: if the OS language API fails
+  the real error is propagated as an HRESULT (`HRESULT_FROM_WIN32` /
+  `E_UNEXPECTED` / `E_OUTOFMEMORY`). Since `pRequiredChars` is OUT-only with no
+  caller capacity, the export always writes the full list. The installed-package
+  manifest-filtering path (the `"und"` case) is **out of scope** — Wine-bottle
+  apps aren't catalog-installed with a real PRI, so genuine itself takes the
+  user-fallback for them; `packageFullName`/`flags` are accepted but don't alter
+  the result, grounded in the oracle evidence.
 - **Validation** (`test/bcp47mrm_applang_test.c`): pure-join table,
-  measured-consistency (ours == `;`-join of the live
-  `GetUserPreferredUILanguages`, proving it's not hard-coded), error guards, and
-  a read-only genuine System32 pin. **0 failures**; ours == genuine `"en-US"` on
-  this host (value not asserted — host-locale dependent).
+  measured-consistency, error guards, and — the key differential — **same-host
+  A/B equality**: genuine == ours on **HRESULT + required count + value** for
+  NULL / empty / malformed / unknown `packageFullName` (valid because both read
+  the same host user-language profile). **0 failures.**
 - **Integration:** add to `dlls/bcp47mrm/bcp47mrm.spec`
   `@ stdcall GetApplicationLanguagesWithUserLanguagesFallback(wstr ptr ptr int64)`
   and compile `src/bcp47mrm/bcp47mrm_applang.c` into the module.

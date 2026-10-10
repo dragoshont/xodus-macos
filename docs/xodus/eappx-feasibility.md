@@ -293,6 +293,35 @@ This still does not create a view or supply package identity. A combined
 actual-game diagnostic is prepared to distinguish that boundary from isolated
 factory success; it requires a separately confirmed shared-runtime/launch hold.
 
+### Combined actual Cuphead startup
+
+After a fresh parent-confirmed hold, the original Cuphead executable was
+launched through the official CrossOver wrapper in the Mac GUI Terminal
+session. The temporary matching-source kernelbase repair, failure-explicit WNF
+diagnostic and genuine private Windows UI/CoreApplication providers were
+combined with the actual manifest-backed Unity registrations. The unmodified
+game now reached **package/token identity prerequisites**:
+
+- `NtQueryInformationToken`: unsupported `TokenSecurityAttributes`;
+- missing `ntdll.RtlQueryPackageClaims`;
+- missing `kernelbase.GetCurrentPackageInfo3`.
+
+The bounded observer expired after 120 seconds (diagnostic status 124);
+this is not process health or gameplay evidence, and no usable game window
+was verified. Cleanup stopped only the owned bottle, restored both vendor
+DLLs byte-for-byte and passed deep/strict signature verification. The owner
+script completion status 0 records diagnostic cleanup, **not game success**.
+The parent deployment lane was released.
+
+This actual-game trace confirms the older Xbox branch's catalog-backed
+package/token work is directly applicable, beyond the two initial missing
+APIs. Its implementation includes Wine server token storage and explicit
+registered-image activation, not merely a PE DLL export. It must not be
+replaced with hardcoded package identity or imported as an unverified whole
+runtime. A coherent CrossOver-compatible server/activation backport and
+per-game catalog verification remain unfinished. The GUI diagnostic and
+private native components are not shipping artifacts or support claims.
+
 ## Decision
 
 **BOUNDED_GO for discovery and the package pipeline; DEFER a playable-Celeste

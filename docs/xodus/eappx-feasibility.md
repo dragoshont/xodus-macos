@@ -278,12 +278,24 @@ initializes that cookie directly. This identifies a concrete loader memory-
 protection compatibility gap before application activation; it does not yet
 establish which later WinRT, input, graphics or Xbox-service APIs will work.
 
-The next useful runtime slice is a faithful source-level loader compatibility
-fix with a synthetic read-only-cookie regression, followed by the actual
-Celeste launch. Changing the game's PE permissions, suppressing integrity or
-license checks, or advertising extraction as a playable installation are not
-accepted substitutes. The user ruled out loader/deployment workarounds;
-deployment of a changed Wine runtime needs its own clarified scope.
+A subsequent authorized matching-source ntdll experiment passed synthetic
+read-only, writable and preinitialized-cookie checks and removed the actual
+Celeste cookie-writing fault. It exposed a .NET Native delayed-import callback
+defect in `mrt100_app.dll`/`ucrtbase._strnicmp`, followed by a missing delayed
+`mrt100.dll` import when the callback-name field was corrected. Celeste never
+reached a usable game window.
+
+The owner's final decision was **report upstream only; move on to a game type
+that already works**. Runtime patching stopped. The complete official
+CrossOver application was restored and passed deep/strict signature and
+Gatekeeper verification with CodeWeavers' Developer ID. An existing Lara
+bottle's Windows command bootstrap returned exit 0; full Lara gameplay was
+not tested. The Celeste payload and experiment artifacts remain preserved.
+
+The [upstream report drafts](celeste-wine-upstream-report.md) contain the
+payload-free synthetic reproducer, observed repair results and subsequent
+failure details. They have not been submitted. No experimental ntdll remains
+installed, and this branch does not claim working Celeste or EAppx Store play.
 
 These experimental FE3, extraction and launch operations are not integrated
 Store-install commands in the current PR. Product installation receipts,

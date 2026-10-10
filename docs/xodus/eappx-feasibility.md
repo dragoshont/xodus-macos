@@ -1230,6 +1230,53 @@ in this GUI trace. Four vendor modules, bottle twinapi and temporary registratio
 were restored/removed, private mrt100 removed, and signature verified before the
 lease was released. Receipt prefix: `celeste-registered-core-provider`.
 
+Adding the existing configured-policy-only combase candidate in the next
+serialized GUI probe removes that missing-export abort. Six policy controls
+pass; the game's bottle has no configured default policy, so each control
+returns explicit `E_FAIL` with untouched output, not fabricated success.
+Actual Celeste still exits 4103/zero windows (~609 ms), now originating
+`E_INVALIDARG` (`0x80070057`) twice before its language exception. The precise
+native return site is not yet established, so this is not attributed to
+security policy, MemoryManager or CoreApplication.Run by inference.
+Five shared modules and temporary bottle/runtime/registration changes were
+restored, signature verified, and lease released.
+Receipt prefix: `celeste-registered-core-policy`.
+
+The complete validated Celeste five-module tuple is below. Candidate source
+root is `~/xodus-app-tooling/celeste/wine-build`; shared destination root is
+`/Applications/CrossOver.app/Contents/SharedSupport/CrossOver`. These identities
+precede the parallel WNF work; changed candidates require revalidation.
+
+| Candidate relative path | Shared destination | SHA256 before local signing |
+| --- | --- | --- |
+| `server/wineserver` | `CrossOver-Hosted Application/wineserver` | `7e9babbb12905045bd1b3c070523a068db0a9a3d601bd816d7b9eba2f5634079` |
+| `dlls/ntdll/ntdll.so` | `lib/wine/x86_64-unix/ntdll.so` | `e4d34518f2627d73a0035223939ec53bea0dd9829b07238486f51c35cae34422` |
+| `dlls/ntdll/x86_64-windows/ntdll.dll` | `lib/wine/x86_64-windows/ntdll.dll` | `66546068f0150760fdbafe4d5fd8406a5cbc3e1564eecb2ea4fb211aa445840a` |
+| `dlls/kernelbase/x86_64-windows/kernelbase.dll` | `lib/wine/x86_64-windows/kernelbase.dll` | `9308d50feb4f7a702d9935708680a91b60c6e053082164284a809af35e32c73f` |
+| `dlls/combase/x86_64-windows/combase.dll` | `lib/wine/x86_64-windows/combase.dll` | `f45f4721f5908aa4ed000ec484384955db5477f5d94222194da8f369be54a3b8` |
+
+Only server/Unix module are locally ad-hoc signed. The owner harness refuses
+active Wine processes, snapshots the candidates, uses unique backup/receipt
+names and restores every target before vendor signature verification. Frozen
+copies are retained under Celeste scratch as
+`celeste-registered-core-policy-candidate-{server,unix,ntdll,kernelbase,combase}`.
+
+The complete wrapper override for this Celeste probe is
+`--dll=mrt100,mrt100_app,SharedLibrary,vccorlib140_app,vcruntime140_app,msvcp140_app=n,b;twinapi.appcore=n`.
+Private genuine twinapi source remains
+`~/xodus-app-tooling/cuphead/decoded-attempt1/twinapi.appcore.dll`
+(SHA256 `0d3e56c5068633f975bcab528267789f520f82a6d6a50f1330104e7597289b43`),
+temporarily staged into **the Celeste bottle's own** system32, never shared vendor
+system32. Its temporary CoreApplication registration is listed above;
+ApplicationView's existing system32 registration is unchanged. Private genuine
+mrt100 source remains `~/xodus-app-tooling/cuphead/decoded-attempt1/mrt100.dll`
+(SHA256 `4df94f5591a42d2e7a720cb9143eaa4dd4df972be3443e1a28209e4bc0f64c0a`),
+temporarily staged next to the genuine Celeste executable, then removed.
+No other genuine DLL, CoreWindow or MemoryManager registration was added.
+This recipe does not replace the additional profapi/SHCORE/language/
+StateRepository experimental providers already observed in Cuphead's lane,
+nor establish cross-title support.
+
 The required `python gates/gate_runner.py quality-gate` invocation returned
 exit 2 because that runner is absent from this worktree. The focused
 matching-source build/activated-fixture/actual-game receipts above are separate

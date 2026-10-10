@@ -220,6 +220,47 @@ export unblocks the language step.
   `@ stdcall GetApplicationLanguagesWithUserLanguagesFallback(wstr ptr ptr int64)`
   and compile `src/bcp47mrm/bcp47mrm_applang.c` into the module.
 
+### kernelbase.dll!OpenGlobalizationUserSettingsKey — done (native-validated)
+
+The import the Mac lane requested after the package-catalog legs. Wine's
+`kernelbase.spec` lists the globalization user-settings-key family only as
+**commented-out stubs** (`OpenGlobalizationUserSettingsKey`,
+`CloseGlobalizationUserSettingsKey`, `IsGlobalizationUserSettingsKeyRedirected`),
+so Cuphead's import of `OpenGlobalizationUserSettingsKey` fails to bind at load.
+This genuine build (`10.0.26100`) actually exports only two of the family by name:
+`OpenGlobalizationUserSettingsKey` (ord 1148) and
+`QueryGlobalizationUserSettingsStatus` (ord 1374) — there is **no**
+`CloseGlobalizationUserSettingsKey` here (the handle is an ordinary registry
+handle, closed with `RegCloseKey`).
+
+- **ABI** (Ghidra, confirmed from the prologue — ecx/rdx/r8), returns **NTSTATUS**:
+  `OpenGlobalizationUserSettingsKey(ACCESS_MASK samDesired, PVOID reserved, PHKEY phkResult)`.
+  The OUT handle is the **3rd** arg; `NULL` → `STATUS_INVALID_PARAMETER`
+  (`0xC000000D`) before any open. `reserved` is consulted only on the
+  multi-user-in-session server SKU (ignored on desktop / in a bottle).
+- **Runtime oracle** (`NtQueryKey(KeyNameInformation)` on the returned handle):
+  for every access mask genuine returns the **current-user hive root**
+  `\REGISTRY\USER\<SID>` (== `HKEY_CURRENT_USER`). The decompiled SKU branches all
+  collapse to that root when no machine-level
+  `HKLM\…\CommonGlobUserSettings\RedirectedKey` redirection is configured —
+  **always true in a Wine bottle** (that policy is the "redirected" companion the
+  Mac lane asked about).
+- **Clean-room impl** (`src/kernelbase_glob/globalization.c`): opens the
+  current-user root directly via the documented ntdll API
+  `RtlOpenCurrentUser(sam, phk)`, reproducing the observable key **without**
+  copying the SKU/redirection internals.
+- **Validation** (`test/kernelbase_globkey_test.c`): same-host A/B — **ours opens
+  the byte-identical registry key as genuine for all 4 access masks**, exact
+  NTSTATUS parity, matching `NULL`-guard. Status value of
+  `QueryGlobalizationUserSettingsStatus` is SKU-dependent (genuine `2` on this
+  multi-session box vs `0` on a desktop/bottle), so it is **not** host-pinned.
+  **24/24, 0 failures.**
+- **Integration:** uncomment + implement in `dlls/kernelbase/kernelbase.spec`
+  `@ stdcall OpenGlobalizationUserSettingsKey(long ptr ptr)` (and, for
+  completeness, `QueryGlobalizationUserSettingsStatus(ptr ptr)`), compiling
+  `src/kernelbase_glob/globalization.c` into the module. See
+  `docs/kernelbase-globalization-userkey-contract.md` in the shims repo.
+
 ### WinRT UI shims — built, awaiting a trace that reaches them
 
 Loadable **logging** shims for `Windows.Graphics`, `Windows.UI`,
@@ -242,7 +283,7 @@ stripping `WINEDLLOVERRIDES` unless an explicit `--dll` arg is passed; with
     ──► bcp47mrm.dll!GetApplicationLanguagesWithUserLanguagesFallback ✅ (user-languages subset)
     ──► KERNELBASE.dll!FindPackagesByPackageFamily ✅ (Mac-lane: catalog enumeration)
     ──► KERNELBASE.dll!GetStagedPackagePathByFullName ✅ (Mac-lane: legacy→stagedPath2)
-    ──► KERNELBASE.dll!OpenGlobalizationUserSettingsKey (mapping on the RE lane)
+    ──► KERNELBASE.dll!OpenGlobalizationUserSettingsKey ✅ (RE lane: RtlOpenCurrentUser)
     ──► (next boundary: TBD by the Mac-lane trace); still 0 windows / exit 92
 ```
 

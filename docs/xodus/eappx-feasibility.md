@@ -4312,6 +4312,122 @@ No implementation/next owner/game hold is authorized by this analysis.
 The failure path can already be discriminated statically without debugger
 attachment; hiding BeingDebugged or handling its trap would change semantics.
 
+### Control-first safety correction and finite feasibility decision
+
+**SOURCE ONLY:** `owned_capture_control.py` supplies incremental generation
+admission using the already-established Wine request/reply parent/handle
+records, rather than an emergency full-trace read or tasklist census.
+Each drain has a2MB backlog budget,64KB line bound and caller deadline;
+incomplete/truncated/malformed/unresolved lineage fails closed.
+The abort freezes generation/native-PID/start-identity records, validates
+the whole admitted live set before signaling, then sends exact-identity
+TERM deepest-first, gives0.5s grace and uses exact-identity KILL if needed.
+It admits newly observed descendants during control and requires mapped
+package-process quiescence before permitting registry restoration.
+Unknown identity/reused generation/backlog/deadline failures refuse further
+control and block restoration; unrelated roots are never signaled.
+No original capture bytes are removed/truncated or relabeled success.
+
+The preserved session artifact `cuphead-control-first-owner.py` wires this
+helper into per-command incremental observation and puts abort before the
+registry-restoration finally block. A capture launched without identity
+admission also blocks restoration. Identity adapter uses one ps probe with
+at most0.5s timeout/remaining deadline and rechecks immediately before
+signaling. Abort failure records uncertainty instead of falling through
+to the old blocking cleanup/census. Provider-file restoration still needs
+the existing later whole-bottle quiescence check. This owner has a distinct
+source-only label and its main deliberately refuses execution: attached
+game capture is CUT, no fresh launchable wrapper/game candidate exists.
+Its full Wine integration is unexecuted; AST/order inspection is not a
+runtime gate.
+
+15 focused safety tests pass on both Windows and native Mac Python:
+real live writer stops before restoration with original overrun preserved;
+a real blocked-census subprocess is not waited on; native PID/Wine generation
+reuse and identity changes at admission/immediately before signal refuse
+signaling; parent/child control precedes restoration; a child born during
+grace is reconciled; unrelated roots survive; incomplete/backlogged/truncated
+trace and deadline/unresponsive-target cases block restoration. Synthetic
+processes are explicitly reaped. Together with13 accounting tests,28
+focused Windows tests pass. Native Mac tests are not Wine/game execution.
+Required quality runner remains absent/exit2.
+
+**Capability limit:**4s is the cooperative emergency-control deadline,
+not an independently proven hard writer-cancellation bound. Per-probe
+timeouts and incremental byte caps avoid the known unbounded census/full
+trace work, but Python/OS scheduling, filesystem I/O and signal observation
+cannot guarantee a strict byte ceiling. A process that cannot be proven/
+quiesced leaves an uncertainty receipt and prohibits restoration; there is
+no success-shaped fallback. Whole-bottle quiescence remains independent
+verification, not a claim inferred from the helper's package set.
+
+|Source-only safety artifact|SHA256|
+|---|---|
+|Helper|`de3cafd37193d4822112b437a8ca106e390e6a05cad8b3f37b8ca651c481be42`|
+|15-test source|`300edc1b4801dce6a2c91246d95b7487ae9a055b5b8ac84f1e2dc467793ceb33`|
+|Nonexecutable owner artifact|`6c489d5c6bee6945deda943c647dccc3fe22e938a5d902f5377fb123440eb626`|
+
+The owner artifact also remains outside Git under
+`~/xodus-app-tooling/cuphead/control-first-source-only`; staged pins match.
+Consumed2270 receipt/dumps/splits remain byte-identical. No runtime grant
+was used and no new binary/provider instrumentation was added.
+
+**Finite product checkpoint:** Cuphead still has no observed window/frame.
+Pnp/nullable/folders fixes and the Vector oracle removed earlier startup
+gaps, but native alias progress is not our distributable Vector support.
+Current observed failure is missing
+ext-ms-win-mrmcorer-resmanager-l1-1-0!GetStringValueForManifestField
+raising80000100 through twinapi and dispatching to Cuphead's PInvoke guard
+import thunk. The debugger-dependent breakpoint recursion is a diagnostic
+perturbation, not a separate product API to patch. Original guard-entry/
+return/1007 linkage remains unproven.
+
+Read-only inspection now establishes a genuine oracle on this existing
+Windows host, OS binaries version10.0.26100.9278, AMD64:
+
+|Genuine Windows system artifact|SHA256|Observed contract surface|
+|---|---|---|
+|apisetschema.dll|`391a2818fdef14f4a9b6e6ce2a7e7f01d04f943de9ef543ec683927cfe480889`|Actual v6 namespace maps the ext apiset to mrmcorer.dll|
+|MrmCoreR.dll|`6186f981d1aa1e1991697133aa066045097ab52227a240632a0c7d8fd04352be`|GetStringValueForManifestField export34610|
+|kernelbase.dll|`becad014fb8efa8cb5e314931cca92778ad42c649b12a6909632cacd68af4f40`|Three resource-context exports104b30/100bc0/105b20|
+
+Actual admitted Wine kernelbase SHA9308d50f lacks all three exports
+(PE export table verified, not inferred from comments): GetCurrentPackage-
+ApplicationResourcesContext, GetCurrentPackageResourcesContext and
+GetPackageResourcesProperty. Mapping alone therefore moves the failure
+to the genuine provider's private kernelbase imports. **No complete
+contract-correct packaged implementation is currently grounded.** Missing
+contract is kind2/field1's actual app-manifest property and package
+resource-context/lifetime/output/error semantics, not merely the
+GetStringValueForManifestField five-argument ABI (already grounded).
+
+**ONE cheapest next product discriminator:** a bounded no-game native
+Windows oracle calling the existing genuine provider export exactly as
+twinapi does: `(2,1,0x101,WCHAR buffer,SIZE_T* required)`, from an ordinary
+unpackaged x64 process. Pin the three system artifacts above, verify actual
+loaded provider path, report HRESULT/output count/buffer state, and impose
+30s/1MB owned-process bounds. No debugger, PEB/disposition edits, downloaded
+game, account/license, registry/package registration or private-context
+calls. It can establish genuine missing-package failure/output semantics,
+not field1's packaged success value; success semantics still need an
+authorized existing signed Windows package or genuine contract reference.
+No API call or native oracle was executed, and no grant is assumed.
+
+The smallest ordinary Mac capture plan, only after a grounded product
+candidate, needs existing `+seh,+loaddll` split traces, not a debug object
+or another capture engine. Admitted source `ntdll/exception.c:199-207,
+242-247` already logs WINE_STUB identity/record/context and
+`signal_x86_64.c:270-276` logs handler dispatch/return; these traces were
+observed in prior ordinary runs. They cannot establish a stopped guard RIP
+or unwind and should not be expanded to do so here.
+
+**Recommendation: SMALLEST_VIABLE.** Finish this safety slice, obtain the
+single genuine no-game result if granted, then make one ABI/semantics-
+grounded MRM repair or PARK Cuphead if packaged context semantics remain
+unavailable. Do not run another unchanged launch/full-suite/debugger cycle
+or implement a guessed HRESULT shim. The next implementation decision is
+blocked on that exact contract, not on more diagnostic machinery.
+
 #### 2210 original-exception telemetry gap and targeted capture-only plan
 
 Further read-only inspection finds exactly one dispatched native exception:

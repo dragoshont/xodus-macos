@@ -4908,6 +4908,17 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
     `CoreApplication`-context predicate (`ctx+0x360` current view, state
     ≥3) is unset because no activation host creates the view.
   - Restoration errors: none, and no Wine processes remain.
+- **2387 (loader relay):**
+  - Native `twinapi.appcore` is activated first from Cuphead
+    `SharedLibrary+0x56c322`. Then `mrmcorer` maps as a dependency, and
+    twinapi originates `0x80070057` ×7.
+  - After that, the builtin RMCLIENT HAM extended-execution call is
+    refused.
+  - Later, a `SharedLibrary+0x56c322` activation is served by
+    `mrmcorer`, leading to the `0x8000000E` fatal.
+  - The `mrmcorer` export relay did not fire.
+  - HYPOTHESIS: native `CoreApplication::Run` is in progress, but its view
+    registration fails under Wine.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

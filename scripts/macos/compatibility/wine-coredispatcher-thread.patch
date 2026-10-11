@@ -1,0 +1,404 @@
+--- a/dlls/windows.ui/corewindow.c
++++ b/dlls/windows.ui/corewindow.c
+@@ -124,11 +124,36 @@
+ struct dispatcher
+ {
+     ICoreDispatcher ICoreDispatcher_iface;
++    IUnknown IDispatcherPump_iface;
+     LONG ref;
+     DWORD thread_id;
+     HWND hwnd;
++    HANDLE shutdown;
+     CRITICAL_SECTION cs;
+     struct list queue;
++};
++
++/* Private Windows.UI ABIs grounded in the genuine factory/pump vtables. */
++static const GUID IID_IDispatcherFactory_wine = {0x4b4d0861,0xd718,0x4f7c,{0xbe,0xc7,0x73,0x5c,0x06,0x5f,0x7c,0x73}};
++static const GUID IID_IDispatcherPump_wine = {0x34fff979,0xbd36,0x4bb1,{0x82,0xd2,0x78,0x5a,0x60,0x5b,0x81,0xfb}};
++struct dispatcher_pump_vtbl
++{
++    HRESULT (WINAPI *QueryInterface)( IUnknown *, REFIID, void ** );
++    ULONG (WINAPI *AddRef)( IUnknown * );
++    ULONG (WINAPI *Release)( IUnknown * );
++    HRESULT (WINAPI *PumpUntilSignaled)( IUnknown *, HANDLE );
++    HRESULT (WINAPI *BeginShutdown)( IUnknown * );
++};
++struct dispatcher_factory_vtbl
++{
++    HRESULT (WINAPI *QueryInterface)( IInspectable *, REFIID, void ** );
++    ULONG (WINAPI *AddRef)( IInspectable * );
++    ULONG (WINAPI *Release)( IInspectable * );
++    HRESULT (WINAPI *GetIids)( IInspectable *, ULONG *, IID ** );
++    HRESULT (WINAPI *GetRuntimeClassName)( IInspectable *, HSTRING * );
++    HRESULT (WINAPI *GetTrustLevel)( IInspectable *, TrustLevel * );
++    HRESULT (WINAPI *GetForCurrentThread)( IInspectable *, ICoreDispatcher ** );
++    HRESULT (WINAPI *GetOrCreateForCurrentThread)( IInspectable *, ICoreDispatcher ** );
+ };
+ 
+ struct corewindow
+@@ -181,12 +206,21 @@
+ 
+ static HRESULT WINAPI dispatcher_QueryInterface( ICoreDispatcher *iface, REFIID iid, void **out )
+ {
++    struct dispatcher *impl = impl_from_ICoreDispatcher( iface );
+     TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
+ 
++    if (!out) return E_POINTER;
++    *out = NULL;
+     if (IsEqualGUID( iid, &IID_IUnknown ) || IsEqualGUID( iid, &IID_IInspectable ) ||
+         IsEqualGUID( iid, &IID_IAgileObject ) || IsEqualGUID( iid, &IID_ICoreDispatcher ))
+     {
+         *out = iface;
++        ICoreDispatcher_AddRef( iface );
++        return S_OK;
++    }
++    if (IsEqualGUID( iid, &IID_IDispatcherPump_wine ))
++    {
++        *out = &impl->IDispatcherPump_iface;
+         ICoreDispatcher_AddRef( iface );
+         return S_OK;
+     }
+@@ -218,6 +252,7 @@
+         }
+         impl->cs.DebugInfo->Spare[0] = 0;
+         DeleteCriticalSection( &impl->cs );
++        CloseHandle( impl->shutdown );
+         free( impl );
+     }
+     return ref;
+@@ -352,6 +387,256 @@
+     dispatcher_RunAsync,
+     dispatcher_RunIdleAsync,
+ };
++
++static struct dispatcher *impl_from_IDispatcherPump( IUnknown *iface )
++{
++    return CONTAINING_RECORD( iface, struct dispatcher, IDispatcherPump_iface );
++}
++
++static HRESULT WINAPI pump_QueryInterface( IUnknown *iface, REFIID iid, void **out )
++{
++    return dispatcher_QueryInterface( &impl_from_IDispatcherPump(iface)->ICoreDispatcher_iface, iid, out );
++}
++
++static ULONG WINAPI pump_AddRef( IUnknown *iface )
++{
++    return dispatcher_AddRef( &impl_from_IDispatcherPump(iface)->ICoreDispatcher_iface );
++}
++
++static ULONG WINAPI pump_Release( IUnknown *iface )
++{
++    return dispatcher_Release( &impl_from_IDispatcherPump(iface)->ICoreDispatcher_iface );
++}
++
++static HRESULT WINAPI pump_PumpUntilSignaled( IUnknown *iface, HANDLE handle )
++{
++    struct dispatcher *impl = impl_from_IDispatcherPump( iface );
++    HANDLE handles[2];
++    DWORD count = 0, result;
++    MSG msg;
++
++    TRACE( "iface %p, handle %p, owner %lx.\n", iface, handle, impl->thread_id );
++    if (GetCurrentThreadId() != impl->thread_id) return RPC_E_WRONG_THREAD;
++    if (handle) handles[count++] = handle;
++    handles[count++] = impl->shutdown;
++    for (;;)
++    {
++        result = MsgWaitForMultipleObjectsEx( count, handles, INFINITE, QS_ALLINPUT, MWMO_INPUTAVAILABLE );
++        if (result == WAIT_FAILED)
++        {
++            DWORD error = GetLastError();
++            WARN( "dispatcher wait failed, error %lu.\n", error );
++            return HRESULT_FROM_WIN32( error );
++        }
++        if (handle && result == WAIT_OBJECT_0) return S_OK;
++        if (result == WAIT_OBJECT_0 + count - 1) return E_APPLICATION_EXITING;
++        if (result != WAIT_OBJECT_0 + count)
++        {
++            WARN( "unexpected dispatcher wait result %#lx.\n", result );
++            return E_UNEXPECTED;
++        }
++        while (PeekMessageW( &msg, NULL, 0, 0, PM_REMOVE ))
++        {
++            if (msg.message == WM_QUIT) return E_APPLICATION_EXITING;
++            TranslateMessage( &msg );
++            DispatchMessageW( &msg );
++            /* Recheck handles between messages, including under sustained input. */
++            result = WaitForMultipleObjects( count, handles, FALSE, 0 );
++            if (handle && result == WAIT_OBJECT_0) return S_OK;
++            if (result == WAIT_OBJECT_0 + count - 1) return E_APPLICATION_EXITING;
++            if (result == WAIT_FAILED)
++            {
++                DWORD error = GetLastError();
++                WARN( "dispatcher handle check failed, error %lu.\n", error );
++                return HRESULT_FROM_WIN32( error );
++            }
++        }
++    }
++}
++
++static HRESULT WINAPI pump_BeginShutdown( IUnknown *iface )
++{
++    struct dispatcher *impl = impl_from_IDispatcherPump( iface );
++    TRACE( "iface %p.\n", iface );
++    if (!SetEvent( impl->shutdown ))
++    {
++        DWORD error = GetLastError();
++        WARN( "dispatcher shutdown signal failed, error %lu.\n", error );
++        return HRESULT_FROM_WIN32( error );
++    }
++    return S_OK;
++}
++
++static const struct dispatcher_pump_vtbl pump_vtbl =
++{
++    pump_QueryInterface, pump_AddRef, pump_Release, pump_PumpUntilSignaled, pump_BeginShutdown,
++};
++
++static INIT_ONCE dispatcher_once = INIT_ONCE_STATIC_INIT;
++static DWORD dispatcher_tls = TLS_OUT_OF_INDEXES;
++
++void coredispatcher_thread_detach(void)
++{
++    struct dispatcher *impl;
++    if (dispatcher_tls == TLS_OUT_OF_INDEXES) return;
++    if ((impl = TlsGetValue( dispatcher_tls )))
++    {
++        TlsSetValue( dispatcher_tls, NULL );
++        ICoreDispatcher_Release( &impl->ICoreDispatcher_iface );
++    }
++}
++
++static BOOL CALLBACK dispatcher_init( INIT_ONCE *once, void *param, void **context )
++{
++    dispatcher_tls = TlsAlloc();
++    return dispatcher_tls != TLS_OUT_OF_INDEXES;
++}
++
++static HRESULT dispatcher_for_thread( BOOL create, ICoreDispatcher **out )
++{
++    struct dispatcher *impl;
++    DWORD error;
++
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (!InitOnceExecuteOnce( &dispatcher_once, dispatcher_init, NULL, NULL ))
++        return HRESULT_FROM_WIN32( GetLastError() );
++    if (!(impl = TlsGetValue( dispatcher_tls )) && create)
++    {
++        if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
++        impl->ICoreDispatcher_iface.lpVtbl = &dispatcher_vtbl;
++        impl->IDispatcherPump_iface.lpVtbl = (const IUnknownVtbl *)&pump_vtbl;
++        impl->ref = 1; /* TLS owns the reference until DLL_THREAD_DETACH. */
++        impl->thread_id = GetCurrentThreadId();
++        list_init( &impl->queue );
++        if (!(impl->shutdown = CreateEventW( NULL, TRUE, FALSE, NULL )))
++        {
++            error = GetLastError();
++            free( impl );
++            return HRESULT_FROM_WIN32( error );
++        }
++        InitializeCriticalSectionEx( &impl->cs, 0, RTL_CRITICAL_SECTION_FLAG_FORCE_DEBUG_INFO );
++        impl->cs.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": dispatcher.cs");
++        if (!TlsSetValue( dispatcher_tls, impl ))
++        {
++            error = GetLastError();
++            dispatcher_Release( &impl->ICoreDispatcher_iface );
++            return HRESULT_FROM_WIN32( error );
++        }
++        TRACE( "created thread dispatcher %p, owner %lx.\n", impl, impl->thread_id );
++    }
++    if (impl)
++    {
++        *out = &impl->ICoreDispatcher_iface;
++        ICoreDispatcher_AddRef( *out );
++    }
++    return S_OK;
++}
++
++struct dispatcher_statics
++{
++    IActivationFactory IActivationFactory_iface;
++    IInspectable IDispatcherFactory_iface;
++    LONG ref;
++};
++
++static struct dispatcher_statics dispatcher_statics;
++
++static HRESULT WINAPI dispatcher_factory_QueryInterface( IActivationFactory *iface, REFIID iid, void **out )
++{
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (IsEqualGUID( iid, &IID_IUnknown ) || IsEqualGUID( iid, &IID_IInspectable ) ||
++        IsEqualGUID( iid, &IID_IActivationFactory ) || IsEqualGUID( iid, &IID_IAgileObject ))
++        *out = iface;
++    else if (IsEqualGUID( iid, &IID_IDispatcherFactory_wine ))
++        *out = &dispatcher_statics.IDispatcherFactory_iface;
++    else return E_NOINTERFACE;
++    IActivationFactory_AddRef( iface );
++    return S_OK;
++}
++
++static ULONG WINAPI dispatcher_factory_AddRef( IActivationFactory *iface )
++{
++    return InterlockedIncrement( &dispatcher_statics.ref );
++}
++
++static ULONG WINAPI dispatcher_factory_Release( IActivationFactory *iface )
++{
++    return InterlockedDecrement( &dispatcher_statics.ref );
++}
++
++static HRESULT WINAPI dispatcher_factory_GetIids( IActivationFactory *iface, ULONG *count, IID **iids )
++{
++    if (!count || !iids) return E_POINTER;
++    *count = 0;
++    *iids = CoTaskMemAlloc( 2 * sizeof(**iids) );
++    if (!*iids) return E_OUTOFMEMORY;
++    (*iids)[0] = IID_IActivationFactory;
++    (*iids)[1] = IID_IDispatcherFactory_wine;
++    *count = 2;
++    return S_OK;
++}
++
++static HRESULT WINAPI dispatcher_factory_GetRuntimeClassName( IActivationFactory *iface, HSTRING *name )
++{
++    if (!name) return E_POINTER;
++    *name = NULL;
++    return E_ILLEGAL_METHOD_CALL;
++}
++
++static HRESULT WINAPI dispatcher_factory_GetTrustLevel( IActivationFactory *iface, TrustLevel *level )
++{
++    if (!level) return E_POINTER;
++    *level = FullTrust;
++    return S_OK;
++}
++
++static HRESULT WINAPI dispatcher_factory_ActivateInstance( IActivationFactory *iface, IInspectable **out )
++{
++    if (!out) return E_POINTER;
++    *out = NULL;
++    FIXME( "CoreDispatcher ordinary activation is not implemented; use the thread factory.\n" );
++    return E_NOTIMPL;
++}
++
++static const IActivationFactoryVtbl dispatcher_factory_vtbl =
++{
++    dispatcher_factory_QueryInterface, dispatcher_factory_AddRef, dispatcher_factory_Release,
++    dispatcher_factory_GetIids, dispatcher_factory_GetRuntimeClassName, dispatcher_factory_GetTrustLevel,
++    dispatcher_factory_ActivateInstance,
++};
++
++DEFINE_IINSPECTABLE_( dispatcher_statics, IInspectable, struct dispatcher_statics,
++                     impl_from_IDispatcherFactory, IDispatcherFactory_iface, &impl->IActivationFactory_iface )
++
++static HRESULT WINAPI dispatcher_statics_GetForCurrentThread( IInspectable *iface, ICoreDispatcher **out )
++{
++    TRACE( "iface %p, out %p.\n", iface, out );
++    return dispatcher_for_thread( FALSE, out );
++}
++
++static HRESULT WINAPI dispatcher_statics_GetOrCreateForCurrentThread( IInspectable *iface, ICoreDispatcher **out )
++{
++    TRACE( "iface %p, out %p.\n", iface, out );
++    return dispatcher_for_thread( TRUE, out );
++}
++
++static const struct dispatcher_factory_vtbl dispatcher_statics_vtbl =
++{
++    dispatcher_statics_QueryInterface, dispatcher_statics_AddRef, dispatcher_statics_Release,
++    dispatcher_statics_GetIids, dispatcher_statics_GetRuntimeClassName, dispatcher_statics_GetTrustLevel,
++    dispatcher_statics_GetForCurrentThread, dispatcher_statics_GetOrCreateForCurrentThread,
++};
++
++static struct dispatcher_statics dispatcher_statics =
++{
++    { &dispatcher_factory_vtbl },
++    { (const IInspectableVtbl *)&dispatcher_statics_vtbl },
++    1
++};
++
++IActivationFactory *coredispatcher_factory = &dispatcher_statics.IActivationFactory_iface;
+ 
+ static void dispatcher_run_queue( struct dispatcher *impl )
+ {
+@@ -950,25 +1235,21 @@
+ {
+     struct corewindow *impl;
+     struct dispatcher *disp;
++    ICoreDispatcher *dispatcher;
++    HRESULT hr;
+ 
+     if (!InitOnceExecuteOnce( &class_once, register_class, NULL, NULL )) return HRESULT_FROM_WIN32( GetLastError() );
+     if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
+-    if (!(disp = calloc( 1, sizeof(*disp) ))) { free( impl ); return E_OUTOFMEMORY; }
++    if (FAILED(hr = dispatcher_for_thread( TRUE, &dispatcher ))) { free( impl ); return hr; }
++    disp = impl_from_ICoreDispatcher( dispatcher );
+     if (!(impl->context = calloc( 1, sizeof(*impl->context) )))
+     {
+-        free( disp );
++        ICoreDispatcher_Release( dispatcher );
+         free( impl );
+         return E_OUTOFMEMORY;
+     }
+     impl->context->IInspectable_iface.lpVtbl = &context_vtbl;
+     impl->context->ref = 1;
+-
+-    disp->ICoreDispatcher_iface.lpVtbl = &dispatcher_vtbl;
+-    disp->ref = 1;
+-    disp->thread_id = GetCurrentThreadId();
+-    list_init( &disp->queue );
+-    InitializeCriticalSectionEx( &disp->cs, 0, RTL_CRITICAL_SECTION_FLAG_FORCE_DEBUG_INFO );
+-    disp->cs.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": dispatcher.cs");
+ 
+     impl->ICoreWindow_iface.lpVtbl = &corewindow_vtbl;
+     impl->ICoreWindowInterop_iface.lpVtbl = &interop_vtbl;
+--- a/dlls/windows.ui/main.c
++++ b/dlls/windows.ui/main.c
+@@ -23,6 +23,13 @@
+ #include "wine/debug.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(ui);
++
++BOOL WINAPI DllMain( HINSTANCE instance, DWORD reason, void *reserved )
++{
++    if (reason == DLL_THREAD_DETACH || (reason == DLL_PROCESS_DETACH && !reserved))
++        coredispatcher_thread_detach();
++    return TRUE;
++}
+ 
+ HRESULT WINAPI DllGetClassObject( REFCLSID clsid, REFIID riid, void **out )
+ {
+@@ -56,6 +63,9 @@
+     if (!wcscmp( buffer, RuntimeClass_Windows_UI_Core_CoreCursor ))
+         IActivationFactory_QueryInterface( corecursor_factory, &IID_IActivationFactory, (void **)factory );
+ 
++    if (!wcscmp( buffer, L"Windows.UI.Core.CoreDispatcher" ))
++        IActivationFactory_QueryInterface( coredispatcher_factory, &IID_IActivationFactory, (void **)factory );
++
+     if (*factory) return S_OK;
+     return CLASS_E_CLASSNOTAVAILABLE;
+ }
+--- a/dlls/windows.ui/private.h
++++ b/dlls/windows.ui/private.h
+@@ -44,6 +44,8 @@
+ extern IActivationFactory *inputpane_factory;
+ extern IActivationFactory *corewindow_factory;
+ extern IActivationFactory *corecursor_factory;
++extern IActivationFactory *coredispatcher_factory;
++extern void coredispatcher_thread_detach(void);
+ 
+ #define DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from, iface_mem, expr )             \
+     static inline impl_type *impl_from( iface_type *iface )                                        \
+--- a/dlls/windows.ui/classes.idl
++++ b/dlls/windows.ui/classes.idl
+@@ -37,6 +37,7 @@
+ 
+ namespace Windows.UI.Core {
+     runtimeclass CoreCursor;
++    runtimeclass CoreDispatcher;
+     runtimeclass CoreWindow;
+ }
+ 

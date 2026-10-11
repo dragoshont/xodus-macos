@@ -2690,3 +2690,80 @@ Store-install/playability claim.
 | `receipt.json` | `87d2e0feaf74031c6e334aafcb9c59049b27526fcbd9e30385f7e9b033a93072` |
 | `propertyset-tests.log` | `e4816e5cacbdd32799aa4e3b9f39f14c77b3fc4d28eada3a7d7360033a3bceb0` |
 | `ntdll-abi-smoke.log` | `7f8b049121de2e790d4d0d6015d6235e65427963c9c52c387dc13d08d56af4f7` |
+
+### Thread dispatcher factory and control 1910
+
+Coordinator verified-static analysis of genuine Windows.UI establishes
+private factory IID `{4b4d0861-d718-4f7c-bec7-735c065f7c73}` as an
+eight-slot IInspectable interface: slot 6 returns the current thread's
+public `ICoreDispatcher` or NULL; slot 7 creates it if absent. Returned
+dispatchers implement private IID `{34fff979-bd36-4bb1-82d2-785a605b81fb}`
+as a five-slot IUnknown interface sharing the public dispatcher's COM
+identity. Slot 3 pumps messages while waiting for an optional HANDLE;
+slot 4 begins queue shutdown. These are RE-grounded private contracts,
+not public SDK interface names.
+
+`wine-coredispatcher-thread.patch` adds the runtime class/factory,
+reference-owned TLS dispatcher with owner-thread identity and thread-exit
+cleanup, and the private pumping interface. The wait uses public
+`MsgWaitForMultipleObjectsEx`/`PeekMessageW`/`TranslateMessage`/
+`DispatchMessageW`, checks handles between messages, rejects other threads
+with `RPC_E_WRONG_THREAD`, and returns `E_APPLICATION_EXITING` on quit or
+shutdown. There is no queue controller in this builtin route; an
+idempotent event signals its shutdown. Failures propagate as HRESULTs
+instead of copying genuine initialization fail-fast behavior. Ordinal
+1500 attaches to the existing thread dispatcher rather than allocating a
+second one. Existing unimplemented public async/event features are not
+silently promoted to working features.
+
+No-game owner UNIT1900 passes **47/0** with the exact builtin provider.
+The strict test covers factory QI/vtable shape, NULL-then-create lookup,
+repeated and cross-thread identity, runtime-name/trust metadata, private
+QI/controlling-IUnknown identity, wrong-thread rejection, real dispatch of
+a posted HWND message before another thread signals completion, thread
+detach reference release, ordinal-1500 dispatcher identity, and quit/
+idempotent shutdown. The admitted DLL hash is
+`c614649c78b0a3c1bd7b8b03659cd669b8246709b19dae62451bcb8d11ec39c3`.
+The same 47-check admission passes again before the single game.
+
+| Private 1910 evidence | Observed result |
+| --- | --- |
+| Lines 7880-7894 | Enumerates `cuphead.App`, registers one factory callback twinapi+`0x2fc90`, and returns `S_OK`. No callback lookup/invocation follows. |
+| Apartment traces | Main `0550` is MTA (`type=1`, qualifier 0); view `0564` is MAINSTA (`type=3`, qualifier 0). |
+| Line 7915 | Main waits in nonalertable `NtWaitForSingleObject(0x214, FALSE, NULL)`, caller kernelbase+`0x7981d`. |
+| Lines 8087-8090 | CoreDispatcher factory activation now succeeds; private slot 7 creates a thread dispatcher on `0564`. |
+| Lines 8091-8095 | GIT registers twinapi IID `{638bb2db-451d-4661-b099-414f34ffb9f1}`; `CoMarshalInterface` reaches missing `combase.CoGetStdMarshalEx` and aborts. Delay descriptor/IAT are twinapi+`0x21a920`/+`0x2422c8`. This is the next actual wall. |
+| Lines 8278-8280 | Child exits `0x80000100` / 2147483904 after about 2365 ms; **0 total / 0 visible windows**. No 140-second sample is possible. |
+
+The private pump, registered callback and ordinal 1500 are not reached by
+the game before this new stub. No CoreMessaging/native Windows.UI change
+is made. `ShowCrashDialog=0` avoids modal obstruction; no manual closure
+is reported. Owner status is 0 and all 22 target baselines/absences,
+three temporary registry-key removals, original empty WineDbg key,
+signature, quiescence and owned-process absence are independently checked.
+
+Post-control loader review identifies a necessary admission correction:
+1910 loaded identical pinned payload and system32 Windows.UI DLLs at
+different bases. Its factory registration selected system32, while the
+imported ordinal-1500 provider was the payload copy. Separate DLL copies
+have separate TLS, so a within-one-provider identity test does not prove
+identity across that layout. The future owner registers CoreDispatcher
+to the payload-selected `Windows.UI.dll`. No-game-only UNIT1930 tests
+that explicit provider through both `RoGetActivationFactory` and
+`DllGetActivationFactory`, and passes the same **47/0**, including
+ordinal-1500 identity. All 22 targets and temporary registration are
+restored and independently checked. This correction has **not** been
+game-tested in 1910 and does not authorize replay.
+
+The four-source patch applies to the exact preceding Windows.UI baseline
+and reproduces the compiled files. CoreWindow creation/first frame remain
+unestablished; the missing mandatory quality runner (exit 2) still blocks
+an overall PASS.
+
+| Private evidence | SHA-256 |
+| --- | --- |
+| 1910 `game.log` | `ff6bcf7fd3f4e9d9982471de05c089a0ebca9d00c6e1530c2db7af759166e1b4` |
+| 1910 `receipt.json` | `a7d35b5d2033af8b6857f87a5ed1dedd81956ab4d2ffbacaf262260afc4bd3a4` |
+| 1910 `dispatcher-tests.log` | `6b1e1907e2ac9417e1aa797138dfc93ca52ce3ded8e89978b0b1837a0d14d0ea` |
+| UNIT1930 `dispatcher-tests.log` | `c62f797efef9a5aea9731b4a550131d6c4aec7fef0bb5513a9d9e5755464baa3` |
+| UNIT1930 `receipt.json` | `c9528aa6e55839f6e7d20d9a6b53f4a128bafe21b4fab4fcf203c56e421ce1fd` |

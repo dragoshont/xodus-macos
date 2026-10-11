@@ -3273,3 +3273,81 @@ The shared-provider hold was released.
 | Game log | `ec260d80dfba2a7e92c06f2220b374e621c30b6f74884abd37821f0158129205` |
 | Receipt | `6ffdb5aef8265132453fb1e8b9af6796dd455238c67966c9d232d0dd7098dd67` |
 | Independent baseline proof | `329e3d32eee6c92a507874fbcca384073f32a86a952f786b50a5445e79c69bd1` |
+
+### ApplicationData folder paths and the single game 2180 control
+
+The coordinator authorized only LocalFolder, RoamingFolder and TemporaryFolder
+after the observed Unity worker TemporaryFolder E_NOTIMPL. The reusable
+`wine-applicationdata-folders.patch` follows Wine's existing package.c
+IStorageFolder/IStorageItem object precedent. It implements immutable Path and
+Name, identity-preserving QueryInterface including IAgileObject, and balanced
+reference/string lifetime. Other storage operations remain explicit
+FIXME/E_NOTIMPL; LocalCacheFolder and unrelated ApplicationData APIs are not
+expanded.
+
+The getters use real GetCurrentPackageFamilyName and
+SHGetKnownFolderPath(FOLDERID_LocalAppData), never a guessed identity or current
+executable path. They create missing directories at
+LocalAppData\Packages\PFN\LocalState, RoamingState and TempState, reject a
+non-directory collision, propagate identity/directory errors, and return NULL
+folder outputs on failure. Wine's headers lack the package-family prototype;
+its LONG WINAPI signature is declared against the verified kernel32 forwarder.
+The module imports shell32/ole32 for directory/known-folder helpers.
+
+The public no-game `applicationdata-folder-test.c` compiles the exact folder
+source with **test-only** PFN/known-folder seams for positive path, creation,
+QI, repeat-access, string lifetime and reference checks. It uses a uniquely
+created temporary directory and removes only its named, empty test directories.
+The deployed DLL negative checks use a genuinely unpackaged caller: all three
+getters return HRESULT_FROM_WIN32(APPMODEL_ERROR_NO_PACKAGE), clear outputs, and
+reject NULL outputs. No synthetic token or identity seam is shipped.
+The coordinator explicitly accepted this distinction; actual packaged behavior
+was reserved for the authorized game.
+
+No-game 2180 passed **96 checks, zero failures**, plus the standard
+30/47/54/27/29 regressions, cstub 248/0 (two TODOs) and private compact/NDR3
+transport. The ApplicationData provider SHA-256 is
+`93f9b03236f9f86102d351aa1f670f71cbf8b291fc78d43ffa8bb8674b575136`.
+Two additional pinned bottle/vendor ApplicationData targets bring the restore
+set to 29. All targets and registrations were independently verified restored
+before the conditional single 2180 game, which required the exact admitted
+manifest.
+
+The actual game proves packaged TemporaryFolder progression: thread 07dc
+creates the real PFN TempState directory and receives Path
+`C:\users\crossover\AppData\Local\Packages\StudioMDHR.20872A364DAA1_tm1s6a95559gt\TempState`
+and Name `TempState`. Unity subsequently opens TempState\UnityPlayer.log.
+The new first worker language exception is **80040154** after
+RoGetActivationFactory fails to find
+Windows.Devices.Enumeration.Pnp.PnpObject (IActivationFactory IID). It is
+followed by RoOriginateError/LanguageException and a C++ e06d7363 exception on
+07dc. The terminal reason remains 1007 at SharedLibrary+41cf88 on MTA 07d0,
+exit 4103 after 1776 ms, zero windows. Cross-thread causality is not proven.
+No TextScaleFactorChanged/Showing/Hiding call justifies adding the prepared
+events patch.
+
+Further coordinator static analysis refines the earlier attribution: 1007 is
+0x1000 plus fail-fast reason 7, an unmanaged exception escaping a
+managed-to-native transition, rather than reason 6 for an unhandled managed
+exception. Unity's folder failure path calls the native C++/CX
+raiseNotImplementedException helper. The folder change removes that observed
+E_NOTIMPL predecessor but does not establish a complete native-exception fix.
+
+2180 kept the 2170 logging flags, including trace+seh, but split controller
+stdout from diagnostic stderr with coordinator approval. Contiguous result
+markers are now preserved; owner exit was zero, without weakening predicates.
+The single 2180 grant is consumed. All 29 provider baselines/absences,
+temporary keys, empty WineDbg, original CoreApplication registration,
+signature and quiescence were independently verified restored, and the
+shared-provider hold was released. Newly created game TempState/Unity log
+remain; no existing saved-game contents were changed or deleted.
+Mandatory quality validation still exits 2 because its runner is absent.
+
+| 2180 private evidence | SHA-256 |
+| --- | --- |
+| No-game folder test | `7b1d4dd1b16f758eb3da4a0bec387e4d89fe476f53445f4f0ca03e53593f0ace` |
+| No-game receipt | `71d4a937dd07851f0dd6c4878c39b37bb27466550969df26336c00a5fa8f8d83` |
+| Game stdout | `f8bd5ff38eb5e074029b103f0533829b9e1435ca8e7f5221df56b84bd55d8ea4` |
+| Game diagnostic stderr | `600111c5c59870ea01c4e43bc1affa100534665e5fffc61da6f7e26dbb4a9b95` |
+| Game receipt | `f3797faae8303f5c3ad4b7058215f9697d699617ad384e566d4cc6714a2a7065` |
+| Independent baseline proof (each cycle) | `404ab2af25d7a7206ac9ac417ea5d058a0d7619dbbd762d3baa0d8c11f821381` |

@@ -1,0 +1,113 @@
+diff --git a/dlls/windows.ui/accessibilitysettings.c b/dlls/windows.ui/accessibilitysettings.c
+--- a/dlls/windows.ui/accessibilitysettings.c
++++ b/dlls/windows.ui/accessibilitysettings.c
+@@ -19,6 +19,7 @@
+ 
+ #include "private.h"
+ #include "wine/debug.h"
++#include "wine/list.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(ui);
+ 
+@@ -26,6 +27,16 @@
+ {
+     IAccessibilitySettings IAccessibilitySettings_iface;
+     LONG ref;
++    CRITICAL_SECTION cs;
++    struct list handlers;
++    LONGLONG next_token;
++};
++
++struct high_contrast_handler
++{
++    struct list entry;
++    ITypedEventHandler_AccessibilitySettings_IInspectable *handler;
++    EventRegistrationToken token;
+ };
+ 
+ static inline struct accessibilitysettings *impl_from_IAccessibilitySettings(IAccessibilitySettings *iface)
+@@ -71,7 +82,18 @@
+     TRACE("iface %p, ref %lu.\n", iface, ref);
+ 
+     if (!ref)
++    {
++        struct high_contrast_handler *entry, *next;
++
++        LIST_FOR_EACH_ENTRY_SAFE(entry, next, &impl->handlers, struct high_contrast_handler, entry)
++        {
++            list_remove(&entry->entry);
++            ITypedEventHandler_AccessibilitySettings_IInspectable_Release(entry->handler);
++            free(entry);
++        }
++        DeleteCriticalSection(&impl->cs);
+         free(impl);
++    }
+     return ref;
+ }
+ 
+@@ -121,15 +143,52 @@
+                                                                     ITypedEventHandler_AccessibilitySettings_IInspectable *handler,
+                                                                     EventRegistrationToken *cookie)
+ {
+-    FIXME("iface %p, handler %p, cookie %p stub!\n", iface, handler, cookie);
+-    return E_NOTIMPL;
++    struct accessibilitysettings *impl = impl_from_IAccessibilitySettings(iface);
++    struct high_contrast_handler *entry;
++
++    TRACE("iface %p, handler %p, cookie %p.\n", iface, handler, cookie);
++
++    if (!handler || !cookie) return E_INVALIDARG;
++    if (!(entry = calloc(1, sizeof(*entry)))) return E_OUTOFMEMORY;
++    entry->handler = handler;
++    ITypedEventHandler_AccessibilitySettings_IInspectable_AddRef(handler);
++
++    EnterCriticalSection(&impl->cs);
++    if (impl->next_token == MAXLONGLONG)
++    {
++        LeaveCriticalSection(&impl->cs);
++        ITypedEventHandler_AccessibilitySettings_IInspectable_Release(handler);
++        free(entry);
++        WARN("HighContrastChanged registration token space exhausted.\n");
++        return HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW);
++    }
++    entry->token.value = ++impl->next_token;
++    *cookie = entry->token;
++    list_add_tail(&impl->handlers, &entry->entry);
++    LeaveCriticalSection(&impl->cs);
++    return S_OK;
+ }
+ 
+ static HRESULT WINAPI accessibilitysettings_remove_HighContrastChanged(IAccessibilitySettings *iface,
+                                                                        EventRegistrationToken cookie)
+ {
+-    FIXME("iface %p, cookie %I64x stub!\n", iface, cookie.value);
+-    return E_NOTIMPL;
++    struct accessibilitysettings *impl = impl_from_IAccessibilitySettings(iface);
++    struct high_contrast_handler *entry;
++
++    TRACE("iface %p, cookie %I64x.\n", iface, cookie.value);
++
++    EnterCriticalSection(&impl->cs);
++    LIST_FOR_EACH_ENTRY(entry, &impl->handlers, struct high_contrast_handler, entry)
++    {
++        if (entry->token.value != cookie.value) continue;
++        list_remove(&entry->entry);
++        LeaveCriticalSection(&impl->cs);
++        ITypedEventHandler_AccessibilitySettings_IInspectable_Release(entry->handler);
++        free(entry);
++        return S_OK;
++    }
++    LeaveCriticalSection(&impl->cs);
++    return S_OK;
+ }
+ 
+ static const struct IAccessibilitySettingsVtbl accessibilitysettings_vtbl =
+@@ -227,6 +286,8 @@
+ 
+     impl->IAccessibilitySettings_iface.lpVtbl = &accessibilitysettings_vtbl;
+     impl->ref = 1;
++    InitializeCriticalSection(&impl->cs);
++    list_init(&impl->handlers);
+ 
+     *instance = (IInspectable *)&impl->IAccessibilitySettings_iface;
+     return S_OK;

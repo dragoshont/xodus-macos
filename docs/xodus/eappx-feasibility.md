@@ -3138,3 +3138,94 @@ PASS or a playability claim.
 | Game 2130 game.log | `f4361bf60f41f1c06f6271f4e4eaa6ef02ebf5556772cda72700ec3943023458` |
 | Game 2130 receipt.json | `e23b92a3ea872dde4301b5df0b8a98f3f0bd1619a1341849bf6570a56eb5cc81` |
 | Game 2130 independent baseline proof | `ffbea12d9c053386b3037077c059153f142769aaa61527926bf0e0a66a1bf8f4` |
+
+### AccessibilitySettings retained registrations: blocked no-game 2160
+
+The next narrowly authorized source candidate replaces only
+AccessibilitySettings.HighContrastChanged add/remove. It follows the existing
+CoreWindow retained-handler pattern: a per-instance critical section and list,
+one handler AddRef per registration, increasing nonzero tokens, E_INVALIDARG
+for NULL handler/token arguments, and S_OK for removed or unknown tokens.
+Remove releases the detached handler outside the lock; final object Release
+releases every remaining registration and destroys the critical section.
+Token exhaustion fails explicitly rather than wrapping. HighContrast querying
+is unchanged. No event is fired; host high-contrast change notifications remain
+unsupported. UISettings2.TextScaleFactorChanged, InputPane.Showing/Hiding and
+the parked EventHandler proxy are not modified.
+
+`wine-accessibilitysettings-events.patch` contains the one-file source change.
+`accessibilitysettings-event-test.c` checks argument validation, increasing
+cookies, duplicate/unknown removal, retained references, final-release cleanup,
+no unsolicited Invoke and parity with SPI_GETHIGHCONTRAST. Both the provider
+and strict `-Wall -Wextra -Werror` test compilation succeeded. The candidate
+windows.ui SHA-256 is
+`fd0637140939f592608fb3a8d85da562430680d29d869dac0a96c2f1b0e070dd`.
+
+The authorized no-game 2160 cycle stopped at an earlier dispatcher regression:
+CreateCoreWindow returned failure, with 39 checks and one failure, because Wine
+reported that no graphics driver could load. The successful 2155 trace loaded
+winemac.drv; 2160 has no such load. The new lifecycle test was **not reached**,
+so its runtime behavior is not yet verified. No graphics/backend workaround,
+gate weakening or automatic replay was made. The separately granted single
+2160 game is conditional on passing gates and remains **unconsumed**.
+
+The owner restored all 27 targets with no restoration errors. Independent
+read-only verification confirmed exact baseline hashes/absences, temporary
+keys absent, original empty WineDbg, original CoreApplication DllPath, no Wine
+runtime or bottle holders, and CrossOver's deep/strict signature. The capture
+is `cuphead-owned-accessibility-unit-20261011-2160`; its receipt and independent
+baseline proof are retained privately. The mandatory quality runner still
+does not exist (actual exit 2 retained), so no overall PASS is claimed.
+
+Additional coordinator static analysis identifies SharedLibrary+41cf88 as the
+return address after RaiseFailFastException: the preceding 2130 exception is
+a deliberate managed fail-fast, not an access violation. The association with
+HighContrastChanged remains correlation without the managed exception details
+or its caller.
+
+### AccessibilitySettings admission and the single game 2160 control
+
+The launch-method comparison found the environmental difference: the recorded
+2155 invocation used AppleScript to run the owner through Terminal; the first
+2160 invocation ran directly under SSH (Background bootstrap). The constructed
+Wine environment and dispatcher arguments were identical, but the original
+inherited environment was not recorded. The coordinator independently verified
+an unlocked, logged-in console session and authorized one renewed no-game
+cycle. It used the original Terminal method with `caffeinate -du`, without
+graphics-provider or bottle configuration changes.
+
+The separately preserved `cuphead-owned-accessibility-unit-20261011-2160-v2`
+passed the new lifecycle test (33 checks, zero failures), dispatcher (47/0),
+public proxy (30/0), aggregation (54/0), ordinal 122 (27/0), cstub (248 checks,
+zero failures, two TODOs), and the private compact/NDR3 transport gates.
+winemac.drv loaded normally. All 27 baselines and registrations were restored
+and independently verified before admitting the conditional game launch.
+
+The one authorized game 2160 used the **identical admitted candidate manifest**.
+HighContrastChanged registration is followed by further AccessibilitySettings,
+CoreApplication and CoreWindow activity: execution advances beyond the earlier
+last-call fingerprint. It still terminates with managed fail-fast 1007 at
+SharedLibrary+41cf88 on MTA thread 07bc, exit 4103 after 1288 ms, zero windows.
+No next UISettings2.TextScaleFactorChanged or InputPane.Showing/Hiding
+E_NOTIMPL is observed. CoreWindow.GetForCurrentThread twice returns NULL on the
+MTA because that thread has no owned window; this alone is not attributed as
+the cause. The final logged operation is successful FTM-backed GIT marshaling
+of IID e2663f37-2e1b-500c-ad68-c3ed7a8f74c8, returning cookie f101, immediately
+before fail-fast. No c50898f6 transport is observed. RaiseFailFastException's
+pointed-to exception record/message was not captured; no new causal diagnosis
+is claimed.
+
+The 2160 game grant is **consumed**. Owner exit was zero with no restoration
+errors; independent verification again confirmed all 27 baseline
+hashes/absences, temporary keys, original empty WineDbg and CoreApplication
+registration, signature, and no runtime or bottle holders. The shared-provider
+hold was released. No further launch, handler proxy or speculative next-wall
+fix is included.
+
+| 2160 private evidence | SHA-256 |
+| --- | --- |
+| Renewed no-game lifecycle log | `e6d9e56eab1171d04810ec9849d7cc3b530e52655a9a154203192bf616c11673` |
+| Renewed no-game receipt | `2d97fe6d655f99b6582d0a65d897e159ec343cfa0727affb0a4b4aaeaa650dc8` |
+| Game log | `1a335885f18ee6be8e3707340c93e9820fbf650ce1a0c8e5db1f6ec9cd99475a` |
+| Game receipt | `5943e2764d8700704040a088142cf8c1613e9e5173c462a32083a466a2e49ec0` |
+| Independent baseline proof (each successful cycle) | `62137be3a74de61bcf138aa37e0adc407c79774d1ad5c4510363a0a6ad3f0203` |

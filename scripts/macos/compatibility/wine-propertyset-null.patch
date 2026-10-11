@@ -1,0 +1,113 @@
+--- a/dlls/wintypes/map.c
++++ b/dlls/wintypes/map.c
+@@ -34,7 +34,7 @@
+ {
+     HRESULT hr;
+     if (FAILED(hr = WindowsDuplicateString( key, &entry->key ))) return hr;
+-    IInspectable_AddRef( (entry->value = value) );
++    if ((entry->value = value)) IInspectable_AddRef( entry->value );
+     return S_OK;
+ }
+ 
+@@ -42,14 +42,14 @@
+ {
+     /* key has been duplicated already and further duplication cannot fail */
+     WindowsDuplicateString( src->key, &dst->key );
+-    IInspectable_AddRef( (dst->value = src->value) );
++    if ((dst->value = src->value)) IInspectable_AddRef( dst->value );
+ }
+ 
+ static void map_entry_clear( struct map_entry *entry )
+ {
+     WindowsDeleteString( entry->key );
+     entry->key = NULL;
+-    IInspectable_AddRef( entry->value );
++    if (entry->value) IInspectable_Release( entry->value );
+     entry->value = NULL;
+ }
+ 
+@@ -159,7 +159,7 @@
+ {
+     struct pair *impl = impl_from_IKeyValuePair_HSTRING_IInspectable( iface );
+     TRACE( "iface %p, value %p\n", iface, value );
+-    IInspectable_AddRef( (*value = impl->entry.value) );
++    if ((*value = impl->entry.value)) IInspectable_AddRef( *value );
+     return S_OK;
+ }
+ 
+@@ -421,6 +421,8 @@
+ 
+     if (!ref)
+     {
++        UINT32 i;
++        for (i = 0; i < impl->size; i++) map_entry_clear( &impl->entries[i] );
+         IMap_HSTRING_IInspectable_Release( &impl->map->IMap_HSTRING_IInspectable_iface );
+         free( impl );
+     }
+@@ -456,7 +458,7 @@
+ 
+     if (FAILED(hr = map_view_check_serial( impl ))) return hr;
+     if (!(entry = map_entries_lower_bound( impl->entries, impl->size, key, &order )) || order) return E_BOUNDS;
+-    IInspectable_AddRef( (*value = entry->value ));
++    if ((*value = entry->value)) IInspectable_AddRef( *value );
+     return S_OK;
+ }
+ 
+@@ -486,7 +488,8 @@
+     return S_OK;
+ }
+ 
+-static HRESULT map_view_create( struct map *map, UINT first, UINT count, IMapView_HSTRING_IInspectable **out );
++static HRESULT map_view_create( struct map *map, const struct map_entry *entries, UINT first, UINT count,
++                                IMapView_HSTRING_IInspectable **out );
+ 
+ static HRESULT WINAPI map_view_Split( IMapView_HSTRING_IInspectable *iface, IMapView_HSTRING_IInspectable **first,
+                                       IMapView_HSTRING_IInspectable **second )
+@@ -497,8 +500,8 @@
+     TRACE( "iface %p, first %p, second %p\n", iface, first, second );
+ 
+     if (FAILED(hr = map_view_check_serial( impl ))) return hr;
+-    if (FAILED(hr = map_view_create( impl->map, 0, impl->size / 2, first ))) return hr;
+-    if (FAILED(hr = map_view_create( impl->map, impl->size / 2, impl->size - impl->size / 2, second )))
++    if (FAILED(hr = map_view_create( impl->map, impl->entries, 0, impl->size / 2, first ))) return hr;
++    if (FAILED(hr = map_view_create( impl->map, impl->entries, impl->size / 2, impl->size - impl->size / 2, second )))
+         IMapView_HSTRING_IInspectable_Release( *first );
+ 
+     return hr;
+@@ -557,7 +560,8 @@
+     iterable_view_First,
+ };
+ 
+-static HRESULT map_view_create( struct map *map, UINT first, UINT count, IMapView_HSTRING_IInspectable **out )
++static HRESULT map_view_create( struct map *map, const struct map_entry *entries, UINT first, UINT count,
++                                IMapView_HSTRING_IInspectable **out )
+ {
+     struct map_view *view;
+ 
+@@ -570,7 +574,7 @@
+     view->map = map;
+     view->serial = map->serial;
+ 
+-    for (UINT32 i = 0; i < count; ++i) map_entry_copy( view->entries + view->size++, map->entries + i );
++    for (UINT32 i = 0; i < count; ++i) map_entry_copy( view->entries + view->size++, entries + first + i );
+ 
+     *out = &view->IMapView_HSTRING_IInspectable_iface;
+     return S_OK;
+@@ -677,7 +681,7 @@
+     TRACE( "iface %p, key %s, value %p\n", iface, debugstr_hstring( key ), value );
+ 
+     if (!(entry = map_entries_lower_bound( impl->entries, impl->size, key, &order )) || order) return E_BOUNDS;
+-    IInspectable_AddRef( (*value = entry->value ));
++    if ((*value = entry->value)) IInspectable_AddRef( *value );
+     return S_OK;
+ }
+ 
+@@ -707,7 +711,7 @@
+ 
+     TRACE( "iface %p, value %p.\n", iface, value );
+ 
+-    return map_view_create( impl, 0, impl->size, value );
++    return map_view_create( impl, impl->entries, 0, impl->size, value );
+ }
+ 
+ static HRESULT WINAPI map_Insert( IMap_HSTRING_IInspectable *iface, HSTRING key, IInspectable *value, boolean *replaced )

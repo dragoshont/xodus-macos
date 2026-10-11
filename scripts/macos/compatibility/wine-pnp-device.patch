@@ -1,0 +1,1184 @@
+--- a/dlls/cfgmgr32/main.c
++++ b/dlls/cfgmgr32/main.c
+@@ -767,6 +767,128 @@
+     }
+ }
+ 
++static HRESULT dev_object_node_get_props( DEV_OBJECT *obj, DEVINST node, ULONG count, const DEVPROPCOMPKEY *keys )
++{
++    ULONG i;
++    HRESULT hr = S_OK;
++
++    for (i = 0; i < count; i++)
++    {
++        DEVPROPTYPE type;
++        ULONG size = 0, attempt;
++        CONFIGRET ret;
++        BYTE *buffer = NULL;
++
++        if (keys[i].Store != DEVPROP_STORE_SYSTEM || (keys[i].LocaleName && *keys[i].LocaleName))
++        {
++            FIXME( "Unsupported property store or locale.\n" );
++            hr = E_NOTIMPL;
++            break;
++        }
++        ret = CM_Get_DevNode_PropertyW( node, &keys[i].Key, &type, NULL, &size, 0 );
++        if (ret == CR_NO_SUCH_VALUE)
++            type = DEVPROP_TYPE_EMPTY;
++        else if (ret != CR_BUFFER_SMALL && ret != CR_SUCCESS)
++        {
++            hr = HRESULT_FROM_WIN32( CM_MapCrToWin32Err( ret, ERROR_GEN_FAILURE ) );
++            break;
++        }
++        else if (size)
++        {
++            for (attempt = 0; attempt < 3; attempt++)
++            {
++                BYTE *tmp;
++                if (!size)
++                {
++                    free( buffer );
++                    buffer = NULL;
++                    hr = E_UNEXPECTED;
++                    break;
++                }
++                if (!(tmp = realloc( buffer, size )))
++                {
++                    free( buffer );
++                    buffer = NULL;
++                    hr = E_OUTOFMEMORY;
++                    break;
++                }
++                buffer = tmp;
++                ret = CM_Get_DevNode_PropertyW( node, &keys[i].Key, &type, buffer, &size, 0 );
++                if (ret != CR_BUFFER_SMALL) break;
++            }
++            if (FAILED(hr)) break;
++            if (ret == CR_NO_SUCH_VALUE)
++            {
++                free( buffer );
++                buffer = NULL;
++                type = DEVPROP_TYPE_EMPTY;
++                ret = CR_SUCCESS;
++            }
++            if (ret != CR_SUCCESS)
++            {
++                free( buffer );
++                hr = HRESULT_FROM_WIN32( CM_MapCrToWin32Err( ret, ERROR_GEN_FAILURE ) );
++                break;
++            }
++        }
++        if (!dev_properties_append( (DEVPROPERTY **)&obj->pProperties, &obj->cPropertyCount,
++                                   &keys[i].Key, type, buffer ? size : 0, buffer ))
++        {
++            free( buffer );
++            hr = E_OUTOFMEMORY;
++            break;
++        }
++    }
++    if (FAILED(hr))
++    {
++        DevFreeObjectProperties( obj->cPropertyCount, obj->pProperties );
++        obj->pProperties = NULL;
++        obj->cPropertyCount = 0;
++    }
++    return hr;
++}
++
++static HRESULT enum_dev_nodes( ULONG props_len, const DEVPROPCOMPKEY *props,
++                               enum_device_object_cb callback, void *data )
++{
++    WCHAR *ids = NULL, *id;
++    ULONG len, attempt;
++    CONFIGRET ret;
++    HRESULT hr = S_OK;
++
++    for (attempt = 0; attempt < 3; attempt++)
++    {
++        ret = CM_Get_Device_ID_List_SizeW( &len, NULL, CM_GETIDLIST_FILTER_NONE );
++        if (ret != CR_SUCCESS) break;
++        free( ids );
++        if (!(ids = calloc( len, sizeof(*ids) ))) return E_OUTOFMEMORY;
++        ret = CM_Get_Device_ID_ListW( NULL, ids, len, CM_GETIDLIST_FILTER_NONE );
++        if (ret != CR_BUFFER_SMALL) break;
++    }
++    if (ret != CR_SUCCESS)
++    {
++        free( ids );
++        return HRESULT_FROM_WIN32( CM_MapCrToWin32Err( ret, ERROR_GEN_FAILURE ) );
++    }
++    for (id = ids; *id && SUCCEEDED(hr); id += wcslen( id ) + 1)
++    {
++        DEV_OBJECT obj = {.ObjectType = DevObjectTypeDevice, .pszObjectId = id};
++        DEVINST node;
++
++        ret = CM_Locate_DevNodeW( &node, id, 0 );
++        if (ret != CR_SUCCESS)
++        {
++            hr = HRESULT_FROM_WIN32( CM_MapCrToWin32Err( ret, ERROR_GEN_FAILURE ) );
++            break;
++        }
++        if (FAILED(hr = dev_object_node_get_props( &obj, node, props_len, props ))) break;
++        hr = callback( obj, data );
++        if (FAILED(hr)) DevFreeObjectProperties( obj.cPropertyCount, obj.pProperties );
++    }
++    free( ids );
++    return hr;
++}
++
+ static HRESULT enum_dev_objects( DEV_OBJECT_TYPE type, ULONG props_len, const DEVPROPCOMPKEY *props, BOOL all_props,
+                                  const DEVPROP_FILTER_EXPRESSION *filters, const DEVPROP_FILTER_EXPRESSION *filters_end,
+                                  enum_device_object_cb callback, void *data )
+@@ -778,11 +900,17 @@
+ 
+     switch (type)
+     {
++    case DevObjectTypeDevice:
++        if (all_props || filters)
++        {
++            FIXME( "Device all-properties and filters are not implemented.\n" );
++            return E_NOTIMPL;
++        }
++        return enum_dev_nodes( props_len, props, callback, data );
+     case DevObjectTypeDeviceInterface:
+     case DevObjectTypeDeviceInterfaceDisplay:
+         break;
+     case DevObjectTypeDeviceContainer:
+-    case DevObjectTypeDevice:
+     case DevObjectTypeDeviceInterfaceClass:
+     case DevObjectTypeAEP:
+     case DevObjectTypeAEPContainer:
+@@ -921,6 +1049,12 @@
+     *objs = NULL;
+     *objs_len = 0;
+ 
++    if (type == DevObjectTypeDevice && (params || (flags & DevQueryFlagLocalize)))
++    {
++        FIXME( "Device query parameters and localization are not implemented.\n" );
++        return E_NOTIMPL;
++    }
++
+     hr = enum_dev_objects( type, props_len, props, !!(flags & DevQueryFlagAllProperties), filters, filters + filters_len,
+                            dev_objects_append, &objects );
+     if (SUCCEEDED( hr ))
+--- a/dlls/cfgmgr32/tests/cfgmgr32.c
++++ b/dlls/cfgmgr32/tests/cfgmgr32.c
+@@ -1862,6 +1862,61 @@
+     ok( !prop, "got prop %p\n", prop );
+ }
+ 
++static void test_DevGetObjects_device( void )
++{
++    DEVPROPCOMPKEY keys[] = {{DEVPKEY_Device_ClassGuid, DEVPROP_STORE_SYSTEM},
++                            {DEVPKEY_dummy, DEVPROP_STORE_SYSTEM}};
++    const DEV_OBJECT *objects = NULL;
++    ULONG count = 0, i;
++    HRESULT hr;
++
++    if (!pDevGetObjects || !pDevFreeObjects) return;
++    hr = pDevGetObjects( DevObjectTypeDevice, 0, ARRAY_SIZE(keys), keys, 0, NULL, &count, &objects );
++    ok( hr == S_OK, "Device enumeration returned %#lx\n", hr );
++    if (FAILED(hr)) return;
++    ok( count > 0, "No real devnodes returned\n" );
++    for (i = 0; i < count; i++)
++    {
++        const DEV_OBJECT *object = &objects[i];
++        GUID guid;
++        DEVPROPTYPE type;
++        DEVINST node;
++        ULONG size = sizeof(guid);
++        CONFIGRET cr;
++
++        ok( object->ObjectType == DevObjectTypeDevice, "Wrong type %d\n", object->ObjectType );
++        ok( object->cPropertyCount == ARRAY_SIZE(keys), "Wrong count %lu\n", object->cPropertyCount );
++        cr = CM_Locate_DevNodeW( &node, (WCHAR *)object->pszObjectId, 0 );
++        ok( cr == CR_SUCCESS, "Cannot locate returned node: %lu\n", cr );
++        if (cr != CR_SUCCESS || object->cPropertyCount != ARRAY_SIZE(keys)) continue;
++        cr = CM_Get_DevNode_PropertyW( node, &keys[0].Key, &type, &guid, &size, 0 );
++        if (cr == CR_NO_SUCH_VALUE)
++            ok( object->pProperties[0].Type == DEVPROP_TYPE_EMPTY, "Missing GUID not EMPTY\n" );
++        else
++        {
++            ok( cr == CR_SUCCESS && type == DEVPROP_TYPE_GUID, "GUID query failed %lu/%lu\n", cr, type );
++            if (cr == CR_SUCCESS)
++            {
++                ok( object->pProperties[0].Type == DEVPROP_TYPE_GUID, "GUID was not typed\n" );
++                ok( object->pProperties[0].BufferSize == sizeof(guid), "GUID size differs\n" );
++                if (object->pProperties[0].BufferSize == sizeof(guid))
++                    ok( IsEqualGUID( &guid, object->pProperties[0].Buffer ), "GUID differs from CM\n" );
++            }
++        }
++        ok( object->pProperties[1].Type == DEVPROP_TYPE_EMPTY && !object->pProperties[1].BufferSize &&
++            !object->pProperties[1].Buffer, "Missing property fabricated\n" );
++    }
++    pDevFreeObjects( count, objects );
++
++    hr = pDevGetObjects( DevObjectTypeDevice, DevQueryFlagAllProperties, 0, NULL, 0, NULL, &count, &objects );
++    ok( hr == E_NOTIMPL && !objects && !count, "Unsupported all-properties returned %#lx\n", hr );
++    keys[0].Store = DEVPROP_STORE_USER;
++    hr = pDevGetObjects( DevObjectTypeDevice, 0, 1, keys, 0, NULL, &count, &objects );
++    ok( hr == E_NOTIMPL && !objects && !count, "Unsupported store returned %#lx\n", hr );
++    hr = pDevGetObjects( DevObjectTypeDevice, 0, 1, NULL, 0, NULL, &count, &objects );
++    ok( hr == E_INVALIDARG, "Invalid property array accepted: %#lx\n", hr );
++}
++
+ START_TEST(cfgmgr32)
+ {
+     HMODULE mod = GetModuleHandleA("cfgmgr32.dll");
+@@ -1878,6 +1933,7 @@
+     test_CM_Register_Notification();
+     test_CM_Get_Device_Interface_List();
+     test_DevGetObjects();
++    test_DevGetObjects_device();
+     test_DevCreateObjectQuery();
+     test_DevGetObjectProperties_invalid();
+     test_DevFindProperty_invalid();
+--- a/dlls/windows.devices.enumeration/Makefile.in
++++ b/dlls/windows.devices.enumeration/Makefile.in
+@@ -10,5 +10,6 @@
+ 	event_handlers.c \
+ 	information.c \
+ 	main.c \
++	pnp.c \
+ 	vector.c \
+ 	weakref.c
+--- a/dlls/windows.devices.enumeration/classes.idl
++++ b/dlls/windows.devices.enumeration/classes.idl
+@@ -22,8 +22,13 @@
+ #pragma winrt ns_prefix
+ 
+ import "windows.devices.enumeration.idl";
++import "windows.devices.enumeration.pnp.idl";
+ 
+ namespace Windows.Devices.Enumeration {
+     runtimeclass DeviceInformation;
+     runtimeclass DeviceAccessInformation;
+ }
++
++namespace Windows.Devices.Enumeration.Pnp {
++    runtimeclass PnpObject;
++}
+--- a/dlls/windows.devices.enumeration/private.h
++++ b/dlls/windows.devices.enumeration/private.h
+@@ -40,6 +40,8 @@
+ #include "windows.foundation.h"
+ #define WIDL_using_Windows_Devices_Enumeration
+ #include "windows.devices.enumeration.h"
++#define WIDL_using_Windows_Devices_Enumeration_Pnp
++#include "windows.devices.enumeration.pnp.h"
+ 
+ #include "wine/list.h"
+ 
+@@ -55,6 +57,9 @@
+ };
+ 
+ extern IActivationFactory *device_access_factory;
++extern IActivationFactory *pnp_object_factory;
++extern HRESULT create_device_properties( const DEVPROPERTY *props, ULONG len, const HSTRING *names,
++                                         IMap_HSTRING_IInspectable **map );
+ 
+ HRESULT typed_event_handlers_append( struct list *list, ITypedEventHandler_IInspectable_IInspectable *handler, EventRegistrationToken *token );
+ HRESULT typed_event_handlers_remove( struct list *list, EventRegistrationToken *token );
+--- a/dlls/windows.devices.enumeration/main.c
++++ b/dlls/windows.devices.enumeration/main.c
+@@ -974,6 +974,8 @@
+                 &IID_IActivationFactory, (void **)factory );
+     else if (!wcscmp( buffer, RuntimeClass_Windows_Devices_Enumeration_DeviceAccessInformation ))
+         IActivationFactory_QueryInterface( device_access_factory, &IID_IActivationFactory, (void **)factory );
++    else if (!wcscmp( buffer, RuntimeClass_Windows_Devices_Enumeration_Pnp_PnpObject ))
++        IActivationFactory_QueryInterface( pnp_object_factory, &IID_IActivationFactory, (void **)factory );
+ 
+     if (*factory) return S_OK;
+     return CLASS_E_CLASSNOTAVAILABLE;
+--- a/dlls/windows.devices.enumeration/information.c
++++ b/dlls/windows.devices.enumeration/information.c
+@@ -186,7 +186,7 @@
+     return wine_dbg_sprintf( "{%s, %04lx}", debugstr_guid( &key->fmtid ), key->pid );
+ }
+ 
+-static HRESULT create_device_properties( const DEVPROPERTY *props, ULONG len, IMap_HSTRING_IInspectable **map )
++HRESULT create_device_properties( const DEVPROPERTY *props, ULONG len, const HSTRING *names, IMap_HSTRING_IInspectable **map )
+ {
+     static const WCHAR *propertyset_name = RuntimeClass_Windows_Foundation_Collections_PropertySet;
+     static const WCHAR *propertyvalue_name = RuntimeClass_Windows_Foundation_PropertyValue;
+@@ -200,6 +200,7 @@
+ 
+     TRACE( "props %p, len %lu, map %p.\n", props, len, map );
+ 
++    *map = NULL;
+     WindowsCreateStringReference( propertyset_name, wcslen( propertyset_name ), &hdr, &str );
+     if (FAILED(hr = RoActivateInstance( str, (IInspectable **)&propset ))) return hr;
+     hr = IPropertySet_QueryInterface( propset, &IID_IMap_HSTRING_IInspectable, (void **)map );
+@@ -220,6 +221,11 @@
+ 
+         switch (prop->Type)
+         {
++        case DEVPROP_TYPE_EMPTY:
++            if (!names) continue;
++            val = NULL;
++            hr = S_OK;
++            break;
+         case DEVPROP_TYPE_BOOLEAN:
+             hr = IPropertyValueStatics_CreateBoolean( propval_statics, !!*(DEVPROP_BOOLEAN *)prop->Buffer, &val );
+             break;
+@@ -265,10 +271,13 @@
+         }
+         default:
+             FIXME("Unsupported DEVPROPTYPE: %#lx\n", prop->Type );
++            if (names) hr = E_NOTIMPL;
+             continue;
+         }
+         if (FAILED(hr)) break;
+-        if (SUCCEEDED(hr = PSGetNameFromPropertyKey( (PROPERTYKEY *)propkey, &name )))
++        if (names)
++            hr = WindowsDuplicateString( names[i], &canonical_name );
++        else if (SUCCEEDED(hr = PSGetNameFromPropertyKey( (PROPERTYKEY *)propkey, &name )))
+         {
+             hr = WindowsCreateString( name, wcslen( name ), &canonical_name );
+             CoTaskMemFree( name );
+@@ -289,12 +298,16 @@
+             hr = IMap_HSTRING_IInspectable_Insert( *map, canonical_name, val, &replaced );
+             WindowsDeleteString( canonical_name );
+         }
+-        IInspectable_Release( val );
++        if (val) IInspectable_Release( val );
+     }
+ 
+ done:
+     if (propval_statics) IPropertyValueStatics_Release( propval_statics );
+-    if (FAILED(hr) && *map) IMap_HSTRING_IInspectable_Release( *map );
++    if (FAILED(hr) && *map)
++    {
++        IMap_HSTRING_IInspectable_Release( *map );
++        *map = NULL;
++    }
+     return hr;
+ }
+ 
+@@ -336,7 +349,7 @@
+     if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
+     impl->IDeviceInformation_iface.lpVtbl = &device_information_vtbl;
+     impl->ref = 1;
+-    if (FAILED(hr = create_device_properties( obj->pProperties, obj->cPropertyCount, &impl->properties )))
++    if (FAILED(hr = create_device_properties( obj->pProperties, obj->cPropertyCount, NULL, &impl->properties )))
+     {
+         free( impl );
+         return hr;
+--- a/dlls/windows.devices.enumeration/tests/Makefile.in
++++ b/dlls/windows.devices.enumeration/tests/Makefile.in
+@@ -1,5 +1,5 @@
+ TESTDLL = windows.devices.enumeration.dll
+-IMPORTS = cfgmgr32 combase propsys uuid
++IMPORTS = cfgmgr32 combase propsys setupapi uuid
+ 
+ SOURCES = \
+ 	devices.c
+--- a/dlls/windows.devices.enumeration/tests/devices.c
++++ b/dlls/windows.devices.enumeration/tests/devices.c
+@@ -28,6 +28,7 @@
+ #include "devfiltertypes.h"
+ #include "devquery.h"
+ #include "propsys.h"
++#include "setupapi.h"
+ 
+ #include "initguid.h"
+ #include "roapi.h"
+@@ -39,6 +40,8 @@
+ #include "windows.foundation.h"
+ #define WIDL_using_Windows_Devices_Enumeration
+ #include "windows.devices.enumeration.h"
++#define WIDL_using_Windows_Devices_Enumeration_Pnp
++#include "windows.devices.enumeration.pnp.h"
+ 
+ #include "wine/test.h"
+ 
+@@ -1450,6 +1453,233 @@
+     ok( ref == 1, "got ref %lu\n", ref );
+ }
+ 
++struct pnp_completed
++{
++    IAsyncOperationCompletedHandler_PnpObjectCollection iface;
++    LONG ref, calls;
++    HANDLE event;
++    AsyncStatus status;
++    IAsyncOperation_PnpObjectCollection *operation;
++};
++
++static HRESULT WINAPI pnp_completed_QI( IAsyncOperationCompletedHandler_PnpObjectCollection *iface,
++                                        REFIID iid, void **out )
++{
++    *out = NULL;
++    if (!IsEqualGUID( iid, &IID_IUnknown ) && !IsEqualGUID( iid, &IID_IAgileObject ) &&
++        !IsEqualGUID( iid, &IID_IAsyncOperationCompletedHandler_PnpObjectCollection )) return E_NOINTERFACE;
++    IAsyncOperationCompletedHandler_PnpObjectCollection_AddRef( iface );
++    *out = iface;
++    return S_OK;
++}
++static ULONG WINAPI pnp_completed_AddRef( IAsyncOperationCompletedHandler_PnpObjectCollection *iface )
++{
++    return InterlockedIncrement( &CONTAINING_RECORD(iface, struct pnp_completed, iface)->ref );
++}
++static ULONG WINAPI pnp_completed_Release( IAsyncOperationCompletedHandler_PnpObjectCollection *iface )
++{
++    struct pnp_completed *handler = CONTAINING_RECORD(iface, struct pnp_completed, iface);
++    ULONG ref = InterlockedDecrement( &handler->ref );
++    if (!ref) free(handler);
++    return ref;
++}
++static HRESULT WINAPI pnp_completed_Invoke( IAsyncOperationCompletedHandler_PnpObjectCollection *iface,
++                                            IAsyncOperation_PnpObjectCollection *operation, AsyncStatus status )
++{
++    struct pnp_completed *handler = CONTAINING_RECORD(iface, struct pnp_completed, iface);
++    handler->operation = operation;
++    handler->status = status;
++    InterlockedIncrement( &handler->calls );
++    SetEvent( handler->event );
++    return S_OK;
++}
++static const IAsyncOperationCompletedHandler_PnpObjectCollectionVtbl pnp_completed_vtbl =
++{
++    pnp_completed_QI, pnp_completed_AddRef, pnp_completed_Release, pnp_completed_Invoke,
++};
++
++static HRESULT pnp_await( IAsyncOperation_PnpObjectCollection *operation, AsyncStatus expected,
++                          IVectorView_PnpObject **view )
++{
++    struct pnp_completed *handler = calloc(1, sizeof(*handler));
++    IAsyncInfo *info = NULL;
++    AsyncStatus status;
++    HRESULT hr, error = E_UNEXPECTED;
++    DWORD i, wait;
++
++    if (!handler) return E_OUTOFMEMORY;
++    handler->iface.lpVtbl = &pnp_completed_vtbl;
++    handler->ref = 1;
++    handler->event = CreateEventW( NULL, FALSE, FALSE, NULL );
++    hr = IAsyncOperation_PnpObjectCollection_put_Completed( operation, &handler->iface );
++    ok( hr == S_OK, "put_Completed %#lx\n", hr );
++    wait = WaitForSingleObject( handler->event, 5000 );
++    ok( wait == WAIT_OBJECT_0, "Completion timed out %lu\n", wait );
++    /* Invoke signals before the worker releases its delegate reference. */
++    for (i = 0; i < 500 && InterlockedCompareExchange( &handler->ref, 1, 1 ) != 1; i++) Sleep(10);
++    ok( handler->ref == 1 && handler->calls == 1, "Delegate refs/calls %ld/%ld\n", handler->ref, handler->calls );
++    ok( handler->operation == operation && handler->status == expected, "Wrong completion identity/status\n" );
++    hr = IAsyncOperation_PnpObjectCollection_QueryInterface( operation, &IID_IAsyncInfo, (void **)&info );
++    ok( hr == S_OK, "AsyncInfo QI %#lx\n", hr );
++    if (info)
++    {
++        hr = IAsyncInfo_get_Status( info, &status );
++        ok( hr == S_OK && status == expected, "Async status %#lx/%d\n", hr, status );
++        hr = IAsyncInfo_get_ErrorCode( info, &error );
++        ok( hr == S_OK, "ErrorCode %#lx\n", hr );
++    }
++    hr = IAsyncOperation_PnpObjectCollection_GetResults( operation, view );
++    ok( hr == error, "GetResults %#lx differs from backend error %#lx\n", hr, error );
++    if (info)
++    {
++        ok( IAsyncInfo_Close( info ) == S_OK, "Async Close failed\n" );
++        IAsyncInfo_Release( info );
++    }
++    IAsyncOperation_PnpObjectCollection_Release( operation );
++    CloseHandle( handler->event );
++    ok( pnp_completed_Release(&handler->iface) == 0, "Completion handler leaked\n" );
++    return hr;
++}
++
++static void test_PnpObject( void )
++{
++    static const GUID fixture_guid = {0xc793b404,0x5f1c,0x47a7,{0x91,0x62,0x67,0x9c,0xc2,0xad,0x9a,0x27}};
++    static const WCHAR fixture_id[] = L"ROOT\\XODUS_PNP_TEST\\0000";
++    static const WCHAR *names[] = {L"{A45C254E-DF1C-4EFD-8020-67D146A850E0} 10",
++        L"{A8B865DD-2E3D-4094-AD97-E593A70C75D6} 3", L"{B725F130-47EF-101A-A5F1-02608C9EEBAC} 10",
++        L"{A8B865DD-2E3D-4094-AD97-E593A70C75D6} 5"};
++    const WCHAR *malformed[] = {L"not a registered property"};
++    SP_DEVINFO_DATA device = {sizeof(device)};
++    IAsyncOperation_PnpObjectCollection *operation;
++    IAsyncOperation_PnpObject *single;
++    IVectorView_PnpObject *view = NULL;
++    IIterable_HSTRING *properties;
++    IPnpObjectStatics *statics = NULL;
++    IPnpObjectWatcher *watcher;
++    HSTRING class_name;
++    HDEVINFO set;
++    HRESULT hr;
++    UINT32 size, i;
++    BOOL found = FALSE, registered = FALSE;
++
++    WindowsCreateString( RuntimeClass_Windows_Devices_Enumeration_Pnp_PnpObject,
++        wcslen(RuntimeClass_Windows_Devices_Enumeration_Pnp_PnpObject), &class_name );
++    hr = RoGetActivationFactory( class_name, &IID_IPnpObjectStatics, (void **)&statics );
++    WindowsDeleteString( class_name );
++    ok( hr == S_OK && !!statics, "Pnp activation failed %#lx\n", hr );
++    if (FAILED(hr)) return;
++    set = SetupDiCreateDeviceInfoList( &fixture_guid, NULL );
++    ok( set != INVALID_HANDLE_VALUE, "CreateDeviceInfoList %lu\n", GetLastError() );
++    if (set == INVALID_HANDLE_VALUE) goto release;
++    ok( SetupDiCreateDeviceInfoW( set, fixture_id, &fixture_guid, L"Xodus Pnp test", NULL, 0, &device ),
++        "CreateDeviceInfo %lu\n", GetLastError() );
++    registered = SetupDiRegisterDeviceInfo( set, &device, 0, NULL, NULL, NULL );
++    ok( registered, "RegisterDeviceInfo %lu\n", GetLastError() );
++    if (!registered) goto cleanup;
++
++    properties = iterable_hstring_create( names, ARRAY_SIZE(names) );
++    hr = IPnpObjectStatics_FindAllAsync( statics, PnpObjectType_Device, properties, &operation );
++    ok( hr == S_OK && !!operation, "FindAllAsync %#lx\n", hr );
++    ok( impl_from_IIterable_HSTRING(properties)->ref == 1, "Request retained caller iterable\n" );
++    IIterable_HSTRING_Release( properties );
++    if (FAILED(hr)) goto cleanup;
++    hr = pnp_await( operation, Completed, &view );
++    ok( hr == S_OK && !!view, "Results %#lx\n", hr );
++    if (FAILED(hr) || !view) goto cleanup;
++    check_interface( view, &IID_IIterable_PnpObject, TRUE );
++    IVectorView_PnpObject_get_Size( view, &size );
++    ok( size > 0, "No devnodes\n" );
++    for (i = 0; i < size; i++)
++    {
++        IPnpObject *object = NULL;
++        HSTRING id = NULL;
++        hr = IVectorView_PnpObject_GetAt( view, i, &object );
++        ok( hr == S_OK, "GetAt %#lx\n", hr );
++        if (FAILED(hr)) continue;
++        IPnpObject_get_Id( object, &id );
++        if (!wcsicmp( WindowsGetStringRawBuffer(id, NULL), fixture_id ))
++        {
++            IMapView_HSTRING_IInspectable *map = NULL;
++            IInspectable *boxed = NULL;
++            IPropertyValue *value = NULL;
++            PnpObjectType type;
++            HSTRING key;
++            GUID guid;
++
++            found = TRUE;
++            check_interface( object, &IID_IAgileObject, TRUE );
++            ok( IPnpObject_get_Type(object, &type) == S_OK && type == PnpObjectType_Device, "Wrong object type\n" );
++            ok( IPnpObject_Update(object, NULL) == E_NOTIMPL, "Update must fail explicitly\n" );
++            ok( IPnpObject_get_Properties(object, &map) == S_OK, "Properties failed\n" );
++            if (map)
++            {
++                WindowsCreateString(names[0], wcslen(names[0]), &key);
++                hr = IMapView_HSTRING_IInspectable_Lookup(map, key, &boxed);
++                ok( hr == S_OK && !!boxed, "Caller GUID key lost %#lx\n", hr );
++                WindowsDeleteString(key);
++                if (boxed)
++                {
++                    hr = IInspectable_QueryInterface(boxed, &IID_IPropertyValue, (void **)&value);
++                    ok( hr == S_OK, "GUID box QI %#lx\n", hr );
++                    if (value)
++                    {
++                        hr = IPropertyValue_GetGuid(value, &guid);
++                        ok( hr == S_OK && IsEqualGUID(&guid, &fixture_guid), "Boxed GUID differs %#lx\n", hr );
++                        IPropertyValue_Release(value);
++                    }
++                    IInspectable_Release(boxed);
++                }
++                WindowsCreateString(names[1], wcslen(names[1]), &key);
++                boxed = (void *)0xdeadbeef;
++                hr = IMapView_HSTRING_IInspectable_Lookup(map, key, &boxed);
++                ok( hr == S_OK && !boxed, "Missing DriverVersion must project null %#lx/%p\n", hr, boxed );
++                WindowsDeleteString(key);
++                IMapView_HSTRING_IInspectable_Release(map);
++            }
++        }
++        WindowsDeleteString(id);
++        IPnpObject_Release(object);
++    }
++    ok( found, "Registered devnode omitted\n" );
++    for (i = 0; i < 500; i++)
++    {
++        ULONG ref;
++        IVectorView_PnpObject_AddRef(view);
++        ref = IVectorView_PnpObject_Release(view);
++        if (ref == 1) break;
++        Sleep(10);
++    }
++    ok( IVectorView_PnpObject_Release(view) == 0, "Collection leaked\n" );
++    view = NULL;
++
++    properties = iterable_hstring_create(names, ARRAY_SIZE(names));
++    operation = (void *)0xdeadbeef;
++    hr = IPnpObjectStatics_FindAllAsync(statics, PnpObjectType_DeviceInterface, properties, &operation);
++    ok( hr == E_NOTIMPL && !operation, "Unsupported kind %#lx\n", hr );
++    hr = IPnpObjectStatics_FindAllAsyncAqsFilter(statics, PnpObjectType_Device, properties, NULL, &operation);
++    ok( hr == E_NOTIMPL && !operation, "AQS must fail %#lx\n", hr );
++    hr = IPnpObjectStatics_CreateFromIdAsync(statics, PnpObjectType_Device, NULL, properties, &single);
++    ok( hr == E_NOTIMPL && !single, "CreateFromId must fail %#lx\n", hr );
++    hr = IPnpObjectStatics_CreateWatcher(statics, PnpObjectType_Device, properties, &watcher);
++    ok( hr == E_NOTIMPL && !watcher, "Watcher must fail %#lx\n", hr );
++    hr = IPnpObjectStatics_CreateWatcherAqsFilter(statics, PnpObjectType_Device, properties, NULL, &watcher);
++    ok( hr == E_NOTIMPL && !watcher, "AQS watcher must fail %#lx\n", hr );
++    ok( IPnpObjectStatics_FindAllAsync(statics, PnpObjectType_Device, NULL, &operation) == E_INVALIDARG && !operation,
++        "NULL iterable accepted\n" );
++    ok( IPnpObjectStatics_FindAllAsync(statics, PnpObjectType_Device, properties, NULL) == E_POINTER, "NULL out accepted\n" );
++    IIterable_HSTRING_Release(properties);
++
++    properties = iterable_hstring_create(malformed, 1);
++    hr = IPnpObjectStatics_FindAllAsync(statics, PnpObjectType_Device, properties, &operation);
++    ok( FAILED(hr) && !operation, "Malformed property accepted %#lx\n", hr );
++    IIterable_HSTRING_Release(properties);
++cleanup:
++    if (registered) ok( SetupDiRemoveDevice(set, &device), "Remove fixture %lu\n", GetLastError() );
++    SetupDiDestroyDeviceInfoList(set);
++release:
++    ok( IPnpObjectStatics_Release(statics) == 1, "Factory leaked\n" );
++}
++
+ START_TEST( devices )
+ {
+     HRESULT hr;
+@@ -1460,6 +1690,7 @@
+     test_DeviceInformation();
+     test_DeviceAccessInformation();
+     test_aqs_filters();
++    test_PnpObject();
+ 
+     RoUninitialize();
+ }
+--- a/include/Makefile.in
++++ b/include/Makefile.in
+@@ -882,6 +882,7 @@
+ 	windows.devices.bluetooth.idl \
+ 	windows.devices.bluetooth.rfcomm.idl \
+ 	windows.devices.enumeration.idl \
++	windows.devices.enumeration.pnp.idl \
+ 	windows.devices.geolocation.idl \
+ 	windows.devices.haptics.idl \
+ 	windows.devices.input.idl \
+--- /dev/null
++++ b/include/windows.devices.enumeration.pnp.idl
+@@ -0,0 +1,135 @@
++/*
++ * Windows.Devices.Enumeration.Pnp public interfaces
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ */
++
++#ifdef __WIDL__
++#pragma winrt ns_prefix
++#endif
++
++import "windows.devices.enumeration.idl";
++
++namespace Windows.Devices.Enumeration.Pnp
++{
++    typedef enum PnpObjectType PnpObjectType;
++    interface IPnpObject;
++    interface IPnpObjectStatics;
++    interface IPnpObjectUpdate;
++    interface IPnpObjectWatcher;
++    runtimeclass PnpObject;
++    runtimeclass PnpObjectCollection;
++    runtimeclass PnpObjectUpdate;
++    runtimeclass PnpObjectWatcher;
++
++    declare
++    {
++        interface Windows.Foundation.Collections.IIterable<PnpObject *>;
++        interface Windows.Foundation.Collections.IIterator<PnpObject *>;
++        interface Windows.Foundation.Collections.IVectorView<PnpObject *>;
++        interface Windows.Foundation.AsyncOperationCompletedHandler<PnpObject *>;
++        interface Windows.Foundation.AsyncOperationCompletedHandler<PnpObjectCollection *>;
++        interface Windows.Foundation.IAsyncOperation<PnpObject *>;
++        interface Windows.Foundation.IAsyncOperation<PnpObjectCollection *>;
++        interface Windows.Foundation.TypedEventHandler<PnpObjectWatcher *, IInspectable *>;
++        interface Windows.Foundation.TypedEventHandler<PnpObjectWatcher *, PnpObject *>;
++        interface Windows.Foundation.TypedEventHandler<PnpObjectWatcher *, PnpObjectUpdate *>;
++    }
++
++    [contract(Windows.Foundation.UniversalApiContract, 1.0)]
++    enum PnpObjectType
++    {
++        Unknown = 0,
++        DeviceInterface = 1,
++        DeviceContainer = 2,
++        Device = 3,
++        DeviceInterfaceClass = 4,
++        AssociationEndpoint = 5,
++        AssociationEndpointContainer = 6,
++        AssociationEndpointService = 7,
++        [contract(Windows.Foundation.UniversalApiContract, 7.0)] DevicePanel = 8,
++        [contract(Windows.Foundation.UniversalApiContract, 19.0)] AssociationEndpointProtocol = 9
++    };
++
++    [contract(Windows.Foundation.UniversalApiContract, 1.0),
++     exclusiveto(Windows.Devices.Enumeration.Pnp.PnpObject),
++     uuid(95c66258-733b-4a8f-93a3-db078ac870c1)]
++    interface IPnpObject : IInspectable
++    {
++        [propget] HRESULT Type([out, retval] PnpObjectType *value);
++        [propget] HRESULT Id([out, retval] HSTRING *value);
++        [propget] HRESULT Properties([out, retval] Windows.Foundation.Collections.IMapView<HSTRING, IInspectable *> **value);
++        HRESULT Update([in] PnpObjectUpdate *update);
++    }
++
++    [contract(Windows.Foundation.UniversalApiContract, 1.0),
++     exclusiveto(Windows.Devices.Enumeration.Pnp.PnpObject),
++     uuid(b3c32a3d-d168-4660-bbf3-a733b14b6e01)]
++    interface IPnpObjectStatics : IInspectable
++    {
++        HRESULT CreateFromIdAsync([in] PnpObjectType type, [in] HSTRING id,
++            [in] Windows.Foundation.Collections.IIterable<HSTRING> *requestedProperties,
++            [out, retval] Windows.Foundation.IAsyncOperation<PnpObject *> **operation);
++        [overload("FindAllAsync")] HRESULT FindAllAsync([in] PnpObjectType type,
++            [in] Windows.Foundation.Collections.IIterable<HSTRING> *requestedProperties,
++            [out, retval] Windows.Foundation.IAsyncOperation<PnpObjectCollection *> **operation);
++        [overload("FindAllAsync")] HRESULT FindAllAsyncAqsFilter([in] PnpObjectType type,
++            [in] Windows.Foundation.Collections.IIterable<HSTRING> *requestedProperties, [in] HSTRING filter,
++            [out, retval] Windows.Foundation.IAsyncOperation<PnpObjectCollection *> **operation);
++        [overload("CreateWatcher")] HRESULT CreateWatcher([in] PnpObjectType type,
++            [in] Windows.Foundation.Collections.IIterable<HSTRING> *requestedProperties,
++            [out, retval] PnpObjectWatcher **watcher);
++        [overload("CreateWatcher")] HRESULT CreateWatcherAqsFilter([in] PnpObjectType type,
++            [in] Windows.Foundation.Collections.IIterable<HSTRING> *requestedProperties, [in] HSTRING filter,
++            [out, retval] PnpObjectWatcher **watcher);
++    }
++
++    [contract(Windows.Foundation.UniversalApiContract, 1.0),
++     exclusiveto(Windows.Devices.Enumeration.Pnp.PnpObjectUpdate),
++     uuid(6f59e812-001e-4844-bcc6-432886856a17)]
++    interface IPnpObjectUpdate : IInspectable
++    {
++        [propget] HRESULT Type([out, retval] PnpObjectType *value);
++        [propget] HRESULT Id([out, retval] HSTRING *value);
++        [propget] HRESULT Properties([out, retval] Windows.Foundation.Collections.IMapView<HSTRING, IInspectable *> **value);
++    }
++
++    [contract(Windows.Foundation.UniversalApiContract, 1.0),
++     exclusiveto(Windows.Devices.Enumeration.Pnp.PnpObjectWatcher),
++     uuid(83c95ca8-4772-4a7a-aca8-e48c42a89c44)]
++    interface IPnpObjectWatcher : IInspectable
++    {
++        [eventadd] HRESULT Added([in] Windows.Foundation.TypedEventHandler<PnpObjectWatcher *, PnpObject *> *handler, [out, retval] EventRegistrationToken *token);
++        [eventremove] HRESULT Added([in] EventRegistrationToken token);
++        [eventadd] HRESULT Updated([in] Windows.Foundation.TypedEventHandler<PnpObjectWatcher *, PnpObjectUpdate *> *handler, [out, retval] EventRegistrationToken *token);
++        [eventremove] HRESULT Updated([in] EventRegistrationToken token);
++        [eventadd] HRESULT Removed([in] Windows.Foundation.TypedEventHandler<PnpObjectWatcher *, PnpObjectUpdate *> *handler, [out, retval] EventRegistrationToken *token);
++        [eventremove] HRESULT Removed([in] EventRegistrationToken token);
++        [eventadd] HRESULT EnumerationCompleted([in] Windows.Foundation.TypedEventHandler<PnpObjectWatcher *, IInspectable *> *handler, [out, retval] EventRegistrationToken *token);
++        [eventremove] HRESULT EnumerationCompleted([in] EventRegistrationToken token);
++        [eventadd] HRESULT Stopped([in] Windows.Foundation.TypedEventHandler<PnpObjectWatcher *, IInspectable *> *handler, [out, retval] EventRegistrationToken *token);
++        [eventremove] HRESULT Stopped([in] EventRegistrationToken token);
++        [propget] HRESULT Status([out, retval] Windows.Devices.Enumeration.DeviceWatcherStatus *status);
++        HRESULT Start();
++        HRESULT Stop();
++    }
++
++    [contract(Windows.Foundation.UniversalApiContract, 1.0), marshaling_behavior(agile),
++     static(Windows.Devices.Enumeration.Pnp.IPnpObjectStatics, Windows.Foundation.UniversalApiContract, 1.0),
++     threading(both)]
++    runtimeclass PnpObject { [default] interface IPnpObject; }
++
++    [contract(Windows.Foundation.UniversalApiContract, 1.0), marshaling_behavior(agile)]
++    runtimeclass PnpObjectCollection
++    {
++        [default] interface Windows.Foundation.Collections.IVectorView<PnpObject *>;
++        interface Windows.Foundation.Collections.IIterable<PnpObject *>;
++    }
++    [contract(Windows.Foundation.UniversalApiContract, 1.0), marshaling_behavior(agile)]
++    runtimeclass PnpObjectUpdate { [default] interface IPnpObjectUpdate; }
++    [contract(Windows.Foundation.UniversalApiContract, 1.0), marshaling_behavior(agile)]
++    runtimeclass PnpObjectWatcher { [default] interface IPnpObjectWatcher; }
++}
+--- /dev/null
++++ b/dlls/windows.devices.enumeration/pnp.c
+@@ -0,0 +1,397 @@
++/*
++ * PnpObject Device enumeration.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ */
++
++#include "private.h"
++#include "devquery.h"
++#include "wine/debug.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(enumeration);
++
++struct pnp_object
++{
++    IPnpObject IPnpObject_iface;
++    LONG ref;
++    HSTRING id;
++    IMap_HSTRING_IInspectable *properties;
++};
++
++static struct pnp_object *impl_from_IPnpObject( IPnpObject *iface )
++{
++    return CONTAINING_RECORD( iface, struct pnp_object, IPnpObject_iface );
++}
++
++static HRESULT WINAPI object_QueryInterface( IPnpObject *iface, REFIID iid, void **out )
++{
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (!IsEqualGUID( iid, &IID_IUnknown ) && !IsEqualGUID( iid, &IID_IInspectable ) &&
++        !IsEqualGUID( iid, &IID_IAgileObject ) && !IsEqualGUID( iid, &IID_IPnpObject ))
++        return E_NOINTERFACE;
++    IPnpObject_AddRef( iface );
++    *out = iface;
++    return S_OK;
++}
++
++static ULONG WINAPI object_AddRef( IPnpObject *iface )
++{
++    return InterlockedIncrement( &impl_from_IPnpObject( iface )->ref );
++}
++
++static ULONG WINAPI object_Release( IPnpObject *iface )
++{
++    struct pnp_object *impl = impl_from_IPnpObject( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref );
++    if (!ref)
++    {
++        WindowsDeleteString( impl->id );
++        IMap_HSTRING_IInspectable_Release( impl->properties );
++        free( impl );
++    }
++    return ref;
++}
++
++static HRESULT WINAPI object_GetIids( IPnpObject *iface, ULONG *count, IID **iids )
++{
++    if (!count || !iids) return E_POINTER;
++    *count = 0;
++    if (!(*iids = CoTaskMemAlloc( sizeof(**iids) ))) return E_OUTOFMEMORY;
++    **iids = IID_IPnpObject;
++    *count = 1;
++    return S_OK;
++}
++
++static HRESULT WINAPI object_GetRuntimeClassName( IPnpObject *iface, HSTRING *name )
++{
++    const WCHAR *value = RuntimeClass_Windows_Devices_Enumeration_Pnp_PnpObject;
++    if (!name) return E_POINTER;
++    return WindowsCreateString( value, wcslen( value ), name );
++}
++
++static HRESULT WINAPI object_GetTrustLevel( IPnpObject *iface, TrustLevel *trust )
++{
++    if (!trust) return E_POINTER;
++    *trust = BaseTrust;
++    return S_OK;
++}
++
++static HRESULT WINAPI object_get_Type( IPnpObject *iface, PnpObjectType *type )
++{
++    if (!type) return E_POINTER;
++    *type = PnpObjectType_Device;
++    return S_OK;
++}
++
++static HRESULT WINAPI object_get_Id( IPnpObject *iface, HSTRING *id )
++{
++    if (!id) return E_POINTER;
++    return WindowsDuplicateString( impl_from_IPnpObject( iface )->id, id );
++}
++
++static HRESULT WINAPI object_get_Properties( IPnpObject *iface, IMapView_HSTRING_IInspectable **out )
++{
++    if (!out) return E_POINTER;
++    return IMap_HSTRING_IInspectable_GetView( impl_from_IPnpObject( iface )->properties, out );
++}
++
++static HRESULT WINAPI object_Update( IPnpObject *iface, IPnpObjectUpdate *update )
++{
++    FIXME( "PnpObject.Update is not implemented.\n" );
++    return E_NOTIMPL;
++}
++
++static const IPnpObjectVtbl object_vtbl =
++{
++    object_QueryInterface, object_AddRef, object_Release, object_GetIids,
++    object_GetRuntimeClassName, object_GetTrustLevel, object_get_Type,
++    object_get_Id, object_get_Properties, object_Update,
++};
++
++struct pnp_request
++{
++    IUnknown IUnknown_iface;
++    LONG ref;
++    ULONG count;
++    DEVPROPCOMPKEY *keys;
++    HSTRING *names;
++};
++
++static struct pnp_request *impl_from_request( IUnknown *iface )
++{
++    return CONTAINING_RECORD( iface, struct pnp_request, IUnknown_iface );
++}
++
++static HRESULT WINAPI request_QueryInterface( IUnknown *iface, REFIID iid, void **out )
++{
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (!IsEqualGUID( iid, &IID_IUnknown ) && !IsEqualGUID( iid, &IID_IAgileObject ))
++        return E_NOINTERFACE;
++    IUnknown_AddRef( iface );
++    *out = iface;
++    return S_OK;
++}
++
++static ULONG WINAPI request_AddRef( IUnknown *iface )
++{
++    return InterlockedIncrement( &impl_from_request( iface )->ref );
++}
++
++static ULONG WINAPI request_Release( IUnknown *iface )
++{
++    struct pnp_request *impl = impl_from_request( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref ), i;
++    if (!ref)
++    {
++        for (i = 0; i < impl->count; i++) WindowsDeleteString( impl->names[i] );
++        free( impl->keys );
++        free( impl->names );
++        free( impl );
++    }
++    return ref;
++}
++
++static const IUnknownVtbl request_vtbl =
++{
++    request_QueryInterface, request_AddRef, request_Release,
++};
++
++static HRESULT request_create( IIterable_HSTRING *properties, struct pnp_request **out )
++{
++    IIterator_HSTRING *iterator;
++    struct pnp_request *impl;
++    boolean current;
++    HRESULT hr;
++
++    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
++    impl->IUnknown_iface.lpVtbl = &request_vtbl;
++    impl->ref = 1;
++    if (FAILED(hr = IIterable_HSTRING_First( properties, &iterator ))) goto failed;
++    for (hr = IIterator_HSTRING_get_HasCurrent( iterator, &current ); SUCCEEDED(hr) && current;
++         hr = IIterator_HSTRING_MoveNext( iterator, &current ))
++    {
++        DEVPROPCOMPKEY key = {0}, *keys;
++        HSTRING name, *names;
++        const WCHAR *text;
++
++        if (FAILED(hr = IIterator_HSTRING_get_Current( iterator, &name ))) break;
++        text = WindowsGetStringRawBuffer( name, NULL );
++        hr = text[0] == '{' ? PSPropertyKeyFromString( text, (PROPERTYKEY *)&key.Key ) :
++                             PSGetPropertyKeyFromName( text, (PROPERTYKEY *)&key.Key );
++        if (SUCCEEDED(hr))
++        {
++            if (!(keys = realloc( impl->keys, (impl->count + 1) * sizeof(*keys) ))) hr = E_OUTOFMEMORY;
++            else
++            {
++                impl->keys = keys;
++                if (!(names = realloc( impl->names, (impl->count + 1) * sizeof(*names) ))) hr = E_OUTOFMEMORY;
++                else
++                {
++                    impl->names = names;
++                    impl->keys[impl->count] = key;
++                    hr = WindowsDuplicateString( name, &impl->names[impl->count] );
++                    if (SUCCEEDED(hr)) impl->count++;
++                }
++            }
++        }
++        WindowsDeleteString( name );
++        if (FAILED(hr)) break;
++    }
++    IIterator_HSTRING_Release( iterator );
++    if (FAILED(hr)) goto failed;
++    *out = impl;
++    return S_OK;
++failed:
++    IUnknown_Release( &impl->IUnknown_iface );
++    return hr;
++}
++
++static HRESULT find_all_async( IUnknown *invoker, IUnknown *param, PROPVARIANT *result, BOOL called_async )
++{
++    static const struct vector_iids iids =
++    {
++        &IID_IVector_IInspectable, &IID_IVectorView_PnpObject,
++        &IID_IIterable_PnpObject, &IID_IIterator_PnpObject,
++    };
++    struct pnp_request *request = impl_from_request( param );
++    const DEV_OBJECT *objects;
++    IVector_IInspectable *vector;
++    ULONG count, i;
++    HRESULT hr;
++
++    if (!called_async) return STATUS_PENDING;
++    hr = DevGetObjects( DevObjectTypeDevice, DevQueryFlagNone, request->count,
++                        request->keys, 0, NULL, &count, &objects );
++    if (FAILED(hr)) return hr;
++    if (SUCCEEDED(hr = vector_create( &iids, (void **)&vector )))
++    {
++        for (i = 0; i < count && SUCCEEDED(hr); i++)
++        {
++            struct pnp_object *impl;
++            if (!(impl = calloc( 1, sizeof(*impl) ))) { hr = E_OUTOFMEMORY; break; }
++            impl->IPnpObject_iface.lpVtbl = &object_vtbl;
++            impl->ref = 1;
++            /* The Device backend returns requested properties in order, including EMPTY entries. */
++            if (objects[i].cPropertyCount != request->count) hr = E_UNEXPECTED;
++            else hr = create_device_properties( objects[i].pProperties, request->count, request->names, &impl->properties );
++            if (SUCCEEDED(hr))
++                hr = WindowsCreateString( objects[i].pszObjectId, wcslen( objects[i].pszObjectId ), &impl->id );
++            if (FAILED(hr))
++            {
++                if (impl->properties) IMap_HSTRING_IInspectable_Release( impl->properties );
++                free( impl );
++                break;
++            }
++            hr = IVector_IInspectable_Append( vector, (IInspectable *)&impl->IPnpObject_iface );
++            IPnpObject_Release( &impl->IPnpObject_iface );
++        }
++        if (SUCCEEDED(hr))
++        {
++            hr = IVector_IInspectable_GetView( vector, (IVectorView_IInspectable **)&result->punkVal );
++            if (SUCCEEDED(hr)) result->vt = VT_UNKNOWN;
++        }
++        IVector_IInspectable_Release( vector );
++    }
++    DevFreeObjects( count, objects );
++    return hr;
++}
++
++struct pnp_factory
++{
++    IActivationFactory IActivationFactory_iface;
++    IPnpObjectStatics IPnpObjectStatics_iface;
++    LONG ref;
++};
++
++static struct pnp_factory *impl_from_factory( IActivationFactory *iface )
++{
++    return CONTAINING_RECORD( iface, struct pnp_factory, IActivationFactory_iface );
++}
++
++static HRESULT WINAPI factory_QueryInterface( IActivationFactory *iface, REFIID iid, void **out )
++{
++    struct pnp_factory *impl = impl_from_factory( iface );
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (IsEqualGUID( iid, &IID_IUnknown ) || IsEqualGUID( iid, &IID_IInspectable ) ||
++        IsEqualGUID( iid, &IID_IAgileObject ) || IsEqualGUID( iid, &IID_IActivationFactory )) *out = iface;
++    else if (IsEqualGUID( iid, &IID_IPnpObjectStatics )) *out = &impl->IPnpObjectStatics_iface;
++    else return E_NOINTERFACE;
++    IActivationFactory_AddRef( iface );
++    return S_OK;
++}
++
++static ULONG WINAPI factory_AddRef( IActivationFactory *iface )
++{
++    return InterlockedIncrement( &impl_from_factory( iface )->ref );
++}
++
++static ULONG WINAPI factory_Release( IActivationFactory *iface )
++{
++    return InterlockedDecrement( &impl_from_factory( iface )->ref );
++}
++
++static HRESULT WINAPI factory_GetIids( IActivationFactory *iface, ULONG *count, IID **iids )
++{
++    if (!count || !iids) return E_POINTER;
++    *count = 0;
++    if (!(*iids = CoTaskMemAlloc( sizeof(**iids) ))) return E_OUTOFMEMORY;
++    **iids = IID_IPnpObjectStatics;
++    *count = 1;
++    return S_OK;
++}
++
++static HRESULT WINAPI factory_GetRuntimeClassName( IActivationFactory *iface, HSTRING *name )
++{
++    return object_GetRuntimeClassName( NULL, name );
++}
++
++static HRESULT WINAPI factory_GetTrustLevel( IActivationFactory *iface, TrustLevel *trust )
++{
++    return object_GetTrustLevel( NULL, trust );
++}
++
++static HRESULT WINAPI factory_ActivateInstance( IActivationFactory *iface, IInspectable **out )
++{
++    if (!out) return E_POINTER;
++    *out = NULL;
++    FIXME( "PnpObject has no default constructor.\n" );
++    return E_NOTIMPL;
++}
++
++static const IActivationFactoryVtbl factory_vtbl =
++{
++    factory_QueryInterface, factory_AddRef, factory_Release, factory_GetIids,
++    factory_GetRuntimeClassName, factory_GetTrustLevel, factory_ActivateInstance,
++};
++
++DEFINE_IINSPECTABLE( statics, IPnpObjectStatics, struct pnp_factory, IActivationFactory_iface )
++
++static HRESULT WINAPI statics_CreateFromIdAsync( IPnpObjectStatics *iface, PnpObjectType type, HSTRING id,
++                                                IIterable_HSTRING *properties, IAsyncOperation_PnpObject **out )
++{
++    if (!out) return E_POINTER;
++    *out = NULL;
++    FIXME( "PnpObject.CreateFromIdAsync is not implemented.\n" );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI statics_FindAllAsync( IPnpObjectStatics *iface, PnpObjectType type,
++                                           IIterable_HSTRING *properties, IAsyncOperation_PnpObjectCollection **out )
++{
++    struct pnp_request *request;
++    HRESULT hr;
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (!properties) return E_INVALIDARG;
++    if (type != PnpObjectType_Device)
++    {
++        FIXME( "Unsupported PnpObject type %d.\n", type );
++        return E_NOTIMPL;
++    }
++    if (FAILED(hr = request_create( properties, &request ))) return hr;
++    hr = async_operation_inspectable_create( &IID_IAsyncOperation_PnpObjectCollection, (IUnknown *)iface,
++        &request->IUnknown_iface, find_all_async, (IAsyncOperation_IInspectable **)out );
++    IUnknown_Release( &request->IUnknown_iface );
++    return hr;
++}
++
++static HRESULT WINAPI statics_FindAllAsyncAqsFilter( IPnpObjectStatics *iface, PnpObjectType type,
++    IIterable_HSTRING *properties, HSTRING filter, IAsyncOperation_PnpObjectCollection **out )
++{
++    if (!out) return E_POINTER;
++    *out = NULL;
++    FIXME( "PnpObject AQS is not implemented.\n" );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI statics_CreateWatcher( IPnpObjectStatics *iface, PnpObjectType type,
++                                           IIterable_HSTRING *properties, IPnpObjectWatcher **out )
++{
++    if (!out) return E_POINTER;
++    *out = NULL;
++    FIXME( "PnpObject watchers are not implemented.\n" );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI statics_CreateWatcherAqsFilter( IPnpObjectStatics *iface, PnpObjectType type,
++    IIterable_HSTRING *properties, HSTRING filter, IPnpObjectWatcher **out )
++{
++    return statics_CreateWatcher( iface, type, properties, out );
++}
++
++static const IPnpObjectStaticsVtbl statics_vtbl =
++{
++    statics_QueryInterface, statics_AddRef, statics_Release, statics_GetIids,
++    statics_GetRuntimeClassName, statics_GetTrustLevel, statics_CreateFromIdAsync,
++    statics_FindAllAsync, statics_FindAllAsyncAqsFilter, statics_CreateWatcher,
++    statics_CreateWatcherAqsFilter,
++};
++
++static struct pnp_factory factory = {{&factory_vtbl}, {&statics_vtbl}, 1};
++IActivationFactory *pnp_object_factory = &factory.IActivationFactory_iface;

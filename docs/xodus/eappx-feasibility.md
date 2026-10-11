@@ -3351,3 +3351,93 @@ Mandatory quality validation still exits 2 because its runner is absent.
 | Game diagnostic stderr | `600111c5c59870ea01c4e43bc1affa100534665e5fffc61da6f7e26dbb4a9b95` |
 | Game receipt | `f3797faae8303f5c3ad4b7058215f9697d699617ad384e566d4cc6714a2a7065` |
 | Independent baseline proof (each cycle) | `404ab2af25d7a7206ac9ac417ea5d058a0d7619dbbd762d3baa0d8c11f821381` |
+
+### Real Pnp Device enumeration and nullable properties (2190 / 2195)
+
+**VERIFIED-STATIC:** UnityPlayer's intended call is
+`IPnpObjectStatics::FindAllAsync(PnpObjectType.Device, requestedProperties)`.
+The helper at RVA `0x4d1ad0` obtains IID
+`b3c32a3d-d168-4660-bbf3-a733b14b6e01`, sets the type to 3 and calls
+vtable slot 7 (`+0x38`) at RVA `0x4d1b47`. There is no AQS argument.
+The four appended property names are the raw `{GUID} PID` forms for
+Device ClassGuid, DriverVersion, Name and DriverInfPath. ClassGuid is a
+boxed GUID, not a string. The earlier 2180 runtime failed at factory
+activation, before this static method could execute. Its preserved
+177-byte UnityPlayer.log contains only build metadata.
+
+`wine-pnp-device.patch` adds the public Pnp ABI/class registration and the
+narrow Device FindAllAsync adapter using Wine's existing async/vector and
+property-boxing helpers. The backend now enumerates real CM device IDs,
+locates devnodes and queries their requested typed properties. ID-list and
+byte-buffer growth have bounded retries; CM failures propagate as HRESULTs.
+Requested key strings are snapshotted and preserved for lookup, including
+custom `{GUID} PID` keys. Missing individual properties become null map
+values, not fabricated data. CreateFromId, AQS, watchers, Update and other
+Pnp kinds explicitly return E_NOTIMPL. Device all-properties, filters,
+localization, non-system stores and query parameters remain unsupported;
+the existing interface enumeration path is preserved.
+
+**REPRODUCED no-game 2190:** the new Pnp factory/backend completed far enough
+to insert the first boxed property, then the existing wintypes map Insert
+dereferenced a null value for a missing property, causing c0000005.
+The cycle stopped immediately; all 33 targets and temporary registrations
+were independently verified restored. This was not a successful gate and
+the remaining standard pre-gates were not run in that cycle.
+
+`wine-propertyset-null.patch` corrects all shared nullable-value reference
+paths: insertion, copying, Lookup, pair Value, replacement, removal, Clear,
+view destruction and final release. It also corrects the coupled
+AddRef-instead-of-Release cleanup bug, releases copied view entries and
+copies the correct source slice/offset when splitting a view.
+Missing keys retain E_BOUNDS; invalidated views retain E_CHANGED_STATE.
+
+**VERIFIED no-game 2195:** the real registered synthetic devnode is returned
+through the public async Pnp adapter. ClassGuid QI/GetGuid matches the backend
+GUID under the caller's original key; missing DriverVersion lookup returns
+S_OK/null. Async callback identity, completion and retained references balance.
+The test-only CM seams are compiled out of shipped providers.
+
+| Gate | Result |
+| --- | --- |
+| Nullable PropertySet lookup/iteration/Split/replacement/remove/Clear/lifetime | 50 checks, 0 failures |
+| Exact-source CM growth/retry exhaustion/access-denied unit | 35 checks, 0 failures |
+| Exact-source async backend-error propagation unit | 22 checks, 0 failures |
+| Original cfgmgr32 / augmented cfgmgr32 | 1292 / 1369 checks, 0 failures; 1 TODO each |
+| Original enumeration / augmented enumeration | 1938 / 1987 checks, 0 failures; 91 TODOs each |
+| Original full wintypes suite | 1120 checks, 0 failures; 49 TODOs |
+| Existing non-agile PropertySet / HighContrast / folders | 29 / 33 / 96 checks, 0 failures |
+| Existing proxy / dispatcher / aggregation / cstub | 30 / 47 / 54 / 248 checks, 0 failures; cstub 2 TODOs |
+
+The standard private NDR transport and other existing pre-gates also passed.
+Both cycles used the established Terminal+caffeinate launch path, never a
+plain SSH Wine child. All 33 targets returned to their baseline hashes or
+absences; the synthetic devnode and temporary Pnp registration are absent;
+the original WineDbg/CoreApplication values, strict CrossOver signature,
+runtime quiescence and absence of bottle holders were independently verified.
+Both no-game holds are released. No game was launched in either cycle.
+Actual Cuphead Pnp progression or a rendered frame is not claimed.
+
+| New admitted provider | SHA-256 |
+| --- | --- |
+| cfgmgr32 | `8a24ebedd512b2615b889836b874271d4070693ef9a563d33593bc87fb26ea4a` |
+| windows.devices.enumeration | `9f2cd21d3cd85ba90ecd46b9f7b21fdcac89b9d8f756a8984047289ada69fbd5` |
+| wintypes | `90900b71e275676d61cff3b82c3b0c1968b9de453368b9836c9e71f6862d2438` |
+
+Both exported patches apply to preserved baselines and reproduce all 13
+tested source files byte-for-byte. The Pnp patch preserves CRLF payloads
+in its two new source files; its targeted `-text` attribute prevents Git
+normalization from changing those tested bytes. Existing build configuration
+disables tests, so the original/augmented suites were compiled with their
+existing STANDALONE runner and Wine import libraries. No new test tooling was
+installed. The mandatory repository quality command still exits 2 because
+`gates/gate_runner.py` is absent; this is not an overall PASS.
+
+| Private evidence | SHA-256 |
+| --- | --- |
+| Failed 2190 receipt | `7807cbc75c868a92451ae510608f2f45ac202091bc0e185d03b6976eb306c2a8` |
+| 2190 independent restoration proof | `d143bd9f1022b003b3272331fc7e913a8765e8d4d56fecbc3cf26d51dfc72b24` |
+| Successful 2195 receipt | `6c62e9398e4d2250dba0b68bda7943320dad63841cf37a3fa81c1c64ea1fae93` |
+| 2195 independent restoration proof | `f7758fc17a004f443fd3b1dd97928465ee420420b2d2059ad6a0971f72d57312` |
+| Nullable map gate | `0eacaaeff3ee1bdad40b43185f993ea76b4e4ed4044b77ff5484acc0eb81f4bd` |
+| Augmented Pnp enumeration gate | `e67d19f2cf5a5b5412d50b424d02071287f3dc872550bd68448da49442bbe13e` |
+| Pinned 2195 test manifest | `b7ec4f66f0adf26b346df89697f03725f3031f4a12e2695ccd9dbbf9fa6dd6ee` |

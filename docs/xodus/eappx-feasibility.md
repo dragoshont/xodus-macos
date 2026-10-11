@@ -3499,3 +3499,118 @@ owned execution/restoration is not an overall PASS or playability claim.
 | Preserved UnityPlayer.log | `7c396f108b1c46506fed6eda2a1283cf33ffb90695825a8b2b2102c37063d71d` |
 | Frozen executed owner | `50904eb36c6359a6ee13cfad538478238bb7ff8d0a41373647fe75f007636405` |
 | Frozen executed Terminal wrapper | `32160f9ab71e37dd305f7e2e2686eba99683f94704c67d3cc571cb6f6d5222a7` |
+
+#### Detail.Vector specialization and unsupported factory boundary
+
+Subsequent **read-only static analysis** of the unchanged native twinapi
+(`0d3e56c5...`) identifies the helper at RVA 0x3d010. Its x64 descriptor
+contains three HSTRINGs for the CoreApplicationView vector/view/iterator
+names, followed by the element-interface IID and four collection IIDs.
+The 104-byte layout has HSTRING offsets 0/8/16 and GUID offsets
+24/40/56/72/88. The first GUID is ICoreApplicationView
+`638bb2db-451d-4661-b099-414f34ffb9f1`.
+
+| Returned CoreApplicationView specialization | IID |
+| --- | --- |
+| IVector | `8af29ecf-6cc4-5a34-99c6-cd9069809253` |
+| IVectorView | `de9e16c4-1b7c-5126-b1d8-7cd04f13bd08` |
+| IIterable | `32bc12d1-2653-5a41-a55e-88a12af2026a` |
+| IIterator | `4f5f6944-264b-5868-809e-c7ac1ac5edad` |
+
+All four match WinRT UUIDv5 generation from their public generic signatures
+and `rc(Windows.ApplicationModel.Core.CoreApplicationView;{638bb2db-451d-4661-b099-414f34ffb9f1})`.
+The class/default-interface signature and generic signatures were verified
+against Microsoft's public [Core projection](https://github.com/microsoft/windows-rs/blob/master/crates/libs/windows/src/Windows/ApplicationModel/Core/mod.rs)
+and [collection bindings](https://github.com/microsoft/windows-rs/blob/master/crates/libs/collections/src/bindings.rs).
+No observable-vector IID is passed in this descriptor.
+
+The requested `08c77958...` is a distinct private factory interface, not one
+of those returned public collection IIDs. On activation success the helper
+calls factory slot 30 (+0xf0) through RVA 0xb9758:
+RCX is the factory, RDX the descriptor, and R8 the vector output.
+Private factory slots 6-29, complete method semantics and creation-error
+ownership are not established by this static call shape or the earlier
+direct/catalog factory oracles.
+
+The helper preserves failed activation HRESULTs at 0x3d19e and returns them
+after cleanup at 0x3d1c1. Its two direct callers, 0x3b1e0 and 0xbfc80, also
+preserve and return that failure (0x3b2f7 and 0xbff1a). The first wrapper
+eventually calls the returned vector's GetView slot. The second is an
+indirect native vtable entry; no public method name is asserted.
+2200 did not capture the outer caller stack, so the executed consumer and
+its linkage to terminal fail-fast remain unproven.
+
+The existing enumeration vector helper supports the public collection
+surface but does not provide this activatable private factory.
+Builtin wintypes has no Detail.Vector factory branch. The parked ordinal-295
+patch reads registration metadata and creates PropertySet attributes; it
+neither registers nor implements Detail.Vector. Registration to the builtin
+wintypes alone cannot repair the failure.
+
+The smallest proposed discriminator is a separately authorized no-game
+registration control using the existing owned genuine provider under a
+distinct native basename, leaving the admitted nullable Wine PropertySet
+provider selected. It must check factory identity, the verified slot-30
+descriptor, public vector mutation/view/iteration and ownership, same-process
+PropertySet selection/lifetime regressions, and restoration. This remains
+a runtime-only native diagnostic, not a distributable implementation.
+No further runtime operation was performed; unknown private slots were not
+filled with guessed generic stubs.
+
+#### Source-only native oracle candidate
+
+`detail-vector-oracle-test.c` strictly compiles as x64 with the existing
+compiler/import libraries (`-Wall -Wextra -Werror`, excluding unused
+parameters in the reused nullable test/mocks). It includes the unchanged
+50-check nullable PropertySet test in the same process. It has **not run**.
+Its descriptor and slot-30 offsets have compile-time assertions; slots 6-29
+are opaque uncalled storage, not synthesized method implementations.
+Typed agile CoreApplicationView test doubles exercise non-null collection
+ownership, not real windows or platform activation. Invalid descriptor/output
+calls are excluded because their private contract is ungrounded.
+Public empty-index E_BOUNDS and unknown-IID QI are separate grounded controls.
+
+The private native artifact remains outside Git. A byte-identical alias is
+staged at
+`Y:\xodus-app-tooling\cuphead\detail-vector-candidate\xodus-vector-oracle.dll`.
+It is 1,501,432 bytes, PE32+ AMD64 (8664/20b), SHA-256
+`5a94b019c7190d9ec47f98e0bc28dced70036f1f97e9a84ef9d75340e364158a`;
+DllGetActivationFactory is export ordinal 2/RVA 0x3eb20.
+The only exact ASCII self-name is the PE export-directory DLL name; the
+UTF-16 self-name is in version resources. This does not prove alias loading
+works, but no executable fixed-name lookup is established by those strings.
+No string, import, export or binary patch is applied.
+
+The delivery plan forces only `xodus-vector-oracle=n` and keeps `wintypes=b`.
+The test verifies separate module handles, exact loaded paths and SHA-256
+files, the module owning slot 30, and the unchanged Wine wintypes handle/pin
+before running the included nullable controls with the alias still loaded.
+Any coexistence or required dependency failure stops the candidate, rather
+than replacing the admitted Wine provider or adding loader workarounds.
+
+Eager imports include CRT private functions, ordinary Win32 contracts,
+ntdll and combase ordinal 90. Current Wine's API-set resolver hashes the
+contract family before the final version component; absence of a physical
+legacy shim is not a loader-failure finding. The actual host schema maps the
+relevant families to ucrtbase, kernelbase, kernel32, ntdll and combase.
+Delayed imports additionally include WinRT strings/errors/COM, rpcrt4,
+bcryptPrimitives, package APIs, rometadata and oleaut32. Actual process
+resolution remains to be observed with loader/module traces under a hold;
+metadata/package calls and unexercised delayed imports are not claimed working.
+
+Proposed admission leaves the 33 pinned provider-file targets unchanged.
+Only the originally absent HKLM ActivatableClassId key for Detail.Vector
+is added temporarily, with DllPath pointing at the staged native alias.
+The alias is a pre-existing read-only candidate artifact, not an installed
+vendor/bottle replacement. The bounded plan is absent-registration control,
+direct factory control, registered catalog control and final absence check;
+each process is limited to 40 seconds and 20 MB split captures. Standard
+pre-gates precede it, followed by independently verified 33-target/key,
+signature and quiescence restoration. No game or ordinal-295 addition is
+part of this proposed cycle. No runtime hold has yet been granted.
+
+| Source-only candidate | SHA-256 |
+| --- | --- |
+| Exact-descriptor test source | `112c0c399915665d421e0c39d8f9d915045d4664eb246f2b9b69a4fe18be35e5` |
+| Strictly compiled test executable | `05894fa4c4aa4022f9c6db7071fd618fa381d388fc46b433bcadc01ad61cfb57` |
+| Native eager/delayed import manifest | `012c70080d1adb2b0cf88c1069d543e5163e6c9239a8239a6dc2ac74212bb890` |

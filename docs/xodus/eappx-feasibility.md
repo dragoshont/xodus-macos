@@ -1843,3 +1843,80 @@ Private sample, server/game logs and `receipt.json` remain under the unique
 owner directory on the Mac; no raw capture or proprietary binary is committed.
 Runtime was released. Further wait-object or PE-caller attribution is a separate
 diagnostic step, not authorization for another launch or an ABI implementation.
+
+### Cuphead filtered relay: unreturned native SRW acquisition
+
+The next explicitly authorized single diagnostic launch used unique receipt
+`cuphead-owned-relay-20261011-1053`, the same genuine-mrt100/native-twinapi/stale
+combase baseline, and no new Wine module build or ABI change. A separate
+activation controller waits 11 seconds plus 139 seconds before the existing
+`TerminateProcess(child, 92)` timeout path. The original controller is untouched.
+Checked temporary HKCU `Software\Wine\Debug\RelayInclude` configuration limits
+relay to the requested synchronization exports; UI and SEH tracing were added.
+No native sample or debugger attach was performed.
+
+Activation Wine PID 456 (`0x1c8`) maps to macOS PID 45217. The successful startup
+reply identifies primary Wine thread `01cc`; exact image/start-time and the
+historical owned Wine lineage were admitted. The game again produces only two
+hidden windows, remains alive after 11 seconds, then records
+`APP_TIMEOUT=150000` and exit 92. No first frame is established.
+
+The primary thread's final relay line is:
+
+```text
+01cc:Call ntdll.RtlAcquireSRWLockExclusive(6ffff7725ad0) ret=6ffff750f205
+```
+
+No matching return follows before termination. Actual native twinapi load base
+`0x6ffff7500000`, PE image size `0x250000`, and frozen provider SHA-256
+`0d3e56c5068633f975bcab528267789f520f82a6d6a50f1330104e7597289b43`
+attribute the caller return address to **twinapi RVA `0xf205`** and the lock to
+**twinapi RVA `0x225ad0`**.
+
+Earlier, the same thread acquires the same lock successfully with return address
+`0x6ffff750ed9c` (twinapi RVA `0xed9c`). Immediately afterward, stale combase's
+unimplemented `CoGetSystemSecurityPermissions` raises
+`EXCEPTION_WINE_STUB` (`0x80000100`). This is a concrete lock/exception sequence,
+not proof the lock remains owned: release exports were not in the requested
+filter, and unwind/cleanup and actual lock ownership are unresolved. Relay
+return registers from a void lock method are not success/error result codes.
+
+The last 30 primary-thread synchronization lines comprise repeated completed
+shared acquisitions from MrmCoreR RVA `0xedff`, completed exclusive acquisitions
+from its RVAs `0x45e62`, `0xee15`, `0x4a337`, then completed twinapi shared
+acquisition from RVA `0x2c0fa` and the final unreturned exclusive acquisition
+from RVA `0xf205`. MrmCoreR is loaded natively at `0x6ffff73d0000`, image size
+`0x114000`, SHA-256
+`6186f981d1aa1e1991697133aa066045097ab52227a240632a0c7d8fd04352be`.
+
+UI trace records lazy experimental `GetForCurrentThread` and two rejected
+`9ac40241...` QIs. Its last UI operation is the stub
+`AccessibilitySettings.add_HighContrastChanged`. There are no observed
+dispatcher/RunAsync/event-registration/ICoreWindow.Activate calls, and no
+`err` or critical-section timeout lines. Absence of filtered relay output does
+not establish that an unrelayed/inlined operation never ran. Another thread
+`01d8` records handled RPC-unavailable SEH (`0x6ba`); it is not the primary
+thread's final acquisition.
+
+Initial cleanup refused a changed PID identity and intentionally left file
+backups intact rather than signal an uncertain target or claim restoration.
+Read-only reconciliation subsequently proved all traced/recorded clients absent.
+The exact owned foreground wineserver PID 44994 retained its recorded
+image/start time and was stopped by numeric PID. Recovery independently restored
+all 13 target baselines, removed the three absent-baseline files, verified both
+CoreApplication and temporary debug registry restoration, verified no remaining
+Wine runtime, and passed deep/strict CrossOver signature verification.
+`recovery.json` records complete restoration with no errors; runtime is released.
+
+Private evidence hashes:
+
+| Evidence | SHA-256 |
+| --- | --- |
+| `game.log` | `5a4095bde59883e89109ad2209249d853a64f9ea618346a714901b5d0f9ae09a` |
+| `server.log` | `6e031f1ef803426beecdce12911bd0c40190e04f67605145509525c661fccf82` |
+| `recovery.json` | `995acde7cdd9799682143dcc39edf7be13a0cd5be3f19c6f15fc9ed6fbb44a2e` |
+
+The next discriminating action is bounded read-only inspection of cleanup/unwind
+around the two already attributed twinapi callsites and their shared lock.
+No additional launch, unknown-interface synthesis, Vector expansion or
+ordinal-69 implementation is implied or authorized by this result.

@@ -2619,3 +2619,74 @@ the exact built file; the mandatory integration runner remains absent
 | `receipt.json` | `f711f39e2470372f4abc205f93dc291bb5146eed72b58601789dbdc0d4503c1f` |
 | `server-classes-tests.log` | `0f18f554958b4b961cd7519d3931cde8a110cd83df279e205fffa3a4ab1edbb9` |
 | `bound-sample.txt` | `05c69f4b248b1bbb388deb03c40472e1e142c8037da855a011d47d0806b26abf` |
+
+### Non-agile property set and control 1840
+
+The approved lookahead `wintypes.patch` was reviewed against the public
+`ICoreApplicationView5.Properties` return type (`IPropertySet **`). The
+export itself has no SDK prototype: its one-output-argument/HRESULT ABI
+is grounded in the genuine twinapi call sites, not claimed as a documented
+SDK API. `wine-nonagile-propertyset.patch` implements the export using
+the existing PropertySet and map implementation.
+
+The supplied wrapper alone was insufficient. Pre-game attempt 1810
+returned **22 checks / 1 failure**: PropertySet delegated
+`IAgileObject` QI to `locked_map_inner_QueryInterface`, which explicitly
+advertises that interface. The owner refused before launching any game;
+there is no `game.log`, and all 22 targets and registry state were
+restored. The correction uses a shared constructor with an instance-local
+non-agile flag. Only instances created by the new export reject the
+inner map's agile marker; ordinary factory activation retains its prior
+behavior. There is no change to `map.c`.
+
+The strict provider-bound `nonagile-propertyset-test.c` passes **29/0**.
+It covers NULL output, real PropertySet/map interfaces, non-agility through
+the PropertySet, map and observable-map interfaces, controlling-IUnknown
+identity, a UInt32 insert/lookup/remove round trip, separate instances
+and unchanged ordinary-factory agility. The supplied Wine unit source
+also compiles; its skip-capable harness is not used as the admission
+gate. The admitted `wintypes.dll` hash is
+`f9d398a02b1dc4c3ef7a964110253ee19468d721d62c6e5ee1adc443403d4f0c`.
+
+Fresh owner 1840 admits both bottle/vendor wintypes copies, bringing the
+target count to 22. It separately exports/backups
+`HKCU\Software\Wine\WineDbg`, sets `ShowCrashDialog=0` as a DWORD, verifies
+it, and restores the original key/value state. The original WineDbg key
+was present but empty: its empty export and final empty registry-file
+section are independently checked, and the temporary value is absent.
+Six process/quiescence safety tests and six WineDbg restoration tests
+cover absent keys, empty existing keys, absent/existing values, unrelated
+values and mismatches.
+
+| Private 1840 evidence | Observed result |
+| --- | --- |
+| Pre-game admission | ntdll PE/Unix command smoke succeeds; the exact wintypes provider passes 29/0 before the game. |
+| Lines 7872-7886 | Enumerates `cuphead.App` and registers count 1, cookie 1, callback twinapi+`0x2fc90`, `S_OK`. No callback lookup/invocation is observed. |
+| Apartment traces | Main `04bc` is MTA (`type=1`, qualifier 0); view `04d0` is MAINSTA (`type=3`, qualifier 0). |
+| Lines 7907, 8065 | Main waits in `NtWaitForSingleObject(0x214, FALSE, NULL)`, caller kernelbase+`0x7981d`; the wait returns success while view initialization fails. |
+| Lines 8021-8025 | `RoGetActivationFactory("Windows.UI.Core.CoreDispatcher", {4b4d0861-d718-4f7c-bec7-735c065f7c73})` returns `REGDB_E_CLASSNOTREG` (`0x80040154`): no library is found. This is the next grounded wall. |
+| Line 8080 | Subsequent view-thread null-read AV at genuine twinapi+`0x2619c`; this is not a CoreMessaging stub exception. |
+| Lines 10913-10915 | Child exits `0xc0000005` / 3221225477 after about 2002 ms; **0 total / 0 visible windows**. Early exit prevents the 140-second sample; no manual dialog closure is reported for this control. |
+
+Coordinator static RE links the AV to teardown unconditionally querying a
+NULL `view+0xc8` after the CoreDispatcher factory failed. That correlation
+is distinct from the runtime observation; no AV-specific product change
+is made. No CoreMessaging load/call, registered callback invocation,
+CoreWindow creation or first frame is established. Native Windows.UI
+admission and a private builtin dispatcher factory are unchosen follow-on
+routes; neither is implemented or launched under this grant.
+
+Owner status is 0, with no restoration errors. All 22 hashes/absent
+targets, original empty WineDbg key, removed temporary server keys,
+owned-client absence, bottle quiescence and deep/strict signature are
+independently verified. Debug and CoreApplication registration are
+restored. The mandatory integration runner remains missing (exit 2);
+this is bounded compatibility evidence, not an overall PASS or
+Store-install/playability claim.
+
+| Private 1840 evidence | SHA-256 |
+| --- | --- |
+| `game.log` | `f97f1c6be9d1b7cd16f64b9151c01fd7548ef2f46740a480165e48d40fdb7a2a` |
+| `receipt.json` | `87d2e0feaf74031c6e334aafcb9c59049b27526fcbd9e30385f7e9b033a93072` |
+| `propertyset-tests.log` | `e4816e5cacbdd32799aa4e3b9f39f14c77b3fc4d28eada3a7d7360033a3bceb0` |
+| `ntdll-abi-smoke.log` | `7f8b049121de2e790d4d0d6015d6235e65427963c9c52c387dc13d08d56af4f7` |

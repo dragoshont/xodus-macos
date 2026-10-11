@@ -1,0 +1,204 @@
+--- a/dlls/wintypes/propertyset.c
++++ b/dlls/wintypes/propertyset.c
+@@ -31,6 +31,7 @@
+     IPropertySet IPropertySet_iface;
+     IObservableMap_HSTRING_IInspectable IObservableMap_HSTRING_IInspectable_iface;
+     LONG ref;
++    BOOL non_agile;
+ 
+     IInspectable *map_inner;
+ };
+@@ -61,6 +62,8 @@
+         IUnknown_AddRef( (IUnknown *)*out );
+         return S_OK;
+     }
++
++    if (impl->non_agile && IsEqualGUID( iid, &IID_IAgileObject )) return E_NOINTERFACE;
+ 
+     if (SUCCEEDED(IInspectable_QueryInterface( impl->map_inner, iid, out ))) return S_OK;
+ 
+@@ -216,7 +219,7 @@
+     return E_NOTIMPL;
+ }
+ 
+-static HRESULT STDMETHODCALLTYPE factory_ActivateInstance( IActivationFactory *iface, IInspectable **instance )
++static HRESULT propertyset_create( BOOL non_agile, IInspectable **instance )
+ {
+     static const struct map_iids iids =
+     {
+@@ -230,7 +233,7 @@
+     struct propertyset *impl;
+     HRESULT hr;
+ 
+-    TRACE( "(%p, %p)\n", iface, instance );
++    TRACE( "non_agile %d, instance %p\n", non_agile, instance );
+ 
+     impl = calloc( 1, sizeof( *impl ) );
+     if (!impl)
+@@ -239,6 +242,7 @@
+     impl->IPropertySet_iface.lpVtbl = &propertyset_vtbl;
+     impl->IObservableMap_HSTRING_IInspectable_iface.lpVtbl = &propertyset_IObservableMap_vtbl;
+     impl->ref = 1;
++    impl->non_agile = non_agile;
+ 
+     if (FAILED(hr = multi_threaded_map_create( &iids, (IInspectable *)&impl->IPropertySet_iface, &impl->map_inner )))
+     {
+@@ -248,6 +252,12 @@
+ 
+     *instance = (IInspectable *)&impl->IPropertySet_iface;
+     return S_OK;
++}
++
++static HRESULT STDMETHODCALLTYPE factory_ActivateInstance( IActivationFactory *iface, IInspectable **instance )
++{
++    TRACE( "(%p, %p)\n", iface, instance );
++    return propertyset_create( FALSE, instance );
+ }
+ 
+ static const IActivationFactoryVtbl propertyset_factory_vtbl =
+@@ -271,3 +281,26 @@
+ };
+ 
+ IActivationFactory *property_set_factory = &propertyset_factory.IActivationFactory_iface;
++
++/* Exported by wintypes.dll (api-ms-win-core-winrt-propertysetprivate-l1-1-0), no SDK
++ * prototype.  ABI grounded by the genuine twinapi.appcore.dll call sites 0x1800172de
++ * and 0x18001732c: one argument, the address of a ComPtr field of the
++ * CoreApplicationView (the backing store for ICoreApplicationView::get_Properties,
++ * which is typed IPropertySet ** in the public metadata); a failure HRESULT aborts view
++ * initialisation.  Suppress the inner map's IAgileObject marker only for instances
++ * created by this export; regular PropertySet activation retains its behavior. */
++HRESULT WINAPI RoCreateNonAgilePropertySet( IPropertySet **out )
++{
++    IInspectable *inspectable;
++    HRESULT hr;
++
++    TRACE( "out %p\n", out );
++
++    if (!out) return E_POINTER;
++    *out = NULL;
++
++    if (FAILED(hr = propertyset_create( TRUE, &inspectable ))) return hr;
++    hr = IInspectable_QueryInterface( inspectable, &IID_IPropertySet, (void **)out );
++    IInspectable_Release( inspectable );
++    return hr;
++}
+--- a/dlls/wintypes/wintypes.spec
++++ b/dlls/wintypes/wintypes.spec
+@@ -1,7 +1,7 @@
+ @ stdcall -private DllCanUnloadNow()
+ @ stdcall -private DllGetActivationFactory(ptr ptr)
+ @ stdcall -private DllGetClassObject(ptr ptr ptr)
+-@ stub RoCreateNonAgilePropertySet
++@ stdcall RoCreateNonAgilePropertySet(ptr)
+ @ stub RoCreatePropertySetSerializer
+ @ stub RoGetBufferMarshaler
+ @ stub RoGetMetaDataFile
+--- a/dlls/wintypes/tests/wintypes.c
++++ b/dlls/wintypes/tests/wintypes.c
+@@ -1488,6 +1488,99 @@
+     RoUninitialize();
+ }
+ 
++static void test_RoCreateNonAgilePropertySet(void)
++{
++    static const WCHAR *class_name = RuntimeClass_Windows_Foundation_PropertyValue;
++    HRESULT (WINAPI *pRoCreateNonAgilePropertySet)( IPropertySet ** );
++    IPropertyValueStatics *propval_statics;
++    IObservableMap_HSTRING_IInspectable *observable_map;
++    IMap_HSTRING_IInspectable *map;
++    IInspectable *val, *val1;
++    IPropertySet *propset;
++    IPropertyValue *propval;
++    UINT32 size, uint32 = 0;
++    BOOLEAN replaced;
++    HSTRING name, key;
++    HMODULE module;
++    HRESULT hr;
++
++    module = GetModuleHandleW( L"wintypes.dll" );
++    ok( module != NULL, "wintypes.dll not loaded.\n" );
++    pRoCreateNonAgilePropertySet = (void *)GetProcAddress( module, "RoCreateNonAgilePropertySet" );
++    if (!pRoCreateNonAgilePropertySet)
++    {
++        win_skip( "RoCreateNonAgilePropertySet is not available.\n" );
++        return;
++    }
++
++    hr = RoInitialize( RO_INIT_MULTITHREADED );
++    ok( hr == S_OK, "got %#lx\n", hr );
++
++    hr = WindowsCreateString( class_name, wcslen( class_name ), &name );
++    ok( hr == S_OK, "got %#lx\n", hr );
++    hr = RoGetActivationFactory( name, &IID_IPropertyValueStatics, (void **)&propval_statics );
++    WindowsDeleteString( name );
++    ok( hr == S_OK || broken( hr == REGDB_E_CLASSNOTREG ), "RoGetActivationFactory failed, hr %#lx.\n", hr );
++    if (hr != S_OK)
++    {
++        win_skip( "%s runtimeclass not registered, skipping tests.\n", wine_dbgstr_w( class_name ) );
++        goto done;
++    }
++
++    propset = (IPropertySet *)0xdeadbeef;
++    hr = pRoCreateNonAgilePropertySet( &propset );
++    ok( hr == S_OK, "got %#lx\n", hr );
++    ok( propset != NULL && propset != (IPropertySet *)0xdeadbeef, "got propset %p.\n", propset );
++    if (FAILED(hr))
++    {
++        IPropertyValueStatics_Release( propval_statics );
++        goto done;
++    }
++
++    check_interface( propset, &IID_IUnknown, TRUE );
++    check_interface( propset, &IID_IInspectable, TRUE );
++    check_interface( propset, &IID_IPropertySet, TRUE );
++
++    hr = IPropertySet_QueryInterface( propset, &IID_IObservableMap_HSTRING_IInspectable, (void **)&observable_map );
++    ok( hr == S_OK, "QueryInterface failed, got %#lx\n", hr );
++    IObservableMap_HSTRING_IInspectable_Release( observable_map );
++
++    hr = IPropertySet_QueryInterface( propset, &IID_IMap_HSTRING_IInspectable, (void **)&map );
++    IPropertySet_Release( propset );
++    ok( hr == S_OK, "QueryInterface failed, got %#lx\n", hr );
++
++    size = 0xdeadbeef;
++    hr = IMap_HSTRING_IInspectable_get_Size( map, &size );
++    ok( hr == S_OK, "get_Size failed, got %#lx\n", hr );
++    ok( size == 0, "got size %u.\n", size );
++
++    hr = WindowsCreateString( L"key", 3, &key );
++    ok( hr == S_OK, "got %#lx\n", hr );
++    hr = IPropertyValueStatics_CreateUInt32( propval_statics, 0xdeadbeef, &val1 );
++    ok( hr == S_OK, "CreateUInt32 failed, got %#lx\n", hr );
++    replaced = TRUE;
++    hr = IMap_HSTRING_IInspectable_Insert( map, key, val1, &replaced );
++    ok( hr == S_OK, "Insert failed, got %#lx\n", hr );
++    ok( !replaced, "got replaced %d.\n", replaced );
++    IInspectable_Release( val1 );
++
++    hr = IMap_HSTRING_IInspectable_Lookup( map, key, &val );
++    ok( hr == S_OK, "Lookup failed, got %#lx\n", hr );
++    hr = IInspectable_QueryInterface( val, &IID_IPropertyValue, (void **)&propval );
++    IInspectable_Release( val );
++    ok( hr == S_OK, "QueryInterface failed, got %#lx\n", hr );
++    hr = IPropertyValue_GetUInt32( propval, &uint32 );
++    ok( hr == S_OK, "GetUInt32 failed, got %#lx\n", hr );
++    ok( uint32 == 0xdeadbeef, "got %#x.\n", uint32 );
++    IPropertyValue_Release( propval );
++    WindowsDeleteString( key );
++
++    IMap_HSTRING_IInspectable_Release( map );
++    IPropertyValueStatics_Release( propval_statics );
++done:
++    RoUninitialize();
++}
++
+ START_TEST(wintypes)
+ {
+     IsWow64Process(GetCurrentProcess(), &is_wow64);
+@@ -1499,4 +1592,5 @@
+     test_RoParseTypeName();
+     test_RoResolveNamespace();
+     test_IPropertySet();
++    test_RoCreateNonAgilePropertySet();
+ }

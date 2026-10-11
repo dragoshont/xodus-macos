@@ -1616,3 +1616,49 @@ All five vendor modules and bottle twinapi were restored, private mrt100 and
 temporary registration removed, and signatures verified. Both source/build
 and runtime windows were released. The new trace is progress in identifying
 the underlying boundary, not a rendered-frame or playability result.
+
+### RMCLIENT: explicit unavailable HAM boundary, not extended-execution support
+
+Read-only analysis of two genuine twinapi call sites grounds the reached ABI
+as `HRESULT HamConnectForExtendedExecution(const void *, HANDLE *)`. Both
+callers initialize the output to NULL and check failure before using it.
+The genuine provider exports this name at ordinal 32; the exact failure code
+for an absent HAM service was not oracled because the research host has a real
+server and calling it would create RPC side effects.
+
+`wine-rmclient-unavailable.patch` adds a Wine builtin with **only this reached
+export**, preserving ordinal 32. It does not interpret the descriptor, clears
+the connection output, logs that extended execution is not granted and
+returns `HRESULT_FROM_WIN32(RPC_S_SERVER_UNAVAILABLE)`. This HRESULT is a
+synthetic backend-unavailable diagnostic, not genuine Windows parity.
+Missing output returns defensive `E_POINTER`. There is no HAM/CRM/PSM backend,
+connection handle, permission grant, MemoryManager factory or other Ham surface.
+
+Under the explicitly granted source/build window, configure was regenerated
+and the existing build rechecked with Homebrew bison/flex first in PATH.
+`dlls/rmclient/all` and the independent test compile successfully. Protected
+combase, ntdll, windows.ui, dxgi and bcp47mrm source hashes are unchanged.
+The retained patch passes reverse-application checking against the applied
+source. RMCLIENT candidate SHA-256:
+`803a6491c762db37feca7c7d69fb2ba21a3bd4021dfd0c6695c81b53e96c720c`.
+
+The separately owned GUI probe installs this provider only temporarily in the
+Celeste bottle; it does not replace a shared vendor RMCLIENT module. All seven
+unavailable-boundary controls pass, together with identity 27/0, shutdown 35/0,
+design mode 21/0, cleanup 11/0, native factories 6/0, policy 6/0, four loader
+regressions and original activation 13/0.
+Receipt prefix: `celeste-registered-rmclient-unavailable`.
+
+Actual original Celeste loads the builtin and calls HamConnect with a static
+descriptor and output pointer. It handles the explicit unavailable result and
+advances to a missing `Windows.Foundation.Collections.Detail.Vector` factory,
+then aborts at private ordinal 95 `CoSignalPendingGitRegistrationWaits`.
+The vector failure may be an earlier causal boundary; fixing the later abort
+alone would not establish activation success. Celeste remains exit 4103,
+zero windows (319 ms), with no rendered frame.
+
+All five vendor modules and bottle twinapi were restored, signatures verified,
+temporary registration/private mrt100 removed and the temporary bottle RMCLIENT
+removed. Source/build and runtime leases were released. No proprietary provider
+was acquired or distributed and no absent-service state was represented as
+permission.

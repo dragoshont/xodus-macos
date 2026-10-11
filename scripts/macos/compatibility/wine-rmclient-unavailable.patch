@@ -1,0 +1,57 @@
+diff --git a/dlls/rmclient/Makefile.in b/dlls/rmclient/Makefile.in
+new file mode 100644
+--- /dev/null
++++ b/dlls/rmclient/Makefile.in
+@@ -0,0 +1,4 @@
++MODULE = rmclient.dll
++
++SOURCES = \
++	main.c
+diff --git a/dlls/rmclient/rmclient.spec b/dlls/rmclient/rmclient.spec
+new file mode 100644
+--- /dev/null
++++ b/dlls/rmclient/rmclient.spec
+@@ -0,0 +1,1 @@
++32 stdcall HamConnectForExtendedExecution(ptr ptr)
+diff --git a/dlls/rmclient/main.c b/dlls/rmclient/main.c
+new file mode 100644
+--- /dev/null
++++ b/dlls/rmclient/main.c
+@@ -0,0 +1,29 @@
++/*
++ * Unsupported Host Activity Manager connection boundary.
++ *
++ * Copyright 2026 Dragos Hont
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
++ * Lesser General Public License for more details.
++ */
++
++#include <stdarg.h>
++#include "windef.h"
++#include "winbase.h"
++#include "winerror.h"
++#include "wine/debug.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(rmclient);
++
++HRESULT WINAPI HamConnectForExtendedExecution(const void *descriptor, HANDLE *connection)
++{
++    ERR("(%p, %p): HAM backend unavailable; extended execution is not granted.\n", descriptor, connection);
++    if (!connection) return E_POINTER;
++    *connection = NULL;
++    return HRESULT_FROM_WIN32(RPC_S_SERVER_UNAVAILABLE);
++}
+diff --git a/configure.ac b/configure.ac
+--- a/configure.ac
++++ b/configure.ac
+@@ -1,1 +1,2 @@
++WINE_CONFIG_MAKEFILE(dlls/rmclient)
+ WINE_CONFIG_MAKEFILE(dlls/rpcrt4)

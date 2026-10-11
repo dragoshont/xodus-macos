@@ -4951,6 +4951,32 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
   - The main-thread `0x8000000E` fatal is unchanged. A worker thread newly
     originates `0x8000000B` at `twinapi+0x7fbfc`.
   - Windows 0, no frame. Restoration errors: none.
+- **2391 (relay read-out on the ASTA baseline):**
+  - The view worker waits only inside our builtin Windows.UI
+    `PumpUntilSignaled`, on handle `0x22c`.
+  - Main runs the twinapi Run driver. It polls the same `0x22c` with
+    timeout 0 at `twinapi+0x97926`, times out, and continues.
+- **2392:** invalid as a trace run. The ordinary-run debug assignment
+  overwrote the added `+ui` channel, so earlier "no ui fixme" inferences
+  from ordinary runs are void.
+- **2393:** stopped at the pre-gate. The combase oracle build shifted the
+  pinned ordinal-122 RVA, so nothing launched.
+- **2394 (Windows.UI method/QI trace plus combase 32-frame stack oracle):**
+  - Exit `0xC0000421`. Windows 0, no frame. Restoration errors: none.
+  - Cuphead's `ResourceContext` activation and the `0x8000000E` happen on
+    main after Run returned: their stacks contain no twinapi Run frames.
+  - The seven `0x80070057` originations are inside Run on main
+    (`twinapi+0xfc43` → `0x4932c`).
+  - twinapi calls into Cuphead only on the view worker
+    (`twinapi+0x8f507` → `0x16fef` → `0x18f00`). The worker then pumps
+    `0x22c`, the pump returns `S_OK`, and the worker exits.
+  - Nothing is enqueued on any builtin dispatcher, and twinapi does not use
+    `ICoreDispatcher`.
+  - Builtin anomalies seen on main:
+    - `GetForCurrentThread` creates a CoreWindow on the MTA main thread.
+    - `get_ApplicationViewClientAdapter` returns `E_NOTIMPL`.
+    - The late UIContext QI for `{f21e14c1}` returns `E_NOINTERFACE`.
+  - Causal impact of these anomalies: unproven (HYPOTHESIS).
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

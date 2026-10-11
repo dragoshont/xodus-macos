@@ -4670,15 +4670,134 @@ owner-pin conversion only; not enabled or run. Product kernelbase/schema,
 ordinary controller/accounting/control helper/alias pins are unchanged.
 No runtime retry granted here. Quality-runner absence remains disclosed.
 
+#### Actual2290: native negative passed, ordinary app still exits4103
+
+The coordinator granted one2290 cycle. Canonical33 was asserted first,
+then exactly35 candidates were admitted: kernelbase1fbe8bd2..., vendor
+schemaf91bed73..., and bottle system32 `mrmcorer.dll` baseline absent to
+genuine native6186f981..., with only `mrmcorer=n` selection. The exact
+authorized owner/wrapper enabling hashes were verified before the unique
+Terminal/caffeinate run. All prior required no-game pre-gates completed with
+zero failures (same fixture TODO counts).
+
+The integrated no-game negative **passed all six checks**. It reported actual
+kernelbase RVAs package28760/application26f10/property30c20; requested the
+MRM API-set; and `GetModuleFileNameW` returned
+`C:\windows\system32\mrmcorer.dll`. The provider's genuine
+`GetStringValueForManifestField` export was found. Unpackaged context status
+was15700; native consumer returned HRESULT80073d54, count0, first WCHAR0000.
+This proves mapping, placement, exports, and the expected unpackaged failure
+contract; it is not a packaged-positive call.
+
+Exactly one conditional ordinary Cuphead launch then ran, no debugger,
+dumps, 295/frame/events, or other provider delta. Catalog activation and
+claims passed (13 checks, zero failures); activated original app had mask3,
+Flags1, Origin4. First wait succeeded at1285ms. It exited4103; total and
+visible windows were both0; no frame was observed. The controller preserved
+the nonzero application exit as failure. Ordinary stdout:
+
+```text
+ACTIVATION pass=0 status=00000000 pid=584
+CLAIMS activated-original-app status=00000000 mask=3 flags=1 origin=4 package_bytes=104 app_bytes=8
+ORIGINAL_APP_FIRST_WAIT=0 ELAPSED_MS=1285
+ORIGINAL_APP_WINDOWS total=0 visible=0
+ORIGINAL_APP_EXIT=4103
+RESULT activation_checks=13 failures=0
+```
+
+Ordinary trace shows native system32 `mrmcorer.dll` loaded at
+`00006FFFF38E0000`, then Cuphead's already observed
+`EXCEPTION_WINE_STUB`80000100: `ntdll.dll.RtlIsMultiSessionSku` at
+`ntdll+0x6fcca` (trace reports aborting). The app later loads its original
+private `decoded-attempt1\MrmCoreR.dll` separately. The integrated no-game
+probe did exercise `GetStringValueForManifestField`; ordinary Cuphead trace
+proves provider loading, not that a packaged property call completed.
+
+The three access violations at `kernelbase+0x82eb9` are secondary faults in
+Wine's own `failfast_diagnostic` pointer walk, not product exceptions. At that
+instruction `failfast_read_words` treats scalar register values7,1007,1 as
+pointers and attempts a 16-byte read. Each diagnostic AV unwinds through
+`kernelbase+0xf7ea` (`__wine_unwind_trampoline`); `+0x97ea` is not the unwind
+target. The diagnostic is called only by the temporary
+`RtlCaptureContext`/`failfast_diagnostic` block in
+`dlls/kernelbase/debug.c:592-596`. Removing that call preserves the normal
+record/context/flags and `NtRaiseException` fail-fast behavior while removing
+the speculative reads.
+
+The only observed missing-export event before the original fail-fast in2290 is
+`ntdll.dll.RtlIsMultiSessionSku`, reported as `EXCEPTION_WINE_STUB`
+`80000100`. It is followed by the diagnostic-generated AVs and then the
+original unhandled exception1007 at `0x6ffff7afcf88`. The trace does not prove
+that the stub caused exception1007. The corresponding pre-fail-fast tails in
+2200 and2210 have the same CoreApplication/CoreWindow/
+AccessibilitySettings semi-stubs, WNF/ETW stubs and fixed-scale behavior, but
+no `RtlIsMultiSessionSku` WINE_STUB or diagnostic pointer-walk faults. Their
+original unhandled exception is also1007. Thus the SKU export is a genuine new
+missing API, but its causal relationship to the unchanged fail-fast remains
+unproven.
+
+The genuine Windows `RtlIsMultiSessionSku` at
+`C:\Windows\System32\ntdll.dll` returns BOOLEAN1 on this host. Its reported
+`RtlGetVersion` product type is `VER_NT_WORKSTATION`, with registry
+`EditionID=Enterprise` and `ProductSuite=Terminal Server`; this is not a
+confirmed non-multisession oracle. Per the requested Wine desktop-SKU
+behavior, the source candidate exports the zero-argument BOOLEAN API and
+returns FALSE; its focused test checks the FALSE result only when running
+under Wine, while accepting either native BOOLEAN value on Windows. This does
+not establish behavior for a native non-multisession Windows installation.
+
+Both integrated and ordinary commands remained below their respective
+18s/2MB and75s/20MB limits: aggregate totals1,101,632 and4,315,438 bytes.
+Control-first reached generation-proven owned-package quiescence before
+registry restoration. Owner receipt records exit4103 as failure, no
+restoration errors and all35 file restores. Independent verification confirms
+canonical33 plus exact35 baseline hashes/absences, removed system32 MRM and
+11 temporary registration keys, original CoreApplication/WineDbg settings,
+unchanged original Cuphead image/native MRM/Vector alias/dbghelp/bottle
+schema, strict signature, and no runtime/recursive bottle holders. The one
+grant was consumed and the hold is safe to release; no second launch.
+
+|Actual2290 retained evidence|SHA256|
+|---|---|
+|Owner receipt, failed original exit preserved|`5e071345a54d71ea6e06529559210cdf2f2a898dce9afc446a75df59ee697f9d`|
+|Independent35-target restoration verification|`1279e9bd0975a36de9e0250d0b0880d4361b57e5a34694801323958147bf53c5`|
+|MRM negative stdout|`2b9cd9e2d1e9e4ef6cd5a4e191557375e3f791e530fc6b01347cc56abe64bf9e`|
+|MRM negative stderr/module trace|`3ab16e6df603c41b76c6a1da05a396b583fcfa484ca381133e6d6b77ab98fbcf`|
+|Ordinary activation stdout|`d57f50d40f55f8f1b39d3de6700d822dfd34a666a88ee916115ced054b54c073`|
+|Ordinary SEH/module trace|`44c4f9f9e2ff3b0db9eeb89218cfee997e7897d1741fa4f1b583d23ebaa6ddf3`|
+|Full server trace|`697b67b4a7ab496f1d686b883b767610a75dae1bbb9db80b8b1734b99a0c7b9d`|
+
+The source-only candidate removes the diagnostic pointer walker and
+invocation, preserving the fail-fast exception record/context/flags and
+`NtRaiseException` path, and adds the requested `RtlIsMultiSessionSku` FALSE
+export for Wine. The candidate patch is
+`scripts/macos/compatibility/wine-cuphead-failfast-multisession.patch`
+(SHA256 `bd030ee928d684dcd42ab0a079e3ffc0c62a978009dded19dc5cdb7f764538b1`).
+Both modified Wine DLLs built and linked; the ntdll PE export table contains
+`RtlIsMultiSessionSku`, the kernelbase PE contains no
+`FAILFAST_DIAGNOSTIC` strings, and the modified `rtl.c` test translation unit
+passes a cross-compiler syntax check. The configured build has no target for
+executing the ntdll test suite, so the runtime assertion was not run. No
+Cuphead launch or other product runtime was performed. Fresh execution stays
+CUT pending a new explicit grant. No alias, debugger, additional provider or
+unrelated missing delay-import was introduced. Quality runner remains
+absent/exit2.
+
+|Built source-only DLL|SHA256|
+|---|---|
+|Wine `ntdll.dll`|`8c82df24d37f04e729f9ff8ac11c086e5ef6ed640921b9444fdf61cd7526dcf8`|
+|Wine `kernelbase.dll`|`da8b625bbf1a9bfbe9d71c20719a1b8268bb930babbb6f1d4a1e78ea8fb68d74`|
+
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup
 gaps, but native alias progress is not our distributable Vector support.
-Current observed failure is missing
-ext-ms-win-mrmcorer-resmanager-l1-1-0!GetStringValueForManifestField
-raising80000100 through twinapi and dispatching to Cuphead's PInvoke guard
-import thunk. The debugger-dependent breakpoint recursion is a diagnostic
-perturbation, not a separate product API to patch. Original guard-entry/
-return/1007 linkage remains unproven.
+The 2290 no-game MRM negative passed and the ordinary trace shows native MRM
+provider loading. Its only new observed missing-export event is
+`ntdll.dll.RtlIsMultiSessionSku` (`80000100`); its causal relationship to the
+original unhandled1007 remains unproven. The repeated `kernelbase+0x82eb9`
+faults were generated by the removed failfast diagnostic pointer walk, not
+the product. The genuine original exception-to-guard-entry/return/1007
+linkage remains unproven.
 
 Read-only inspection now establishes a genuine oracle on this existing
 Windows host, OS binaries version10.0.26100.9278, AMD64:

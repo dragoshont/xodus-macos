@@ -1,0 +1,242 @@
+--- a/dlls/kernelbase/debug.c
++++ b/dlls/kernelbase/debug.c
+@@ -419,181 +419,6 @@
+-#ifdef __x86_64__
+-static BOOL failfast_read_words( const void *pointer, ULONGLONG words[9] )
+-{
+-    volatile BOOL readable = FALSE;
+-
+-    __TRY
+-    {
+-        memcpy( words, pointer, 9 * sizeof(*words) );
+-        readable = TRUE;
+-    }
+-    __EXCEPT_ALL
+-    {
+-        FIXME( "FAILFAST_DIAGNOSTIC unreadable pointer %p.\n", pointer );
+-    }
+-    __ENDTRY
+-    return readable;
+-}
+-
+-static BOOL failfast_dump_string( const char *reg, unsigned int level, unsigned int field,
+-                                 const void *pointer, ULONGLONG string_type )
+-{
+-    WCHAR text[513];
+-    INT length, offset, copied;
+-    volatile BOOL matched = FALSE;
+-
+-    __TRY
+-    {
+-        if (*(const ULONGLONG *)pointer == string_type)
+-        {
+-            matched = TRUE;
+-            length = *(const INT *)((const BYTE *)pointer + 8);
+-            if (length < 0)
+-                FIXME( "FAILFAST_DIAGNOSTIC %s level %u field %x invalid string length %d.\n",
+-                       reg, level, field, length );
+-            else
+-            {
+-                copied = min(length, 512);
+-                memcpy( text, (const BYTE *)pointer + 12, copied * sizeof(*text) );
+-                text[copied] = 0;
+-                FIXME( "FAILFAST_DIAGNOSTIC %s level %u field %x string %p length %d text %s%s.\n",
+-                       reg, level, field, pointer, length, debugstr_wn(text, min(length, 512)),
+-                       length > 512 ? " [truncated]" : "" );
+-                if (copied > 64)
+-                    for (offset = 0; offset < copied; offset += 32)
+-                        FIXME( "FAILFAST_DIAGNOSTIC %s level %u field %x string_chunk %d %s.\n",
+-                               reg, level, field, offset, debugstr_wn(text + offset, min(32, copied - offset)) );
+-            }
+-        }
+-    }
+-    __EXCEPT_ALL
+-    {
+-        FIXME( "FAILFAST_DIAGNOSTIC %s level %u field %x unreadable string candidate %p.\n",
+-               reg, level, field, pointer );
+-    }
+-    __ENDTRY
+-    return matched;
+-}
+-
+-static BOOL failfast_dump_object( const char *reg, const void *pointer, unsigned int level )
+-{
+-    ULONGLONG words[9], candidate[9], string_type = 0;
+-    void *module = NULL;
+-    unsigned int i;
+-    DWORD hr;
+-
+-    if (!pointer || !failfast_read_words(pointer, words)) return FALSE;
+-    hr = (DWORD)words[6];
+-    if (!words[0] || (hr & 0xf0000000) != 0x80000000)
+-    {
+-        FIXME( "FAILFAST_DIAGNOSTIC %s level %u pointer %p not exception-shaped; type %s hr %08lx.\n",
+-               reg, level, pointer, wine_dbgstr_longlong(words[0]), hr );
+-        return FALSE;
+-    }
+-    RtlPcToFileHeader( (void *)(ULONG_PTR)words[0], &module );
+-    FIXME( "FAILFAST_DIAGNOSTIC %s level %u object %p EEType %s module %p offset %s HResult %08lx.\n",
+-           reg, level, pointer, wine_dbgstr_longlong(words[0]), module,
+-           wine_dbgstr_longlong(module ? words[0] - (ULONG_PTR)module : 0), hr );
+-    for (i = 0; i < ARRAY_SIZE(words); ++i)
+-        FIXME( "FAILFAST_DIAGNOSTIC %s level %u object_field %02x qword %s.\n",
+-               reg, level, i * 8, wine_dbgstr_longlong(words[i]) );
+-    if (words[1])
+-    {
+-        __TRY
+-        {
+-            string_type = *(const ULONGLONG *)(ULONG_PTR)words[1];
+-        }
+-        __EXCEPT_ALL
+-        {
+-            FIXME( "FAILFAST_DIAGNOSTIC %s level %u unreadable message EEType.\n", reg, level );
+-        }
+-        __ENDTRY
+-    }
+-    for (i = 1; i < ARRAY_SIZE(words); ++i)
+-    {
+-        const void *field = (const void *)(ULONG_PTR)words[i];
+-
+-        if (!field || i == 6) continue;
+-        if (string_type && failfast_dump_string( reg, level, i * 8, field, string_type )) continue;
+-        if (!failfast_read_words(field, candidate)) continue;
+-        if (level == 0 && (candidate[6] & 0xf0000000) == 0x80000000)
+-            failfast_dump_object( reg, field, 1 );
+-        else if (candidate[0] && candidate[1] && candidate[1] <= 64 &&
+-                 candidate[0] != string_type)
+-        {
+-            unsigned int j, count = min(candidate[1], 7);
+-            FIXME( "FAILFAST_DIAGNOSTIC %s level %u field %02x possible array %p length %s; untyped raw qwords.\n",
+-                   reg, level, i * 8, field, wine_dbgstr_longlong(candidate[1]) );
+-            for (j = 0; j < count; ++j)
+-                FIXME( "FAILFAST_DIAGNOSTIC %s level %u field %02x array_qword %u %s.\n",
+-                       reg, level, i * 8, j, wine_dbgstr_longlong(candidate[j + 2]) );
+-        }
+-    }
+-    return TRUE;
+-}
+-
+-static void failfast_diagnostic( CONTEXT *caller, EXCEPTION_RECORD *record, DWORD flags )
+-{
+-    RUNTIME_FUNCTION *function;
+-    ULONGLONG base, frame;
+-    void *data, *module = NULL;
+-    volatile BOOL unwound = FALSE;
+-
+-    __TRY
+-    {
+-        if ((function = RtlLookupFunctionEntry( caller->Rip, &base, NULL )))
+-        {
+-            RtlVirtualUnwind( UNW_FLAG_NHANDLER, base, caller->Rip, function, caller, &data, &frame, NULL );
+-            unwound = TRUE;
+-        }
+-    }
+-    __EXCEPT_ALL
+-    {
+-        FIXME( "FAILFAST_DIAGNOSTIC caller unwind fault; captured registers not trusted.\n" );
+-    }
+-    __ENDTRY
+-    if (!unwound)
+-    {
+-        FIXME( "FAILFAST_DIAGNOSTIC no caller unwind receipt; object inspection skipped.\n" );
+-        return;
+-    }
+-    RtlPcToFileHeader( (void *)(ULONG_PTR)caller->Rip, &module );
+-    FIXME( "FAILFAST_DIAGNOSTIC caller RIP %s module %p offset %s RDI %s flags %lx.\n",
+-           wine_dbgstr_longlong(caller->Rip), module,
+-           wine_dbgstr_longlong(module ? caller->Rip - (ULONG_PTR)module : 0),
+-           wine_dbgstr_longlong(caller->Rdi), flags );
+-    if (record)
+-    {
+-        __TRY
+-        {
+-            FIXME( "FAILFAST_DIAGNOSTIC record code %08lx flags %08lx.\n",
+-                   record->ExceptionCode, record->ExceptionFlags );
+-        }
+-        __EXCEPT_ALL
+-        {
+-            FIXME( "FAILFAST_DIAGNOSTIC unreadable exception record.\n" );
+-        }
+-        __ENDTRY
+-    }
+-    if (!failfast_dump_object( "RDI", (void *)(ULONG_PTR)caller->Rdi, 0 ))
+-    {
+-        const ULONGLONG values[] = {caller->Rsi, caller->Rbx, caller->R12, caller->R13, caller->R14, caller->R15};
+-        const char *names[] = {"RSI", "RBX", "R12", "R13", "R14", "R15"};
+-        unsigned int i;
+-        for (i = 0; i < ARRAY_SIZE(values); ++i)
+-            failfast_dump_object( names[i], (void *)(ULONG_PTR)values[i], 0 );
+-    }
+-}
+-#endif
+-
+ void WINAPI DECLSPEC_HOTPATCH RaiseFailFastException( EXCEPTION_RECORD *record, CONTEXT *context, DWORD flags )
+ {
+     EXCEPTION_RECORD rec;
+     CONTEXT ctx;
+-#ifdef __x86_64__
+-    CONTEXT caller;
+-
+-    RtlCaptureContext( &caller );
+-    failfast_diagnostic( &caller, record, flags );
+-#endif
+ 
+     WARN( "(%p, %p, %lx)\n", record, context, flags );
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -872,3 +872,4 @@
+ @ stdcall RtlIsGenericTableEmpty(ptr)
+ # @ stub RtlIsGenericTableEmptyAvl
++@ stdcall RtlIsMultiSessionSku()
+ @ stdcall RtlIsNameLegalDOS8Dot3(ptr ptr ptr)
+--- a/dlls/ntdll/version.c
++++ b/dlls/ntdll/version.c
+@@ -651,7 +651,15 @@
+ BOOLEAN WINAPI RtlGetNtProductType( LPDWORD type )
+ {
+     if (type) *type = current_version->wProductType;
+     return TRUE;
+ }
+ 
++/***********************************************************************
++ *           RtlIsMultiSessionSku    (NTDLL.@)
++ */
++BOOLEAN WINAPI RtlIsMultiSessionSku(void)
++{
++    return FALSE;
++}
++
+ static inline UCHAR version_update_condition(UCHAR *last_condition, UCHAR condition)
+--- a/dlls/ntdll/tests/rtl.c
++++ b/dlls/ntdll/tests/rtl.c
+@@ -5475,9 +5475,29 @@
+     free( sid );
+     free( group_sid );
+ }
+ 
++static void test_RtlIsMultiSessionSku(void)
++{
++    HMODULE ntdll = GetModuleHandleW( L"ntdll.dll" );
++    BOOLEAN (WINAPI *pRtlIsMultiSessionSku)(void);
++    BOOLEAN result;
++
++    pRtlIsMultiSessionSku = (void *)GetProcAddress( ntdll, "RtlIsMultiSessionSku" );
++    if (!pRtlIsMultiSessionSku)
++    {
++        win_skip( "RtlIsMultiSessionSku is not available.\n" );
++        return;
++    }
++
++    result = pRtlIsMultiSessionSku();
++    ok( result == FALSE || result == TRUE, "got non-BOOLEAN result %u.\n", result );
++    if (GetProcAddress( ntdll, "wine_get_version" ))
++        ok( result == FALSE, "got %u for Wine's non-multisession SKU.\n", result );
++}
++
+ START_TEST(rtl)
+ {
+     InitFunctionPtrs();
+ 
++    test_RtlIsMultiSessionSku();
+     test_RtlQueryProcessDebugInformation();
+*** End Patch

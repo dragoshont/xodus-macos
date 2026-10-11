@@ -3789,6 +3789,94 @@ No overall integration PASS: mandatory quality runner remains absent and the
 first required synthetic hardware-trap gate failed. Any further action must
 first discriminate the unobserved hardware events and startup breakpoint
 without speculative compatibility changes or another unchanged game launch.
+
+#### Read-only 2230 diagnosis: Rosetta hardware wall and separate startup predicate bug
+
+The coordinator authorized source-only attribution, not another execution.
+Inspection now distinguishes two issues. No candidate bytes or provider
+were changed, and the package controller remains unexecuted.
+
+**Startup predicate is a controller bug, not the hardware failure.**
+The frozen admitted ntdll.dll (`f8bd19c7606e0f7c506380d1c5c1d8bea477cbfea935f8c6f115de2ae8a2cb42`)
+exports DbgBreakPoint at RVA0x110dc, whereas the observed startup INT3 at
+RVA0x110a8 is the separate `process_breakpoint` routine. Its frozen bytes
+are INT3/RET followed by the handler's context-RIP increment. Source
+`dlls/ntdll/loader.c:5286-5287` queries ProcessDebugPort and calls
+process_breakpoint; `dlls/ntdll/signal_x86_64.c:1052-1061` defines that
+INT3 and exception handler. DbgBreakPoint is separately defined at1119.
+Passing the unrecognized startup trap NOT_HANDLED lets Wine's own
+process_breakpoint handler continue; it does not explain absent DR traps.
+A future exception-only controller must recognize that exact pinned loader
+trap independently, not consume arbitrary first-chance breakpoints.
+
+**Hardware register roundtrip is not physical trap support on this host.**
+`server/mach.c:278-284` explicitly refuses Rosetta debug-register writes
+with STATUS_UNSUCCESSFUL, noting that neither cross-process nor in-process
+setting has the desired effect. `server/mach.c:192-197` returns zero debug
+registers for translated processes. The actual frozen admitted wineserver
+is x86_64 Mach-O on the arm64 host; its `set_thread_context` disassembly
+contains the Rosetta-status branch setting c0000001, and its
+`get_thread_context` contains the corresponding zero-return branch.
+This is binary-grounded, not merely a comment in a different source tree.
+
+`dlls/ntdll/unix/signal_x86_64.c:1147-1156` has the Apple-specific
+"Setting debug registers is not supported under Rosetta, faking success"
+branch. That exact string is present in frozen admitted ntdll.so
+(`e4d34518f2627d73a0035223939ec53bea0dd9829b07238486f51c35cae34422`).
+Server suspended/debug context storage at `server/thread.c:2313-2337`
+copies submitted registers, explaining a successful immediate readback
+without programming a usable hardware execution trap. On resume,
+`server/thread.c:2052` attempts system register application; client cached
+register copies are not proof of trap delivery.
+
+The retained server trace independently confirms correct fixture addresses:
+DR0..3 are 0x140001564, 0x1400015d1, 0x14000162e, 0x14000168b;
+DR7=0x55 enables all four local slots with execution type/length fields zero.
+Frozen fixture exports/instructions match these addresses. The new worker
+is tid0128 / handle004c, entry0x140001744: CREATE_THREAD_DEBUG_EVENT,
+GetContext zero, SetContext exact addresses/0x55, GetContext exact readback,
+then ContinueDebugEvent, in that order. The earlier process thread uses
+handle0048. Thus there is no evidence of a wrong export RVA, data-watchpoint
+encoding, wrong thread handle or installation after continuation.
+Later debug-event contexts return zero again before reinstall, consistent
+with the platform/cache distinction.
+
+Unix delivery source still contains a real SIGTRAP path:
+`dlls/ntdll/unix/signal_x86_64.c:2594-2608` converts TRCTRAP to
+EXCEPTION_SINGLE_STEP, and1588-1605 refreshes debug registers and sends
+the debug event. Its existence cannot make Rosetta generate an execution
+trap that was never installed. The syscall hardware-trap ignore branch
+at2375-2378 is not implicated by these fixture function entry points.
+
+**Stop this hardware-debugger lane.** Correcting the startup predicate alone
+cannot satisfy the four-slot gate on this admitted translated host. No
+software breakpoint patch, binary rewrite, trap emulation, debug-subsystem
+implementation or replay is proposed. This is a scoped hardware execution
+capture wall, not a claim that public exception debug events are unavailable:
+2230 actually delivered the custom first-chance exception and natural exit.
+
+The one supported alternative to prepare, if retained by the coordinator,
+is an **exception-event-only capture**, without any DR access or code writes.
+At each original first-chance event, retain its typed DEBUG_EVENT
+EXCEPTION_RECORD, obtain the stopped thread's CONTEXT through public APIs,
+and create a bounded exception minidump with controller-local
+EXCEPTION_POINTERS (`ClientPointers=FALSE`). Existing
+`dlls/dbghelp/minidump.c:390-406,1023` implements those public
+MiniDumpWriteDump parameters; `dlls/dbghelp/stack.c:216` supports
+StackWalk64 with remote reads. Validate minidump exception/thread/module
+streams and any actual unwind separately; raw stack data is not a stackwalk.
+Pass original first/second-chance events NOT_HANDLED, preserving the app's
+own handlers and genuine exception exit behavior.
+
+This would capture the original fault context/stack for80000100 rather than
+only SharedLibrary's synthesized1007. It cannot by itself observe entry to
+mrt100_app+8380 or a private slot30 return, so those claims stay unproven.
+Pair minimal existing +seh/+loaddll with that dump for handler-address
+ownership/correlation; do not infer that the only first-chance exception
+caused reason7 merely because it was captured. Preparation would first
+need synthetic handled/unhandled exception, exact dump-stream/context,
+read-failure, bounds and owned-detach/cleanup gates. No new runtime or
+game decision has been granted, and none is requested by this attribution.
 | Frozen executed owner | `50904eb36c6359a6ee13cfad538478238bb7ff8d0a41373647fe75f007636405` |
 | Frozen executed Terminal wrapper | `32160f9ab71e37dd305f7e2e2686eba99683f94704c67d3cc571cb6f6d5222a7` |
 

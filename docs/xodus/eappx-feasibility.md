@@ -1698,3 +1698,48 @@ All five shared vendor modules were restored with signature verification,
 bottle twinapi restored, temporary registration/private mrt100 and bottle
 RMCLIENT removed. Source/build and runtime leases were released before the
 coordinator's Cuphead experiment. No rendering or playability is established.
+
+### Detail.Vector: genuine provider direct-export trial
+
+Genuine Windows oracle evidence identifies `wintypes.dll` as the provider for
+`Windows.Foundation.Collections.Detail.Vector`, requested interface
+`08c77958-89bf-5cf8-a9cd-c72147b9b3a9`. Direct
+`wintypes!DllGetActivationFactory` succeeds on Windows. Its only direct combase
+ordinal import is 90, the already implemented normal-host design-mode query;
+other COM/WinRT imports are named and still require behavioral compatibility.
+The consumer invokes slot 30, proving a minimum of 31 interface slots, not the
+full interface size or a generic collection specialization. Concrete method
+types and the direction/ownership of slot-30 pointer arguments remain unknown.
+
+The coordinator authorized a runtime-only genuine-provider trial, not our-own
+parity. Owner System32 `wintypes.dll` version `10.0.26100.7705`, 1,501,432 bytes,
+was transferred privately to the owner Mac and verified against SHA-256
+`5a94b019c7190d9ec47f98e0bc28dced70036f1f97e9a84ef9d75340e364158a`.
+No proprietary binary is committed or included in a distributable artifact.
+The initial trial stopped before mutation when the coordinator's active
+shared-vendor experiment invalidated the app seal. Execution resumed only after
+explicit restoration/release and a successful signature preflight.
+
+Receipt prefix: `celeste-wintypes-direct-20261011`, under private
+`~/xodus-app-tooling/celeste/wintypes-provider-trial`. The failure-counted probe
+uses only the direct factory export and standard GetIids/QueryInterface/Release;
+it neither traverses unknown vtable slots nor invokes slot 30. With bottle-local
+combase candidate `52ed4c9a...`, the genuine native provider returns the exact
+factory, GetIids returns the expected two IIDs, and all three QIs succeed:
+IActivationFactory and IInspectable share the factory pointer; the requested
+interface is a distinct tear-off. Controls pass 5/0, process exit 0.
+
+Although an identical temporary provider copy was placed in bottle system32,
+the loader actually selected the staged DLL beside the probe executable,
+`Y:\xodus-app-tooling\celeste\wintypes-provider-trial\wintypes.dll`, marked
+**native**. Thus this receipt proves direct provider availability, not system32
+resolution or combase catalog routing. No registry was changed and no game was
+launched. The finally receipt verifies original bottle combase
+`a6d35827...` and wintypes `1404067f...` hashes restored, and CrossOver's
+signature verification passed. No shared vendor module was modified.
+
+The next discriminating probe is temporary class registration followed by
+`RoGetActivationFactory` for the exact IID, with the same restoration controls.
+Private ordinal 69 remains unsupported: the genuine caller registers a 2,000 ms
+server-shutdown delay, but no real delay behavior has been implemented and no
+success-shaped no-op was added. Rendering and playability remain unverified.

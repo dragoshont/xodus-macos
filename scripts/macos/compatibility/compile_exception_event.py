@@ -42,7 +42,7 @@ for name in ("exception-event-fixture", "exception-event-controller", "exception
     if any(prohibited.intersection(names) for names in manifest["imports"][name].values()):
         raise RuntimeError("Exception-only candidate imports mutation or unverified unwinding")
 for path in candidate.iterdir():
-    if path.suffix in (".c", ".exe", ".py") or path.name.endswith("-compile.log"):
+    if path.suffix in (".c", ".h", ".exe", ".py") or path.name.endswith("-compile.log"):
         manifest["files"][path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
 (candidate / "source-compile-manifest.json").write_text(json.dumps(manifest, indent=2))
 print(json.dumps(manifest["files"], indent=2))

@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <wchar.h>
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+#include "exception-module-inventory.h"
+#endif
 
 struct thread_entry { DWORD id; HANDLE handle; };
 struct capture
@@ -21,8 +24,8 @@ struct capture
     ULONGLONG deadline, limit, dump_bytes;
     WCHAR dump_prefix[4096];
 #ifdef EXCEPTION_PACKAGE_CAPTURE
-    struct { ULONG_PTR base; DWORD size; WCHAR name[260]; BOOL loaded; } modules[128];
-    unsigned module_count, selected_events;
+    struct exception_inventory inventory;
+    unsigned selected_events;
     BOOL saw_stub, first_wait;
     ULONGLONG started;
 #endif
@@ -309,19 +312,20 @@ static BOOL module_event(struct capture *capture, HANDLE file, void *base,
     {
         IMAGE_DOS_HEADER dos;
         IMAGE_NT_HEADERS64 nt;
-        unsigned index = capture->module_count;
-        if (index == ARRAY_SIZE(capture->modules) || wcslen(name) >= 260 ||
+        enum inventory_result result;
+        if (wcslen(name) >= 260 ||
             !read_remote(capture, (ULONG_PTR)base, &dos, sizeof(dos)) ||
             dos.e_magic != IMAGE_DOS_SIGNATURE || dos.e_lfanew > 0x100000 ||
             !read_remote(capture, (ULONG_PTR)base + dos.e_lfanew, &nt, sizeof(nt)) ||
             nt.Signature != IMAGE_NT_SIGNATURE || nt.FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64 ||
             nt.OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC || !nt.OptionalHeader.SizeOfImage)
             return FALSE;
-        capture->modules[index].base = (ULONG_PTR)base;
-        capture->modules[index].size = nt.OptionalHeader.SizeOfImage;
-        wcscpy(capture->modules[index].name, name);
-        capture->modules[index].loaded = TRUE;
-        ++capture->module_count;
+        result = inventory_load(&capture->inventory, (ULONG_PTR)base, nt.OptionalHeader.SizeOfImage, name);
+        if (result != INVENTORY_OK)
+        {
+            fprintf(stderr, "EXCEPTION_INVENTORY_LOAD_ERROR base=%p result=%u\n", base, result);
+            return FALSE;
+        }
     }
     if ((!_wcsicmp(name, L"twinapi.appcore.dll") &&
          !hash_file(file, "0d3e56c5068633f975bcab528267789f520f82a6d6a50f1330104e7597289b43")) ||
@@ -344,6 +348,23 @@ static BOOL module_event(struct capture *capture, HANDLE file, void *base,
     }
     return TRUE;
 }
+
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+static int close_module_file(void *context, uintptr_t file)
+{
+    struct capture *capture = context;
+    unsigned failures = capture->handles_failed;
+    close_owned(capture, (HANDLE)file);
+    return capture->handles_failed == failures;
+}
+
+static BOOL accept_module_event(struct capture *capture, HANDLE file, void *base,
+                               const WCHAR *name, const char *pin, ULONG_PTR *startup_address)
+{
+    BOOL accepted = module_event(capture, file, base, name, pin, startup_address);
+    return inventory_finish_load(accepted, (uintptr_t)file, close_module_file, capture);
+}
+#endif
 
 static void cleanup_owned(struct capture *capture, BOOL pending, DEBUG_EVENT *event)
 {
@@ -485,18 +506,29 @@ int main(int argc, char **argv)
                 event.u.CreateProcessInfo.hThread : event.u.CreateThread.hThread;
             if (event.dwDebugEventCode == CREATE_PROCESS_DEBUG_EVENT)
             {
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+                if (!accept_module_event(&capture, event.u.CreateProcessInfo.hFile,
+                                         event.u.CreateProcessInfo.lpBaseOfImage, name, argv[2], &startup_address))
+                    capture.failed = TRUE;
+#else
                 if (!module_event(&capture, event.u.CreateProcessInfo.hFile,
                                   event.u.CreateProcessInfo.lpBaseOfImage, name, argv[2], &startup_address))
                     capture.failed = TRUE;
                 close_owned(&capture, event.u.CreateProcessInfo.hFile);
+#endif
                 if (event.u.CreateProcessInfo.hProcess != capture.process.hProcess)
                     close_owned(&capture, event.u.CreateProcessInfo.hProcess);
             }
             break;
         case LOAD_DLL_DEBUG_EVENT:
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+            if (!accept_module_event(&capture, event.u.LoadDll.hFile, event.u.LoadDll.lpBaseOfDll,
+                                     name, argv[2], &startup_address)) capture.failed = TRUE;
+#else
             if (!module_event(&capture, event.u.LoadDll.hFile, event.u.LoadDll.lpBaseOfDll,
                               name, argv[2], &startup_address)) capture.failed = TRUE;
             close_owned(&capture, event.u.LoadDll.hFile);
+#endif
             break;
         case EXIT_THREAD_DEBUG_EVENT:
             for (i = 0; i < capture.thread_count; ++i)
@@ -505,9 +537,11 @@ int main(int argc, char **argv)
             break;
 #ifdef EXCEPTION_PACKAGE_CAPTURE
         case UNLOAD_DLL_DEBUG_EVENT:
-            for (i = 0; i < capture.module_count; ++i)
-                if (capture.modules[i].base == (ULONG_PTR)event.u.UnloadDll.lpBaseOfDll)
-                    capture.modules[i].loaded = FALSE;
+            if (inventory_unload(&capture.inventory, (ULONG_PTR)event.u.UnloadDll.lpBaseOfDll) != INVENTORY_OK)
+            {
+                fprintf(stderr, "EXCEPTION_INVENTORY_UNLOAD_ERROR base=%p\n", event.u.UnloadDll.lpBaseOfDll);
+                capture.failed = TRUE;
+            }
             break;
 #endif
         case EXCEPTION_DEBUG_EVENT:
@@ -533,18 +567,19 @@ int main(int argc, char **argv)
                 if (record->ExceptionCode == 0x80000100) capture.saw_stub = TRUE;
                 if (!capture.failed && (capture.saw_stub || record->ExceptionCode == 0x1007))
                 {
-                    unsigned module;
+                    struct exception_module snapshot[EXCEPTION_MODULE_LIMIT];
+                    size_t module, module_count;
                     if (++capture.selected_events > 8)
                     { capture.failed = TRUE; capture.reason = 6; break; }
                     printf("EXCEPTION_SELECTED index=%u chance=%u code=%08lx\n",
                            capture.selected_events, event.u.Exception.dwFirstChance ? 1 : 2,
                            (unsigned long)record->ExceptionCode);
-                    for (module = 0; module < capture.module_count; ++module)
-                        if (capture.modules[module].loaded)
-                            printf("EXCEPTION_INVENTORY event=%u name=%ls base=%llx size=%lx\n",
-                                   capture.selected_events, capture.modules[module].name,
-                                   (unsigned long long)capture.modules[module].base,
-                                   (unsigned long)capture.modules[module].size);
+                    module_count = inventory_snapshot(&capture.inventory, snapshot);
+                    for (module = 0; module < module_count; ++module)
+                        printf("EXCEPTION_INVENTORY event=%u name=%ls base=%llx size=%lx\n",
+                               capture.selected_events, snapshot[module].name,
+                               (unsigned long long)snapshot[module].base,
+                               (unsigned long)snapshot[module].size);
                     printf("EXCEPTION_RECORD_OWNER event=%u address=%p\n",
                            capture.selected_events, record->ExceptionAddress);
                     if (!save_exception(&capture, &event, FALSE)) capture.failed = TRUE;

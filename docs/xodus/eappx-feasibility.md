@@ -4003,6 +4003,105 @@ an increase of output/event/time limits or provider/debugger subsystem fix.
 No next runtime/game grant exists. Missing mandatory quality runner and
 unexercised outer-writer hard-cancellation limitations remain.
 
+### Source-only2270: matched-unload inventory reuse and original-exception attribution
+
+The package-only inventory now keys live entries by module base and reuses
+the first inactive slot only after a matched unload. The limit remains
+128 simultaneously-live images, including the process image. Duplicate
+live bases, an unknown/repeated unload and a genuine129th live image fail
+explicitly; no capacity, capture/filter/provider or deadline limit increases.
+This follows the public LOAD_DLL/UNLOAD_DLL debug-event base-address contract.
+Each selected exception first copies its live inventory by value, prints
+that event's immutable snapshot, then writes its separate dump. Later reuse
+cannot change those earlier names/bases/sizes or dump module entries.
+
+The shared portable bookkeeping helper is exercised by
+`test_exception_inventory.c`:1024 matched load/unload cycles, exact128 live,
+129th live overflow, duplicate livebase, unknown/double unload, base reuse
+with changed name/size, old snapshot preservation and subsequent snapshot
+exclusion after unload. A shared finish-load callback also proves a valid
+loader-file token is closed exactly once on both admission and rejection;
+close failure rejects admission, and NULL/invalid tokens are not closed.
+The package loader wrapper uses that same finish helper around the existing
+module identity/read checks and real `close_owned`. CREATE_PROCESS's existing
+thread-capacity rejection retains its separate once-only file close.
+This is a native host test with mock file tokens, not a Windows CloseHandle
+runtime assertion.
+
+**VERIFIED source-only:** strict AMD64 PE32+ compilation of all three
+diagnostic binaries completes without warnings. Prohibited mutation/
+unverified-unwind import checks pass. The synthetic controller remains
+exactly558195bb and fixture exactly7cb8ed07; their2250 behavioral evidence
+is unchanged, not replayed. Native Clang
+`-Wall -Wextra -Werror -std=c11 test_exception_inventory.c`
+reports2193 checks, zero failures, three mock closes. All13 local
+capture-accounting tests pass. No Windows executable, Wine/package/game
+or consumed owner was executed. Mandatory
+`python gates\gate_runner.py quality-gate` still returns2 (runner missing);
+this is not an overall quality PASS.
+
+Read-only original2260 attribution:
+
+- The two genuine80000100 parameters are inside exact-pinned twinapi.
+  Static image bytes at RVA1dd950 decode
+  `ext-ms-win-mrmcorer-resmanager-l1-1-0.dll`; RVA21c3a2 decodes
+  `GetStringValueForManifestField`. These are disk-image string decodes,
+  not a captured-memory string read. Twinapi SHA remains
+  `0d3e56c5068633f975bcab528267789f520f82a6d6a50f1330104e7597289b43`.
+- All eight dump thread stack descriptors have RVA0; thread544 advertises
+  stack start10f438/length3016 but no stored payload. MemoryList contains
+  zero ranges. File offset0 is the MDMP header, not stack bytes.
+  No raw stack, recovered return-address sequence or unwind is supported.
+- Same-run stderr dispatches the fourth handler at6ffffd30faa8. The
+  immutable dump maps it to `Cuphead.dll`, base6ffff7e00000/size5730000,
+  RVA550faa8; the other three entries map to twinapi+ac8c0 and twice
+  twinapi+197e68. `decoded-attempt1/Cuphead.dll` SHA is
+  `7d6c5cbf6323451f0456527b667c346a0e16bea2d483fdad5725f4e41258c3fc`.
+  Exact pinned image bytes there are `ff25c26952fc`: an indirect JMP to
+  IAT RVA1a36470, whose public PE import is
+  `mrt100_app.dll!RhpPInvokeExceptionGuard`. The exact-pinned native
+  mrt100_app exports that name at8380. This establishes same-run dispatch
+  to the guard import thunk, not a captured guard-entry RIP/runtime IAT
+  target, handler return, guard internal reason or historical2210 address
+  ownership across ASLR. No chain to synthesized1007 or Vector slot30/outer
+  return is claimed.1007 remains unobserved before the inventory abort.
+
+Failed2260 receipt, expanded proof, dump and original split captures are
+rehashed unchanged. Package debug activation success remains distinct
+from diagnostic failure and zero-window/no-first-frame observations.
+
+Fresh unexecuted candidate:
+`~/xodus-app-tooling/cuphead/exception-event-candidate-20261011-2270`.
+Root files are `cuphead-exception2270-{owner,launch}.py` and
+`capture_accounting2270.py`; unique label
+`cuphead-owned-exception-package-20261011-2270` has no workdir/log/status.
+Their ASTs and staged bytes match local pins. The owner additionally
+pins the failed2260 receipt/restoration/dump/split captures before mutation.
+
+|2270 source-only artifact|SHA256|
+|---|---|
+|Package controller.exe|`fcec3e2e61f0722a7849550e2e484abdcb38841def5a5abad0be7ecdc550a780`|
+|Common controller.c|`1a00a485c04354afe2d566941c078969c850d66d86595b89864df8e4ecfa47b5`|
+|Inventory helper.h|`3a8416ad94b9cdc3b863d9b42aa723115f186af52dd2dc268a9331c75a8d8695`|
+|Inventory native test.c|`e7b6bf788e7b0bfdb181a05331e431a2d5af3e13bad06d4a3bac34b02cac8d90`|
+|Compile script|`0999e63258283d1493e47ed17bdf6fadc77306583f2867a3cc54b97ce663fc6c`|
+|Compile manifest|`9b93ba4c9b77d4bb070ccfb680ffc3ac11a0139b984e67835915c376249a25c8`|
+|Owner|`d4d3771ef2fc7c64598f1201cae9d2f1d0f9e8f1e182b6b7d4be5f19ab8cc589`|
+|Wrapper|`38eb6370e6b56057d996b672e235f148a312918035c23a35b4b80a174d0abd29`|
+|Accounting helper|`28add3e42f44916613dddd83f7db87e8380767738c24da10c71bd36c463ed1a1`|
+
+Prepared scope, **not granted**: canonical2195's exact33 triples, builtin
+dbghelp and only the verified native Vector alias/temporary Detail.Vector
+registration, standard pre-gates then one capture-only package process.
+Unchanged filters/bounds:80000100 then later first/second chances,
+1007 independently;8 selected events,2MB/dump,10MB/controller,60s;
+outer75s/20MB aggregate including live/completed dumps and server delta.
+Normal unrelated NOT_HANDLED disposition, exact owned cleanup and independent
+full restoration/quiescence remain required. No295/frame/events/providers,
+package/save mutation or synthetic replay. This source correction's actual
+Wine inventory/unload integration is unexecuted; hard-cancelling a stalled
+writer remains unexercised. No runtime hold is requested or assumed here.
+
 #### 2210 original-exception telemetry gap and targeted capture-only plan
 
 Further read-only inspection finds exactly one dispatched native exception:

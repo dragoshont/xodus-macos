@@ -3441,3 +3441,61 @@ installed. The mandatory repository quality command still exits 2 because
 | Nullable map gate | `0eacaaeff3ee1bdad40b43185f993ea76b4e4ed4044b77ff5484acc0eb81f4bd` |
 | Augmented Pnp enumeration gate | `e67d19f2cf5a5b5412d50b424d02071287f3dc872550bd68448da49442bbe13e` |
 | Pinned 2195 test manifest | `b7ec4f66f0adf26b346df89697f03725f3031f4a12e2695ccd9dbbf9fa6dd6ee` |
+
+### One-game 2200: Pnp async progression, separate Detail.Vector failure
+
+The validated source/test slice was committed and pushed as `42f5eef` before
+the coordinator's conditional single 2200 launch. The owner required the exact
+2195 receipt and independent-proof identities, checked the unchanged 33-target
+candidate set, and repeated the standard pre-gates. No provider was rebuilt;
+no frame, registration-295, events or handler-proxy addition was admitted.
+Execution used Terminal with `caffeinate -du`, unchanged diagnostic flags
+including trace+seh, and separate controller stdout/diagnostic stderr.
+
+**VERIFIED product delta:** on thread 012c the PnpObject factory resolves to
+the admitted enumeration DLL and returns S_OK. The four requested property
+strings are duplicated from the enumeration module, followed by creation of
+async operation `0x198b07a0` with implementation `0x143590`. Thread 0130 later
+calls GetResults on that same operation; its implementation copies a VT_UNKNOWN
+result and AddRefs the returned vector view. This is actual game async
+progression, distinct from the synthetic 2195 devnode test. No FindAllAsync
+entry trace is present; method attribution additionally uses the verified
+Unity static caller and exact candidate source. Neither device contents nor a
+rendered frame are claimed from those traces.
+
+The separate MTA startup path on 0138 requests
+`Windows.Foundation.Collections.Detail.Vector` with IID
+`08c77958-89bf-5cf8-a9cd-c72147b9b3a9`. RoGetActivationFactory returns
+CLASSNOTREG (80040154), at native twinapi+0x3d199. This error appears before
+the worker's Pnp GetResults, not afterward in a serial initialization chain.
+The coordinator's static caller analysis establishes propagation after cleanup,
+not a successful fallback; the error must not be treated as benign.
+Its exact private factory contract and downstream caller still require
+read-only attribution before a registration or implementation candidate.
+
+The terminal exception is reason 1007 on 0138 at SharedLibrary+0x41cf88
+(`0x6ffff7b0cf88`), with RaiseFailFastException's record pointer `0x10e5a8`.
+No e06d7363 C++ exception is captured in this cycle. The game exits 4103 after
+1906 ms with zero total/visible windows; no live sample or first frame exists.
+UnityPlayer.log is preserved both in TempState and as a private capture
+snapshot: 201 bytes of build metadata, not a rendering record.
+
+The single game grant is consumed. Owner cleanup completed without errors;
+independent verification checked all 33 baseline hashes/absences, temporary
+registrations and fixture absence, original WineDbg/CoreApplication values,
+deep/strict signature, no Wine runtime and no holders recursively under the
+bottle's .wineserver directory. A separate comparison confirms all 33
+target/candidate/baseline triples are identical to 2195. The exclusive hold is
+released. No further game launch is authorized by this receipt.
+Mandatory quality validation remains blocked by the absent runner; successful
+owned execution/restoration is not an overall PASS or playability claim.
+
+| 2200 private evidence | SHA-256 |
+| --- | --- |
+| Game stdout | `b1eb44857a155b20afa87422b191c9723f2cae308ec732836e66baf30f1c370e` |
+| Game diagnostic stderr | `e230765efdee051e363dd7054e938d099771f4f98f060ef1d8fb31450158b8a2` |
+| Receipt | `b7f772336a4b7ba42064e819d5796d1e31baf8678f1b25f254ebe179e8106032` |
+| Independent baseline proof | `f7758fc17a004f443fd3b1dd97928465ee420420b2d2059ad6a0971f72d57312` |
+| Preserved UnityPlayer.log | `7c396f108b1c46506fed6eda2a1283cf33ffb90695825a8b2b2102c37063d71d` |
+| Frozen executed owner | `50904eb36c6359a6ee13cfad538478238bb7ff8d0a41373647fe75f007636405` |
+| Frozen executed Terminal wrapper | `32160f9ab71e37dd305f7e2e2686eba99683f94704c67d3cc571cb6f6d5222a7` |

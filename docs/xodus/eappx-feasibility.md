@@ -1578,3 +1578,41 @@ and private mrt100 removed, and signatures verified before releasing both
 source/build and runtime windows. No new SHCORE/windows.ui/dxgi candidate was
 deployed in this Celeste probe. This advances one bounded native contract;
 it does not establish game support.
+
+### Activation-factory cleanup: non-aborting unsupported-registry subset
+
+Genuine `RoRevokeActivationFactories` is `void(cookie)`, apartment-agnostic,
+and tolerates NULL/unknown cookies without dereferencing them. The actual
+native twinapi delay-imports it by name through
+`api-ms-win-core-winrt-l1-1-0.dll`, not by a mismatched private ordinal.
+Matching Wine's paired `RoRegisterActivationFactories` previously returned
+`S_OK` while tracking nothing and leaving its cookie output untouched.
+
+`wine-combase-activation-revoke.patch` explicitly rejects that unsupported
+registration with `E_NOTIMPL`, a NULL cookie and a diagnostic (`E_POINTER`
+for missing output). It supplies a correctly shaped void revoke that ignores
+unknown cookies with a diagnostic: no registered table can exist in this
+implementation. This is not real in-process factory registration/revocation
+support, and a future registration implementation must wire corresponding
+cleanup rather than retaining this empty-registry behavior.
+
+Matching-source build and the independent control executable compile;
+candidate SHA-256:
+`362236ba4b9877e65b22ba0ada13aa5bb83cbfda2025586d6f146402836122d1`.
+Under the explicit GUI runtime lease, all 11 cleanup/unsupported-registration
+controls pass. Identity 27/0, shutdown 35/0, design mode 21/0, factories 6/0,
+configured-policy 6/0, four loader regressions and original activation 13/0
+remain passing. Receipt prefix: `celeste-registered-activation-revoke`.
+
+The actual original Celeste no longer aborts in revoke. Its new trace explicitly
+fails delay-loading **RMCLIENT.dll.HamConnectForExtendedExecution**, then
+aborts on that missing entry point. It still exits 4103 with zero windows
+(319 ms). No RMCLIENT.dll was found in the existing Celeste/Cuphead tooling
+trees during the bounded read-only lookup. Authentic provider availability
+and its dependency/contract boundary are the next discriminating evidence;
+no invented extended-execution success or provider download was attempted.
+
+All five vendor modules and bottle twinapi were restored, private mrt100 and
+temporary registration removed, and signatures verified. Both source/build
+and runtime windows were released. The new trace is progress in identifying
+the underlying boundary, not a rendered-frame or playability result.

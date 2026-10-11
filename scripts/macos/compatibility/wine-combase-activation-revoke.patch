@@ -1,0 +1,31 @@
+diff --git a/dlls/combase/roapi.c b/dlls/combase/roapi.c
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -525,8 +525,19 @@
+ HRESULT WINAPI RoRegisterActivationFactories(HSTRING *classes, PFNGETACTIVATIONFACTORY *callbacks,
+                                              UINT32 count, RO_REGISTRATION_COOKIE *cookie)
+ {
+-    FIXME("(%p, %p, %d, %p): stub\n", classes, callbacks, count, cookie);
++    FIXME("(%p, %p, %d, %p): in-process factory registration unsupported\n",
++            classes, callbacks, count, cookie);
+ 
+-    return S_OK;
++    if (!cookie) return E_POINTER;
++    *cookie = NULL;
++    return E_NOTIMPL;
++}
++
++void WINAPI RoRevokeActivationFactories(RO_REGISTRATION_COOKIE cookie)
++{
++    /* Registration explicitly fails above, so there can be no owned cookie. */
++    if (cookie)
++        FIXME("(%p): no in-process factory registry; ignoring unknown cookie\n", cookie);
++    else
++        TRACE("(%p)\n", cookie);
+ }
+diff --git a/dlls/combase/combase.spec b/dlls/combase/combase.spec
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -316,1 +316,1 @@
+-316 stub RoRevokeActivationFactories
++316 stdcall RoRevokeActivationFactories(ptr)

@@ -2767,3 +2767,80 @@ an overall PASS.
 | 1910 `dispatcher-tests.log` | `6b1e1907e2ac9417e1aa797138dfc93ca52ce3ded8e89978b0b1837a0d14d0ea` |
 | UNIT1930 `dispatcher-tests.log` | `c62f797efef9a5aea9731b4a550131d6c4aec7fef0bb5513a9d9e5755464baa3` |
 | UNIT1930 `receipt.json` | `c9528aa6e55839f6e7d20d9a6b53f4a128bafe21b4fab4fcf203c56e421ce1fd` |
+
+### Server aggregated standard marshaler and control 2010
+
+The public [CoGetStdMarshalEx contract](https://learn.microsoft.com/en-us/windows/win32/api/combaseapi/nf-combaseapi-cogetstdmarshalex)
+is `HRESULT(IUnknown *outer, DWORD flags, IUnknown **inner)`.
+`SMEXF_SERVER=1` requests a server aggregated standard marshaler;
+`SMEXF_HANDLER=0` requests a client handler. The granted
+`wine-stdmarshal-aggregation.patch` implements only the server case.
+NULL outer/output returns `E_INVALIDARG`, with the output cleared where
+possible. Unsupported flags are explicitly logged and return
+`E_NOTIMPL`, not a handler-shaped success.
+
+The inner IUnknown has an independent refcount and exposes only itself
+and IMarshal. IMarshal QI/AddRef/Release delegate to the controlling
+outer; storing the outer does not AddRef it. The six marshal operations
+forward to an owned existing `StdMarshalImpl` initialized with context
+0/NULL. Its MarshalInterface uses the caller-supplied object/current
+apartment; no extra object reference or alternate private proxy ABI is
+invented. This inherits the existing standard marshaler's capabilities
+and limitations, rather than implementing missing application-specific
+proxy/stub registrations.
+
+The strict `stdmarshal-aggregation-test.c` passes **54/0** in no-game
+UNIT2000 and again before the game. It checks ordinal/name identity,
+NULL/error outputs, unsupported handler/flags, nondelegating/delegating
+IUnknown identity and refcounts, marshal class/size, a real STA-to-MTA
+IPersistFile proxy call executed on the original STA while it pumps COM
+calls, GIT Register/Get/Revoke, and both release orders. Three test
+outers are created and destroyed. The admitted combase hash is
+`c0b1cd70ad7915cfadff083fe7491bf5a52e4faaded1e9dbb0e5f7e138a794b4`;
+ordinal 122 is repinned to RVA `0x9050` and ordinal 363 to `0xab70`.
+The ordinal-122 contract regression passes 27/0.
+
+The control uses the accepted payload-provider correction: CoreDispatcher
+registration and the 47-check ordinal-1500 identity test select
+`Y:\xodus-app-tooling\cuphead\decoded-attempt1\Windows.UI.dll`.
+The game factory interface is in that same payload DLL. A second system32
+Windows.UI copy still loads for other lookups; its presence is not
+misreported as single-module loading or cross-copy TLS identity.
+
+| Private 2010 evidence | Observed result |
+| --- | --- |
+| Registration | One `cuphead.App` callback at twinapi+`0x2fc90` registers successfully; no callback lookup/invocation is observed. |
+| Apartment traces | Main `0578` is MTA (`type=1`, qualifier 0); view `058c` is MAINSTA (`type=3`, qualifier 0). |
+| Lines 8040-8048 | Payload CoreDispatcher slot 7 creates the thread dispatcher. `CoGetStdMarshalEx` receives flags `0x1`, returns `S_OK`, caller twinapi+`0x3120b`. |
+| Lines 8049-8051 | GIT/CoMarshalInterface now enters standard marshaling for twinapi IID `{638bb2db-451d-4661-b099-414f34ffb9f1}`. |
+| Lines 8187-8197 | `CoGetPSClsid` lookup for that IID is followed by stub-manager rollback; ifstub creation and CoMarshalInterface fail with `E_NOINTERFACE` (`0x80004002`). This is the next primary wall. |
+| Line 8239 | The private dispatcher pump slot 3 is reached on `058c`, handle `0x210`. Its entry is observed; no private-method return HRESULT is directly traced. |
+| Wait capture | Main's initial nonalertable infinite wait is `NtWaitForSingleObject(0x214, FALSE, NULL)`, kernelbase+`0x7981d`; additional teardown waits follow. Early exit prevents the 140-second sample. |
+| Lines 14597-14610, 14820-14833 | After Run unwinds, the familiar twinapi+`0xf505` no-current-instance path originates `0x8000000e`; final managed exception code 4 contains it. Child exits `0xc0000409` / 3221226529 after about 1688 ms, **0 total / 0 visible windows**. |
+
+Source correlation explains the next discriminator: `CoGetPSClsid` tries
+process registration, activation-context interface redirection and
+`HKCR\Interface\{IID}\ProxyStubClsid32` in both registry views. Offline
+machine/user registry files contain no interface header for the failing
+IID. Standard IRemUnknown proxy/stub creation succeeds immediately
+before this private-IID lookup. The required next evidence is the real
+interface's proxy/stub ABI and provider registration; no guessed proxy,
+forced-agility bypass or additional game is added. CoreWindow creation
+and first frame remain unestablished.
+
+Owner status is 0. All 22 target baselines/absences, three temporary
+registry-key removals, original empty WineDbg key, signature, quiescence
+and owned-process absence are independently verified after UNIT2000 and
+2010. Dialog suppression remains enabled only during the owned control;
+no manual intervention is reported. The two-source patch reproduces the
+compiled candidate. The mandatory quality runner remains missing
+(exit 2), so no overall PASS or task-completion claim is made.
+
+| Private evidence | SHA-256 |
+| --- | --- |
+| UNIT2000 `stdmarshal-tests.log` | `9586d807a97bc0ecd7295059d65f35af896397060129e5c5127cf99093664e19` |
+| UNIT2000 `receipt.json` | `87b08be45db7190b1cedfedd7af8105e2e44dbd3e70102ff519098ae85e1a24f` |
+| 2010 `game.log` | `f509c1515020d6d3b9662caed235b65736eb61418cef747db3af96cc01748ab2` |
+| 2010 `receipt.json` | `eb0ea08b6a607be81225146bd6b7775727245ccdaf5b56b0c3d4e80a534faeb0` |
+| 2010 `stdmarshal-tests.log` | `6c8692099f6fc7777bcb0427d0d20a5119aaa38234bfe0ecfa2c2bea48794d59` |
+| 2010 `dispatcher-tests.log` | `7a49887bd87a1ae3ac38667e1443e4bcad5d5b5450ec4d4f26f6a277910b36d2` |

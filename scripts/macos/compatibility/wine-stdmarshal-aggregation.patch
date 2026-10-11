@@ -1,0 +1,169 @@
+--- a/dlls/combase/marshal.c
++++ b/dlls/combase/marshal.c
+@@ -2257,6 +2257,155 @@
+     return hr;
+ }
+ 
++struct aggregated_stdmarshal
++{
++    IUnknown IUnknown_inner;
++    IMarshal IMarshal_iface;
++    LONG ref;
++    IUnknown *outer;
++    IMarshal *standard;
++};
++
++static struct aggregated_stdmarshal *impl_from_stdmarshal_inner(IUnknown *iface)
++{
++    return CONTAINING_RECORD(iface, struct aggregated_stdmarshal, IUnknown_inner);
++}
++
++static struct aggregated_stdmarshal *impl_from_aggregated_stdmarshal(IMarshal *iface)
++{
++    return CONTAINING_RECORD(iface, struct aggregated_stdmarshal, IMarshal_iface);
++}
++
++static HRESULT WINAPI stdmarshal_inner_QueryInterface(IUnknown *iface, REFIID iid, void **out)
++{
++    struct aggregated_stdmarshal *impl = impl_from_stdmarshal_inner(iface);
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (IsEqualIID(iid, &IID_IUnknown))
++    {
++        *out = iface;
++        IUnknown_AddRef(iface);
++        return S_OK;
++    }
++    if (IsEqualIID(iid, &IID_IMarshal))
++    {
++        *out = &impl->IMarshal_iface;
++        IUnknown_AddRef(impl->outer);
++        return S_OK;
++    }
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI stdmarshal_inner_AddRef(IUnknown *iface)
++{
++    return InterlockedIncrement(&impl_from_stdmarshal_inner(iface)->ref);
++}
++
++static ULONG WINAPI stdmarshal_inner_Release(IUnknown *iface)
++{
++    struct aggregated_stdmarshal *impl = impl_from_stdmarshal_inner(iface);
++    ULONG ref = InterlockedDecrement(&impl->ref);
++    if (!ref)
++    {
++        IMarshal_Release(impl->standard);
++        free(impl);
++    }
++    return ref;
++}
++
++static const IUnknownVtbl stdmarshal_inner_vtbl =
++{
++    stdmarshal_inner_QueryInterface, stdmarshal_inner_AddRef, stdmarshal_inner_Release,
++};
++
++static HRESULT WINAPI aggregated_stdmarshal_QueryInterface(IMarshal *iface, REFIID iid, void **out)
++{
++    return IUnknown_QueryInterface(impl_from_aggregated_stdmarshal(iface)->outer, iid, out);
++}
++
++static ULONG WINAPI aggregated_stdmarshal_AddRef(IMarshal *iface)
++{
++    return IUnknown_AddRef(impl_from_aggregated_stdmarshal(iface)->outer);
++}
++
++static ULONG WINAPI aggregated_stdmarshal_Release(IMarshal *iface)
++{
++    return IUnknown_Release(impl_from_aggregated_stdmarshal(iface)->outer);
++}
++
++static HRESULT WINAPI aggregated_stdmarshal_GetUnmarshalClass(IMarshal *iface, REFIID iid, void *object,
++        DWORD context, void *context_data, DWORD flags, CLSID *clsid)
++{
++    return IMarshal_GetUnmarshalClass(impl_from_aggregated_stdmarshal(iface)->standard,
++            iid, object, context, context_data, flags, clsid);
++}
++
++static HRESULT WINAPI aggregated_stdmarshal_GetMarshalSizeMax(IMarshal *iface, REFIID iid, void *object,
++        DWORD context, void *context_data, DWORD flags, DWORD *size)
++{
++    return IMarshal_GetMarshalSizeMax(impl_from_aggregated_stdmarshal(iface)->standard,
++            iid, object, context, context_data, flags, size);
++}
++
++static HRESULT WINAPI aggregated_stdmarshal_MarshalInterface(IMarshal *iface, IStream *stream, REFIID iid,
++        void *object, DWORD context, void *context_data, DWORD flags)
++{
++    return IMarshal_MarshalInterface(impl_from_aggregated_stdmarshal(iface)->standard,
++            stream, iid, object, context, context_data, flags);
++}
++
++static HRESULT WINAPI aggregated_stdmarshal_UnmarshalInterface(IMarshal *iface, IStream *stream,
++        REFIID iid, void **object)
++{
++    return IMarshal_UnmarshalInterface(impl_from_aggregated_stdmarshal(iface)->standard, stream, iid, object);
++}
++
++static HRESULT WINAPI aggregated_stdmarshal_ReleaseMarshalData(IMarshal *iface, IStream *stream)
++{
++    return IMarshal_ReleaseMarshalData(impl_from_aggregated_stdmarshal(iface)->standard, stream);
++}
++
++static HRESULT WINAPI aggregated_stdmarshal_DisconnectObject(IMarshal *iface, DWORD reserved)
++{
++    return IMarshal_DisconnectObject(impl_from_aggregated_stdmarshal(iface)->standard, reserved);
++}
++
++static const IMarshalVtbl aggregated_stdmarshal_vtbl =
++{
++    aggregated_stdmarshal_QueryInterface, aggregated_stdmarshal_AddRef, aggregated_stdmarshal_Release,
++    aggregated_stdmarshal_GetUnmarshalClass, aggregated_stdmarshal_GetMarshalSizeMax,
++    aggregated_stdmarshal_MarshalInterface, aggregated_stdmarshal_UnmarshalInterface,
++    aggregated_stdmarshal_ReleaseMarshalData, aggregated_stdmarshal_DisconnectObject,
++};
++
++HRESULT WINAPI CoGetStdMarshalEx(IUnknown *outer, DWORD flags, IUnknown **inner)
++{
++    struct aggregated_stdmarshal *impl;
++    HRESULT hr;
++
++    TRACE("outer %p, flags %#lx, inner %p.\n", outer, flags, inner);
++    if (!inner) return E_INVALIDARG;
++    *inner = NULL;
++    if (!outer) return E_INVALIDARG;
++    if (flags != 1 /* SMEXF_SERVER; absent from these Wine headers */)
++    {
++        FIXME("Unsupported standard marshaler flags %#lx; only SMEXF_SERVER is implemented.\n", flags);
++        return E_NOTIMPL;
++    }
++    if (!(impl = calloc(1, sizeof(*impl)))) return E_OUTOFMEMORY;
++    impl->IUnknown_inner.lpVtbl = &stdmarshal_inner_vtbl;
++    impl->IMarshal_iface.lpVtbl = &aggregated_stdmarshal_vtbl;
++    impl->ref = 1;
++    impl->outer = outer; /* Non-owning controlling unknown, as required by aggregation. */
++    if (FAILED(hr = StdMarshalImpl_Construct(&IID_IMarshal, 0, NULL, (void **)&impl->standard)))
++    {
++        free(impl);
++        return hr;
++    }
++    *inner = &impl->IUnknown_inner;
++    return S_OK;
++}
++
+ HRESULT WINAPI InternalCoStdMarshalObject(REFIID riid, DWORD dest_context, void *dest_context_data, void **ppvObject)
+ {
+     return StdMarshalImpl_Construct(riid, dest_context, dest_context_data, ppvObject);
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -126,7 +126,7 @@
+ 118 stdcall CoGetPSClsid(ptr ptr)
+ 119 stub CoGetProcessIdentifier
+ 359 stdcall CoGetStandardMarshal(ptr ptr long ptr long ptr)
+-363 stub CoGetStdMarshalEx
++363 stdcall CoGetStdMarshalEx(ptr long ptr)
+ 360 stdcall CoGetSystemSecurityPermissions(long ptr)
+ 123 stdcall CoGetTreatAsClass(ptr ptr)
+ 124 stdcall CoImpersonateClient()

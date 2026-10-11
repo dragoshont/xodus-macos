@@ -3606,6 +3606,121 @@ the owner prototype passes AST parsing without import/execution. The required
 `python gates/gate_runner.py quality-gate` was attempted again and exits 2
 because this checkout has no `gates/gate_runner.py`. This remains an explicit
 mandatory integration blocker, not a quality PASS.
+
+#### Source-only targeted debug-event candidate 2230
+
+The coordinator retained the targeted public-debug-API approach and authorized
+implementation/compile only. No Wine process, fixture, package or game was
+executed while preparing this candidate. The consumed 2210 accounting
+prototype, original logs and failed receipt remain untouched.
+
+Added a shared x64 debug-event capture engine, a synthetic-only controller
+which refuses any executable basename except debug-event-fixture.exe, the
+fixture, a separate future package-capture controller, and a compile-only
+manifest builder. All three executables pass strict compilation
+(`-Wall -Wextra -Werror`) as AMD64 PE32+. Their actual imports include public
+debug-event/thread-context/process APIs and BCrypt hashing; compile success
+does not establish Wine hardware-debug-register support.
+
+The engine resolves image bases from owned CREATE_PROCESS/LOAD_DLL events,
+checks exact target file SHA-256, AMD64 headers, image bounds and executable
+site memory, and retains the original per-thread debug registers. It refuses
+occupied slots. Get/SetThreadContext register readback checks each installation,
+including new threads and the fourth-slot rotation. A trap is consumed only
+when first-chance SINGLE_STEP, exactly one DR6 hardware bit, no competing
+BS/BD/BT condition, matching owned slot, matching RIP and matching exception
+address agree. It clears only its debug status and sets RF for that instruction
+before continuation. Unrelated first- and second-chance exceptions remain
+DBG_EXCEPTION_NOT_HANDLED. The startup breakpoint is separately matched to
+the remote ntdll DbgBreakPoint export location and matching local bytes;
+an unmatched breakpoint is not silently swallowed.
+
+Typed original EXCEPTION_RECORD chains (maximum four), CONTEXT and
+DISPATCHER_CONTEXT are read through checked ReadProcessMemory. Bounded raw
+stack qwords and module bases are logged, but are explicitly not an unwind
+or proven caller stack. The future package controller selects only the
+previously grounded five sites; it does not call private slots or modify
+Microsoft binaries. It verifies the catalog-selected Cuphead.exe against
+an independently supplied pin before CREATE_SUSPENDED/debug startup and
+existing explicit package activation. This separately compiled artifact is
+**not included in the no-game owner, not runtime-admitted and not a replacement
+for all normal activation/window-observation checks**. Future game integration
+must retain those checks and obtain a separate decision.
+
+On capture/read/installation failures and bounds, owned stopped threads have
+their original debug registers restored/read back before exact-handle
+termination and debugger detach. Cleanup records restoration, termination,
+detach and process-handle quiescence independently; none may be substituted
+by a generic success. Natural exit remains a debug-event observation.
+A distinct synthetic live-detach mode restores registers while all threads
+are stopped, continues the identified trap, detaches, then signals its
+PID-specific fixture event and verifies exact-handle natural exit.
+Timeout and aggregate-log failures cannot be accepted merely because
+some unrelated startup failure occurred.
+
+Fresh unexecuted owners are staged outside Git:
+`~/xodus-app-tooling/cuphead/cuphead-debug2230-{owner,launch}.py`, with unique
+`cuphead-owned-debug-unit-20261011-2230` work/log/status paths and an independently
+named `capture_accounting2230.py`. Both pass AST parsing without import or
+execution. No new work directory, owner log or owner status exists.
+
+| Source-only candidate / fresh owner | SHA-256 |
+| --- | --- |
+| Synthetic debug-event controller | `fa23b237ec49aa40805385469e165c156539a7ae1fa497af48cdf5b482b4b71e` |
+| Synthetic fixture | `ea4c4db2fe94a1a0e9ae7329c4edc292db740dea0e638ea55b8ff55bbcf0c1d3` |
+| Future package capture controller, excluded from no-game execution | `c7a3ee05e140a17a565ea44507b98ee908497164824e525d354862ccfe0b3e64` |
+| Source/compile/RVA manifest | `7b4c580aa0aef0a243d617f9e30c0fc39681d3ffbfff7c072afa2b8e673d639d` |
+| Fresh no-game owner | `b798f95dee0526ab647b02da11f6a3f556607a2b5b01e0246ce43aa7b834bb05` |
+| Fresh no-game launch wrapper | `f5e4227ef79e8f8ffa94d2baf98fed05a79dcddb5a57ed35a963772700009d4b` |
+| Unchanged accounting helper, uniquely staged | `28add3e42f44916613dddd83f7db87e8380767738c24da10c71bd36c463ed1a1` |
+
+Candidate directory:
+`~/xodus-app-tooling/cuphead/debug-event-candidate-20261011-2230`.
+Fixture export RVAs are 0x1564, 0x15d1, 0x162e, 0x168b, 0x16b2,
+bound to the exact fixture hash above. No private Microsoft artifact is
+copied into Git, vendor or bottle by this source preparation.
+
+**Proposed exclusive no-game scope, not granted or executed:** preserve the
+identical admitted 2195 33 target/candidate/baseline triples and unchanged
+cfgmgr/enumeration/wintypes pins. The fresh owner derives from the verified
+2205 ownership/restoration harness, retains its standard pre-gates and
+temporary Pnp/devnode/proxy/dispatcher setup, but replaces the native oracle
+phase with eight synthetic modes:
+
+| Mode | Required observation, not yet tested |
+| --- | --- |
+| positive | Four-slot install/readback, new-thread propagation, all five site hits exactly once after rotation, typed original record/context/dispatch values, application-handled custom exception passed through. |
+| detach | Same hits, all live debug registers restored/read back, successful detach, PID-specific fixture release and exact-handle natural exit zero. |
+| foreign-step | Unrelated software-raised SINGLE_STEP remains NOT_HANDLED by the controller and is handled by the fixture. |
+| unhandled | Custom exception reaches second chance, remains NOT_HANDLED and yields its real exception exit code. |
+| read-error | Owned guard hit with invalid record address causes explicit read failure and independently successful cleanup. |
+| occupied | Preoccupied hardware slot is refused rather than overwritten; owned-process cleanup completes. |
+| timeout | Real deadline failure, not a startup failure, with restored registers, detach/termination/quiescence. |
+| log-limit | Fixture debug-string pressure crosses the genuine controller byte bound, not a timeout/startup proxy; same cleanup proof. |
+
+Each synthetic invocation is owner-bounded at 15 seconds / 20 MB aggregate
+stdout+stderr+server growth, checked after polling and again at completion.
+The controller has its stricter internal limits: normal 10 seconds / 1 MB;
+timeout 1.5 seconds; pressure mode 32 KB. The owner stops at first unexpected
+result and uses existing exact PID/start/lineage cleanup. The launch wrapper
+accepts `unit` only and must be invoked through the established
+Terminal/caffeinate mechanism after an exclusive hold decision.
+
+The native Detail.Vector alias is **not selected or executed** by this
+proposed synthetic phase, and its key stays absent before/after; its unchanged
+artifact identity remains a restoration control. No new Detail.Vector
+registration, #295, graphics or events candidate is added. Restore all 33
+baselines and prior key/fixture/settings state, then independently verify
+signature, full runtime and recursive holder quiescence before release.
+No game is included. Hardware debug support and all eight behavioral gates
+remain unproven until an authorized no-game cycle; mandatory quality-runner
+absence still blocks an overall integration PASS.
+
+The static lane's missing-MRM dependency chain is retained as correlation
+context only. GetStringValueForManifestField/WINE_STUB is not established
+benign, the fourth handler's owner remains unknown, and deployed
+FAILFAST_DIAGNOSTIC availability is not assumed. Successful Vector factories
+remove the activation gap but do not prove slot30 return or the outer caller.
 | Frozen executed owner | `50904eb36c6359a6ee13cfad538478238bb7ff8d0a41373647fe75f007636405` |
 | Frozen executed Terminal wrapper | `32160f9ab71e37dd305f7e2e2686eba99683f94704c67d3cc571cb6f6d5222a7` |
 

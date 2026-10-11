@@ -3683,6 +3683,87 @@ claim. Failed2230 and actual2210 evidence remain unchanged.
 Private evidence root:
 `~/xodus-app-tooling/cuphead/cuphead-owned-exception-unit-20261011-2240`.
 
+### Source-only2250: replace unsuitable synthetic breakpoint with owned INT3
+
+After2240 persistence/hold release, the coordinator authorized source-only
+attribution and a grounded fixture correction, not a new runtime cycle.
+The admitted kernelbase SHA remains
+`9308d50feb4f7a702d9935708680a91b60c6e053082164284a809af35e32c73f`.
+Frozen bytes at da72 are `e8 b9 15 00 00` (CALL RtlRaiseException), followed
+at da77 by `48 81 c4 c8 00 00 00 c3` (stack restore/RET).
+`dlls/ntdll/signal_x86_64.c:839-841` captures that CALL's return address into
+both context RIP and record ExceptionAddress. This matches actual2240 da77.
+
+`dlls/ntdll/unix/signal_x86_64.c:1750-1753` unconditionally decrements the
+application-dispatch context RIP for EXCEPTION_BREAKPOINT. This is verified
+in the actual frozen ntdll.so, not only current source:
+SHA `e4d34518f2627d73a0035223939ec53bea0dd9829b07238486f51c35cae34422`,
+`call_user_exception_dispatcher` at389c0, comparison at38ac1,
+`decq %rcx` at38ad4 and saved RIP write at38ad7.
+The synthetic RaiseException breakpoint therefore dispatches its application
+handler with RIP da76, the final zero byte of the preceding CALL operand,
+not an INT3 site. The2240 fixture returned CONTINUE_EXECUTION without fixing
+that synthetic context. Resuming at da76 decodes across the stack-restoration
+instruction, consistent with the actual later illegal-instruction event da79.
+The unchanged controller's NOT_HANDLED disposition is not evidence of an
+incorrect debugger resume: the synthetic fixture was unsuitable for a genuine
+INT3 continuation gate.
+
+The only repository implementation correction is the fixture: a fixed
+AMD64 assembly function contains `INT3; RET`, with owned labels at
+fixture RVAs1564/1565 and verified PE bytes `cc c3`. It is not runtime
+instruction patching. Its application handler accepts only the breakpoint
+record at that exact fixture-owned address, verifies the one-byte opcode and
+adjacent resume label, and accepts only context RIP at the trap or immediately
+following instruction. It sets its own application CONTEXT RIP to the known
+following RET and returns CONTINUE_EXECUTION. Other breakpoint records are
+CONTINUE_SEARCH. This narrowly handles the AMD64 INT3 continuation convention
+and Wine's documented source-backed one-byte adjustment without changing
+the debugger's immutable captured record/context or any product provider.
+There is no controller swallowing or target-context rewriting by the debugger.
+
+The controller source and executable are byte-identical to2240. Handled,
+unhandled first/second-chance, read-error, deadline, aggregate-size and live
+detach checks are retained. The fresh owner's breakpoint assertions now
+require an actual event at the printed owned trap, one-byte adjacent resume
+site, dump/context/module validation, NOT_HANDLED, own application handler
+marker, exactly one first chance/no second chance and normal exit via the
+unchanged controller. Synthetic parameters remain required for the actual
+RaiseException custom-code modes, not falsely required for a real INT3.
+
+Both AMD64 candidates strictly compile source-only; imports remain checked
+for mutation/unverified unwind and the controller pin is unchanged.
+All13 local accounting fixtures pass; fresh owner/wrapper syntax and staged
+bytes verify. No2250 fixture/controller/owner/Wine execution occurred.
+The mandatory quality runner remains absent, actual exit2; no overall PASS.
+
+Fresh candidate directory:
+`~/xodus-app-tooling/cuphead/exception-event-candidate-20261011-2250`.
+Fresh staged root owner/wrapper are `cuphead-exception2250-{owner,launch}.py`;
+proposed unique cycle label
+`cuphead-owned-exception-unit-20261011-2250` has no work/log/status files.
+Consumed2240 candidate/owner/dumps/receipts are not modified.
+
+|2250 source-only artifact|SHA256|
+|---|---|
+|exception-event-fixture.c|`f80eb93e7fa3ae24090df8165cc6c8f8afc5d0e7666d44c04ddf4e7a3f4e3620`|
+|exception-event-fixture.exe|`7cb8ed07e7ab8f42ed296d70863e75a440f5d0b71d3c1b6d302fd6839e28bfb2`|
+|unchanged controller.exe|`558195bb602a130b980e82c4a503e22328624718b17ad8083bd6d6bab843d8bf`|
+|source-compile-manifest.json|`2493c76bc8d8167df380157d93e68547b79dea4ff10c3c85a452ffc41a5347d9`|
+|cuphead-exception2250-owner.py|`7427f5c216ad5bb7768482e95f7a83b37f3d7bef3033dfba96bea0b0ef5d1d15`|
+|cuphead-exception2250-launch.py|`f13ae13df8196f75d1c7bfff2ffa5e83cd09bc29fb592be7e9c2ead48581c091`|
+|capture_accounting2250.py|`28add3e42f44916613dddd83f7db87e8380767738c24da10c71bd36c463ed1a1`|
+
+Proposed scope for a future decision remains one exclusive **NO-GAME** cycle:
+canonical2195 33 triples, unchanged pinned builtin dbghelp, standard pre-gates
+then seven stop-first-failure modes with the real INT3 fixture substitution.
+Same18s/20MB live aggregate owner failure thresholds, preserved originals,
+expected-negative reasons/boundaries and successful owned cleanup required.
+Same independent33/keys/devnode/settings/dbghelp/alias/signature/full runtime
+and recursive-holder restoration checks. No alias selection, Detail.Vector
+registration, package/game controller, extra provider patch or second cycle.
+No2250 runtime hold or game authorization has been granted.
+
 #### 2210 original-exception telemetry gap and targeted capture-only plan
 
 Further read-only inspection finds exactly one dispatched native exception:

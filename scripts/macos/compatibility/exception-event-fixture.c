@@ -3,10 +3,37 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifndef __x86_64__
+#error This fixture requires the admitted AMD64 architecture.
+#endif
+
+extern void fixture_breakpoint(void);
+extern const BYTE fixture_int3[], fixture_after_int3[];
+__asm__(".text\n"
+        ".globl fixture_breakpoint\n"
+        "fixture_breakpoint:\n"
+        ".globl fixture_int3\n"
+        "fixture_int3:\n"
+        "int3\n"
+        ".globl fixture_after_int3\n"
+        "fixture_after_int3:\n"
+        "ret\n");
+
 static LONG CALLBACK handle_exception(EXCEPTION_POINTERS *pointers)
 {
-    if (pointers->ExceptionRecord->ExceptionCode != 0xe0425844 &&
-        pointers->ExceptionRecord->ExceptionCode != EXCEPTION_BREAKPOINT) return EXCEPTION_CONTINUE_SEARCH;
+    if (pointers->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
+    {
+        ULONG_PTR rip = pointers->ContextRecord->Rip;
+        if (pointers->ExceptionRecord->ExceptionAddress != fixture_int3 ||
+            fixture_int3[0] != 0xcc || fixture_after_int3 != fixture_int3 + 1 ||
+            (rip != (ULONG_PTR)fixture_int3 && rip != (ULONG_PTR)fixture_after_int3))
+            return EXCEPTION_CONTINUE_SEARCH;
+        /* Resume only this fixture-owned one-byte INT3, not a synthetic RaiseException. */
+        pointers->ContextRecord->Rip = (ULONG_PTR)fixture_after_int3;
+        puts("EXCEPTION_FIXTURE_OWNED_INT3_HANDLED");
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+    if (pointers->ExceptionRecord->ExceptionCode != 0xe0425844) return EXCEPTION_CONTINUE_SEARCH;
     if (pointers->ExceptionRecord->NumberParameters != 2 ||
         pointers->ExceptionRecord->ExceptionInformation[0] != 0x11223344 ||
         pointers->ExceptionRecord->ExceptionInformation[1] != 0x55667788) return EXCEPTION_CONTINUE_SEARCH;
@@ -44,7 +71,13 @@ int main(int argc, char **argv)
     }
     handler = AddVectoredExceptionHandler(1, handle_exception);
     if (!handler) return 5;
-    RaiseException(!strcmp(argv[1], "breakpoint") ? EXCEPTION_BREAKPOINT : 0xe0425844, 0, 2, parameters);
+    if (!strcmp(argv[1], "breakpoint"))
+    {
+        printf("EXCEPTION_FIXTURE_OWNED_INT3 trap=%p resume=%p byte=%02x\n",
+               fixture_int3, fixture_after_int3, fixture_int3[0]);
+        fixture_breakpoint();
+    }
+    else RaiseException(0xe0425844, 0, 2, parameters);
     if (!RemoveVectoredExceptionHandler(handler)) return 6;
     if (release)
     {

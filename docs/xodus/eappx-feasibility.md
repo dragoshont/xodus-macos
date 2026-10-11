@@ -4788,6 +4788,37 @@ absent/exit2.
 |Wine `ntdll.dll`|`8c82df24d37f04e729f9ff8ac11c086e5ef6ed640921b9444fdf61cd7526dcf8`|
 |Wine `kernelbase.dll`|`da8b625bbf1a9bfbe9d71c20719a1b8268bb930babbb6f1d4a1e78ea8fb68d74`|
 
+**2300 attempt (not a candidate result):** the unique 2300 owner ran over
+plain SSH instead of the required Terminal/osascript GUI session. winemac
+`macdrv_init` lacked `sessionHasGraphicAccess`, explorer had no display driver,
+and the dispatcher pre-gate failed before any no-game MRM or Cuphead launch.
+The candidates were frozen at mode 0444 and copied with that mode, so the owner
+could not restore kernelbase/ntdll (EACCES). Both were restored exactly from
+receipt backups. Independent verification then confirmed all 35 baselines,
+registry/WineDbg state, absent system32 MRM, unchanged pins, no runtime/holders
+and the bundle signature. The candidate DLLs are now 0644 and their hashes are unchanged.
+Kernelbase resource export RVAs for the MRM gate are package `0x28720`,
+application `0x26ed0` and property `0x30ba0`.
+
+**2310 (a79f42b candidate, Terminal launch):** the admitted owner `7e2cb2c1…`
+and wrapper `e729d232…` used the same 35-target shape. In the no-game MRM check
+all 6 checks passed through the system32 native provider with the new RVAs.
+Ordinary activation passed 13 checks (claims mask 3, origin 4). Cuphead then
+exited `0xC0000421` after about 1.2 s with zero windows, so there is still no
+frame. Compared with 2290, the `RtlIsMultiSessionSku` stub and the 1007/fail-fast
+path are gone, and native `mrmcorer`/`RMCLIENT` now load. The new ordered chain:
+1. RMCLIENT `HamConnectForExtendedExecution` reports the HAM backend unavailable.
+2. CLSID `{96c7a5ef-0e2c-46d7-9bc1-6445c2444d7a}` is not registered. Genuine
+   Windows registers it as an in-process `Both` class of `threadpoolwinrt.dll`,
+   and its GUID sits beside the native `ActivatableClassId` WRL registration.
+   Wine's threadpoolwinrt has no such class.
+3. `dispatch_rpc` reports no apartment.
+4. `0x80010108` RPC_E_DISCONNECTED repeats.
+5. A non-continuable code-4 exception carries `0x8000000E`.
+The required interface and semantics of that class remain unidentified. The
+owner reported complete restoration, and independent verification
+`7d372308…` confirmed 35 baselines, absent system32 MRM/override, keys,
+WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup
 gaps, but native alias progress is not our distributable Vector support.

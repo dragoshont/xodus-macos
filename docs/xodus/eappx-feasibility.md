@@ -4919,6 +4919,38 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
   - The `mrmcorer` export relay did not fire.
   - HYPOTHESIS: native `CoreApplication::Run` is in progress, but its view
     registration fails under Wine.
+- **2388 (class-string and window relay):**
+  - On the main thread, `Cuphead.dll+0x2527fc7` calls `RoInitialize(MTA)`.
+  - Then `CoreApplication` is activated twice from native twinapi.
+  - Decoded `Windows.UI.dll+0x3bad` creates a CoreWindow HWND before
+    `mrmcorer` maps.
+  - `ResourceContext` is served by `mrmcorer`, which reaches
+    `CoreApplication` at `+0x42854`, and the fatal follows.
+- **2389 (apartment values; existing `trace+ole`, no scratch build):**
+  - At `twinapi+0x460d5`, `twinapi+0x4928d` and `mrmcorer+0x42bdd` the
+    main thread is MTA, qualifier 0.
+  - A thread created through `shcore+0x61ba` calls `RoInitialize(SINGLETHREADED)`
+    from `twinapi+0x8f4d5`.
+  - Wine reports that thread as `MAINSTA`/0 at `twinapi+0x170c7`. Native
+    reports an application STA as STA/6.
+  - HYPOTHESIS: the view thread's apartment report blocks view registration.
+    Candidate fix: combase reports an application STA for
+    `RoInitialize(SINGLETHREADED)`.
+  - Restoration errors: none.
+- **2390 (combase application-STA reporting):**
+  - Change: `RoInitialize(RO_INIT_SINGLETHREADED)` marks the apartment as an
+    application STA. It never becomes the main STA, and
+    `CoGetApartmentType` reports STA with qualifier 6.
+  - Unchanged: explicit `CoInitializeEx` STA/MTA, and the public model seen
+    by init spies.
+  - Limits: report-only. True ASTA re-entrancy semantics are not
+    implemented, and the change may later need scoping to packaged
+    processes.
+  - Targeted pre-gate: 13 checks, 0 failures.
+  - Runtime: the view thread now reports STA/6 at `twinapi+0x170c7`.
+  - The main-thread `0x8000000E` fatal is unchanged. A worker thread newly
+    originates `0x8000000B` at `twinapi+0x7fbfc`.
+  - Windows 0, no frame. Restoration errors: none.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

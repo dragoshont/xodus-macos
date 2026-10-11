@@ -2963,7 +2963,7 @@ unperformed because the earlier prerequisite failed.
 
 | Private no-game 2130 evidence | Observed result |
 | --- | --- |
-| Provider admission | OneCoreUAPCommonProxyStub loads native at `0x6ffffd1d0000`; rpcrt4 loads builtin at `0x6fffff1b0000`. No missing-import failure is observed. |
+| Provider admission | OneCoreUAPCommonProxyStub loads native at `0x6ffffd1d0000`; rpcrt4 loads builtin at `0x6fffff1b0000`. Successful loading does not establish that each imported function is implemented. |
 | Factory call | NdrDllGetClassObject receives the grounded PS class and IPSFactoryBuffer IID on STA thread `01d4`. |
 | Primary failure | Access violation at rpcrt4+`0x3e14b`, instruction `movq %rax,0x10(%rcx)`, writes to native proxy+`0x10f90` (`0x6ffffd1e0f90`). PE section metadata places that address inside read-only `.rdata`. |
 | Captured backtrace | rpcrt4+`0x3e14b` ← rpcrt4+`0x1c2d2` ← OneCoreUAPCommonProxyStub+`0x1cca` ← admission test+`0x12f8`. |
@@ -2997,3 +2997,144 @@ claiming an honest fallback proxy. The missing mandatory quality runner
 | --- | --- |
 | No-game 2130 `private-view-proxy-loader-tests.log` | `8bc395abab6a3ce55eb91bb263423c9c92bfeae609127976da6a07eba94107f7` |
 | No-game 2130 `receipt.json` | `429413fb169beda3ffb1337ebaf373abcf3a2df3c8a8285ecbc1623d8689c35c` |
+
+### Modern MIDL metadata and NDR32 server candidate: no-game 2140
+
+`wine-rpcrt4-constproxy.patch` preserves the public factory ABI and puts
+per-factory/file/index proxy and stub table copies in a locked,
+process-lifetime cache. Factory initialization no longer writes to
+DLL-supplied tables. The copies retain their headers, including the
+stubless proxy-info pointer and the stub's server-info layout; delegated
+and stubless method entries are resolved only in those copies. Missing
+interface-name arrays are allowed. No VirtualProtect or agility bypass
+is used.
+
+The patch also factors NdrStubCall2's interpreter into a shared helper
+and exports a real win64 NdrStubCall3. It selects NDR32 procedure metadata
+from the server's syntax list, preserving the server-routine table.
+NDR64-only input raises RPC_X_WRONG_STUB_VERSION rather than reporting
+success. Baseline rpcrt4's export directory confirms that NdrStubCall3
+was absent; the earlier successful LoadLibrary was not proof that its
+imports were implemented.
+
+The private admission test now supplies the grounded thirteen-slot
+object and attempts CreateStub, then STA-to-MTA stream calls for slot 10
+and slot 8's HSTRING. Unused companion methods return E_NOTIMPL; their
+interfaces are not invented. A separate public EventHandler<IInspectable*>
+test distinguishes a genuinely thread-safe agile/FTM handler from a
+non-agile STA handler, using GIT register/get/invoke/revoke.
+
+2140's first candidate rpcrt4 pin was
+`5e889a21cee4f4e37b828234fd42ba2a27325769107da1bbdea692dbd3bd56ee`.
+The existing cstub suite, with original-table pointer expectations
+changed to copied-table expectations and const input fixtures, ran
+**234 checks, zero failures, two TODOs**. Native DllGetClassObject now
+returned S_OK, clearing the const-table write AV.
+
+CreateProxy encountered a different modern metadata convention first:
+Wine tried to call pIIDLookupRtn == `(void *)-1`. The fault was execute
+access at `0xffffffffffffffff`, on STA thread `03ec`. The saved stack
+return was rpcrt4+`0x14066`; the metadata pointer was native PS+`0x10de0`.
+Static bytes place the sentinel at +`0x10e00` and identify a 39-interface,
+TableVersion 16 block. CreateProxy did not return; CreateStub, stream
+calls, both NDR3 interpreter paths and handler tests were **not reached**.
+No game was launched and the 2130 game grant remains unconsumed.
+
+The capture owner now tracks Wine process generations and preserves
+ancestor-generation references instead of merging recycled numeric
+PIDs. Three focused generation tests and the existing six capture and
+six WineDbg safety tests passed; the parser also accepted both original
+2120 and no-game 2130 traces. 2140 cleanup/restoration needed no recovery:
+all **27** target hashes/absences, temporary registry keys, crash-dialog
+suppression, original CoreApplication path, strict signature, no Wine
+runtime and no bottle holders were independently verified. The
+shared-provider hold was released.
+
+Subsequent VERIFIED-STATIC evidence grounds the sentinel convention in
+391 of the native PS's 394 blocks. The current candidate searches
+stub-header IIDs linearly when the routine is -1 or NULL, and preserves
+generated lookup routines otherwise. pAsyncIIDLookup is an unused
+`const IID **` field here, not a callable routine. Fresh no-game admission
+is required for this additional change and the remaining stream/handler
+gates; there is no overall PASS. The mandatory quality runner remains
+absent (actual exit 2).
+
+| Private no-game 2140 evidence | SHA-256 |
+| --- | --- |
+| `private-view-proxy-stream-tests.log` | `e35bd9f0fa2bc4c7b0e9c270cb8ac9b2f565f60fdbd955f11647cfbfce99df2d` |
+| `rpcrt4-cstub-tests.log` | `242191ba54328f0771eaabee91ffbd9ddf36def1b1b5c20a5e2eeed9cd432761` |
+| `receipt.json` | `300cfbd540f45c8fedd6d41523086361f786ff1d78f4efb14da7a24a4482f901` |
+| `independent-baseline-verification.json` | `978c4ea1a2034baa8644ee2f4c87253396add4291c8df0bafc5ff0d77b9f3c8f` |
+
+### Compact metadata admission and the single game 2130 control
+
+Before the next admission, VERIFIED-STATIC evidence identified another
+modern form: compact proxy entries contain only a header and -1 sentinel;
+compact stub entries contain only a header and -2 sentinel. Copying a
+full vtable from these entries would read neighboring metadata. The final
+patch synthesizes these tables from DispatchTableCount and procedure
+offsets instead. Delegated offsets (0xffff) use the existing base-interface
+thunks and NdrStubForwardingFunction; other methods use real stubless
+client/server interpretation. Compact stub Release uses the stored
+factory with the existing standard/delegating release routines.
+Legacy full tables are still copied, never modified in place.
+
+The final rpcrt4 pin is
+`efd3b865b9d53c1cb5d63c3ffe9363cfc9a1bc80883b36b257c00c30b7be3e0b`.
+Fresh GUI no-game controls established the thirteen-slot layout and
+STA-to-MTA slot 3 GetIids, slot 10, and slot 8 HSTRING round trips.
+2155 additionally called NdrClientCall3 directly for slots 10 and 8:
+both client and server selected NDR32, four method calls ran on the STA,
+no wrong-thread calls occurred, and the object returned to one reference.
+The earlier 2145/2150 owner failures were trace predicates, not proxy
+failures: stubless client calls use NdrpClientCall2 directly, and merged
+stdout/stderr split one success marker. Direct NdrClientCall3 calls and
+separate output files resolved these evidence issues without weakening
+the unit gates.
+
+| 2155 no-game gate | Result |
+| --- | --- |
+| Existing cstub suite, const/copy expectations plus -1/NULL hit/miss and cache lifetime checks | 248 checks, zero failures, two TODOs |
+| Public view proxy, dispatcher, aggregated marshaler, ordinal 122, PropertySet | 30 / 47 / 54 / 27 / 29 checks, zero failures |
+| Native private proxy and both NDR3 paths | S_OK; compact shape and delegated base verified; four STA calls, balanced references |
+| Agile public EventHandler<IInspectable*> | GIT register/get/Invoke succeeds through a real FTM |
+| Non-agile public EventHandler<IInspectable*> | GIT register returns E_NOINTERFACE (80004002); no get/Invoke is performed |
+
+The coordinator explicitly authorized the single 2130 game despite the
+non-agile synthetic-handler failure, to discriminate the real delegate.
+The **2155 provider set stayed unchanged**; no event-handler proxy,
+frame/dxgi change, graphics-backend change or registration-295 patch was
+added. The game owner required the exact 2155 target/candidate manifest
+and successful native-private admission evidence before launch.
+
+| One-game 2130 observation | Evidence |
+| --- | --- |
+| Private view transport | 2e5500b6 marshals on MAINSTA thread 07b0 and unmarshals successfully on MTA thread 0798; real native stub/proxy creation succeeds. |
+| Apartments and pump | View 07b0 is MAINSTA (3/0); main 0798 is MTA (1/0). Private dispatcher pump slot 3 reaches handle 214. |
+| Activation callback | cuphead.App callback is registered at twinapi+2fc90; no invocation is observed. |
+| Earlier recovered error | twinapi's delay import ext-ms-win-mrmcorer-resmanager-l1-1-0.GetStringValueForManifestField is unavailable. Its exception is handled and execution continues through ResourceContext fallback. |
+| Terminal fingerprint | On 0798, windows.ui's accessibilitysettings_add_HighContrastChanged is the last logged call and its exact source returns E_NOTIMPL. An unhandled exception 1007 follows at SharedLibrary+41cf88. The vtable-call return site/unwind was not captured, so the causal caller is not asserted. |
+| Outcome | Exit 4103 after 1494 ms; zero total/visible windows, no live 140-second sample. No c50898f6 marshaling is attempted, so the actual delegate's agility remains unproven. |
+
+The game grant is now **consumed**. The owner completed exact-identity
+cleanup and restored all 27 targets without supplemental recovery.
+Independent verification confirmed all baseline hashes/absences, every
+temporary key absent, the original empty WineDbg key, original
+CoreApplication DllPath, strict signature, no Wine runtime and no bottle
+holders. The shared-provider hold was released. No further game, handler
+proxy or accessibility fix is included in this slice.
+
+The source patch reproduces the compiled Wine inputs; native Microsoft
+DLLs remain outside Git. Mandatory integration validation still exits 2
+because gates/gate_runner.py is missing, so this result is not an overall
+PASS or a playability claim.
+
+| Final private evidence | SHA-256 |
+| --- | --- |
+| 2155 private stream stdout | `617440296b1c40c3eb8595c661653d6f387da253e8fa276389d92ee03d836c8f` |
+| 2155 private stream stderr (NDR3 traces) | `28596e327dd3ba41a6b5f532ca14d8325f24e7db083b6c6e98806a0df78e23a9` |
+| 2155 handler stdout | `301c7936535885c4d5c3b5d0ecb9188d1d5b66761b9ff74eadad0d74908b2e76` |
+| 2155 cstub log | `244fd7479dcee679ef53705f29eb4d10cffbc3c3f8206e85e4f581c8c30d261c` |
+| Game 2130 game.log | `f4361bf60f41f1c06f6271f4e4eaa6ef02ebf5556772cda72700ec3943023458` |
+| Game 2130 receipt.json | `e23b92a3ea872dde4301b5df0b8a98f3f0bd1619a1341849bf6570a56eb5cc81` |
+| Game 2130 independent baseline proof | `ffbea12d9c053386b3037077c059153f142769aaa61527926bf0e0a66a1bf8f4` |

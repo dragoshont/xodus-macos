@@ -1,0 +1,578 @@
+--- a/dlls/rpcrt4/cpsf.c
++++ b/dlls/rpcrt4/cpsf.c
+@@ -39,6 +39,163 @@
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(ole);
+ 
++struct factory_tables
++{
++    struct factory_tables *next;
++    IPSFactoryBuffer *factory;
++    const ProxyFileInfo *file;
++    int index;
++    CInterfaceProxyVtbl *proxy;
++    CInterfaceStubVtbl stub;
++    PRPC_STUB_FUNCTION *dispatch;
++};
++
++static SRWLOCK tables_lock = SRWLOCK_INIT;
++static struct factory_tables *tables;
++
++LONG WINAPI NdrStubCall3(IRpcStubBuffer *, IRpcChannelBuffer *, PRPC_MESSAGE, DWORD *);
++
++static ULONG WINAPI compact_stub_release(IRpcStubBuffer *stub)
++{
++    return NdrCStdStubBuffer_Release(stub, ((CStdStubBuffer *)stub)->pPSFactory);
++}
++
++static ULONG WINAPI compact_delegating_stub_release(IRpcStubBuffer *stub)
++{
++    return NdrCStdStubBuffer2_Release(stub, ((CStdStubBuffer *)stub)->pPSFactory);
++}
++
++static void WINAPI compact_stub_call(IRpcStubBuffer *stub, IRpcChannelBuffer *channel,
++                                     PRPC_MESSAGE msg, DWORD *phase)
++{
++    const MIDL_SERVER_INFO *info = CStdStubBuffer_GetServerInfo(stub);
++    if (info->nCount && info->pSyntaxInfo) NdrStubCall3(stub, channel, msg, phase);
++    else NdrStubCall2(stub, channel, msg, phase);
++}
++
++/* DLL-supplied metadata can be read-only. Copies live until process exit,
++ * independently of factory reference counts and outstanding proxies. */
++HRESULT get_psfactory_tables(IPSFactoryBuffer *factory, const ProxyFileInfo *file, int index,
++                             CInterfaceProxyVtbl **proxy, CInterfaceStubVtbl **stub)
++{
++    struct factory_tables *entry;
++    const IRpcStubBufferVtbl *defaults = &CStdStubBuffer_Vtbl;
++    DWORD count = file->pStubVtblList[index]->header.DispatchTableCount, i;
++    SIZE_T prefix = file->TableVersion > 1 ? sizeof(void *) : 0;
++    SIZE_T size = prefix + offsetof(CInterfaceProxyVtbl, Vtbl) + count * sizeof(void *);
++    const CInterfaceProxyVtbl *source_proxy =
++        (const CInterfaceProxyVtbl *)((const char *)file->pProxyVtblList[index] + prefix);
++    const CInterfaceStubVtbl *source_stub = file->pStubVtblList[index];
++    const MIDL_STUBLESS_PROXY_INFO *info =
++        prefix ? *(const MIDL_STUBLESS_PROXY_INFO **)file->pProxyVtblList[index] : NULL;
++    BOOL compact_proxy = source_proxy->Vtbl[0] == (void *)-1;
++    BOOL compact_stub = source_stub->Vtbl.QueryInterface == (void *)-2 ||
++        (compact_proxy && !source_stub->Vtbl.QueryInterface);
++    void **methods, *allocation;
++    BOOL delegated = file->pDelegatedIIDs && file->pDelegatedIIDs[index];
++    HRESULT hr = S_OK;
++
++    if (count < 3 || count >= NB_THUNK_ENTRIES)
++    {
++        FIXME("Unsupported proxy method count %lu.\n", count);
++        return E_NOTIMPL;
++    }
++    if (compact_proxy && (!info || !info->FormatStringOffset))
++    {
++        WARN("Compact proxy is missing stubless metadata.\n");
++        return E_INVALIDARG;
++    }
++    AcquireSRWLockExclusive(&tables_lock);
++    for (entry = tables; entry; entry = entry->next)
++        if (entry->factory == factory && entry->file == file && entry->index == index)
++            goto found;
++    entry = calloc(1, sizeof(*entry));
++    allocation = calloc(1, size);
++    if (!entry || !allocation)
++    {
++        free(entry);
++        free(allocation);
++        hr = E_OUTOFMEMORY;
++        goto done;
++    }
++    memcpy(allocation, file->pProxyVtblList[index],
++           compact_proxy ? prefix + offsetof(CInterfaceProxyVtbl, Vtbl) : size);
++    entry->proxy = (CInterfaceProxyVtbl *)((char *)allocation + prefix);
++    entry->stub.header = source_stub->header;
++    if (delegated) defaults = &CStdStubBuffer_Delegating_Vtbl;
++    if (compact_proxy)
++    {
++        entry->proxy->Vtbl[0] = IUnknown_QueryInterface_Proxy;
++        entry->proxy->Vtbl[1] = IUnknown_AddRef_Proxy;
++        entry->proxy->Vtbl[2] = IUnknown_Release_Proxy;
++        for (i = 3; i < count; i++)
++        {
++            if (info->FormatStringOffset[i] == 0xffff)
++            {
++                if (!delegated)
++                {
++                    WARN("Compact method %lu requires a delegated base interface.\n", i);
++                    hr = E_NOTIMPL;
++                    goto failed;
++                }
++            }
++            else entry->proxy->Vtbl[i] = (void *)-1;
++        }
++    }
++    if (compact_stub)
++    {
++        entry->stub.Vtbl = *defaults;
++        entry->stub.Vtbl.Release = delegated ? compact_delegating_stub_release : compact_stub_release;
++    }
++    else entry->stub.Vtbl = source_stub->Vtbl;
++    if (source_stub->header.pDispatchTable == (const PRPC_STUB_FUNCTION *)-2)
++    {
++        if (!info || !info->FormatStringOffset)
++        {
++            WARN("Compact dispatch table is missing procedure offsets.\n");
++            hr = E_INVALIDARG;
++            goto failed;
++        }
++        entry->dispatch = calloc(count, sizeof(*entry->dispatch));
++        if (!entry->dispatch)
++        {
++            hr = E_OUTOFMEMORY;
++            goto failed;
++        }
++        for (i = 3; i < count; i++)
++            entry->dispatch[i] = info->FormatStringOffset[i] == 0xffff ?
++                NdrStubForwardingFunction : compact_stub_call;
++        entry->stub.header.pDispatchTable = entry->dispatch;
++    }
++    if (delegated)
++    {
++        fill_delegated_proxy_table((IUnknownVtbl *)entry->proxy->Vtbl, count);
++    }
++    if (prefix) fill_stubless_table((IUnknownVtbl *)entry->proxy->Vtbl, count);
++    methods = (void **)&entry->stub.Vtbl;
++    for (i = 0; i < sizeof(*defaults) / sizeof(void *); i++)
++        if (!methods[i]) methods[i] = ((void * const *)defaults)[i];
++    entry->factory = factory;
++    entry->file = file;
++    entry->index = index;
++    entry->next = tables;
++    tables = entry;
++    TRACE("Copied proxy file %p index %d: %lu slots, compact proxy %u stub %u dispatch %u.\n",
++          file, index, count, compact_proxy, compact_stub, !!entry->dispatch);
++    goto found;
++failed:
++    free(entry->dispatch);
++    free(allocation);
++    free(entry);
++    goto done;
++found:
++    if (proxy) *proxy = entry->proxy;
++    if (stub) *stub = &entry->stub;
++done:
++    ReleaseSRWLockExclusive(&tables_lock);
++    return hr;
++}
++
+ static void format_clsid( WCHAR *buffer, const CLSID *clsid )
+ {
+     swprintf( buffer, 39, L"{%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}",
+@@ -51,7 +208,22 @@
+ static BOOL FindProxyInfo(const ProxyFileInfo **pProxyFileList, REFIID riid, const ProxyFileInfo **pProxyInfo, int *pIndex)
+ {
+   while (*pProxyFileList) {
+-    if ((*pProxyFileList)->pIIDLookupRtn(riid, pIndex)) {
++    const ProxyFileInfo *info = *pProxyFileList;
++    BOOL found = FALSE;
++    if (info->pIIDLookupRtn && info->pIIDLookupRtn != (PIIDLookup)-1)
++      found = info->pIIDLookupRtn(riid, pIndex);
++    else
++    {
++      unsigned int i;
++      for (i = 0; i < info->TableSize; i++)
++        if (IsEqualIID(riid, info->pStubVtblList[i]->header.piid))
++        {
++          *pIndex = i;
++          found = TRUE;
++          break;
++        }
++    }
++    if (found) {
+       *pProxyInfo = *pProxyFileList;
+       TRACE("found: ProxyInfo %p Index %d\n", *pProxyInfo, *pIndex);
+       return TRUE;
+@@ -114,19 +286,25 @@
+ {
+   CStdPSFactoryBuffer *This = (CStdPSFactoryBuffer *)iface;
+   const ProxyFileInfo *ProxyInfo;
++  CInterfaceStubVtbl *stub;
++  HRESULT hr;
+   int Index;
+   TRACE("(%p)->CreateStub(%s,%p,%p)\n",iface,debugstr_guid(riid),
+        pUnkServer,ppStub);
+   if (!FindProxyInfo(This->pProxyFileList,riid,&ProxyInfo,&Index))
+     return E_NOINTERFACE;
++  hr = get_psfactory_tables(iface, ProxyInfo, Index, NULL, &stub);
++  if (FAILED(hr)) return hr;
+ 
+   if(ProxyInfo->pDelegatedIIDs && ProxyInfo->pDelegatedIIDs[Index])
+-    return  CStdStubBuffer_Delegating_Construct(riid, pUnkServer, ProxyInfo->pNamesArray[Index],
+-                                                ProxyInfo->pStubVtblList[Index], ProxyInfo->pDelegatedIIDs[Index],
++    return  CStdStubBuffer_Delegating_Construct(riid, pUnkServer,
++                                                ProxyInfo->pNamesArray ? ProxyInfo->pNamesArray[Index] : NULL,
++                                                stub, ProxyInfo->pDelegatedIIDs[Index],
+                                                 iface, ppStub);
+ 
+-  return CStdStubBuffer_Construct(riid, pUnkServer, ProxyInfo->pNamesArray[Index],
+-                                  ProxyInfo->pStubVtblList[Index], iface, ppStub);
++  return CStdStubBuffer_Construct(riid, pUnkServer,
++                                  ProxyInfo->pNamesArray ? ProxyInfo->pNamesArray[Index] : NULL,
++                                  stub, iface, ppStub);
+ }
+ 
+ static const IPSFactoryBufferVtbl CStdPSFactory_Vtbl =
+@@ -141,35 +319,9 @@
+ 
+ static void init_psfactory( CStdPSFactoryBuffer *psfac, const ProxyFileInfo **file_list )
+ {
+-    DWORD i, j, k;
+-
+     psfac->lpVtbl = &CStdPSFactory_Vtbl;
+     psfac->RefCount = 0;
+     psfac->pProxyFileList = file_list;
+-    for (i = 0; file_list[i]; i++)
+-    {
+-        const PCInterfaceProxyVtblList *proxies = file_list[i]->pProxyVtblList;
+-        const PCInterfaceStubVtblList *stubs = file_list[i]->pStubVtblList;
+-
+-        for (j = 0; j < file_list[i]->TableSize; j++)
+-        {
+-            /* FIXME: i think that different vtables should be copied for
+-             * async interfaces */
+-            void * const *pSrcRpcStubVtbl = (void * const *)&CStdStubBuffer_Vtbl;
+-            void **pRpcStubVtbl = (void **)&stubs[j]->Vtbl;
+-
+-            if (file_list[i]->pDelegatedIIDs && file_list[i]->pDelegatedIIDs[j])
+-            {
+-                void **vtbl = proxies[j]->Vtbl;
+-                if (file_list[i]->TableVersion > 1) vtbl++;
+-                fill_delegated_proxy_table( (IUnknownVtbl *)vtbl, stubs[j]->header.DispatchTableCount );
+-                pSrcRpcStubVtbl = (void * const *)&CStdStubBuffer_Delegating_Vtbl;
+-            }
+-
+-            for (k = 0; k < sizeof(IRpcStubBufferVtbl)/sizeof(void *); k++)
+-                if (!pRpcStubVtbl[k]) pRpcStubVtbl[k] = pSrcRpcStubVtbl[k];
+-        }
+-    }
+ }
+ 
+ 
+--- a/dlls/rpcrt4/cproxy.c
++++ b/dlls/rpcrt4/cproxy.c
+@@ -79,18 +79,14 @@
+                            LPVOID *ppvObj)
+ {
+   StdProxyImpl *This;
+-  PCInterfaceName name = ProxyInfo->pNamesArray[Index];
+-  CInterfaceProxyVtbl *vtbl = ProxyInfo->pProxyVtblList[Index];
++  PCInterfaceName name = ProxyInfo->pNamesArray ? ProxyInfo->pNamesArray[Index] : NULL;
++  CInterfaceProxyVtbl *vtbl;
++  HRESULT hr;
++
++  hr = get_psfactory_tables(pPSFactory, ProxyInfo, Index, &vtbl, NULL);
++  if (FAILED(hr)) return hr;
+ 
+   TRACE("(%p,%p,%p,%p,%p) %s\n", pUnkOuter, vtbl, pPSFactory, ppProxy, ppvObj, name);
+-
+-  /* TableVersion = 2 means it is the stubless version of CInterfaceProxyVtbl */
+-  if (ProxyInfo->TableVersion > 1) {
+-    ULONG count = ProxyInfo->pStubVtblList[Index]->header.DispatchTableCount;
+-    vtbl = (CInterfaceProxyVtbl *)((const void **)vtbl + 1);
+-    TRACE("stubless vtbl %p: count=%ld\n", vtbl->Vtbl, count );
+-    fill_stubless_table( (IUnknownVtbl *)vtbl->Vtbl, count );
+-  }
+ 
+   if (!IsEqualGUID(vtbl->header.piid, riid)) {
+     ERR("IID mismatch during proxy creation\n");
+--- a/dlls/rpcrt4/cpsf.h
++++ b/dlls/rpcrt4/cpsf.h
+@@ -47,6 +47,8 @@
+ HRESULT StdProxy_Construct(REFIID riid, LPUNKNOWN pUnkOuter, const ProxyFileInfo *ProxyInfo,
+                            int Index, LPPSFACTORYBUFFER pPSFactory, LPRPCPROXYBUFFER *ppProxy,
+                            LPVOID *ppvObj);
++HRESULT get_psfactory_tables(IPSFactoryBuffer *factory, const ProxyFileInfo *file, int index,
++                             CInterfaceProxyVtbl **proxy, CInterfaceStubVtbl **stub);
+ HRESULT WINAPI StdProxy_QueryInterface(IRpcProxyBuffer *iface, REFIID iid, void **obj);
+ ULONG WINAPI StdProxy_AddRef(IRpcProxyBuffer *iface);
+ HRESULT WINAPI StdProxy_Connect(IRpcProxyBuffer *iface, IRpcChannelBuffer *channel);
+--- a/dlls/rpcrt4/ndr_stubless.c
++++ b/dlls/rpcrt4/ndr_stubless.c
+@@ -1222,15 +1222,15 @@
+  * NOTES
+  *  Used by stubless MIDL-generated code.
+  */
+-LONG WINAPI NdrStubCall2(
++static LONG stub_call(
+     struct IRpcStubBuffer * pThis,
+     struct IRpcChannelBuffer * pChannel,
+     PRPC_MESSAGE pRpcMsg,
+-    DWORD * pdwStubPhase)
+-{
+-    const MIDL_SERVER_INFO *pServerInfo;
++    DWORD * pdwStubPhase,
++    const MIDL_SERVER_INFO *pServerInfo,
++    PFORMAT_STRING pFormat)
++{
+     const MIDL_STUB_DESC *pStubDesc;
+-    PFORMAT_STRING pFormat;
+     MIDL_STUB_MESSAGE stubMsg;
+     /* pointer to start of stack to pass into stub implementation */
+     unsigned char * args;
+@@ -1254,13 +1254,7 @@
+ 
+     TRACE("pThis %p, pChannel %p, pRpcMsg %p, pdwStubPhase %p\n", pThis, pChannel, pRpcMsg, pdwStubPhase);
+ 
+-    if (pThis)
+-        pServerInfo = CStdStubBuffer_GetServerInfo(pThis);
+-    else
+-        pServerInfo = ((RPC_SERVER_INTERFACE *)pRpcMsg->RpcInterfaceInformation)->InterpreterInfo;
+-
+     pStubDesc = pServerInfo->pStubDesc;
+-    pFormat = pServerInfo->ProcString + pServerInfo->FmtStringOffset[pRpcMsg->ProcNum];
+     pProcHeader = (const NDR_PROC_HEADER *)&pFormat[0];
+ 
+     if (pProcHeader->Oi_flags & Oi_OBJECT_PROC)
+@@ -2169,6 +2163,34 @@
+ static const RPC_SYNTAX_IDENTIFIER ndr_syntax_id =
+     {{0x8a885d04, 0x1ceb, 0x11c9, {0x9f, 0xe8, 0x08, 0x00, 0x2b, 0x10, 0x48, 0x60}}, {2, 0}};
+ 
++LONG WINAPI NdrStubCall2(IRpcStubBuffer *stub, IRpcChannelBuffer *channel, PRPC_MESSAGE msg, DWORD *phase)
++{
++    const MIDL_SERVER_INFO *info = stub ? CStdStubBuffer_GetServerInfo(stub) :
++        ((RPC_SERVER_INTERFACE *)msg->RpcInterfaceInformation)->InterpreterInfo;
++
++    return stub_call(stub, channel, msg, phase, info,
++                     info->ProcString + info->FmtStringOffset[msg->ProcNum]);
++}
++
++LONG WINAPI NdrStubCall3(IRpcStubBuffer *stub, IRpcChannelBuffer *channel, PRPC_MESSAGE msg, DWORD *phase)
++{
++    const MIDL_SERVER_INFO *info = stub ? CStdStubBuffer_GetServerInfo(stub) :
++        ((RPC_SERVER_INTERFACE *)msg->RpcInterfaceInformation)->InterpreterInfo;
++    ULONG_PTR i;
++
++    for (i = 0; i < info->nCount; i++)
++    {
++        const MIDL_SYNTAX_INFO *syntax = &info->pSyntaxInfo[i];
++        if (memcmp(&syntax->TransferSyntax, &ndr_syntax_id, sizeof(ndr_syntax_id))) continue;
++        TRACE("NdrStubCall3 NDR32 fallback, procedure %u.\n", msg->ProcNum);
++        return stub_call(stub, channel, msg, phase, info,
++                         syntax->ProcString + syntax->FmtStringOffset[msg->ProcNum]);
++    }
++    FIXME("NDR64-only server syntax is not supported.\n");
++    RpcRaiseException(RPC_X_WRONG_STUB_VERSION);
++    return RPC_X_WRONG_STUB_VERSION;
++}
++
+ LONG_PTR CDECL ndr64_client_call( MIDL_STUBLESS_PROXY_INFO *info,
+         ULONG proc, void *retval, void **stack_top )
+ {
+--- a/dlls/rpcrt4/rpcrt4.spec
++++ b/dlls/rpcrt4/rpcrt4.spec
+@@ -295,6 +295,7 @@
+ @ stdcall NdrSimpleTypeMarshall(ptr ptr long)
+ @ stdcall NdrSimpleTypeUnmarshall(ptr ptr long)
+ @ stdcall NdrStubCall2(ptr ptr ptr ptr)
++@ stdcall -arch=win64 NdrStubCall3(ptr ptr ptr ptr)
+ @ stdcall NdrStubCall(ptr ptr ptr ptr)
+ @ stdcall NdrStubForwardingFunction(ptr ptr ptr ptr)
+ @ stdcall NdrStubGetBuffer(ptr ptr ptr)
+--- a/dlls/rpcrt4/tests/cstub.c
++++ b/dlls/rpcrt4/tests/cstub.c
+@@ -152,7 +152,7 @@
+     trace("fn2 stub\n");
+ }
+ 
+-static CINTERFACE_PROXY_VTABLE(5) if1_proxy_vtbl =
++static const CINTERFACE_PROXY_VTABLE(5) if1_proxy_vtbl =
+ {
+     { &IID_if1 },
+     {   IUnknown_QueryInterface_Proxy,
+@@ -188,7 +188,7 @@
+     if1_fn2_Stub
+ };
+ 
+-static CInterfaceStubVtbl if1_stub_vtbl =
++static const CInterfaceStubVtbl if1_stub_vtbl =
+ {
+     {
+         &IID_if1,
+@@ -210,7 +210,7 @@
+     }
+ };
+ 
+-static CINTERFACE_PROXY_VTABLE(13) if2_proxy_vtbl =
++static const CINTERFACE_PROXY_VTABLE(13) if2_proxy_vtbl =
+ {
+     { &IID_if2 },
+     {   IUnknown_QueryInterface_Proxy,
+@@ -270,7 +270,7 @@
+     STUB_FORWARDING_FUNCTION
+ };
+ 
+-static CInterfaceStubVtbl if2_stub_vtbl =
++static const CInterfaceStubVtbl if2_stub_vtbl =
+ {
+     {
+         &IID_if2,
+@@ -281,7 +281,7 @@
+     { 0, 0, test_CStdStubBuffer2_Release, 0, 0, 0, 0, 0, 0, 0 }
+ };
+ 
+-static CINTERFACE_PROXY_VTABLE(5) if3_proxy_vtbl =
++static const CINTERFACE_PROXY_VTABLE(5) if3_proxy_vtbl =
+ {
+     { &IID_if3 },
+     {   IUnknown_QueryInterface_Proxy,
+@@ -310,7 +310,7 @@
+     0,
+     0};
+ 
+-static CInterfaceStubVtbl if3_stub_vtbl =
++static const CInterfaceStubVtbl if3_stub_vtbl =
+ {
+     {
+         &IID_if3,
+@@ -321,7 +321,7 @@
+     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+ };
+ 
+-static CINTERFACE_PROXY_VTABLE(7) if4_proxy_vtbl =
++static const CINTERFACE_PROXY_VTABLE(7) if4_proxy_vtbl =
+ {
+     { &IID_if4 },
+     {   IUnknown_QueryInterface_Proxy,
+@@ -354,7 +354,7 @@
+     0,
+     0};
+ 
+-static CInterfaceStubVtbl if4_stub_vtbl =
++static const CInterfaceStubVtbl if4_stub_vtbl =
+ {
+     {
+         &IID_if4,
+@@ -473,6 +473,18 @@
+     NULL
+ };
+ 
++
++static CInterfaceProxyVtbl *copied_proxies[4];
++static CInterfaceStubVtbl *copied_stubs[4];
++
++static HRESULT WINAPI tables_server_qi(IUnknown *iface, REFIID iid, void **out)
++{
++    *out = iface;
++    return S_OK;
++}
++static ULONG WINAPI tables_server_ref(IUnknown *iface) { return 2; }
++static const IUnknownVtbl tables_server_vtbl =
++    {tables_server_qi, tables_server_ref, tables_server_ref};
+ 
+ static IPSFactoryBuffer *test_NdrDllGetClassObject(void)
+ {
+@@ -513,6 +525,31 @@
+     ok(proxy_vtbl == (PCInterfaceProxyVtblList *) &cstub_ProxyVtblList, "proxy vtbllist not the same\n");
+     ok(stub_vtbl == (PCInterfaceStubVtblList *) &cstub_StubVtblList, "stub vtbllist not the same\n");
+ 
++    for (i = 0; i < ARRAY_SIZE(interfaces); i++)
++    {
++        IUnknown server = {&tables_server_vtbl}, *iface;
++        IRpcProxyBuffer *proxy;
++        IRpcStubBuffer *stub;
++        r = IPSFactoryBuffer_CreateProxy(ppsf, NULL, interfaces[i], &proxy, (void **)&iface);
++        ok(r == S_OK, "CreateProxy %u failed %#lx\n", i, r);
++        copied_proxies[i] = CONTAINING_RECORD(iface->lpVtbl, CInterfaceProxyVtbl, Vtbl);
++        ok(copied_proxies[i] != proxy_vtbl[i], "Proxy metadata was not copied\n");
++        IUnknown_Release(iface);
++        IRpcProxyBuffer_Release(proxy);
++        r = IPSFactoryBuffer_CreateStub(ppsf, interfaces[i], &server, &stub);
++        ok(r == S_OK, "CreateStub %u failed %#lx\n", i, r);
++        copied_stubs[i] = CONTAINING_RECORD(stub->lpVtbl, CInterfaceStubVtbl, Vtbl);
++        ok(copied_stubs[i] != stub_vtbl[i], "Stub metadata was not copied\n");
++        ok(copied_stubs[i]->header.pServerInfo == stub_vtbl[i]->header.pServerInfo,
++           "Stub server info changed\n");
++        if (base_iid_list[i]) NdrCStdStubBuffer2_Release(stub, ppsf);
++        else NdrCStdStubBuffer_Release(stub, ppsf);
++    }
++    ok(!if2_proxy_vtbl.Vtbl[3] && !if3_stub_vtbl.Vtbl.QueryInterface,
++       "Read-only input metadata changed\n");
++    proxy_vtbl = copied_proxies;
++    stub_vtbl = copied_stubs;
++
+     /* if1 is non-delegating, if2 is delegating, if3 is non-delegating
+        but I've zero'ed the vtbl entries, similarly if4 is delegating
+        with zero'ed vtbl entries */
+@@ -705,6 +742,53 @@
+ 
+ }
+ 
++static void test_metadata_lookup(void)
++{
++    static CStdPSFactoryBuffer factories[2];
++    static const ProxyFileInfo files[2] =
++    {
++        { (const PCInterfaceProxyVtblList *)cstub_ProxyVtblList,
++          (const PCInterfaceStubVtblList *)cstub_StubVtblList,
++          NULL, base_iid_list, (PIIDLookup)-1, 4, 1, NULL, 0, 0, 0 },
++        { (const PCInterfaceProxyVtblList *)cstub_ProxyVtblList,
++          (const PCInterfaceStubVtblList *)cstub_StubVtblList,
++          NULL, base_iid_list, NULL, 4, 1, NULL, 0, 0, 0 }
++    };
++    unsigned int i;
++    HRESULT hr;
++
++    for (i = 0; i < ARRAY_SIZE(files); i++)
++    {
++        const ProxyFileInfo *list[] = { &files[i], NULL };
++        IPSFactoryBuffer *factory;
++        IRpcProxyBuffer *proxy;
++        IUnknown *iface;
++        const void *copied;
++
++        hr = NdrDllGetClassObject(&IID_if1, &IID_IPSFactoryBuffer, (void **)&factory,
++                                 list, &CLSID_psfact, &factories[i]);
++        ok(hr == S_OK, "Lookup %u hit failed %#lx\n", i, hr);
++        hr = IPSFactoryBuffer_CreateProxy(factory, NULL, &IID_if1, &proxy, (void **)&iface);
++        ok(hr == S_OK, "Lookup %u CreateProxy failed %#lx\n", i, hr);
++        copied = iface->lpVtbl;
++        IUnknown_Release(iface);
++        IRpcProxyBuffer_Release(proxy);
++        hr = IPSFactoryBuffer_CreateProxy(factory, NULL, &IID_IUnknown, &proxy, (void **)&iface);
++        ok(hr == E_NOINTERFACE, "Lookup %u miss returned %#lx\n", i, hr);
++        IPSFactoryBuffer_Release(factory);
++        ok(!factories[i].RefCount, "Factory is still referenced\n");
++        hr = NdrDllGetClassObject(&IID_if1, &IID_IPSFactoryBuffer, (void **)&factory,
++                                 list, &CLSID_psfact, &factories[i]);
++        ok(hr == S_OK, "Lookup %u reacquisition failed %#lx\n", i, hr);
++        hr = IPSFactoryBuffer_CreateProxy(factory, NULL, &IID_if1, &proxy, (void **)&iface);
++        ok(hr == S_OK, "Lookup %u repeated CreateProxy failed %#lx\n", i, hr);
++        ok(iface->lpVtbl == copied, "Copy changed after zero factory refs\n");
++        IUnknown_Release(iface);
++        IRpcProxyBuffer_Release(proxy);
++        IPSFactoryBuffer_Release(factory);
++    }
++}
++
+ static IRpcStubBuffer *create_stub(IPSFactoryBuffer *ppsf, REFIID iid, IUnknown *obj, HRESULT expected_result)
+ {
+     IRpcStubBuffer *pstub = NULL;
+@@ -811,10 +895,10 @@
+ 
+ static void test_CreateProxy( IPSFactoryBuffer *ppsf )
+ {
+-    create_proxy_test( ppsf, &IID_if1, if1_proxy_vtbl.Vtbl );
+-    create_proxy_test( ppsf, &IID_if2, if2_proxy_vtbl.Vtbl );
+-    create_proxy_test( ppsf, &IID_if3, if3_proxy_vtbl.Vtbl );
+-    create_proxy_test( ppsf, &IID_if4, if4_proxy_vtbl.Vtbl );
++    create_proxy_test( ppsf, &IID_if1, copied_proxies[0]->Vtbl );
++    create_proxy_test( ppsf, &IID_if2, copied_proxies[1]->Vtbl );
++    create_proxy_test( ppsf, &IID_if3, copied_proxies[2]->Vtbl );
++    create_proxy_test( ppsf, &IID_if4, copied_proxies[3]->Vtbl );
+ }
+ 
+ static void test_CreateStub(IPSFactoryBuffer *ppsf)
+@@ -1565,6 +1649,7 @@
+ 
+     ppsf = test_NdrDllGetClassObject();
+     test_NdrStubForwardingFunction();
++    test_metadata_lookup();
+     test_CreateProxy(ppsf);
+     test_CreateStub(ppsf);
+     test_Connect(ppsf);

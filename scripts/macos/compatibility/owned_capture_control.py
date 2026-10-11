@@ -190,8 +190,12 @@ class ControlFirstAbort:
         deadline = self.clock() + seconds
         self.events.append("abort-before-restoration")
         self.observe(deadline)
-        if not self.reader.settled():
-            raise OwnershipError("Incomplete ownership boundary; refusing signal")
+        settle_end = self.clock() + seconds / 2
+        while not self.reader.settled():
+            if self.clock() + .05 >= settle_end:
+                raise OwnershipError("Incomplete ownership boundary; refusing signal")
+            self.sleep(.05)
+            self.observe(deadline)
         if not any(item.native_pid == self.root_pid for item in self.admitted.values()):
             raise OwnershipError("Launcher generation not admitted")
         for item in self._live(deadline):

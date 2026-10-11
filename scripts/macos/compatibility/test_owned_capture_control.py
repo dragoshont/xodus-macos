@@ -112,6 +112,22 @@ class OwnedControlTests(unittest.TestCase):
             self.control.abort()
         self.assertEqual(self.signals, [])
 
+    def test_boundary_completed_by_live_writer_is_resettled(self):
+        with self.path.open("a") as out:
+            out.write("0014: new_process( parent_process=0000 )\n")
+        sleep = self.clock.sleep
+
+        def complete(seconds):
+            sleep(seconds)
+            with self.path.open("a") as out:
+                out.write("0014: new_process() = 0 { info=0002, pid=0030, handle=0044 }\n")
+            self.control.sleep = sleep
+
+        self.control.sleep = complete
+        self.control.abort()
+        self.assertTrue(self.control.quiet)
+        self.assertEqual(self.signals, [(200, signal.SIGTERM), (100, signal.SIGTERM)])
+
     def test_identity_callback_deadline_failure_blocks_restoration(self):
         def blocked(pid, deadline):
             self.clock.now = deadline

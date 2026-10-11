@@ -4893,6 +4893,21 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
     `CoreApplication.Run` view, returns `0x8000000E`.
   - Restoration: 36/36 baselines match for each label, and no Wine
     processes remain.
+- **2384–2386 (error-origin relays, same candidate):**
+  - 2384 used RelayInclude `ntdll.RtlCaptureStackBackTrace`. Both captures
+    before the raise come from `combase+0x28ee0`, which is our
+    `trace_illegal_method_call` helper.
+  - 2385 stopped at a pre-mutation pin check after a label replace
+    corrupted a pinned hash. The bottle was untouched.
+  - 2386 used RelayInclude `RoOriginateError(W)`/`RoTransformError(W)`.
+    Right after `mrmcorer+0x42854` returns S_OK, native
+    `twinapi.appcore+0x7fbfc` originates `0x8000000E` twice, then MrmCoreR
+    raises.
+  - VERIFIED: the error originates in native `twinapi.appcore`, and
+    MrmCoreR only re-raises. Per static RE, twinapi's
+    `CoreApplication`-context predicate (`ctx+0x360` current view, state
+    ≥3) is unset because no activation host creates the view.
+  - Restoration errors: none, and no Wine processes remain.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

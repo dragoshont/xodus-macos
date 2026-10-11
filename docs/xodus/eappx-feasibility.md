@@ -3229,3 +3229,47 @@ fix is included.
 | Game log | `1a335885f18ee6be8e3707340c93e9820fbf650ce1a0c8e5db1f6ec9cd99475a` |
 | Game receipt | `5943e2764d8700704040a088142cf8c1613e9e5173c462a32083a466a2e49ec0` |
 | Independent baseline proof (each successful cycle) | `62137be3a74de61bcf138aa37e0adc407c79774d1ad5c4510363a0a6ad3f0203` |
+
+### Logging-only control 2170: no managed message observed
+
+The coordinator statically identified e2663f37 as the public
+MapChangedEventHandler<String,String> IID, also present in native MrmCoreR.
+The ResourceManager/QualifierValues explanation remains a hypothesis.
+One explicitly authorized 2170 launch retained the exact 2160-v2 provider
+manifest and repeated the usual successful pre-gates. Its only change was
+game logging: warn+seh and trace+file alongside existing combase/error relay
+traces. No product source or provider changed.
+
+No OutputDebugString call or text was observed. Between successful MapChanged
+GIT registration (S_OK, cookie f101) and the terminal 1007 there was no
+intervening logged exception code or HRESULT. The new warning records
+RaiseFailFastException with exception-record pointer 0x10e5a8, NULL context
+and flags 1 on thread 07b4; the pointed-to record was not captured. Fail-fast
+again occurs at SharedLibrary+41cf88. Earlier RoOriginateErrorW calls report
+80040154 and 80070490 with no message on 07b4; earlier RoOriginateError and
+RoOriginateLanguageException report 80004001 with empty messages on 07c0.
+These precede MapChanged and are not newly attributed as terminal causes.
+
+Native MrmCoreR loads. Cuphead's decoded resources.pri path resolves and
+NtCreateFile is reached. Framework resources.pri probes for VCLibs 140,
+.NET Native Framework 1.3 and .NET Native Runtime 1.4 return
+STATUS_OBJECT_NAME_NOT_FOUND (c0000034). The earlier missing
+ext-ms-win-mrmcorer-resmanager-l1-1-0 DLL probes also remain visible.
+Neither absent framework PRI files nor these recovered imports are proven
+to cause the managed fail-fast.
+
+File tracing interleaves launcher stdout writes with diagnostic stderr.
+The original bytes contain exit 4103 and elapsed 2104 ms, but the owner's
+strict result parser cannot recover its normal contiguous markers and
+returns `Expected unique live activated process` (owner exit 1).
+The capture is not relabeled PASS or replayed. The single grant is consumed.
+Restoration completed without errors; independent read-only verification
+confirmed all 27 baselines, temporary keys absent, empty WineDbg, original
+CoreApplication registration, signature and no runtime/bottle holders.
+The shared-provider hold was released.
+
+| 2170 private evidence | SHA-256 |
+| --- | --- |
+| Game log | `ec260d80dfba2a7e92c06f2220b374e621c30b6f74884abd37821f0158129205` |
+| Receipt | `6ffdb5aef8265132453fb1e8b9af6796dd455238c67966c9d232d0dd7098dd67` |
+| Independent baseline proof | `329e3d32eee6c92a507874fbcca384073f32a86a952f786b50a5445e79c69bd1` |

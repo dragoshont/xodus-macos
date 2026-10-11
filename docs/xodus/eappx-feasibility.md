@@ -2276,3 +2276,105 @@ and CrossOver deep/strict signature verification passed.
 | `game.log` | `6832d641bf630a605eeb98a510424da1387c9cb447760584e2f517a5c0da2b46` |
 | `receipt.json` | `5f5801ef7bee4c48b5234234d477db7e2311138e69bca17f32a4848c8ab62af0` |
 | `language-tests.log` | `428c64e97d3c80afde9c27cb0c6f3cf2e6386e76baac3cd8ef32f28c131fbf4a` |
+
+### Managed fail-fast attribution and the public CoreCursor constructor
+
+The single logging-only control
+`cuphead-owned-failfast-object-20261011-1450` captured the exception at
+SharedLibrary's fail-fast caller using one caller-frame unwind:
+EEType offset `0xcf30`, HResult `0x80040111`
+(`CLASS_E_CLASSNOTAVAILABLE`), Message
+`Excep_FromHResult 0x80040111`, and a NULL inner-exception field.
+Coordinator static attribution and the retained activation/SEH sequence
+identified `Windows.UI.Core.CoreCursor` activation inside the
+`UnityPlayer.AppCallbacks` constructor as the fatal class lookup.
+The later resource-context and language calls were exception-message lookup,
+not the original failure.
+
+This diagnostic has two explicit limitations. The child really exited
+53040 after 4808 ms with no windows, but the capture owner encountered its
+100 MB server-log cap; it was not a clean owner-success run. Also, a guarded
+read failure reused stale words for scalar field `0x40 = 5`; that field's
+array output is discarded. The preceding successful root/message reads and
+field `0x38` reads remain valid. The diagnostic and its unvalidated private
+read-safety follow-up are not shipped in the CoreCursor slice. All temporary
+targets and registry state were restored after that control.
+
+`scripts/macos/compatibility/wine-corecursor.patch` implements the public,
+parameterized CoreCursor constructor and registers its factory in Windows.UI.
+The Microsoft SDK's
+[`windows.ui.core.idl`](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/winrt/windows.ui.core.idl)
+and the matching Wine IDL agree on:
+
+- `ICoreCursorFactory` IID `f6359621-a79d-4ed3-8c32-a9ef9d6b76a4`,
+  with `CreateCursor(CoreCursorType, UINT32, ICoreCursor **)`.
+- `ICoreCursor` IID `96893acf-111d-442c-8a77-b87992f8e2d6`,
+  with `get_Id` followed by `get_Type`, after the IInspectable methods.
+- Agile marshaling and enum values 0 through 15. **Custom is 2**, not 10;
+  10 is SizeWestEast.
+
+The immutable cursor stores the supplied type/id, supports public interface
+identity and agile QI, and uses interlocked references. NULL creation output
+and out-of-range types return `E_INVALIDARG`; NULL getter outputs return
+`E_POINTER`. Default activation remains `E_NOTIMPL`.
+`ICoreWindow::put_PointerCursor` remains `E_NOTIMPL`: no SetCursor/LoadCursor
+integration, OS cursor resources, private interfaces or other public classes
+are synthesized.
+
+The rebuilt Windows.UI candidate is
+`a38a0027fe80edc85d5e3e45fef51e986ad5d120e19d416dc760d989eb6eac36`.
+It also includes the previously unit-validated failed-QI/WM_QUIT cleanup
+already preserved in the composed CoreWindow patch; that cleanup is not
+exercised by this control. No other runtime module differs from the 1410
+candidates, including kernelbase
+`9308d50feb4f7a702d9935708680a91b60c6e053082164284a809af35e32c73f`;
+the temporary fail-fast diagnostic was dropped.
+
+The matching-source targeted Windows.UI build passed. Provider-bound
+`corecursor-test.c` passed **78 checks, zero failures**, covering factory
+QI/identity, default-activation rejection, Arrow and Custom round-trips,
+all valid enum values, invalid types, NULL outputs, metadata, agile identity
+and reference counts. The existing admission checks also passed:
+combase 27/0 with ordinal 122 at RVA `0x90f0`, CoreWindow 77/0,
+SHCore 16/0 and bcp47mrm 24/0.
+
+The one authorized game control,
+`cuphead-owned-corecursor-20261011-1530`, used the existing pinned
+combase/twinapi argv, scoped activation/string relay, UI/SEH and module
+tracing, and the 150-second controller bound. It ended naturally:
+
+| Private game evidence | Result |
+| --- | --- |
+| Primary thread `02a0`, lines 5352-5361 | CoreCursor factory lookup returns `S_OK`; `CreateCursor(type=0, id=0)` is called. |
+| Subsequent startup | AppCallbacks startup progresses into ThreadPool and CoreApplication activity; the complete AppCallbacks `ActivateInstance` return is not separately traced. |
+| Lines 5953-5957 | Genuine twinapi fails to delay-load `RMCLIENT.dll.HamConnectForExtendedExecution`, raising `EXCEPTION_WINE_STUB` (`0x80000100`). |
+| Line 11680 | Final fail-fast is now `0x1007` at SharedLibrary+`0x41cf88`, not `0xcf30`. |
+| Controller outcome | Real child exit **4103**, elapsed **1469 ms**; **0 total / 0 visible windows**. |
+| View/window frontier | No ordinal-1500 creation, ordinal-1700 resolution, ImmersiveNavigationClient or actual `corewindow_put_PointerCursor` call is observed. `Run`/`SetWindow` are not directly traced, so their completion is not claimed. |
+
+The CoreCursor class boundary is crossed; this is not first-frame or
+playability evidence. No RMCLIENT or further UI-class change, and no
+additional game launch, followed.
+
+Owner status is 0 with no owner or restoration errors. All 18 baseline
+hashes/absent targets match independently, CoreApplication and Debug
+registry state are restored, and CrossOver deep/strict signature
+verification passes. Owned processes are released. Older unowned
+Wine-named services started before this capture remain visible and were not
+signaled; global Wine absence is not claimed. A subsequent read-only `lsof`
+check attributes those unowned clients to the same Cuphead bottle and shared
+CrossOver files. Further runtime swaps are held pending their ownership and
+cleanup authority; the earlier capture's own process receipt does not prove
+bottle-wide quiescence.
+
+| Private 1530 evidence | SHA-256 |
+| --- | --- |
+| `game.log` | `077f625dbaf9ffe32e21e26f4d27d1e4bd84a99ed6903d6fd49f1194731310b0` |
+| `receipt.json` | `11018494ab6315201c9167ab48dcf7ddc8951b94979931bf1b3fcf7010e8ab16` |
+| `corecursor-tests.log` | `3ad77e862c51491a53f27b31f967b4f5fc6c99a515fe5fe4939f8b7e18357333` |
+
+Patch application is checked against the exact preserved Windows.UI source
+baselines and compared with the built source after LF normalization.
+The mandatory integration command `python gates/gate_runner.py quality-gate`
+still exits 2 because this repository does not contain `gates/gate_runner.py`;
+no overall quality-gate PASS or task-completion claim is made.

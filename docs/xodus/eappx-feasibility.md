@@ -1547,3 +1547,34 @@ run. Existing windows.ui, dxgi and ntdll changes remain applied and were not
 modified by this repair. The next bounded repair is the reached design-mode
 contract, grounded separately against genuine normal-host behavior; neither
 designer-host fidelity nor complete game support is established.
+
+### Normal-host design mode: validated, downstream cleanup abort remains
+
+Genuine combase oracles establish private ordinals 90/157
+`RoGetDesignMode[ V2 ](BOOL *)`: a normal non-designer process returns `S_OK`
+and writes `FALSE` with no apartment, STA or MTA. A NULL output returns
+`E_INVALIDARG`. `wine-combase-design-mode.patch` implements this bounded normal
+hosting contract, not a XAML designer state or package identity override.
+Existing named export ordinals and the eight prior relocations remain
+unchanged. Matching-source build and reverse-application checking pass;
+candidate SHA-256:
+`63657660278e7053b583c65b256bbf1097e4af3579909dba5407790207ca0ee4`.
+
+Under the explicit GUI runtime lease, all 21 independent design-mode controls
+pass. Apartment identity 27/0, shutdown lifecycle 35/0, native factories 6/0,
+configured-policy controls 6/0, four loader regressions and original activation
+13/0 remain passing. Receipt prefix: `celeste-registered-design-mode`.
+
+Actual original Celeste passes the repaired design-mode call, then aborts in
+the named Wine `RoRevokeActivationFactories` stub (candidate ordinal 316).
+Its preceding trace includes repeated `RoOriginateErrorW(0x80070057)` calls;
+there may be an earlier causal failure masked by this cleanup abort.
+The intended import binding and genuine cleanup contract need investigation
+before implementing that name. Celeste still exits 4103 with zero windows
+(365 ms), and no CoreWindow request or rendered frame was observed.
+
+All five vendor modules and bottle twinapi were restored, temporary registration
+and private mrt100 removed, and signatures verified before releasing both
+source/build and runtime windows. No new SHCORE/windows.ui/dxgi candidate was
+deployed in this Celeste probe. This advances one bounded native contract;
+it does not establish game support.

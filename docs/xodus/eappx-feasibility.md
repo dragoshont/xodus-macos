@@ -1782,3 +1782,64 @@ implementation parity, the behavior of slot 30, or progress in either game.
 Celeste's latest actual-game result remains exit 4103 with zero windows; private
 ordinal 69 is still unsupported. Any game experiment needs its own serialized
 runtime scope and must preserve these distinctions.
+
+### Cuphead stall capture: owned native sample, not first-frame evidence
+
+The coordinator corrected the interpretation of Cuphead run9: the activation
+harness waits 11 seconds, observes windows, then waits another 49 seconds and
+calls `TerminateProcess(child, 92)` on timeout. Exit 92 is not a voluntary game
+exit or evidence against a particular native fail-fast branch.
+
+Explicit user-directed scope authorized one safe Cuphead diagnostic capture,
+with temporary runtime swaps and verified restoration, but no disputed ABI
+aliases or new module builds. A new private harness preserves genuine mrt100,
+native twinapi and the stale `a6d35827...` combase baseline. It uses an explicitly
+owned foreground wineserver, checked registry commands, frozen module copies,
+backups and unique receipts. PID mapping, census completeness, historical Wine
+lineage and reused-PID rejection were checked before the capture.
+
+The first owner, `cuphead-owned-sample-20261011-1034`, stopped before game launch
+or registry mutation: its live census omitted an exited wineboot ancestor.
+Cleanup refused ambiguous ownership rather than reporting restoration success.
+Retained successful `new_process` records then established the full chain:
+owned initial Wine wrapper -> exited wineboot -> services -> service clients.
+Identity-verified numeric-PID recovery stopped those clients and the owned
+foreground server, restored all 13 runtime targets, removed the three
+originally absent files and passed signature verification. Its `recovery.json`
+records complete restoration; no game was launched by that owner.
+
+The corrected harness retains historical requester-thread/process-handle
+parentage and explicit launcher PID receipts. This is Wine process provenance,
+not an assumed persistent macOS parent chain: CrossOver may double-fork and
+reparent clients. Successful server startup replies print status `0`; decimal
+activation Wine PIDs are matched against hexadecimal reply PIDs and paired
+decimal Unix PIDs.
+
+The one actual capture, `cuphead-owned-sample-20261011-1042`, maps activation
+Wine PID 340 (`0x154`) to macOS PID 41826 with exact Cuphead image and start-time
+checks. `/usr/bin/sample` captured that numeric PID for three seconds at a
+one-millisecond interval, yielding 2,578 samples. The private report SHA-256 is
+`8a6a589b03bf6af5b817e6f88e68c654fb874e75ce1356e635fab63003f35d4e`.
+
+The macOS main thread is in the Wine/AppKit event loop and Mach message wait.
+Other sampled threads reach `NtWaitForAlertByThreadId` /
+`os_sync_wait_on_address`, or `NtWaitForSingleObject` and
+`NtWaitForMultipleObjects` through `server_wait`, `server_select` and
+`wait_select_reply`. These native frames are attributed to ntdll.so, loaded at
+`0x2086ef000`; the frozen source hash is `e4d34518...`. Long repeated syscall
+dispatcher frames limit the translated-process unwind. No twinapi PE caller
+or exact blocking object is established by this sample; ordinary wait frames
+alone do not prove deadlock or QI causality.
+
+The game again activates successfully, loads genuine mrt100 and native twinapi,
+creates two hidden windows (1280x720 and 1x1), survives the first 11-second wait,
+and is terminated by the harness's 60-second timeout with exit 92. No visible
+frame is verified.
+
+The final receipt verifies all 13 runtime targets restored, the three temporary
+files removed, original CoreApplication `DllPath` checked/restored as `REG_SZ`,
+owned runtime processes absent and CrossOver signature verification successful.
+Private sample, server/game logs and `receipt.json` remain under the unique
+owner directory on the Mac; no raw capture or proprietary binary is committed.
+Runtime was released. Further wait-object or PE-caller attribution is a separate
+diagnostic step, not authorization for another launch or an ABI implementation.

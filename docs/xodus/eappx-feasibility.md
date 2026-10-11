@@ -3497,6 +3497,115 @@ owned execution/restoration is not an overall PASS or playability claim.
 | Receipt | `b7f772336a4b7ba42064e819d5796d1e31baf8678f1b25f254ebe179e8106032` |
 | Independent baseline proof | `f7758fc17a004f443fd3b1dd97928465ee420420b2d2059ad6a0971f72d57312` |
 | Preserved UnityPlayer.log | `7c396f108b1c46506fed6eda2a1283cf33ffb90695825a8b2b2102c37063d71d` |
+
+#### 2210 original-exception telemetry gap and targeted capture-only plan
+
+Further read-only inspection finds exactly one dispatched native exception:
+01a8's `EXCEPTION_WINE_STUB` 80000100 at kernelbase+0xda77, after the missing
+`GetStringValueForManifestField` delay import. Its record has two stub identity
+parameters; three twinapi handlers return ContinueSearch, then a fourth
+handler is entered at 0x6ffffd3afaa8. The fourth handler's module ownership is
+not established by game.stderr's incomplete module inventory. No return from
+that handler is logged before resource-context construction and the eventual
+fail-fast. Therefore "recovered missing export" describes later activity, not
+proof of a benign fallback or a separate exception.
+
+No dispatch/handler entry for mrt100_app+0x8380 is recorded, and no second
+native dispatch precedes the generated 1007 record. The log cannot establish
+which original exception (including the earlier stub) enters the PInvoke
+guard, nor which twinapi outer caller consumes the successful vector.
+`FAILFAST_DIAGNOSTIC` is absent; diagnostics present in the current source tree
+must not be assumed to exist in the admitted kernelbase binary.
+Both factory returns expose the same private factory pointer 0x238e68.
+The next logged public activation is ApplicationView a28d7594, S_OK and
+interface 0x238dc8, called by SharedLibrary+0x46c322. This does not identify
+the caller at the untraced private slot30 boundary.
+
+The cheapest discriminator is **one capture-only debugger controller**, not
+another compatibility API or an unchanged replay. Preparation/admission plan:
+
+| Exact pinned module site | Grounded observation |
+| --- | --- |
+| twinapi+0x3d20c, then +0x3b50c | Instruction immediately after each slot30 call: EAX HRESULT, vector output at RSP+0x28, bounded stack/unwind caller evidence. |
+| mrt100_app+0x8380 (`RhpPInvokeExceptionGuard`) | Original RCX EXCEPTION_RECORD, R8 CONTEXT, R9 DISPATCHER_CONTEXT and handler thread before guard classification. |
+| mrt100_app+0x32c0 (`RhpFailFastForPInvokeExceptionCoop`) | Original RCX dispatch control PC, RDX exception record and R8 context, before reason7 conversion. |
+| mrt100_app+0x32e0 (`RhpFailFastForPInvokeExceptionPreemp`) | Same exception/context parameters on the preemptive path; keep distinct from generated FailFast. |
+
+Native mrt100_app SHA-256 is
+`6eb3c9c626c2514b39301969f318d1b7c839d3efe1a86a90783ec6f78f19e3ec`;
+twinapi remains
+`0d3e56c5068633f975bcab528267789f520f82a6d6a50f1330104e7597289b43`.
+Never reuse 2210 absolute addresses. Resolve module bases from owned debug
+events, verify image pins and the exact instructions before arming sites.
+
+The existing controller already creates the exact original executable
+suspended and performs explicit package activation before ResumeThread.
+A separate compiled diagnostic variant can use public
+DEBUG_ONLY_THIS_PROCESS/WaitForDebugEvent/ContinueDebugEvent and x64
+GetThreadContext/SetThreadContext debug-register controls. Four hardware
+execution slots fit guard/coop/preemptive plus one twinapi return; rotate the
+last slot from +0x3d20c to +0x3b50c after its first hit, and install equivalent
+controls for each new owned thread. Preserve occupied debug registers by
+refusing admission, not overwriting them. Do not patch private binaries/code,
+redirect execution, swallow application exceptions or clear FailFast.
+For owned breakpoint events only, log the typed records and resume under the
+debugger contract; pass original application exceptions as NOT_HANDLED.
+Host support for hardware debug registers remains unproven: the synthetic
+gate must reject unavailable/ineffective debug-register operations, with no
+software-code-patching or guessed interception fallback.
+
+Record first-chance exception code/address/parameters and exact handler
+inputs, retain bounded original contexts and up to four chained records.
+Use public header sizes and checked ReadProcessMemory, no guessed object
+layouts. At guard entry correlate its original record with first-chance
+events and report a mismatch or missing record explicitly. At the slot30
+return, preserve HRESULT/output and stack PCs; only claim an outer caller
+when its unwind or recorded return address actually identifies it.
+The normal activation, exit and window observations remain unchanged.
+
+This mechanism is supported by public debug APIs, but **not yet compiled or
+runtime-admitted**. It requires a source-only controller implementation and
+synthetic no-game tests first: suspended attach/start ordering, new-thread
+breakpoint propagation, module-relative resolution, read failures, ordinary
+first-chance exception pass-through, hardware-breakpoint resume without
+re-execution loops, exact exit accounting and cleanup. If these fail, stop
+before any game request.
+
+Only after that gate should a new exact controller pin and hold be requested:
+same 33 providers and native alias registration, no extra provider or
+compatibility fixes. Propose 60 seconds / 20 MB aggregate capture bound with
+minimal +seh/+loaddll, no +file/+module/full relay and no samples. Keep unique
+owner paths, Terminal/caffeinate, exact PID/start/lineage ownership,
+all-target/registration/fixture/settings restoration and independent
+signature/runtime/holder verification. This is a proposal, not a granted
+cycle, debugger success or a first-frame claim.
+
+#### Source-only capture accounting correction
+
+The preserved 2210 owner and captures are unchanged. New
+`capture_accounting.py` polls the controller, reads completed stdout, then
+checks the sum of stdout/stderr/server bytes before classifying ready or
+timeout. An aggregate over-limit remains failure even when exit/first-wait
+markers are present; missing captures explicitly error and no file is
+truncated. Eleven local synthetic tests cover rapid real subprocess exit,
+split-output aggregate limits, exact thresholds, stale timeout races,
+marker/over-limit precedence, missing files and retained output.
+
+A separate session-artifact owner prototype imports this helper in both
+first-wait and later diagnostic loops, keeps parsed exit observations before
+raising a genuine aggregate failure, records per-stream/aggregate sizes and
+performs final post-cleanup accounting without replacing a prior owner error.
+It is syntax-checked source only, still inherits consumed 2210 paths, and
+**must not be executed**. Any future unique owner must stage/pin the helper
+and controller together and pass its own admission; this does not change
+2210's failed receipt or authorize another launch.
+
+Local focused validation: `python -m unittest discover -s
+scripts/macos/compatibility -p test_capture_accounting.py -v` passes 11/11;
+the owner prototype passes AST parsing without import/execution. The required
+`python gates/gate_runner.py quality-gate` was attempted again and exits 2
+because this checkout has no `gates/gate_runner.py`. This remains an explicit
+mandatory integration blocker, not a quality PASS.
 | Frozen executed owner | `50904eb36c6359a6ee13cfad538478238bb7ff8d0a41373647fe75f007636405` |
 | Frozen executed Terminal wrapper | `32160f9ab71e37dd305f7e2e2686eba99683f94704c67d3cc571cb6f6d5222a7` |
 
@@ -3690,3 +3799,67 @@ The missing mandatory quality runner remains an integration limitation.
 | Direct loader stderr | `d7fae60466ff1e0ac3ccd7632fd8d3cda18ac95eea641f9294ba68c91277af0f` |
 | Catalog oracle stdout | `da850b7def1a06470f965b8ed2e51bbd0d0c796d4a976e7cafa1d6858fd99a1e` |
 | Catalog loader stderr | `560f7e9b87802bee8ce23a543b6a74282db5b201153d4a23244a1e639e8ab609` |
+
+### One-game native-reference 2210: factory resolved, fail-fast unchanged
+
+After 2205 persistence (`6a394d3`), the coordinator authorized one bounded
+Cuphead launch with the identical 33 providers plus only the verified alias
+selection/temporary Detail.Vector registration. The owner pinned the 2205
+receipt/proof and native alias, retained the standard pre-gates and used
+Terminal/caffeinate with unchanged split game captures. No registration-295,
+events, graphics or guessed factory implementation was added.
+
+**VERIFIED product delta:** thread 01a8 loads the native alias and its exact
+08c77958 factory succeeds twice. The first return is S_OK at twinapi+0x3d199;
+the second is S_OK at twinapi+0x3b499. Native descriptor strings are duplicated
+for both CoreApplicationView and a subsequent Object vector. The latter
+specialization was not part of the synthetic oracle, and its complete
+collection semantics are not asserted. These native construction traces and
+subsequent ApplicationView activity demonstrate progress beyond the original
+CLASSNOTREG boundary; no direct slot-30 return instrumentation is present.
+No 80040154 activation return remains in this capture.
+
+The actual game still exits 4103 after 2415 ms, zero total/visible windows.
+The original activation controller reports 13 checks and zero failures, not
+gameplay success. cuphead.App's native callback is registered, but no invocation
+is observed; no RoGetActivatableClassRegistration or swapchain creation is
+observed. The original UnityPlayer.log remains 201 bytes of metadata and is
+retained as a unique snapshot, unchanged from 2200.
+
+The terminal fingerprint is again reason 1007 at SharedLibrary+0x41cf88 on
+the MTA (01a8). The last MTA operation is successful FTM-backed GIT marshaling
+of IID e2663f37, returning cookie f101,
+then RaiseFailFastException(record 0x10e5a8, NULL context, flags 1).
+No intervening HRESULT or e06d7363 exception is captured. The pointed-to
+record and managed/native transition caller remain unavailable. The earlier
+recovered missing MRM export remains present and is not newly attributed as
+the cause. This repeats the earlier terminal boundary despite successful
+Detail.Vector activation; an unchanged launch cannot identify its cause.
+
+**FAILED capture receipt:** the owner reaches its existing first-wait/log
+bound before polling the controller's final stdout, because server.log crosses
+100 MB. Preserved stdout nevertheless contains the actual app exit/window
+result. Cleanup yields a final server log of 154,171,367 bytes and diagnostic
+stderr of 38,640,360 bytes. The owner error remains
+`RuntimeError('Bounded first-wait/log limit')`; it is not relabeled PASS and
+the bound was not relaxed or the launch replayed.
+
+Owner restoration completes without errors. Independent verification confirms
+all 33 baseline hashes/absences, exact 2195 target/candidate/baseline triples,
+Detail.Vector and prior temporary key/fixture absence, original
+WineDbg/CoreApplication settings, strict signature, no runtime and full
+.wineserver holder quiescence. The native alias is unchanged. The single
+grant is consumed and exclusive hold released. No second launch is authorized;
+the lane stops unchanged-fingerprint retries pending a discriminating
+exception-record/transition-caller observation or other fresh evidence.
+This native-reference experiment is not distributable support or a first frame.
+Mandatory quality-runner absence remains a reported integration limitation.
+
+| 2210 private evidence | SHA-256 |
+| --- | --- |
+| Game stdout | `e068dd5e4be8592c06e8d579f75cf70a9620745d9f8c4d518b45ba238130ee53` |
+| Game stderr | `49031520ad4ee8904a02bc9c1dee386c7d41d1df3efec2f14bd919218656a6b0` |
+| Server log | `e6fd72452e6fa74c69dba4802e9c286ef32ecd9b07d9e01226994d0cc1a97b83` |
+| Failed bounded-capture receipt | `75cfd9cc38e1d463823f9ae45b327d00ab9d615e51dc41d934666217ca4c5953` |
+| Independent restoration proof | `6de03725d2abde8aff385d446c83c798cebea5fd699510574905c56d469d5d4e` |
+| Preserved UnityPlayer.log | `7c396f108b1c46506fed6eda2a1283cf33ffb90695825a8b2b2102c37063d71d` |

@@ -109,6 +109,31 @@ class CaptureAccountingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.state(limit=-1)
 
+    def test_live_dump_growth_is_part_of_aggregate_bound(self):
+        dump = self.root / "exception-0.dmp"
+        dump.write_bytes(b"d" * 80)
+        self.stderr.write_bytes(b"e" * 21)
+        state = poll_capture(Controller(None), self.stdout, [self.stderr, dump],
+                             10, 0, 100, "")
+        self.assertEqual(state.status, "over_limit")
+        self.assertEqual(state.total_bytes, 101)
+        self.assertEqual(dump.stat().st_size, 80)
+
+    def test_dump_completed_at_process_exit_cannot_hide_over_limit(self):
+        dump = self.root / "exception-0.dmp"
+        dump.write_bytes(b"")
+
+        class FinishingController:
+            def poll(self):
+                dump.write_bytes(b"d" * 101)
+                return 0
+
+        state = poll_capture(FinishingController(), self.stdout, [self.stderr, dump],
+                             10, 11, 100, "")
+        self.assertEqual(state.status, "over_limit")
+        self.assertEqual(state.returncode, 0)
+        self.assertEqual(dump.stat().st_size, 101)
+
 
 if __name__ == "__main__":
     unittest.main()

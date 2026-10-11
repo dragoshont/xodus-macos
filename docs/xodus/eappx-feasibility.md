@@ -3498,6 +3498,106 @@ owned execution/restoration is not an overall PASS or playability claim.
 | Independent baseline proof | `f7758fc17a004f443fd3b1dd97928465ee420420b2d2059ad6a0971f72d57312` |
 | Preserved UnityPlayer.log | `7c396f108b1c46506fed6eda2a1283cf33ffb90695825a8b2b2102c37063d71d` |
 
+### Source-only2240: exception events and verified minidump streams
+
+The Rosetta hardware-register lane remains CUT. A fresh synthetic-only
+`exception-event-controller.exe` now uses public debug events and
+`GetThreadContext(CONTEXT_CONTROL | CONTEXT_INTEGER)`, without debug-register
+writes, target instruction patches, interception or trap emulation. It accepts
+only the pinned `exception-event-fixture.exe`; it is not a package/game
+controller. The older package controller remains excluded and unexecuted.
+
+Only the first-chance breakpoint on the original process thread at the frozen
+ntdll `process_breakpoint` RVA110a8 is continued as the startup trap. Admission
+checks ntdll SHA256
+`f8bd19c7606e0f7c506380d1c5c1d8bea477cbfea935f8c6f115de2ae8a2cb42`
+and remote bytes `cc c3 49 ff 80 f8 00 00 00 31 c0 c3`.
+Other first/second-chance exceptions remain `DBG_EXCEPTION_NOT_HANDLED`,
+including a separately prepared application-handled breakpoint fixture.
+
+For a non-startup first-chance event the controller preserves the actual
+exception code/flags/address/parameters and stopped-thread integer/control
+context. `MiniDumpWriteDump(MiniDumpNormal)` receives controller-local
+`EXCEPTION_POINTERS` with `ClientPointers=FALSE`. Callback flags request only
+thread metadata/context and module metadata, not stack memory or symbol data.
+The completed dump parser checks bounded directory/RVA ranges, exact exception
+thread/record/parameters, integer/control register equality in both exception
+and thread streams, and a named module containing the exception address.
+There is no StackWalk64 call or unwind claim.
+
+The existing bottle/vendor dbghelp.dll baseline is unchanged and both copies
+hash to `e111a5b162e52207d04fe82d704c1b169297c22c2fdff64348322a98a15abbfb`.
+The proposed owner explicitly selects `dbghelp=b`; the controller hashes its
+actual loaded provider path before creating the fixture. This is an additional
+read-only provider identity check, not a 34th replacement.
+
+**Bounds limitation:** the inspected Wine minidump implementation does not
+invoke CancelCallback. Callback cancellation is therefore not claimed as a
+hard writer bound. The fresh owner monitors stdout, stderr, per-command server
+growth and every in-progress dump at 100ms intervals; its 18s/20MB thresholds
+cause a failed cycle and exact owned-runtime cleanup, not truncation or a
+success-shaped fallback. The controller additionally checks a 12s deadline and
+10MB stdout-plus-dump threshold (2s deadline / 64KiB pressure for the two
+negative fixtures), and rechecks completed output. A writer stall or overshoot
+remains FAILED evidence; finite polling cannot guarantee zero byte overshoot.
+Completed and failed artifacts are preserved and hashed after cleanup.
+
+Both AMD64 PE32+ candidates strictly cross-compile with
+`-Wall -Wextra -Werror` and deterministic PE timestamps. The only diagnostic
+suppression is localized to Wine's deliberately packed minidump header.
+Import inspection rejects SetThreadContext, WriteProcessMemory,
+DebugBreakProcess and unverified StackWalk64. The two new local dump-growth
+fixtures bring capture-accounting tests to **13 passing tests**. Owner/wrapper
+syntax parses and local/remote staged bytes match. No Windows executable,
+synthetic fixture, Wine runtime or game was executed for this preparation.
+The mandatory quality command again exits2 because `gates/gate_runner.py`
+is absent; this is not an overall integration PASS.
+
+Private staged directory:
+`~/xodus-app-tooling/cuphead/exception-event-candidate-20261011-2240`.
+Fresh unexecuted owner/wrapper are
+`~/xodus-app-tooling/cuphead/cuphead-exception2240-{owner,launch}.py`;
+the proposed unique cycle label is
+`cuphead-owned-exception-unit-20261011-2240`. The wrapper accepts only `unit`,
+checks the owner's exact hash and refuses existing logs/status/work. No hold
+has been granted for2240.
+
+|2240 staged artifact|SHA256|
+|---|---|
+|exception-event-controller.c|`6f5202217c47c8e17e782987c2a5e501066311c0439574df029b41034d6b349c`|
+|exception-event-fixture.c|`2c94208718dde99e583ca68a4a70197e7357ef2c45849926114c23ffb2581d8a`|
+|exception-event-controller.exe|`558195bb602a130b980e82c4a503e22328624718b17ad8083bd6d6bab843d8bf`|
+|exception-event-fixture.exe|`8e4cde6727f77141c4b9d6fde3be2316665b3c203704d5ea507ec224a6c37fdd`|
+|compile_exception_event.py|`5a57341c47fd866d2aac6bbc6363a853f32bec1587d15179e68988bb82f18131`|
+|source-compile-manifest.json|`75b08079cae96089fc6652db4be2b3f04d9e451727739b2f813c3cd04798c551`|
+|cuphead-exception2240-owner.py|`134962895e43263e88780bc96a5957bb65cf204a733e6a00df33ebb35e36367f`|
+|cuphead-exception2240-launch.py|`5f9c604f1fba5c175cbcde811ec11beab95d92c130eb049d093eaafb29d8195d`|
+|capture_accounting2240.py|`28add3e42f44916613dddd83f7db87e8380767738c24da10c71bd36c463ed1a1`|
+
+**Proposed no-game admission only:** retain the exact2195 33-target
+target/candidate/baseline triples, receipt
+`6c62e9398e4d2250dba0b68bda7943320dad63841cf37a3fa81c1c64ea1fae93`.
+The fresh owner checks all candidate identities and every baseline against
+that receipt before replacement. Existing standard pre-gates, original and
+augmented suites, nullable50 and compiled-out backend-error units remain.
+Then run, stop-first-failure, these seven synthetic modes: handled,
+unrelated breakpoint, unhandled (first plus second chance), injected
+read-error, deadline, aggregate-size and live detach. Positive modes require
+actual dump/context/module validation and normal owned exit. Negative modes
+require the exact expected reason and demonstrated intended fixture boundary
+plus successful owned termination/continuation/detach/quiescence; arbitrary
+startup failure cannot pass. All modes require successful owned handle-close
+accounting. Per-mode and completed aggregate accounting is retained.
+
+No alias selection, Detail.Vector registration, #295/frame/events addition,
+game/package launch or changes to package/save contents are proposed. Restore
+all33 targets and original registration/fixture/settings baselines, verify
+dbghelp and alias unchanged, strict signature and complete runtime/recursive
+holder quiescence independently before releasing any future exclusive hold.
+Failed2230 and original2210 captures/receipts remain intact. Exception-event
+observations alone cannot establish mrt100_app guard entry, private Vector
+slot30/outer-call return, or reason7 causality.
+
 #### 2210 original-exception telemetry gap and targeted capture-only plan
 
 Further read-only inspection finds exactly one dispatched native exception:

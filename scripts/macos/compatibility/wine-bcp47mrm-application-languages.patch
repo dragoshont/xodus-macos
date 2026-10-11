@@ -1,0 +1,159 @@
+--- a/dlls/bcp47mrm/main.c
++++ b/dlls/bcp47mrm/main.c
+@@ -1,29 +1,131 @@
+ #include <stdarg.h>
++#include <stdlib.h>
++#include <string.h>
+ #include "windef.h"
+ #include "winbase.h"
+ #include "winerror.h"
++#include "winnls.h"
+ #include "wine/debug.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(bcp47mrm);
+ 
+-/* Semi-stub DLL: satisfies MrmCoreR.dll delay-imports so UWP resource
+- * context init proceeds. NOT native Microsoft bcp47mrm parity. Confirmed
+- * called on the Cuphead path: GetApplicationLayoutDirection,
+- * GetApplicationLanguagesWithUserLanguagesFallback. The rest return benign
+- * values for an en-US / LTR single-language app; iterate if a call crashes. */
++/* The remaining exports retain the existing experimental baseline. */
+ 
+-HRESULT WINAPI GetApplicationLanguagesWithUserLanguagesFallback(void *delimiter, UINT32 *count, void *languages)
++static HRESULT language_api_error(const char *name)
+ {
+-    FIXME("(%p %p %p) semi-stub: empty language list\n", delimiter, count, languages);
+-    if (count) *count = 0;
+-    if (languages) *(void **)languages = NULL;
++    DWORD error = GetLastError();
++    ERR("%s failed with error %lu.\n", name, error);
++    return error ? HRESULT_FROM_WIN32(error) : E_UNEXPECTED;
++}
++
++static HRESULT user_languages(WCHAR **result)
++{
++    WCHAR *buffer = NULL, *next, *cursor;
++    ULONG count = 0, chars = 0;
++    DWORD error;
++    unsigned int attempt;
++
++    *result = NULL;
++    for (attempt = 0; attempt < 3; ++attempt)
++    {
++        SetLastError(ERROR_SUCCESS);
++        if (!GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &count, NULL, &chars))
++            return language_api_error("GetUserPreferredUILanguages(size)");
++        if (!count || chars < 2) break;
++        if (!(buffer = calloc(chars, sizeof(*buffer)))) return E_OUTOFMEMORY;
++        SetLastError(ERROR_SUCCESS);
++        if (GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &count, buffer, &chars)) break;
++        error = GetLastError();
++        free(buffer);
++        buffer = NULL;
++        if (error != ERROR_INSUFFICIENT_BUFFER || attempt == 2)
++        {
++            SetLastError(error);
++            return language_api_error("GetUserPreferredUILanguages(fill)");
++        }
++    }
++    if (!buffer || !buffer[0])
++    {
++        free(buffer);
++        if (!(buffer = calloc(LOCALE_NAME_MAX_LENGTH, sizeof(*buffer)))) return E_OUTOFMEMORY;
++        SetLastError(ERROR_SUCCESS);
++        if (!GetUserDefaultLocaleName(buffer, LOCALE_NAME_MAX_LENGTH))
++        {
++            HRESULT hr = language_api_error("GetUserDefaultLocaleName");
++            free(buffer);
++            return hr;
++        }
++        if (!buffer[0])
++        {
++            ERR("Both user language sources are empty.\n");
++            free(buffer);
++            return E_UNEXPECTED;
++        }
++    }
++    else
++    {
++        for (cursor = buffer; *cursor; cursor = next)
++        {
++            next = cursor + lstrlenW(cursor) + 1;
++            if (*next) next[-1] = ';';
++        }
++    }
++    *result = buffer;
+     return S_OK;
+ }
+ 
+-LONG WINAPI GetApplicationLayoutDirection(void)
++HRESULT WINAPI GetApplicationLanguagesWithUserLanguagesFallback(PCWSTR package_fullname, SIZE_T *length,
++                                                                 WCHAR *buffer)
+ {
+-    FIXME("semi-stub: returning 0 (LTR)\n");
+-    return 0;
++    SIZE_T capacity, required;
++    WCHAR *languages;
++    HRESULT hr;
++
++    FIXME("package %s: no per-package manifest/registry language selection or fallback matching.\n",
++          debugstr_w(package_fullname));
++    if (!length) return E_POINTER;
++    capacity = *length;
++    if (FAILED(hr = user_languages(&languages))) return hr;
++    required = (SIZE_T)lstrlenW(languages) + 1;
++    *length = required;
++    if (!buffer || capacity < required)
++        hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
++    else
++    {
++        memcpy(buffer, languages, required * sizeof(*buffer));
++        FIXME("User-language subset: %s, required/written %Iu WCHARs.\n", debugstr_w(languages), required);
++    }
++    free(languages);
++    return hr;
++}
++
++HRESULT WINAPI GetApplicationLayoutDirection(PCWSTR languages, DWORD *direction)
++{
++    WCHAR *owned = NULL;
++    WCHAR first, second;
++    HRESULT hr;
++
++    FIXME("languages %s: limited ar/he/fa/ur primary-subtag RTL table; no package-language lookup.\n",
++          debugstr_w(languages));
++    if (!direction) return E_POINTER;
++    *direction = ~0u;
++    if (!languages || !*languages)
++    {
++        if (FAILED(hr = user_languages(&owned))) return hr;
++        languages = owned;
++    }
++    first = languages[0];
++    second = languages[1];
++    if (first >= 'A' && first <= 'Z') first += 'a' - 'A';
++    if (second >= 'A' && second <= 'Z') second += 'a' - 'A';
++    *direction = 0;
++    if (second && (!languages[2] || languages[2] == '-' || languages[2] == ';'))
++        if ((first == 'a' && second == 'r') || (first == 'h' && second == 'e') ||
++            (first == 'f' && second == 'a') || (first == 'u' && second == 'r'))
++            *direction = 1;
++    FIXME("Selected layout direction %lu.\n", *direction);
++    free(owned);
++    return S_OK;
+ }
+ 
+ LONG WINAPI GetLanguageDirectionality(void *lang)
+--- a/dlls/bcp47mrm/bcp47mrm.spec
++++ b/dlls/bcp47mrm/bcp47mrm.spec
+@@ -1,8 +1,8 @@
+ @ stdcall CompareBcp47Tags(ptr ptr)
+ @ stdcall FormatLanguageList(ptr ptr ptr)
+ @ stdcall FormatLanguageTag(ptr ptr)
+-@ stdcall GetApplicationLanguagesWithUserLanguagesFallback(ptr ptr ptr)
+-@ stdcall GetApplicationLayoutDirection()
++@ stdcall GetApplicationLanguagesWithUserLanguagesFallback(wstr ptr ptr)
++@ stdcall GetApplicationLayoutDirection(wstr ptr)
+ @ stdcall GetClosenessOfUnIsoRegionTags(ptr ptr)
+ @ stdcall GetCompositeRegionCode(ptr ptr)
+ @ stdcall GetDistanceOfClosestLanguageInList(ptr ptr ptr)

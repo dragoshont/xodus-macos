@@ -2193,3 +2193,86 @@ targeted builds and tests pass. The prescribed repository-wide command
 `python gates/gate_runner.py quality-gate` cannot execute because that file
 does not exist here (Python exit 2). No repository-wide quality PASS or
 overall game-support completion is claimed.
+
+### bcp47mrm language-buffer and layout-direction ABI corrections
+
+The coordinator authorized one further control after identifying two called
+ABI bugs in the experimental bcp47mrm provider. The existing language function
+returned an empty list, wrote an eight-byte NULL pointer into a WCHAR buffer,
+and updated only a UINT32 length. The existing no-argument layout function
+never wrote the caller's output, leaving the native ResourceContext direction
+at `0xffffffff`.
+
+Independent read-only inspection of the genuine formatter confirms a
+**SIZE_T capacity/required-length pointer**: `+0x52c4` reads eight bytes and
+`+0x53c5` compares the capacity with the required character count. Its delimiter
+is `';'`, and the required size includes NUL. The earlier saved handoff's
+four-argument / UINT32 / out-only interpretation is not reused.
+The coordinator also corrected the first argument: it is a package full name,
+not a language list. Genuine `+0x4bda` calls PackageFamilyNameFromFullName;
+NULL uses the current-package family path, then package language lookup with
+user-language fallback. The corrected provider explicitly implements only the
+user-language subset; it does not interpret a supplied package identity as
+languages or claim manifest/registry selection or app/user matching.
+
+`wine-bcp47mrm-application-languages.patch` changes only the two called
+implementations and their spec signatures. The language export obtains live
+GetUserPreferredUILanguages(MUI_LANGUAGE_NAME), joins multi-sz tags with `';'`,
+and uses GetUserDefaultLocaleName only for an empty preferred-language list.
+API failures propagate their Win32 HRESULTs, or `E_UNEXPECTED` for a failed
+API without an error; allocation failures remain explicit. A NULL length gives
+`E_POINTER`; short or NULL buffers report the required SIZE_T length and
+`HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER)`, without a pointer-width buffer
+write. Exact-fit output is NUL-terminated.
+
+The layout export now accepts the grounded input/output pointer arguments,
+returns `E_POINTER` for NULL output, and writes an actual direction value.
+For the exercised NULL-input path it uses the live preferred language.
+The deliberately limited, logged primary-subtag table recognizes ar/he/fa/ur
+as RTL; other primary subtags are LTR. This is not full language/script or
+per-package directionality parity. The other ten guessed exports are unchanged.
+
+Only bcp47mrm was rebuilt:
+`ca0f1ff45c6bda4084cc196a6de1b0430bd3cbcda72be1320a6d8a3c06d8b4cd`.
+The provider-bound `bcp47mrm-language-test.c` passes **24 checks / zero failures**,
+including NULL length, undersized-buffer canaries, required length, exact fit,
+NUL bounds, live-profile equality, NULL/unknown/provided package arguments that
+must not become language data, NULL direction, written LTR and bounded RTL
+cases. It admits the actual payload bcp47mrm path and reports `en-US`, length 6.
+
+Unique game control `cuphead-owned-languages-20261011-1410` keeps the 1305
+combase/windows.ui/SHCore and other module hashes unchanged, plus the 1340
+relay/SEH/debugstr filter. Pre-game checks are apartment **27/0**, CoreWindow
+**77/0**, scale **16/0**, language **24/0**. Wine PID 640 (`0x280`) has the
+startup-proven primary thread `0284`. Main log line 11180 and worker line 11328
+produce `en-US` / six WCHARs; main line 11189 writes layout direction 0.
+The old main-thread 1340 first-argument line is interleaved with loader text,
+so its pointer cannot be recovered from that line. The explicit worker records
+in 1340 and 1410 both pass NULL.
+
+The game consumes the corrected data, not merely the unit-test executable:
+
+| Private 1410 lines | Observed call / result | Return site |
+| --- | --- | --- |
+| 11552-11553 | WindowsCreateStringReference(`en-US`, 5), `S_OK` | MrmCoreR `+0x5fb72` |
+| 11555-11556 | WindowsDuplicateString(non-NULL HSTRING), `S_OK` | MrmCoreR `+0x5fd0b` |
+| 11558-11559 | ResourceContextLanguagesVectorView class-name string, `S_OK` | SharedLibrary `+0x48356e` |
+| 11560-11563 | WindowsCreateString(`en-US`, 5), twice, `S_OK` | MrmCoreR `+0x36f0a` |
+
+Nevertheless, the same unhandled `0xcf30` at SharedLibrary `+0x41cf88`
+persists: **real exit 53040 after 2,740 ms, zero total/visible windows**.
+No invocation of 1500 or ImmersiveNavigationClient, newly called remaining
+bcp47mrm stub, or new final error-origin Message/HResult is observed.
+The two real ABI/data bugs are fixed and consumed, but their correction is
+not sufficient to remove the managed fail-fast. No new frontier or first
+frame is claimed. No additional game launch followed.
+
+All 18 temporary targets, CoreApplication and Debug registry state were
+restored and verified, with no restoration errors; owned runtime was absent
+and CrossOver deep/strict signature verification passed.
+
+| Private 1410 evidence | SHA-256 |
+| --- | --- |
+| `game.log` | `6832d641bf630a605eeb98a510424da1387c9cb447760584e2f517a5c0da2b46` |
+| `receipt.json` | `5f5801ef7bee4c48b5234234d477db7e2311138e69bca17f32a4848c8ab62af0` |
+| `language-tests.log` | `428c64e97d3c80afde9c27cb0c6f3cf2e6386e76baac3cd8ef32f28c131fbf4a` |

@@ -35,11 +35,18 @@ int wmain(int argc, WCHAR **argv)
     if (argc != 1 && !packaged) return 2;
     if (packaged && wcslen(argv[2]) >= 511) return 2;
     package = (QUERY_CONTEXT)(ULONG_PTR)GetProcAddress(kernelbase, "GetCurrentPackageResourcesContext");
+    if (!package) {
+        printf("FAIL export=GetCurrentPackageResourcesContext error=%lu\n", GetLastError());
+        return 2;
+    }
     application = (QUERY_CONTEXT)(ULONG_PTR)GetProcAddress(kernelbase, "GetCurrentPackageApplicationResourcesContext");
+    if (!application) {
+        printf("FAIL export=GetCurrentPackageApplicationResourcesContext error=%lu\n", GetLastError());
+        return 2;
+    }
     property = (QUERY_PROPERTY)(ULONG_PTR)GetProcAddress(kernelbase, "GetPackageResourcesProperty");
-    provider = LoadLibraryW(L"ext-ms-win-mrmcorer-resmanager-l1-1-0.dll");
-    if (!package || !application || !property || !provider) {
-        printf("FAIL exports_or_mapping error=%lu\n", GetLastError());
+    if (!property) {
+        printf("FAIL export=GetPackageResourcesProperty error=%lu\n", GetLastError());
         return 2;
     }
     if (!GetModuleFileNameW(kernelbase, path, MAX_PATH)) return 2;
@@ -47,8 +54,18 @@ int wmain(int argc, WCHAR **argv)
            path, (unsigned long long)((ULONG_PTR)package - (ULONG_PTR)kernelbase),
            (unsigned long long)((ULONG_PTR)application - (ULONG_PTR)kernelbase),
            (unsigned long long)((ULONG_PTR)property - (ULONG_PTR)kernelbase));
+    puts("APISET request=ext-ms-win-mrmcorer-resmanager-l1-1-0.dll");
+    provider = LoadLibraryW(L"ext-ms-win-mrmcorer-resmanager-l1-1-0.dll");
+    if (!provider) {
+        printf("FAIL provider_load=ext-ms-win-mrmcorer-resmanager-l1-1-0.dll error=%lu\n", GetLastError());
+        return 2;
+    }
     string = (QUERY_STRING)(ULONG_PTR)GetProcAddress(provider, "GetStringValueForManifestField");
-    if (!string || !GetModuleFileNameW(provider, path, MAX_PATH)) return 2;
+    if (!string) {
+        printf("FAIL export=GetStringValueForManifestField error=%lu\n", GetLastError());
+        return 2;
+    }
+    if (!GetModuleFileNameW(provider, path, MAX_PATH)) return 2;
     printf("PROVIDER %ls\n", path);
     check(package(0, NULL, NULL) == ERROR_INVALID_PARAMETER, "null_package_output");
     check(application(0, NULL, NULL) == ERROR_INVALID_PARAMETER, "null_application_output");

@@ -4537,6 +4537,139 @@ MRM success and first frame remain untested. Mandatory
 `python gates\gate_runner.py quality-gate` again exits2 because the runner
 is absent; this remains an integration limitation, not overall PASS.
 
+#### Actual2280: stopped before game; exact-owned recovery verified
+
+The coordinator granted one34-target cycle and the exact enabling hashes
+fa0a8eec.../7d7e691c... were verified before the unique Terminal/caffeinate
+launch. Canonical33 was checked before the MRM delta. Required standard
+pre-gates completed: Pnp devnode35/backend22, cfgmgr1292/1369,
+enumeration1938/1987, wintypes1120, nullable50, folders96,
+accessibility33, cstub248 and the existing activation/proxy gates all reported
+zero failures (existing TODO counts remain). These are no-game results.
+
+The first controlled command failed with
+`OwnershipError('Launcher identity changed')`; emergency admission also
+failed `Native PID generation/identity changed`. No uncertain signal was
+issued. The owner correctly blocked registry/file restoration rather than
+calling it success. Its original receipt retains `complete_restoration=false`.
+The probe continued briefly and ultimately printed
+`FAIL exports_or_mapping error=126`, with no native MRM result or six-check
+completion. No ordinary package/game command or temporary Vector/server/
+entrypoint registration was reached. This consumed2280; no replay occurred.
+
+The receipt's early snapshot had zero stdout bytes and incomplete stderr.
+Original artifacts were not truncated or updated into PASS: a separate
+`post-recovery-artifacts.json` records final stdout35 bytes, stderr4272 bytes
+and server110,018,401 bytes. The server initial boundary for this command was
+108,886,715, so final command split+server aggregate was1,135,993 bytes, below
+2MB. The full server includes earlier pre-gates, not just the controlled
+command. The failure was identity admission/loader126, not an aggregate
+overrun. Actual consumer behavior/output contract was not exercised.
+
+The hold remained through recovery. Persisted `server-identity.json` proved
+server88004/start19:48:16/exact wineserver argv. Receipt clients88020 and
+88026 retained exact original start times/argv and matched fresh identities;
+all live identities were checked before signaling. Recovery sent TERM then
+KILL only to these admitted clients, then TERM to the exact server, and
+verified no runtime/recursive bottle holder before restoration. Scoped
+offline registry edits restored original CoreApplication DllPath and empty
+WineDbg and removed the proven temporary Pnp/dispatcher/proxy registrations.
+All34 hash-checked file backups were restored; temporary files removed.
+No Wine/probe/game was launched for recovery. Original failed receipt and
+captures remain unchanged; supplemental recovery is not a successful cycle.
+
+Independent verification passed all34 baselines and the canonical33 subset,
+14 registry/fixture absence checks, original settings, unchanged native MRM/
+Vector alias/dbghelp/package/bottle schema, strict signature and full runtime/
+owner/wrapper/caffeinate/recursive-holder quiescence. The coordinator was
+informed that the hold could release. Failed2270 remains unchanged.
+
+|Actual2280 retained evidence|SHA256|
+|---|---|
+|Original failed receipt|`bd2cf44bc65794cd13af84feee504ddc3085d8490a84e0f514d44b470ebe1011`|
+|Supplemental exact-owned recovery|`ee11ce39f731b28d9073964e25b630f345029dbe8bdc0782e1b074cedeffae83`|
+|Independent recovery verification|`ec212bdc737ae81fb8d4ee7fed39a34f450c2fa0f0c4d6888daee0dbe5dd70e5`|
+|Completed probe stdout|`805ab3955d8932e9eef27cc118ebce14ad4d79acbed380cc5b4e5b62ecb21705`|
+|Completed probe stderr|`0f90feb6754021010f1395d1002d9c1938501bcdccb54d597ab38dae4271e099`|
+|Preserved server log|`1db8fb0d7a048b0d64f2a12b8d7e35a5bf6ff8cb75edcbbf7f57898e129ee960`|
+
+#### Source-only2290: two grounded corrections, no retry
+
+The bounded identity adapter compared the entire `ps` line, including
+mutable R/S state and argv. CrossOver's Perl wrapper explicitly performs
+`exec $cmd, @wine_args, @args` at line1245: legitimate same-PID exec changes
+argv. Same-run2280 server evidence admits original native launcher88743 at
+`init_first_thread` line851628 and shows its winewrapper generation creating
+the new probe. No foreign-PID observation exists. The differing bounded
+`ps` strings were not retained, so whether state, exec argv or both caused
+this exact comparison cannot be asserted. The source model is nevertheless
+wrong for a launcher whose documented path execs in place.
+
+The narrow correction uses the genuine SDK's `proc_pidinfo(PROC_PIDTBSDINFO)`
+and `proc_bsdinfo` native PID plus kernel start seconds/microseconds, not
+mutable state/argv as generation identity. SZOMB is absent; malformed/short/
+permission errors are explicit failures. The single bounded subprocess
+adapter checks its deadline and format; existing Wine generation/parent
+admission and signal-boundary identity recheck stay intact. No PID-only
+ownership, broad process-name signaling or exception/product mutation is
+introduced. `owned-process-generation.c` compiles strictly against genuine
+Darwin headers. Two native synthetic tests pass: stopped owned Perl process
+execs `/bin/sleep` at the same PID while birth identity stays unchanged;
+distinct children/exited child remain distinct/absent. Existing15 control
+tests retain PID-generation/identity-mismatch and fail-closed expectations.
+These tests prove native process identity behavior, not Wine cleanup success.
+
+The126 source discriminator found a separate placement bug: admitted
+ntdll `find_apiset_dll`3698-3720 constructs `system_dir + mrmcorer.dll`;
+`find_dll_file`3910 onward opens the resulting absolute path.2280 had only
+an app-local native MRM copy and no system32 provider. Thus its probe's
+bare API-set request did not search the app-local copy. The Manifest child
+independently confirmed this and distinguishes twinapi's relative delay
+import path from this generic LoadLibrary path. No MrmCoreR loader line was
+observed; static unresolved imports are possible later blockers, not an
+observed additional126 cause or justification for success shims.
+
+The coordinator explicitly selected one additional native target for the
+product and probe paths: bottle `drive_c/windows/system32/mrmcorer.dll`,
+baseline absent, candidate unchanged6186f981..., selection `mrmcorer=n`,
+restore by removal. Fresh disabled2290 source now asserts the original33,
+applies the prior kernelbase/schema delta, then this single native target:
+exactly35 unique mutable targets. Bottle schema stays unchanged. No
+staterepository-cache/mrmdeploy/languageoverlay mappings or guessed exports
+were added. The probe now diagnoses each kernelbase export separately,
+prints its exact API-set request, reports provider-load failure immediately
+and separately reports the native consumer export failure. Its actual
+success must load the pinned system32 native provider; an app-local load is
+not claimed as mapping success.
+
+The corrected probe strictly compiles, without execution; consumed2280
+binary/artifacts stay frozen. Fresh files are under
+`mrm-candidate-20261011-2290`, owner/wrapper at tooling root. The native
+generation helper stays under `control-first-source-only`. Bounds/checks
+remain standard pre-gates then18s/2MB real unpackaged six-check admission,
+conditional one ordinary75s/20MB launch, stop-first-mismatch and control-first
+cleanup before registry restore. No packaged-positive fixture claim, debug
+capture or new diagnostic framework.35-target restoration/provider/alias/
+settings/signature/full holder quiescence remains required.
+
+|Source-only2290 correction|SHA256|
+|---|---|
+|Native generation helper executable|`fc78d00d0492e7559f971a8da6eeb05898cd0c5082feae67624392eaf7cd0bef`|
+|Native generation helper source|`f832aa73eed97d11f03636e2f871f0202dca04b7dd44b72a0dda47bf0407f726`|
+|Two native regression tests|`e3c8142f6821a1587dc58fb552ee5dbb5fba6f7ccd263951fc45a067a1fc359b`|
+|Corrected integrated probe.exe|`9a3f7ee8932d9e2f9010fbec0294dedacbb0f610b4d436f01635d59b98328e75`|
+|Corrected integrated probe.c|`5101b5b5a5ffa613c5b7dcbff24542b13590a665af9945460ab4fd8f2f8a9fc7`|
+|Disabled2290 owner|`adb51450f87103457731d0ff370fb7eb77b31262d9eb86064d3bd0bcce66c43b`|
+|Disabled2290 wrapper|`8ab261f508b000f853caf2972fc717494459c5c7129f69dc98b888ae65f41cd6`|
+|Proposed executable2290 owner|`994a257beb8bbde78be6151d8bba84cc670a1ad60ec8e8bb965d77ddb70d985b`|
+|Proposed executable2290 wrapper|`c263cb8cb031a9adb1d97276b2e1172dfbab668488ca4a4e2a2dc92a173c2a21`|
+
+AST/staged pins, absent2290 workdir/log/status and absent35th baseline are
+verified. Executable hashes are computed for the same explicit refusal/
+owner-pin conversion only; not enabled or run. Product kernelbase/schema,
+ordinary controller/accounting/control helper/alias pins are unchanged.
+No runtime retry granted here. Quality-runner absence remains disclosed.
+
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup
 gaps, but native alias progress is not our distributable Vector support.

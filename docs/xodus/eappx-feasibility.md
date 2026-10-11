@@ -1475,3 +1475,75 @@ success has been added. All five vendor modules were restored and signatures
 verified, bottle twinapi restored, temporary CoreApplication registration and
 private mrt100 removed. The runtime lease was released. Neither rendering nor
 playability is established.
+
+### Apartment shutdown registration: validated lifecycle and next native boundary
+
+Independent genuine-combase probes now ground private ordinal 120
+`CoRegisterForApartmentShutdown(IApartmentShutdown *, UINT64 *, COOKIE *)`
+and paired ordinal 121 `CoUnregisterForApartmentShutdown(COOKIE)`.
+The registration outputs are the same real apartment identifier as ordinal 122
+and an opaque registration cookie. The registry is per apartment; a foreign
+STA/MTA cannot consume another apartment's cookie.
+
+The initially reported "private listener IID" was corrected before implementing
+it: `94EA2B94-E9CC-49E0-C0FF-EE64CA8F5B90` is public `IAgileObject`, not
+`IApartmentShutdown`. A distinct-pointer oracle proves that registration QIs
+only to check agility and releases that marker immediately. It retains the
+original typed listener directly and invokes its slot-3
+`OnUninitialize(UINT64)` on teardown. The public shutdown IID is not renamed,
+and no method is invoked on the agility marker. Non-agile registration returns
+`RO_E_MUST_BE_AGILE` (`0x8000001c`), writes the real apartment identifier and
+clears the cookie.
+
+The oracle also establishes one retained listener reference, an additional
+protective reference during notification, exactly one callback and release of
+both references afterward. Explicit unregister removes the registration and
+releases the stored reference without notification. No apartment takes
+precedence over invalid-cookie checks; teardown reentrancy returns
+`E_UNEXPECTED` before cookie validation. Unknown, stale, NULL and
+foreign-apartment cookies return `E_INVALIDARG` in an initialized apartment.
+
+`wine-combase-apartment-shutdown.patch` wires real notifications into existing
+apartment destruction, before registered objects and loaded libraries are
+released. Registry mutations use `apt_cs`; listener QI, reference operations
+and notifications do not run under that lock. Cookies are monotonic opaque
+handles, not exposed allocation pointers, and are matched without dereferencing
+caller-supplied values. Handle exhaustion fails explicitly instead of reusing
+a stale cookie. Defensive invalid-output/listener checks return `E_POINTER`,
+a documented deviation from native invalid-pointer faults.
+
+The patch replaces the ordinal-120 abort stub and adds ordinal 121, relocating
+only the newly conflicting named `CoGetStdMarshalEx` from 121 to 363.
+The matching `dlls/combase/all` build succeeds; binary export audit confirms
+base 1, all 355 original names, 347 unchanged named ordinals, the previous
+seven relocations and this eighth relocation. Ordinals 120/121/122 are real;
+five other private slots remain unsupported abort stubs.
+Candidate SHA-256:
+`363c507f4731462b4efdd55f1e17a5b26037ce8043b66c75c953baf340ba9fd8`.
+The retained patch passes reverse-application checking against the actual
+applied source using `--recount --unidiff-zero`.
+
+`com-apartment-shutdown-test.c` compiles with `-Wall -Wextra -Werror`. It uses
+independent COM declarations and a distinct IUnknown-only agility marker,
+covering direct listener ownership, real notification, reentrant unregister,
+cross-apartment rejection, stale cookies and implicit MTA. Under a separately
+granted GUI runtime lease, all **35 shutdown controls pass**, including actual
+STA/MTA teardown notification and reference balance. The previous apartment
+identity controls pass 27/0, native factories 6/0, configured-policy controls
+6/0, four loader regressions pass and original activation checks pass 13/0.
+Receipt prefix: `celeste-registered-apartment-shutdown`.
+
+The actual original Celeste calls the real registration implementation with
+listener `0x14f178`, identifier output `0x14f188` and cookie output `0x14f198`,
+then advances to the unsupported **RoGetDesignMode private ordinal 90**.
+That abort leaves Celeste at exit 4103, zero windows, 525 ms. The unchanged
+final exit code does not erase the newly observed progression past ordinal
+120. No CoreWindow request or rendered frame was observed.
+
+All five vendor modules were restored and signatures verified, bottle twinapi
+restored, temporary CoreApplication registration removed and private mrt100
+removed. The runtime lease was released before the coordinator's next Cuphead
+run. Existing windows.ui, dxgi and ntdll changes remain applied and were not
+modified by this repair. The next bounded repair is the reached design-mode
+contract, grounded separately against genuine normal-host behavior; neither
+designer-host fidelity nor complete game support is established.

@@ -1,0 +1,178 @@
+diff --git a/dlls/combase/combase_private.h b/dlls/combase/combase_private.h
+--- a/dlls/combase/combase_private.h
++++ b/dlls/combase/combase_private.h
+@@ -32,1 +32,2 @@
+     UINT64 identifier;      /* opaque identity for this apartment instance (RO) */
++    struct list shutdown_registrations; /* protected by apt_cs */
+diff --git a/dlls/combase/apartment.c b/dlls/combase/apartment.c
+--- a/dlls/combase/apartment.c
++++ b/dlls/combase/apartment.c
+@@ -32,1 +32,2 @@
+ #include "servprov.h"
++#include "roapi.h"
+@@ -53,1 +53,16 @@
+ static UINT64 next_apartment_identifier; /* protected by apt_cs */
++static ULONG_PTR next_shutdown_cookie; /* protected by apt_cs */
++
++struct shutdown_registration
++{
++    struct list entry;
++    ULONG_PTR cookie;
++    IApartmentShutdown *listener;
++};
++
++struct shutdown_notification
++{
++    struct list entry;
++    DWORD tid;
++};
++static struct list shutdown_notifications = LIST_INIT(shutdown_notifications);
+@@ -387,1 +402,36 @@
++static void apartment_notify_shutdown(struct apartment *apt)
++{
++    struct shutdown_notification notification;
++    struct shutdown_registration *registration;
++    struct list *entry;
++
++    notification.tid = GetCurrentThreadId();
++    EnterCriticalSection(&apt_cs);
++    list_add_tail(&shutdown_notifications, &notification.entry);
++    LeaveCriticalSection(&apt_cs);
++
++    for (;;)
++    {
++        EnterCriticalSection(&apt_cs);
++        entry = list_head(&apt->shutdown_registrations);
++        if (entry) list_remove(entry);
++        LeaveCriticalSection(&apt_cs);
++        if (!entry) break;
++
++        registration = LIST_ENTRY(entry, struct shutdown_registration, entry);
++        /* Never hold apt_cs across user code; protect the listener while notifying. */
++        IApartmentShutdown_AddRef(registration->listener);
++        IApartmentShutdown_OnUninitialize(registration->listener, apt->identifier);
++        IApartmentShutdown_Release(registration->listener);
++        IApartmentShutdown_Release(registration->listener);
++        free(registration);
++    }
++
++    EnterCriticalSection(&apt_cs);
++    list_remove(&notification.entry);
++    LeaveCriticalSection(&apt_cs);
++}
++
+ /* Creates new apartment for given model */
+@@ -396,1 +446,2 @@
+     apt->identifier = ++next_apartment_identifier;
++    list_init(&apt->shutdown_registrations);
+@@ -501,1 +552,3 @@
+         TRACE("destroying apartment %p, oxid %s\n", apt, wine_dbgstr_longlong(apt->oxid));
++
++        apartment_notify_shutdown(apt);
+@@ -1327,1 +1380,113 @@
++HRESULT WINAPI CoRegisterForApartmentShutdown(IApartmentShutdown *listener, UINT64 *identifier,
++        APARTMENT_SHUTDOWN_REGISTRATION_COOKIE *cookie)
++{
++    struct shutdown_registration *registration;
++    struct apartment *apt;
++    IAgileObject *agile;
++    HRESULT hr;
++
++    TRACE("(%p, %p, %p)\n", listener, identifier, cookie);
++    if (!(apt = apartment_get_current_or_mta())) return CO_E_NOTINITIALIZED;
++    if (!listener || !identifier || !cookie)
++    {
++        apartment_release(apt);
++        return E_POINTER; /* defensive divergence from native invalid-pointer faults */
++    }
++    *identifier = apt->identifier;
++    *cookie = NULL;
++    hr = IApartmentShutdown_QueryInterface(listener, &IID_IAgileObject, (void **)&agile);
++    if (FAILED(hr))
++    {
++        WARN("Shutdown listener is not agile, hr %#lx.\n", hr);
++        apartment_release(apt);
++        return RO_E_MUST_BE_AGILE;
++    }
++    IAgileObject_Release(agile);
++    if (!(registration = malloc(sizeof(*registration))))
++    {
++        apartment_release(apt);
++        return E_OUTOFMEMORY;
++    }
++    registration->listener = listener;
++    IApartmentShutdown_AddRef(listener);
++    EnterCriticalSection(&apt_cs);
++    if (apt->being_destroyed || next_shutdown_cookie == ~(ULONG_PTR)0)
++    {
++        hr = apt->being_destroyed ? E_UNEXPECTED : E_OUTOFMEMORY;
++        LeaveCriticalSection(&apt_cs);
++        IApartmentShutdown_Release(listener);
++        free(registration);
++        apartment_release(apt);
++        return hr;
++    }
++    registration->cookie = ++next_shutdown_cookie;
++    list_add_tail(&apt->shutdown_registrations, &registration->entry);
++    *cookie = (APARTMENT_SHUTDOWN_REGISTRATION_COOKIE)registration->cookie;
++    LeaveCriticalSection(&apt_cs);
++    apartment_release(apt);
++    return S_OK;
++}
++
++HRESULT WINAPI CoUnregisterForApartmentShutdown(APARTMENT_SHUTDOWN_REGISTRATION_COOKIE cookie)
++{
++    struct shutdown_notification *notification;
++    struct shutdown_registration *registration, *found = NULL;
++    struct apartment *apt;
++
++    TRACE("(%p)\n", cookie);
++    /* Teardown can have removed the MTA from the global list already. */
++    EnterCriticalSection(&apt_cs);
++    LIST_FOR_EACH_ENTRY(notification, &shutdown_notifications, struct shutdown_notification, entry)
++    {
++        if (notification->tid == GetCurrentThreadId())
++        {
++            LeaveCriticalSection(&apt_cs);
++            return E_UNEXPECTED;
++        }
++    }
++    LeaveCriticalSection(&apt_cs);
++    if (!(apt = apartment_get_current_or_mta())) return CO_E_NOTINITIALIZED;
++    EnterCriticalSection(&apt_cs);
++    if (apt->being_destroyed)
++    {
++        LeaveCriticalSection(&apt_cs);
++        apartment_release(apt);
++        return E_UNEXPECTED;
++    }
++    LIST_FOR_EACH_ENTRY(registration, &apt->shutdown_registrations, struct shutdown_registration, entry)
++    {
++        if (registration->cookie == (ULONG_PTR)cookie)
++        {
++            list_remove(&registration->entry);
++            found = registration;
++            break;
++        }
++    }
++    LeaveCriticalSection(&apt_cs);
++    if (found)
++    {
++        IApartmentShutdown_Release(found->listener);
++        free(found);
++    }
++    apartment_release(apt);
++    return found ? S_OK : E_INVALIDARG;
++}
++
+ OXID apartment_getoxid(const struct apartment *apt)
+diff --git a/dlls/combase/combase.spec b/dlls/combase/combase.spec
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -4,1 +4,2 @@
+-120 stub -noname CoRegisterForApartmentShutdown
++120 stdcall -noname CoRegisterForApartmentShutdown(ptr ptr ptr)
++121 stdcall -noname CoUnregisterForApartmentShutdown(ptr)
+@@ -157,1 +158,1 @@
+-121 stub CoGetStdMarshalEx
++363 stub CoGetStdMarshalEx

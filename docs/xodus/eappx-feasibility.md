@@ -4365,12 +4365,61 @@ verification, not a claim inferred from the helper's package set.
 |---|---|
 |Helper|`de3cafd37193d4822112b437a8ca106e390e6a05cad8b3f37b8ca651c481be42`|
 |15-test source|`300edc1b4801dce6a2c91246d95b7487ae9a055b5b8ac84f1e2dc467793ceb33`|
-|Nonexecutable owner artifact|`6c489d5c6bee6945deda943c647dccc3fe22e938a5d902f5377fb123440eb626`|
+|Nonexecutable owner artifact|`7531fa5ffba69ea30bffa67ae001b97586c6f5c8bebe1ca5a8179d461c77a4a3`|
 
 The owner artifact also remains outside Git under
 `~/xodus-app-tooling/cuphead/control-first-source-only`; staged pins match.
 Consumed2270 receipt/dumps/splits remain byte-identical. No runtime grant
 was used and no new binary/provider instrumentation was added.
+
+The same source-owner `command(..., "ordinary-package-activation",
+timeout=75, separate_stderr=True)` seam now admits an existing ordinary
+activation launcher as the control root and shares the existing completed/
+live split+server aggregate accounting and control-first restoration gate.
+It does not select/attach a debugger or introduce a capture adapter; normal
+activation arguments and exact existing controller identity belong to the
+next scoped product-candidate admission. AST checks confirm both running
+and completed-output accounting routes include this ordinary command.
+The owner stays nonexecutable, no wrapper/launch grant is staged, and this
+ordinary Wine integration remains unexecuted.
+
+Fresh ordinary2280 source owners are now prepared at the tooling root:
+`cuphead-ordinary2280-{owner,launch}.py`, `capture_accounting2280.py` and
+the tested generic helper. Both entrypoints explicitly refuse execution
+until the actual MRM product candidate and launch admission are supplied;
+the2280 workdir/status/log are absent. The source wrapper pins its owner
+and refuses replay. This is preparation, not a ready/granted launch or a
+new diagnostic framework.
+
+The existing `package-activation-launch.exe` is frozen unchanged at
+`ordinary-activation-candidate-20261011-2280`. Its actual PE has no debugger/
+dump/mutation imports; actual CreateProcessW call RVA166d sets flags4
+(CREATE_SUSPENDED) at165d, not DEBUG_ONLY_THIS_PROCESS. Source
+`package-activation-launch.c` SHA4260b165e9bc275119ce7e44b531739ffe8b853ee7b4bd794b5d4a3046d8a8c3
+preserves explicit catalog activation, mask3/Flags1/Origin4 checks,
+no-AppContainer/relabel checks, first-wait/window reporting and terminal
+wait/exit. It was not rebuilt or executed. Source owner passes its already
+established package/App/ntdll/run/server arguments, selects only ordinary
+seh/loaddll trace and shares75s/20MB split+server bounds. It preserves
+nonzero original app exit as failure rather than controller success.
+No debugger/filter/dump requirements survive in this ordinary adapter.
+
+|Fresh ordinary2280 artifact|SHA256|
+|---|---|
+|Existing ordinary controller.exe|`ff65f4261896777125d02e3712da9f15fe38f2c50662ae959f0d85323d74605d`|
+|Source owner|`afd86df694c09387c5fb7913e3ff775624f6a953bf11455d3db79996709755ee`|
+|Disabled source wrapper|`54e6e9e06b4200984bf39f18b6fd4592251af96a84da66f6d78a5d593de9523d`|
+|Fresh accounting helper|`28add3e42f44916613dddd83f7db87e8380767738c24da10c71bd36c463ed1a1`|
+
+AST checks/staged hashes and28 focused local tests pass. Runtime-only
+unverified boundaries remain actual Wine generation-stream admission,
+exact-identity control under live Wine load, ordinary activation with the
+forthcoming MRM candidate and independent full restoration. Candidate
+provider targets/build pins and relevant pre-gates must be incorporated
+from that implementation handoff before either entrypoint is enabled.
+The Manifest resource API child now exclusively owns MRM contract/
+implementation discovery; exact native artifact paths were sent directly,
+and this runtime owner does not duplicate that lane or edit its scratch tree.
 
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

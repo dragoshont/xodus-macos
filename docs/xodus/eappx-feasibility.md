@@ -4844,6 +4844,17 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
   vtable `+0x30` returns `0x8000000E`, apparently because the ambient-context
   global `0x100cb0` is still unset. The calling frame above `0x3d660` was not
   captured.
+- **2360:** the relay added the kernelbase package-identity APIs. Every
+  MrmCoreR identity call succeeds (size probe, then 0), so identity is not
+  the gap. The fatal is unchanged (`+0x9ABA0`). No load of
+  `ext-ms-win-resources-deployment` is logged; that absence is inconclusive.
+  Static analysis names its missing `GetInitInfoByPackageFullName` as the
+  remaining candidate gap for the ambient-context init `0x42684`.
+- The 2360 control-first abort refused with "Incomplete ownership boundary"
+  while a live wineserver trace was still being written, so nothing was
+  restored. The runtime had already exited. An offline recovery restored 36
+  files and 14 registry blocks, and independent verification `060139b8…`
+  passed. The abort now re-drains within its window before refusing.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

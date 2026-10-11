@@ -3614,3 +3614,79 @@ part of this proposed cycle. No runtime hold has yet been granted.
 | Exact-descriptor test source | `112c0c399915665d421e0c39d8f9d915045d4664eb246f2b9b69a4fe18be35e5` |
 | Strictly compiled test executable | `05894fa4c4aa4022f9c6db7071fd618fa381d388fc46b433bcadc01ad61cfb57` |
 | Native eager/delayed import manifest | `012c70080d1adb2b0cf88c1069d543e5163e6c9239a8239a6dc2ac74212bb890` |
+
+### Native Detail.Vector oracle 2205: coexistence verified, no game
+
+The coordinator granted exactly one exclusive no-game cycle on the unchanged
+33-target manifest and the read-only native alias. The owner enforced the
+2195 receipt identity and target/candidate equality before provider swaps,
+used Terminal/caffeinate, retained unique executed scripts, and applied
+40-second/20 MB bounds to each split oracle capture. Standard pre-gates
+preceded the four oracle processes. No game was launched.
+
+| Oracle process | Observed result |
+| --- | --- |
+| Absent before registration | 5 checks, zero failures; factory CLASSNOTREG/null |
+| Direct native export | 44 checks, zero failures; one grounded slot-30 call succeeds |
+| Registered catalog | 44 checks, zero failures; one grounded slot-30 call succeeds |
+| Absent after removal | 5 checks, zero failures; factory CLASSNOTREG/null |
+
+**VERIFIED runtime:** both positive processes load
+`xodus-vector-oracle.dll` as **native**, alongside **builtin**
+`C:\windows\system32\wintypes.dll`. Separate handles and exact path/file
+SHA-256 checks pass; the module owning the slot-30 method address is the
+native alias. The catalog trace resolves Detail.Vector to that alias.
+The only temporary catalog addition is its originally absent machine key.
+No alias self-load conflict or required dependency failure occurs in the
+exercised path; loader traces show builtin ucrtbase, combase, ole32 and
+rpcrt4. Unexercised delayed-import behavior remains unknown.
+
+The factory GetIids returns exactly IActivationFactory and the private
+08c77958 IID. Their IUnknown identities agree; a balanced AddRef/Release
+pair reports 5/4. Each verified descriptor call returns S_OK/non-NULL and
+runtime name
+`Windows.Foundation.Collections.IVector`1<Windows.ApplicationModel.Core.CoreApplicationView>`.
+Public Append/GetAt/IndexOf/SetAt/InsertAt/RemoveAt/Clear, GetView, iterable
+and iterator controls pass. Views/iterators retain the required ownership
+after releasing the originating interfaces. Mock references settle to
+one each, then final Release reaches zero and each destruction count is one.
+Empty GetAt returns E_BOUNDS/null. No private slots 6-29 or invalid private
+descriptor/output calls were made.
+
+All four processes also pass the **same-process nullable PropertySet
+50-check test**, with the admitted Wine wintypes path/pin and handle
+unchanged before/after native use. The native alias stays loaded through
+the positive-process nullable checks; Wine PropertySet is not replaced.
+The largest diagnostic capture is 448,800 bytes, below the bound.
+
+The repeated pre-gates pass: CM retry/error 35/0; async backend-error 23/0
+in this cycle; original/augmented cfgmgr 1292/1369 tests, zero failures,
+one TODO each; original/augmented enumeration 1938/1987 tests, zero
+failures, 91 TODOs each; full wintypes 1120 tests, zero failures, 49 TODOs;
+nullable 50/0, folders 96/0, HighContrastChanged 33/0, and cstub 248 tests,
+zero failures, two TODOs. Standard transport/dispatcher/proxy controls
+also complete successfully.
+
+Owner restoration has no errors. Independent verification confirms all
+33 baseline hashes/absences, all temporary keys including Detail.Vector
+and synthetic fixture absence, original WineDbg/CoreApplication settings,
+deep/strict signature, no Wine runtime and no holders under .wineserver.
+All target/candidate/baseline triples match 2195; the alias remains
+byte-identical outside Git/vendor/bottle. The exclusive hold is released
+and the no-game grant consumed.
+
+This is an authentic native oracle and coexistence result, **not**
+a distributable private-interface implementation or actual-game progress.
+It does not establish the executing twinapi consumer, fail-fast causality
+or a first frame. A further game discriminator requires a separate grant;
+registration-295, events and graphics remain outside this candidate.
+The missing mandatory quality runner remains an integration limitation.
+
+| 2205 private evidence | SHA-256 |
+| --- | --- |
+| Receipt | `03687e15b73c486de6af84734e00350f44462c10b27ac6351d37fff1e69a4bc9` |
+| Independent restoration proof | `f7758fc17a004f443fd3b1dd97928465ee420420b2d2059ad6a0971f72d57312` |
+| Direct oracle stdout | `46428af3a9218425bf0a8b91adb97ded408bc5272e6ae7d4497b0ba63a37d7f5` |
+| Direct loader stderr | `d7fae60466ff1e0ac3ccd7632fd8d3cda18ac95eea641f9294ba68c91277af0f` |
+| Catalog oracle stdout | `da850b7def1a06470f965b8ed2e51bbd0d0c796d4a976e7cafa1d6858fd99a1e` |
+| Catalog loader stderr | `560f7e9b87802bee8ce23a543b6a74282db5b201153d4a23244a1e639e8ab609` |

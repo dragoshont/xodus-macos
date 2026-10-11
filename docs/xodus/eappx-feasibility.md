@@ -1322,6 +1322,42 @@ twinapi were restored, temporary registration/private runtime removed and
 vendor signature verified; the lease was released. The coordinator and native
 contract researcher were sent the exact call and invalidated ABI evidence.
 
+**Correction after the independent genuine oracle and import-table inspection:**
+the trace establishes the candidate's received values, not a pointer-first ABI
+for the named Windows API. Genuine System32
+`CoGetSystemSecurityPermissions` is kind-first/output-second; kinds 0..3 return
+valid LocalAlloc-owned self-relative descriptors, and pointer-first calls are
+rejected. No argument-order code change was made here.
+
+The actual cause of the apparent reversal is now the **ordinal binding**.
+The genuine twinapi provider imports combase ordinals
+157, 90, 69, 95, 122, 120 and 168, not the named COM policy export.
+On this owner's genuine System32 combase those seven exports are NONAME;
+the named `CoGetSystemSecurityPermissions` is ordinal 304. In the current
+Wine candidate, auto-assigned ordinal 122 instead names
+`CoGetSystemSecurityPermissions`, so twinapi's private ordinal-122 call lands in
+the wrong function. Its pointer/int arguments are not proof of a changed named
+API contract. Other imported ordinal collisions are likewise unsafe:
+
+| Twinapi imported ordinal | Current Wine binding (not native identity) |
+| --- | --- |
+| 157 | CoRevokeInitializeSpy |
+| 90 | CoDisableCallCancellation |
+| 69 | CLSIDFromOle1Class |
+| 95 | CoFreeUnusedLibraries |
+| 122 | CoGetSystemSecurityPermissions |
+| 120 | CoGetStandardMarshal |
+| 168 | CoTreatAsClass |
+
+The genuine private ordinal contracts now require independent investigation,
+starting at reached ordinal 122. Do not reverse the named policy API, infer
+default ACLs from this misbinding, or broadly remap private ordinals across
+Windows versions without matching-provider evidence. Factory/IID controls
+remain valid for their exact calls but do not establish downstream
+CoreApplication.Run compatibility. The configured-policy subset still does
+not implement genuine absent-policy resolver defaults; the oracle's native
+success on that path is not permission to fabricate descriptors.
+
 The required `python gates/gate_runner.py quality-gate` invocation returned
 exit 2 because that runner is absent from this worktree. The focused
 matching-source build/activated-fixture/actual-game receipts above are separate

@@ -1,0 +1,267 @@
+--- a/dlls/windows.ui/corewindow.c
++++ b/dlls/windows.ui/corewindow.c
+@@ -54,6 +54,49 @@
+ };
+ struct ICoreWindowInteropWine { const struct ICoreWindowInteropWineVtbl *lpVtbl; };
+ 
++static const GUID IID_ICoreWindowWithContext_wine = {0x9ac40241, 0x3575, 0x4c3b, {0xaf, 0x66, 0xe8, 0xc5, 0x29, 0xd4, 0xd0, 0x6c}};
++static const GUID IID_IUIContext_wine = {0xbb5cfacd, 0x5bd8, 0x59d0, {0xa5, 0x9e, 0x1c, 0x17, 0xa4, 0xd6, 0xd2, 0x43}};
++static const GUID IID_ICoreWindowAdapterInterop_wine = {0x7a5b6fd1, 0xcd73, 0x4b6c, {0x9c, 0xf4, 0x2e, 0x86, 0x9e, 0xaf, 0x47, 0x0a}};
++
++/* Public SDK windows.ui.core.idl / CoreWindow.idl; both derive from IInspectable. */
++#define INSPECTABLE_METHODS(type) \
++    HRESULT (STDMETHODCALLTYPE *QueryInterface)( type *This, REFIID iid, void **out ); \
++    ULONG (STDMETHODCALLTYPE *AddRef)( type *This ); \
++    ULONG (STDMETHODCALLTYPE *Release)( type *This ); \
++    HRESULT (STDMETHODCALLTYPE *GetIids)( type *This, ULONG *count, IID **iids ); \
++    HRESULT (STDMETHODCALLTYPE *GetRuntimeClassName)( type *This, HSTRING *name ); \
++    HRESULT (STDMETHODCALLTYPE *GetTrustLevel)( type *This, TrustLevel *level )
++
++typedef struct ICoreWindowWithContextWine ICoreWindowWithContextWine;
++struct ICoreWindowWithContextWineVtbl
++{
++    INSPECTABLE_METHODS(ICoreWindowWithContextWine);
++    HRESULT (STDMETHODCALLTYPE *get_UIContext)( ICoreWindowWithContextWine *This, IInspectable **value );
++};
++struct ICoreWindowWithContextWine { const struct ICoreWindowWithContextWineVtbl *lpVtbl; };
++
++typedef struct ICoreWindowAdapterInteropWine ICoreWindowAdapterInteropWine;
++struct ICoreWindowAdapterInteropWineVtbl
++{
++    INSPECTABLE_METHODS(ICoreWindowAdapterInteropWine);
++    HRESULT (STDMETHODCALLTYPE *get_AppActivationClientAdapter)( ICoreWindowAdapterInteropWine *This, IUnknown **value );
++    HRESULT (STDMETHODCALLTYPE *get_ApplicationViewClientAdapter)( ICoreWindowAdapterInteropWine *This, IUnknown **value );
++    HRESULT (STDMETHODCALLTYPE *get_CoreApplicationViewClientAdapter)( ICoreWindowAdapterInteropWine *This, IUnknown **value );
++    HRESULT (STDMETHODCALLTYPE *get_HoloViewClientAdapter)( ICoreWindowAdapterInteropWine *This, IUnknown **value );
++    HRESULT (STDMETHODCALLTYPE *get_PositionerClientAdapter)( ICoreWindowAdapterInteropWine *This, IUnknown **value );
++    HRESULT (STDMETHODCALLTYPE *get_SystemNavigationClientAdapter)( ICoreWindowAdapterInteropWine *This, IUnknown **value );
++    HRESULT (STDMETHODCALLTYPE *get_TitleBarClientAdapter)( ICoreWindowAdapterInteropWine *This, IUnknown **value );
++    HRESULT (STDMETHODCALLTYPE *SetWindowClientAdapter)( ICoreWindowAdapterInteropWine *This, IUnknown *value );
++};
++struct ICoreWindowAdapterInteropWine { const struct ICoreWindowAdapterInteropWineVtbl *lpVtbl; };
++#undef INSPECTABLE_METHODS
++
++struct uicontext
++{
++    IInspectable IInspectable_iface;
++    LONG ref;
++};
++
+ enum corewindow_event
+ {
+     EV_Activated, EV_AutomationProviderRequested, EV_CharacterReceived, EV_Closed, EV_InputEnabled,
+@@ -92,6 +135,10 @@
+ {
+     ICoreWindow ICoreWindow_iface;
+     ICoreWindowInteropWine ICoreWindowInterop_iface;
++    ICoreWindowWithContextWine ICoreWindowWithContextWine_iface;
++    ICoreWindowAdapterInteropWine ICoreWindowAdapterInteropWine_iface;
++    struct uicontext *context;
++    IUnknown *client_adapter;
+     LONG ref;
+     DWORD thread_id;
+     HWND hwnd;
+@@ -381,6 +428,10 @@
+         *out = &impl->ICoreWindow_iface;
+     else if (IsEqualGUID( iid, &IID_ICoreWindowInterop_wine ))
+         *out = &impl->ICoreWindowInterop_iface;
++    else if (IsEqualGUID( iid, &IID_ICoreWindowWithContext_wine ))
++        *out = &impl->ICoreWindowWithContextWine_iface;
++    else if (IsEqualGUID( iid, &IID_ICoreWindowAdapterInterop_wine ))
++        *out = &impl->ICoreWindowAdapterInteropWine_iface;
+     else
+     {
+         FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
+@@ -413,6 +464,8 @@
+             free( entry );
+         }
+         ICoreDispatcher_Release( &impl->dispatcher->ICoreDispatcher_iface );
++        IInspectable_Release( &impl->context->IInspectable_iface );
++        if (impl->client_adapter) IUnknown_Release( impl->client_adapter );
+         impl->cs.DebugInfo->Spare[0] = 0;
+         DeleteCriticalSection( &impl->cs );
+         free( impl );
+@@ -422,8 +475,19 @@
+ 
+ static HRESULT WINAPI corewindow_GetIids( ICoreWindow *iface, ULONG *count, IID **iids )
+ {
+-    FIXME( "iface %p, count %p, iids %p stub!\n", iface, count, iids );
+-    return E_NOTIMPL;
++    IID *result;
++
++    TRACE( "iface %p, count %p, iids %p.\n", iface, count, iids );
++    if (!count || !iids) return E_POINTER;
++    *count = 0;
++    *iids = NULL;
++    if (!(result = CoTaskMemAlloc( 3 * sizeof(*result) ))) return E_OUTOFMEMORY;
++    result[0] = IID_ICoreWindow;
++    result[1] = IID_ICoreWindowWithContext_wine;
++    result[2] = IID_ICoreWindowAdapterInterop_wine;
++    *iids = result;
++    *count = 3;
++    return S_OK;
+ }
+ 
+ static HRESULT WINAPI corewindow_GetRuntimeClassName( ICoreWindow *iface, HSTRING *name )
+@@ -710,6 +774,129 @@
+     interop_put_MessageHandled,
+ };
+ 
++static inline struct uicontext *impl_from_context( IInspectable *iface )
++{
++    return CONTAINING_RECORD( iface, struct uicontext, IInspectable_iface );
++}
++
++static HRESULT WINAPI context_QueryInterface( IInspectable *iface, REFIID iid, void **out )
++{
++    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid(iid), out );
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (!IsEqualGUID( iid, &IID_IUnknown ) && !IsEqualGUID( iid, &IID_IInspectable ) &&
++        !IsEqualGUID( iid, &IID_IAgileObject ) && !IsEqualGUID( iid, &IID_IUIContext_wine ))
++        return E_NOINTERFACE;
++    *out = iface;
++    IInspectable_AddRef( iface );
++    return S_OK;
++}
++
++static ULONG WINAPI context_AddRef( IInspectable *iface )
++{
++    return InterlockedIncrement( &impl_from_context(iface)->ref );
++}
++
++static ULONG WINAPI context_Release( IInspectable *iface )
++{
++    struct uicontext *impl = impl_from_context(iface);
++    ULONG ref = InterlockedDecrement( &impl->ref );
++    if (!ref) free( impl );
++    return ref;
++}
++
++static HRESULT WINAPI context_GetIids( IInspectable *iface, ULONG *count, IID **iids )
++{
++    if (!count || !iids) return E_POINTER;
++    *count = 0;
++    *iids = CoTaskMemAlloc( sizeof(**iids) );
++    if (!*iids) return E_OUTOFMEMORY;
++    **iids = IID_IUIContext_wine;
++    *count = 1;
++    return S_OK;
++}
++
++static HRESULT WINAPI context_GetRuntimeClassName( IInspectable *iface, HSTRING *name )
++{
++    TRACE( "iface %p, name %p.\n", iface, name );
++    if (!name) return E_POINTER;
++    return WindowsCreateString( L"Windows.UI.UIContext", 20, name );
++}
++
++static HRESULT WINAPI context_GetTrustLevel( IInspectable *iface, TrustLevel *level )
++{
++    if (!level) return E_POINTER;
++    *level = BaseTrust;
++    return S_OK;
++}
++
++static const IInspectableVtbl context_vtbl =
++{
++    context_QueryInterface, context_AddRef, context_Release,
++    context_GetIids, context_GetRuntimeClassName, context_GetTrustLevel,
++};
++
++DEFINE_IINSPECTABLE( with_context, ICoreWindowWithContextWine, struct corewindow, ICoreWindow_iface )
++DEFINE_IINSPECTABLE( adapter, ICoreWindowAdapterInteropWine, struct corewindow, ICoreWindow_iface )
++
++static HRESULT WINAPI with_context_get_UIContext( ICoreWindowWithContextWine *iface, IInspectable **value )
++{
++    struct corewindow *impl = impl_from_ICoreWindowWithContextWine( iface );
++    TRACE( "iface %p, value %p, context %p.\n", iface, value, impl->context );
++    if (!value) return E_POINTER;
++    *value = &impl->context->IInspectable_iface;
++    IInspectable_AddRef( *value );
++    return S_OK;
++}
++
++static const struct ICoreWindowWithContextWineVtbl with_context_vtbl =
++{
++    with_context_QueryInterface, with_context_AddRef, with_context_Release,
++    with_context_GetIids, with_context_GetRuntimeClassName, with_context_GetTrustLevel,
++    with_context_get_UIContext,
++};
++
++#define ADAPTER_GETTER(name) \
++static HRESULT WINAPI adapter_get_##name( ICoreWindowAdapterInteropWine *iface, IUnknown **value ) \
++{ \
++    FIXME( "iface %p, " #name " value %p not implemented.\n", iface, value ); \
++    if (!value) return E_POINTER; \
++    *value = NULL; \
++    return E_NOTIMPL; \
++}
++ADAPTER_GETTER(AppActivationClientAdapter)
++ADAPTER_GETTER(ApplicationViewClientAdapter)
++ADAPTER_GETTER(CoreApplicationViewClientAdapter)
++ADAPTER_GETTER(HoloViewClientAdapter)
++ADAPTER_GETTER(PositionerClientAdapter)
++ADAPTER_GETTER(SystemNavigationClientAdapter)
++ADAPTER_GETTER(TitleBarClientAdapter)
++#undef ADAPTER_GETTER
++
++static HRESULT WINAPI adapter_SetWindowClientAdapter( ICoreWindowAdapterInteropWine *iface, IUnknown *value )
++{
++    struct corewindow *impl = impl_from_ICoreWindowAdapterInteropWine( iface );
++    IUnknown *previous;
++    TRACE( "iface %p, value %p.\n", iface, value );
++    if (value) IUnknown_AddRef( value );
++    EnterCriticalSection( &impl->cs );
++    previous = impl->client_adapter;
++    impl->client_adapter = value;
++    LeaveCriticalSection( &impl->cs );
++    if (previous) IUnknown_Release( previous );
++    return S_OK;
++}
++
++static const struct ICoreWindowAdapterInteropWineVtbl adapter_vtbl =
++{
++    adapter_QueryInterface, adapter_AddRef, adapter_Release,
++    adapter_GetIids, adapter_GetRuntimeClassName, adapter_GetTrustLevel,
++    adapter_get_AppActivationClientAdapter, adapter_get_ApplicationViewClientAdapter,
++    adapter_get_CoreApplicationViewClientAdapter, adapter_get_HoloViewClientAdapter,
++    adapter_get_PositionerClientAdapter, adapter_get_SystemNavigationClientAdapter,
++    adapter_get_TitleBarClientAdapter, adapter_SetWindowClientAdapter,
++};
++
+ /* ---- window creation ---- */
+ 
+ static LRESULT CALLBACK corewindow_wndproc( HWND hwnd, UINT msg, WPARAM wp, LPARAM lp )
+@@ -764,6 +951,14 @@
+     if (!InitOnceExecuteOnce( &class_once, register_class, NULL, NULL )) return HRESULT_FROM_WIN32( GetLastError() );
+     if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
+     if (!(disp = calloc( 1, sizeof(*disp) ))) { free( impl ); return E_OUTOFMEMORY; }
++    if (!(impl->context = calloc( 1, sizeof(*impl->context) )))
++    {
++        free( disp );
++        free( impl );
++        return E_OUTOFMEMORY;
++    }
++    impl->context->IInspectable_iface.lpVtbl = &context_vtbl;
++    impl->context->ref = 1;
+ 
+     disp->ICoreDispatcher_iface.lpVtbl = &dispatcher_vtbl;
+     disp->ref = 1;
+@@ -774,6 +969,8 @@
+ 
+     impl->ICoreWindow_iface.lpVtbl = &corewindow_vtbl;
+     impl->ICoreWindowInterop_iface.lpVtbl = &interop_vtbl;
++    impl->ICoreWindowWithContextWine_iface.lpVtbl = &with_context_vtbl;
++    impl->ICoreWindowAdapterInteropWine_iface.lpVtbl = &adapter_vtbl;
+     impl->ref = 1; /* owner reference, dropped on WM_NCDESTROY */
+     impl->thread_id = disp->thread_id;
+     impl->dispatcher = disp;
+@@ -789,6 +986,7 @@
+     {
+         HRESULT hr = HRESULT_FROM_WIN32( GetLastError() );
+         ICoreDispatcher_Release( &disp->ICoreDispatcher_iface );
++        IInspectable_Release( &impl->context->IInspectable_iface );
+         impl->cs.DebugInfo->Spare[0] = 0;
+         DeleteCriticalSection( &impl->cs );
+         free( impl );

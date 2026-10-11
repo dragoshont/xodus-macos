@@ -1920,3 +1920,107 @@ The next discriminating action is bounded read-only inspection of cleanup/unwind
 around the two already attributed twinapi callsites and their shared lock.
 No additional launch, unknown-interface synthesis, Vector expansion or
 ordinal-69 implementation is implied or authorized by this result.
+
+### Public CoreWindow context/adapter contracts and corrected-combase control
+
+Public Windows SDK declarations resolve the two formerly unidentified IIDs:
+
+| Interface | IID | Public contract |
+| --- | --- | --- |
+| `ICoreWindowWithContext` | `9ac40241-3575-4c3b-af66-e8c529d4d06c` | IInspectable prefix; slot 6 is `get_UIContext(IUIContext **)` |
+| `IUIContext` | `bb5cfacd-5bd8-59d0-a59e-1c17a4d6d243` | IInspectable, no additional methods; runtime class `Windows.UI.UIContext` |
+| `ICoreWindowAdapterInterop` | `7a5b6fd1-cd73-4b6c-9cf4-2e869eaf470a` | IInspectable; seven adapter getters at slots 6-12, `SetWindowClientAdapter(IUnknown *)` at slot 13 |
+
+Authoritative references are Microsoft's recompiled SDK
+[windows.ui.core.idl](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/winrt/windows.ui.core.idl),
+[windows.ui.idl](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/winrt/windows.ui.idl)
+and [CoreWindow.idl](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/winrt/CoreWindow.idl).
+These typed declarations replace the earlier unidentified-slot hold for these
+interfaces only; they do not resolve internal UIContext interfaces or adapters'
+concrete identities.
+
+`scripts/macos/compatibility/wine-corewindow-context-interop.patch` extends the
+owner's existing HWND-backed experimental `corewindow.c`, not generic upstream
+Wine. Apply with `git apply --check` / `git apply` in that matching source tree;
+do not force it onto a different baseline. It adds a separate per-window
+reference-counted UIContext, owning outputs, its standard QIs/runtime class,
+CoreWindow's two typed interface tear-offs, and stored/replaced/released adapter
+references. All seven adapter getters name their boundary, clear the output
+and return `E_NOTIMPL`. No fabricated adapter or callback behavior is added.
+The existing lazy-window experiment remains an explicit limitation.
+
+Only windows.ui was rebuilt (`make dlls/windows.ui/all`); the dependency step
+regenerated the combase import library but did not rebuild combase itself.
+The windows.ui candidate SHA-256 is
+`08128df6393600d9645a9048bcf704b414addf76452a63ee0cda7e30d243977d`.
+The failure-counted `corewindow-context-test.c` checks the public slot layouts,
+stable UIContext identity, runtime class, standard QIs, all seven honest getter
+failures, adapter replacement reference counts, and UIContext survival after
+window destruction. Compile with MinGW and `-lole32 -luuid -luser32`; run only
+through an explicitly owned, backed-up runtime harness, not an unowned bottle.
+Observed result: **48 checks, zero failures**.
+
+Provider admission exposed two distinct loader issues. A first pre-game attempt
+(`...context-...1119`) failed because shared windows.ui replacement alone did
+not replace the selected bottle/payload PE; it launched no game and was fully
+recovered. The next launch (`...context-...1128`) verified the new context calls
+but still used stale builtin combase despite a bottle-only `52ed4c9a...` swap.
+It is **not** a valid corrected-combase control: the old stub exception and
+150-second harness timeout remained. Both observations retain separate receipts.
+
+The coordinator authorized one corrective control. Even explicit argv
+`--dll twinapi.appcore=n;combase=n,b` was insufficient with stale shared vendor
+combase: ordinal admission (`...context-native-...1131`) failed before any game
+launch and was fully restored. The final control therefore temporarily backed
+up and replaced both bottle and shared vendor combase, as well as the selected
+bottle/payload/shared windows.ui surfaces. All replaced combase copies were
+pinned to `52ed4c9a03781b8df2bb04d81af6f97fb39f5696f72bc85dc6b748098874862b`.
+
+Final unique receipt: `cuphead-owned-context-pinned-20261011-1140`.
+Before the game, actual loaded `C:\windows\system32\combase.dll` resolves ordinal
+122 at RVA `0x90f0`, matching that pinned PE's export table. Apartment-identifier
+checks pass **27/0**, followed by the context/adapter checks **48/0**. Wine
+labels its built PE `builtin`; this is a verified replacement Wine provider,
+not an authentic Windows-native combase or proof based on argv alone.
+
+The game activates as Wine PID 584 (`0x248`), primary thread `024c`, with genuine
+native twinapi loaded at `0x6ffff72c0000`. The stale
+`CoGetSystemSecurityPermissions` stub exception is absent. Relay now records
+successful acquisition **and release** of the same twinapi lock:
+acquire caller RVA `0xed9c`, release caller `0xef2a`, acquire caller `0xf205`,
+release caller `0xf396`. It passes the previously unreturned acquisition.
+
+The game successfully queries `ICoreWindowAdapterInterop` and calls only
+`get_ApplicationViewClientAdapter`, which returns the intended `E_NOTIMPL`.
+It calls `get_UIContext` twice and queries internal IID
+`f21e14c1-e669-52af-99cd-171eee8e940d` twice; that unsupported interface remains
+`E_NOINTERFACE`. Neither `SetWindowClientAdapter` nor other adapter getters are
+observed in the game trace.
+
+The next observed unsupported CoreWindow QI is
+`84acbbfe-649c-5ac7-8130-7b6b76db463c`. It is followed by unhandled
+`0xc0000409` at genuine MrmCoreR RVA `0x49943` (base `0x6ffff52a0000`);
+that temporal sequence alone does not prove the QI caused fail-fast.
+Missing Detail.Vector activation and unavailable CoreCursor also appear.
+The controller observes a **real early exit 3221226505 (`0xc0000409`)** after
+1,146 ms, zero remaining/visible windows, and no timeout termination.
+
+The live-sampling admission guard flags this early-exited process as an error;
+it does not invalidate the controller's retained process-handle exit evidence.
+No repeat game launch was performed. Finally, all 17 runtime targets were
+restored to their baseline hashes, the three absent-baseline files were removed,
+CoreApplication and relay registry state were restored/queried, owned runtime
+was absent, and CrossOver deep/strict signature verification passed.
+The final receipt reports no restoration errors; runtime is released.
+
+Private final evidence hashes:
+
+| Evidence | SHA-256 |
+| --- | --- |
+| `game.log` | `3dd41cbbf7c2da55cc4e81af63a25171e3d1a4becdec0db2d41ad06f768ac7f6` |
+| `ordinal122-admission.log` | `23f374c76b54ef82316c5861dc05e78e1242ea61ae05e5bd5b0349705995cecc` |
+| `interface-tests.log` | `906e1bb72c645d7f31aa0ee5de3f7ab6ccb61f72f6c83935b70db58181654b47` |
+| `receipt.json` | `6b8781dfc07580a754a8c39b07aa09cc5d8d5dd7ee8c33a5e3794184a3089aa7` |
+
+No first frame/playability is claimed. Unknown-interface synthesis, generic
+Vector implementation and ordinal-69 success/no-op remain held.

@@ -42,8 +42,12 @@ int main(void)
     unsigned i, j;
     struct worker workers[3] = {{0}};
     HANDLE threads[3] = {0};
+    WCHAR path[MAX_PATH];
 
     query = (QUERY_ID)(ULONG_PTR)ordinal;
+    if (module && GetModuleFileNameW(module, path, MAX_PATH))
+        printf("COMBASE_PROVIDER=%ls ORD122_RVA=%llx\n", path,
+               (unsigned long long)((ULONG_PTR)ordinal - (ULONG_PTR)module));
     check(query != NULL, "private ordinal 122 present");
     if (!query) goto done;
     check(ordinal != GetProcAddress(module, "CoGetSystemSecurityPermissions"),

@@ -3934,6 +3934,75 @@ independently before releasing any future hold. Preserve2250 and failed2240/
 2210 evidence. If1007 is not a debug event, report that telemetry gap explicitly;
 its synthesized code is not the recovered original exception or causality.
 
+### Actual2260: original exception captured; cumulative inventory ceiling fails
+
+One exclusive capture-only2260 cycle was granted on the exact pins above.
+All artifact/fresh-path checks and standard pre-gates passed. The single
+Terminal+caffeinate launch reached the previously untested package seam:
+catalog query S_OK, suspended debug process activation S_OK (pid536),
+exact activated mask3/Flags1/Origin4/no AppContainer, launcher NOT_FOUND and
+repeat activation ACCESS_DENIED. No alias/provider/package changes beyond
+the granted scope. First-wait TIMEOUT was observed at12936ms; windows total0,
+visible0, valid1. This is activation/diagnostic evidence, not first-frame proof.
+
+The genuine first-chance80000100 arrived on thread544 (0x220), flags1
+(noncontinuable), address/RIP `kernelbase+da77` =6fffff4ada77,
+RSP10f440, RCX10f460, RDX0, R8=6ffff6ddc3a2, R9=10f548.
+Its two parameters were6ffff6d9d950 (`twinapi.appcore+1dd950`) and
+6ffff6ddc3a2 (`twinapi.appcore+21c3a2`). Minimal seh trace records the
+failed delay import `GetStringValueForManifestField` immediately before
+the WINE_STUB event. The190902-byte dump preserved and validated actual
+exception/thread/module correlation. Independent direct stream decoding
+confirmed the original record/parameters/RIP/RSP and59 module entries.
+The event was continued NOT_HANDLED; no debugger context/record rewriting.
+
+The **first subsequent failure** is controller bookkeeping, not a loader
+dependency: module_event's fixed128 array counts cumulative load records,
+while UNLOAD marks entries inactive but never reuses them. Actual log contains
+129 MODULE records, with repeated bcrypt.dll LOAD/UNLOAD pairs at the same
+base; the129th LOAD fails the128-record check, producing event6/reason4.
+The controller correctly fails/stops rather than dropping inventory.
+Original natural app exit is UNOBSERVED; no later1007 DEBUG_EVENT was captured
+before abort. That is a telemetry gap caused by this finite capture failure,
+not evidence that1007 is absent/undeliverable or that the original stub is
+benign. Guard entry/private Vector return/reason7 causality remain unproved.
+
+Actual owner remains **FAILED**:
+`RuntimeError('Checked command failed: exception-event-package')`,
+controller exit7/failed1/reason4.148 owned handles close with0 failures;
+owned termination/continuation/detach/quiescence all1. Complete owner restore
+has zero restoration errors. Package aggregate17107454 bytes consists of
+62195 split-output bytes,190902 dump bytes and16854357 server growth.
+No75s/20MB or per-dump/controller-size breach/stalled writer occurred.
+Full server189023100 bytes includes pre-gates/cleanup. All original artifacts
+are preserved untruncated; no success relabel or second launch.
+
+Independent verification confirms canonical33 triples and all original
+baseline hashes/absences, temporary server/App/Detail.Vector/Pnp registrations
+and devnode absence, original CoreApplication/WineDbg/Debug settings,
+both dbghelp copies and alias unchanged, original Cuphead.exe unchanged,
+strict signature, no runtime/full recursive bottle holders or owner/wrapper/
+caffeinate. Entire2240/2250 receipts and all their captured artifact hashes
+remain unchanged. The consumed2260 exclusive hold is released.
+
+|2260 preserved evidence|SHA256|
+|---|---|
+|FAILED owner receipt|`a628a6a072a7df8cc5bdfdeb0b3643378ccc42841e201de2d4cf0ed62dc4db68`|
+|Independent baseline proof|`8fec97ef1593930be3ac6b226dbd8fde347129075d107b248035f7343c5d084f`|
+|Expanded independent proof|`cba8c2f7af1942ce0335a49244a47f2bb577f4c61103e452865ed3fe76968c32`|
+|Original exception dump|`489102cea18b9bbd694637eacb39e064a80b77ca24cdabcfecb5ed9270d25918`|
+|stdout|`8fc9af8229a5d5e4cfe55f1444ee2e98a8716684692e1b008e2367e176c4ecb9`|
+|stderr|`ea2189ac9f9689e488d1c0ac9a22d802cb87727ce61f7ed43353d3501489b2ef`|
+
+Evidence root:
+`~/xodus-app-tooling/cuphead/cuphead-owned-exception-package-20261011-2260`.
+Cheapest proposed correction is source-only inventory-slot reuse keyed by
+base, retaining128 simultaneously-live entries, rejecting duplicate live
+bases/true overflow, with focused synthetic bookkeeping tests. It is not
+an increase of output/event/time limits or provider/debugger subsystem fix.
+No next runtime/game grant exists. Missing mandatory quality runner and
+unexercised outer-writer hard-cancellation limitations remain.
+
 #### 2210 original-exception telemetry gap and targeted capture-only plan
 
 Further read-only inspection finds exactly one dispatched native exception:

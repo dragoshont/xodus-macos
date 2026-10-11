@@ -129,6 +129,28 @@
   .ps { font-size: 0.8125rem; font-weight: 560; white-space: nowrap; padding-top: 1px; }
   .ps.matched { color: var(--done); } .ps.planned { color: var(--now); } .ps.unproven { color: var(--risk); }
   .ps.deferred, .ps.out { color: var(--ink-3); }
+
+  /* Game runtime */
+  .runtime { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; }
+  .game { border: 1px solid var(--line); border-radius: 12px; padding: 18px 18px 16px; background: var(--raise); }
+  .game-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .game-head b { font-family: var(--display); font-size: 1.0625rem; font-weight: 620; letter-spacing: -0.01em; }
+  .game-head .pkg { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-3); margin-left: 6px; }
+  .game-state { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+  .game-state.playing { color: var(--done); border-color: var(--done-dim); }
+  .game-state.advancing { color: var(--now); border-color: var(--now-dim); }
+  .game-state.blocked { color: var(--risk); border-color: #5a2d22; }
+  .game > p { margin: 11px 0 15px; color: var(--ink-2); font-size: 0.875rem; }
+  .walls { display: flex; flex-direction: column; gap: 8px; }
+  .wall { display: grid; grid-template-columns: 10px 1fr; gap: 10px; align-items: start; font-size: 0.82rem; color: var(--ink-2); }
+  .wall i { margin-top: 5px; width: 9px; height: 9px; border-radius: 50%; background: var(--plan); flex: none; }
+  .wall.cleared i { background: var(--done); }
+  .wall.cleared span { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--done-dim); }
+  .wall.active i { background: var(--now); animation: pulseA 1.9s cubic-bezier(.16,1,.3,1) infinite; }
+  .wall.active span { color: var(--ink); font-weight: 560; }
+  .wall.open i { background: var(--ink-3); }
+  @keyframes pulseA { 0% { box-shadow: 0 0 0 0 rgba(242,184,75,.5); } 70%, 100% { box-shadow: 0 0 0 7px rgba(242,184,75,0); } }
+
   .inventory-wrap { overflow-x: auto; }
   .inventory { width: 100%; border-collapse: collapse; min-width: 680px; }
   .inventory th, .inventory td { padding: 12px 14px 12px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line-soft); }
@@ -190,6 +212,10 @@
   <h2>Capability milestones</h2>
   <p class="sub ms-board" id="ms-summary">Tracked on <a id="ms-link" href="https://github.com/users/dragoshont/projects/5" target="_blank" rel="noopener">GitHub Project #5</a>. State reflects the installed build, not what is merely committed. A catalog label is not a working feature.</p>
   <div class="milestones" id="milestones"></div>
+
+  <h2>Game runtime status</h2>
+  <p class="sub">Per-title progress making real Xbox games run under the Mac runtime. Cleared walls stay struck through; the amber item is the live frontier. A cleared wall is runtime evidence of one abort removed, not a shipped, playable title.</p>
+  <div class="runtime" id="runtime"></div>
 
   <h2>Work plan</h2>
   <p class="sub">Historical slices are not full parity or release acceptance. The stopped-work inventory below is the current triage source. Width in the bar is proportional to the earlier estimates.</p>
@@ -303,6 +329,15 @@ function render(s) {
         <div class="pct">${x.pct}%</div>
       </div>`).join("");
   }
+
+  const GAME_STATE = { playing: "Playing", advancing: "Advancing", blocked: "Blocked" };
+  const runtimeEl = document.getElementById("runtime");
+  if (runtimeEl) runtimeEl.innerHTML = (s.gameRuntime || []).map(g => `
+    <div class="game">
+      <div class="game-head"><div><b>${esc(g.game)}</b><span class="pkg">${esc(g.pkg)}</span></div><span class="game-state ${esc(g.state)}">${esc(GAME_STATE[g.state] || g.state)}</span></div>
+      <p>${esc(g.summary)}</p>
+      <div class="walls">${(g.walls || []).map(w => `<div class="wall ${esc(w.state)}"><i></i><span>${esc(w.name)}</span></div>`).join("")}</div>
+    </div>`).join("");
 
   document.getElementById("ux-reviews").innerHTML = (s.uxReviews || []).map(r =>
     `<tr><td>${esc(r.round)} · ${esc(r.subject)}</td><td>${esc(r.verdict)}</td><td>${esc(r.fixes)}</td><td>${esc(r.evidence)}</td></tr>`

@@ -2,7 +2,7 @@
 // Update this file at every backlog transition (status, spent hours, evidence).
 // index.html re-reads it every 5 seconds; no build step.
 window.XODUS_STATUS = {
-  updatedAt: "2026-10-11T01:25:00+03:00",
+  updatedAt: "2026-10-11T05:30:00+03:00",
   phase: "Streamlined launcher signed — safe installation blocked",
   paused: false,
   pauseReason: "Owner says game works great and directs launcher UI/UX continuation. Preserve running game; no app replacement during active play. Other backend/composition work remains paused. Actual uninstall/reinstall is still unqualified.",
@@ -22,10 +22,37 @@ window.XODUS_STATUS = {
     { m: "M8", issue: 9, title: "Socials", state: "now", pct: 50, note: "Friends/following/presence/profile reads shipped. No writes (party, invites, LFG)." },
     { m: "M9", issue: 10, title: "Portability & onboarding", state: "now", pct: 40, note: "Device-code login works on dev Mac. Fresh-Mac install, notarization, onboarding deferred." },
     { m: "M1", issue: 2, title: "Multiple package-type support", state: "now", pct: 60, note: "Real evidence-grounded PackageType detection (msixvc/win32/appx/eappx/uwp) classifies from on-disk package/manifest/file evidence — PR #13. Adversarial REVISE fixes verified correct: .msixvc now requires a real container-header (distinct hasMSIXVCHeader), not just MicrosoftGame.config, with negative tests rejecting GDK-config-alone and symlink spoofing. PackageType stays a neutral format fact: detection landed, installing non-MSIXVC formats still not delivered. Rebase onto merged-M10 foundation pending before merge." },
-    { m: "M4", issue: 5, title: "UWP support", state: "blocked", pct: 30, note: "Cuphead/Celeste fail under stock CrossOver. Clean-room mrt100 .NET-Native shim rebuilt and contract-verified; XAML composition wall remains. No frame yet." },
+    { m: "M4", issue: 5, title: "UWP support", state: "now", pct: 50, note: "Cuphead is advancing through the native runtime walls one by one under the mrt100/ntdll harness. CLEARED: the ntdll WNF abort (NtQueryWnfStateData — honest non-aborting export), the profapi.114 AppContainer-storage abort, the MrmCoreR ntdll.RtlReportException livelock (faithful non-aborting export, logs the real exception and returns), AND package activation itself — activation now returns status 0, mrt100 loads native, GetCurrentPackageInfo3 and the StateRepository cache resolve. CURRENT FRONTIER: RoGetActivationFactory(Windows.UI.Core.CoreWindow) returns class-not-found (hr 0x80040111) — the private Windows.UI.dll has no CoreWindow activation factory, so the app asserts out before a window. This is the UI composition layer (CoreWindow/combase ord-122/Windows.UI 17-ordinal union). Clean-room mrt100 shim contract-verified. No frame yet." },
     { m: "M5", issue: 6, title: "EAppx support", state: "blocked", pct: 25, note: "EAppxBundle titles not installable/playable. Package identity/activation seams progressing in the side session." },
     { m: "M3", issue: 4, title: "Engine detect / switch / default / per-game", state: "now", pct: 60, note: "PR #13: pure EngineRouting.decide (package type x per-game override x default x availability) consumed by the launch path; a selected engine that isn't installed refuses launch and is never substituted (verified). Adversarial REVISE fix verified correct: the availability detector now probes each provider's own registered runner path, so a per-game override to any installed engine is detected instead of being falsely refused. Rebase onto merged-M10 foundation pending before merge. (Oct 11)" },
     { m: "M10", issue: 11, title: "Account tiers (free / subscription)", state: "done", pct: 85, note: "Two-axis AccountEntitlements (free/Game Pass plan/owned) with pure derive(); eligibility classifier where install alone yields only installedUnknown, never Owned. PR #12 MERGED into foundation (b8dbc62). Self-adversarial hardening confirmed in trunk: model moved to XodusManagement with real Tests/ManagementChecks fixtures; stale/unloaded/busy evidence no longer establishes tiers; the identity-less global probe is kept separate from tier derivation. Perks/leaving-soon deferred (no real source). (Oct 11)" }
+  ],
+
+  // Per-title native runtime status. A cleared wall is runtime evidence, not a shipped title.
+  gameRuntime: [
+    { game: "No Man's Sky", pkg: "MSIXVC · win32", state: "playing",
+      summary: "Owner confirms it plays great. In-world rendering and the corrected renderer/shader load verified by fresh capture; prior crash fingerprints absent beyond twelve minutes. Single-player is the proven path.",
+      walls: [
+        { name: "Shader / renderer crash (SPIR-V → MSL)", state: "cleared" },
+        { name: "Vulkan wideLines device creation", state: "cleared" },
+        { name: "Online multiplayer (PlayFab → XCurl/WinHTTP login)", state: "open" }
+      ] },
+    { game: "Cuphead", pkg: "UWP · .NET-Native", state: "advancing",
+      summary: "Advancing through the native runtime walls under the mrt100/ntdll harness. Package activation now SUCCEEDS (status 0), mrt100 loads native, WNF is tolerated, GetCurrentPackageInfo3 and the StateRepository cache resolve. The frontier has moved up to the UI composition layer.",
+      walls: [
+        { name: "ntdll.NtQueryWnfStateData abort (WNF)", state: "cleared" },
+        { name: "profapi.114 AppContainer storage abort", state: "cleared" },
+        { name: "ntdll.RtlReportException livelock (MrmCoreR)", state: "cleared" },
+        { name: "Package activation + GetCurrentPackageInfo3", state: "cleared" },
+        { name: "Windows.UI.Core.CoreWindow activation factory (hr 0x80040111)", state: "active" },
+        { name: "combase ordinal 122 — CoGetApartmentIdentifier", state: "open" }
+      ] },
+    { game: "Celeste", pkg: "EAppx", state: "blocked",
+      summary: "EAppxBundle identity/activation seams progressing in the side session; the combase apartment-id export map (355 names retained, 7 private slots displaced to 356–362) is in build. No frame yet.",
+      walls: [
+        { name: "Package identity / activation seam", state: "active" },
+        { name: "combase ordinal export table (122 + 6 honest stubs)", state: "open" }
+      ] }
   ],
 
   shipped: [
@@ -220,6 +247,9 @@ window.XODUS_STATUS = {
   ],
 
   events: [
+    { at: "2026-10-11T05:25:00+03:00", text: "Cuphead: RtlReportException wall CLEARED and package activation now succeeds. Built a faithful non-aborting ntdll.RtlReportException into the PE ntdll (0c6120e7; ntdll.so byte-identical, WNF exports preserved) — it logs the real exception (code 0x4) and returns STATUS_SUCCESS instead of Wine's unimplemented-stub that raised EXCEPTION_WINE_STUB and livelocked MrmCoreR into a stack overflow. Harness run3: actual_game_harness_exit 0, ACTIVATION pass status 0, 56/0 fixture assertions, all four API-contract probes rc0; mrt100 loads native, GetCurrentPackageInfo3 and the StateRepository cache resolve, WNF tolerated. New frontier moved UP to the UI layer: RoGetActivationFactory(Windows.UI.Core.CoreWindow) returns class-not-found (hr 0x80040111) — the private Windows.UI.dll has no CoreWindow activation factory, so the app asserts out (0xC0000421) before a window. Teardown sig-verified clean; no fabricated capability (reporting to the log IS the function's job)." },
+    { at: "2026-10-11T03:50:00+03:00", text: "combase ordinal collision contracted for the CoreWindow frontier. twinapi.appcore imports combase by NONAME ordinals {157,90,69,95,122,120,168}; genuine 122 = CoGetApartmentIdentifier(ULONGLONG*), which Wine mis-binds (its ord 122 is a different named export), yielding E_INVALIDARG → mrt100 1007. Celeste is building a stable export map: all 355 named exports retained, 348 ordinals fixed, the 7 displaced names moved to free slots 356–362, with 122 implemented (S_OK + stable per-apartment id) and the other 6 as honest-failure stubs. Windows.UI needs a wider 17-ordinal union, so the 7-slot patch is a step, not full CoreWindow parity. Source/build and runtime windows serialized between the ntdll and combase lanes; no fabricated COM success." },
+    { at: "2026-10-11T03:30:00+03:00", text: "WNF hard-abort eliminated end-to-end on Cuphead. The honest non-aborting NtQueryWnfStateData export (STATUS_NOT_IMPLEMENTED, out-params untouched) built into the PE ntdll (d16fb80) and validated: 56/0 package-graph fixture assertions, all four API-contract probes rc0, activation contract 0. The 'unimplemented ntdll.NtQueryWnfStateData, aborting' wall is gone — only the tolerated RtlQueryWnfStateData backend-unavailable fixme remains. Process now advances past WNF through activation and the state-repository alias load. ntdll.so byte-identical; NtXodus ordinals and server protocol intact; no native WNF backend claimed." },
     { at: "2026-10-11T01:25:00+03:00", text: "Re-review after the children's fixes. M10 (#12): confirmed MERGED into foundation (b8dbc62) WITH its self-adversarial hardening — foundation..branch is an empty diff, so the moved-to-XodusManagement model, real ManagementChecks fixtures, stale-evidence gating and separated global probe all landed. M1+M3 (#13): both REVISE fixes verified correct in source — per-provider runner-path probe (per-game override now detected) and real MSIXVC container-header evidence with negative tests. M7 (#14): first fix pass is PARTIAL — exit-14 now returns .cancel to the queue driver and a pause race is closed, but complete() still sets operations.error on exit 14 so the spurious 'Download stopped' banner persists; re-routed with the exact fix. Blocking both #13 and #14 before merge: their merge-base (21b7dd9) predates the M10 squash, so each carries divergent pre-M10 copies of M10-owned files; both must rebase onto the merged-M10 foundation preserving M10's hardening, then re-green CI." },
     { at: "2026-10-11T02:05:00+03:00", text: "Adversarial review of all three PRs (independent code-review per PR + CodeRabbit triggered). M10 (#12): PASS — install-alone never promotes to Owned, owned/Game Pass coexist, derive() pure, no fabricated perks; MERGED into the app foundation branch. M7 (#14): REVISE — core lifecycle/queue/pause-resume genuinely correct, but a normal pause/cancel (exit 14) was recorded as a failure via the shared complete(), surfacing a spurious 'install failed' banner (a 'label is a fact' violation); plus a narrow pause-vs-complete race. M1+M3 (#13): REVISE — decide/classify and the no-silent-substitution invariant correct, but the runner-availability detector could only see CrossOver + the single configured default, so a per-game override to any other installed engine was falsely refused; and the .msixvc label was derived from MicrosoftGame.config rather than a real MSIXVC container. Both revise items routed back to their child sessions with scoped fixes; merges gated on green re-review." },
     { at: "2026-10-11T01:05:00+03:00", text: "M10 (account tiers) landed green: PR #12 into the app foundation branch, native-fixtures CI passed (swift build + management/self/live checks + SVG reproducibility). Two-axis AccountEntitlements (free / Game Pass plan / owned) with a pure derive(), plus an eligibility classifier where a local install alone yields only installedUnknown — never Owned. Game Pass perks/leaving-soon deferred: no real data source, so faking it was refused. Celeste child branch (dragoshont-celeste-eappx-support) was blocked on push creds; I published it from the coordinator worktree. M7 and M10 app branches are on origin; M1+M3 still building." },

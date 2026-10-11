@@ -2940,3 +2940,60 @@ ABI/marshaling evidence and a separate grant.
 | 2120 `runtime-recovery-admission.json` | `0415ff68795d79e86e8f428b6301e4f3a6682f82962c114438ee87bf098d3552` |
 | 2120 `file-recovery.json` | `a56aa58db970855b2f3ca13edf649c4d24f3d9cadd6ce4c443b35512ebc130b9` |
 | 2120 `coreview-proxy-tests.log` | `bfffbbd29a551beec66815887f79b9a4e4c550972e819249f3a431eed53fb390` |
+
+### Native private-view proxy discriminator: no-game 2130
+
+VERIFIED-STATIC report5 grounds private IID
+`2e5500b6-66ad-467f-abb5-022a64283d88` as a thirteen-slot,
+IInspectable-derived CoreApplicationView interface. Genuine Windows uses
+standard server aggregation, not agility/FTM, and supplies its matching
+proxy in OneCoreUAPCommonProxyStub.dll. The granted preferred route was
+temporary native admission, then factory/proxy/stub and STA-to-MTA stream
+gates before one game. No frame/dxgi changes were included.
+
+The genuine DLL is pinned to
+`daea6f97cbdc41aedcc3de3ee735d73117485169a2df83816f4a0444bf54f5fb`.
+It is retained only on the authorized host, never in this repository.
+`private-view-proxy-admission-test.c` is a fail-closed loader/factory
+discriminator, **not** the complete thirteen-slot stream test. It loads
+the system32 provider, requests IPSFactoryBuffer from class
+`95e15d0a-66e6-93d9-c53c-76e6219d3341`, and would try CreateProxy only
+after factory admission. Full CreateStub/stream/HSTRING gates remain
+unperformed because the earlier prerequisite failed.
+
+| Private no-game 2130 evidence | Observed result |
+| --- | --- |
+| Provider admission | OneCoreUAPCommonProxyStub loads native at `0x6ffffd1d0000`; rpcrt4 loads builtin at `0x6fffff1b0000`. No missing-import failure is observed. |
+| Factory call | NdrDllGetClassObject receives the grounded PS class and IPSFactoryBuffer IID on STA thread `01d4`. |
+| Primary failure | Access violation at rpcrt4+`0x3e14b`, instruction `movq %rax,0x10(%rcx)`, writes to native proxy+`0x10f90` (`0x6ffffd1e0f90`). PE section metadata places that address inside read-only `.rdata`. |
+| Captured backtrace | rpcrt4+`0x3e14b` ← rpcrt4+`0x1c2d2` ← OneCoreUAPCommonProxyStub+`0x1cca` ← admission test+`0x12f8`. |
+| Unreached gates | Factory return, CreateProxy/CreateStub, NdrClientCall3/NdrStubCall3 interpretation and STA/MTA stream calls are not established. The game was never launched. |
+
+The selected vendor rpcrt4 SHA-256 is
+`ada0fd663b9549a2f35810846247ade79b07b6b3d3b9f60afd1afcd94b051ec6`.
+The source inspection also found NdrClientCall3 exported but no
+NdrStubCall3 spec entry; that static observation is not substituted for
+the earlier actual factory AV. The next discriminator is Wine's native
+proxy factory initialization and its writes to const proxy metadata.
+No rpcrt4 stub, forced-agility shortcut, writable-memory bypass or
+fallback private ABI implementation is added.
+
+The shared-provider exclusion window was held throughout this short
+no-game capture. The new native DLL made 25 temporary targets, all
+independently restored to their original hashes/absences. The native DLL
+is absent from the bottle again; original CoreApplication registration,
+empty WineDbg baseline, strict signature and bottle quiescence were
+verified. No new proxy registration was needed before the direct factory
+gate, and no companion IID was registered. The original receipt records
+the failed command and successful restoration without a supplemental
+cleanup recovery. The shared-provider hold was released.
+
+The one-game grant remains **unconsumed**. Route A is blocked at no-game
+factory admission; the incomplete companion-handler RE still prevents
+claiming an honest fallback proxy. The missing mandatory quality runner
+(exit 2) also continues to block an overall PASS.
+
+| Private evidence | SHA-256 |
+| --- | --- |
+| No-game 2130 `private-view-proxy-loader-tests.log` | `8bc395abab6a3ce55eb91bb263423c9c92bfeae609127976da6a07eba94107f7` |
+| No-game 2130 `receipt.json` | `429413fb169beda3ffb1337ebaf373abcf3a2df3c8a8285ecbc1623d8689c35c` |

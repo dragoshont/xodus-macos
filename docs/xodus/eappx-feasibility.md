@@ -2556,3 +2556,66 @@ because the configured runner is absent; no overall PASS is claimed.
 | `receipt.json` | `333d95b30d3369aabe03bb3f5cb15ed2c3ace23974fd2e6b734ff227d8fd97c9` |
 | `rtl-load-string-tests.log` | `664b102903cff584efa0e4239013f37c60651d1e3b0d1d4e17d99ad4ed9b76cc` |
 | `error-propagation-tests.log` | `66fb17f1dbab3153f5120645a2fb5150d07c9c1e30b707dedaa79b948d823a8a` |
+
+### Registered server launch contract and control 1750
+
+The public [RoGetServerActivatableClasses contract](https://learn.microsoft.com/en-us/windows/win32/api/roregistrationapi/nf-roregistrationapi-rogetserveractivatableclasses)
+is declared in `roregistrationapi.h`, not `roapi.h`. The caller deletes each
+returned HSTRING and frees the array with `CoTaskMemFree`. Unknown, empty
+or classless servers return `REGDB_E_CLASSNOTREG`, with NULL array/count 0.
+`wine-ro-server-classes.patch` replaces the empty-success stub with the
+approved Wine machine-registry subset: a matching
+`HKLM\Software\Microsoft\WindowsRuntime\Server\<name>` must exist, and class
+records under `ActivatableClassId` must have `ActivationType=1` and a
+matching `Server` string. Allocation ownership, input validation and
+registry failures are handled explicitly. Package-scoped catalog lookup
+and activation-manager publication remain unavailable, with a FIXME;
+this is not complete Windows package-registration fidelity.
+
+Provider-bound synthetic tests pass **31/0**, covering matching and
+nonmatching registrations, activation-type filtering, unknown/classless
+servers, NULL outputs and caller-owned string/array release. Test-owned
+keys are removed. The DLL hash is
+`4ed50352a810ded4a0ea23961f37435b06655ad773c961a4069f88c90fedd985`,
+ordinal 122 RVA `0x9190`. Attempt 1740 safely refused before any game launch
+because its gate still expected RVA `0x9150`; all files were restored.
+The gate was repinned without a product change, using fresh owner 1750.
+
+The manifest confirms `Application Id="App"`, `Executable="Cuphead.exe"`
+and `EntryPoint="cuphead.App"`. The existing capture launcher already
+supports a final server argument; no launcher source change was needed.
+The single game control temporarily registers only `cuphead.App` and
+server `Xodus.Cuphead.App`, then starts the original executable with final
+argument `-ServerName:Xodus.Cuphead.App`. This server name belongs to the
+explicit Wine registration equivalent; no Windows-generated AppX hash is
+invented, and no Store entitlement or AppContainer identity is fabricated.
+
+| Private 1750 evidence, primary `0434` | Observed result |
+| --- | --- |
+| Lines 7872-7876 | Server enumeration returns `cuphead.App`, `S_OK`. |
+| Lines 7877-7878 | Startup shutdown-delay hint has context `0xac`, delay 2000 ms. |
+| Lines 7880-7886 | Registration publishes one class, cookie 1, callback twinapi+`0x2fc90`, and returns `S_OK`. |
+| Apartment traces | Main thread is MTA (`type=1`, qualifier 0); the later view thread is MAINSTA (`type=3`, qualifier 0). |
+| Line 7907 | Main waits indefinitely/nonalertably in `NtWaitForSingleObject`, handle `0x214`, caller kernelbase+`0x7981d`. |
+| Line 8009 | The view thread hits missing `wintypes.RoCreateNonAgilePropertySet`. This is the next actual wall, not proof of an activation-manager hang. |
+| Controller | **0 total / 0 visible windows**; final child status **`0x80000100`**. The coordinator manually closed a Wine crash dialog, so this is **not a natural teardown claim**. |
+
+No registered-factory lookup/callback invocation is observed. A bounded
+native sample is retained privately, but the view-thread stub must be fixed
+before interpreting the main-thread wait as an activation-manager gap.
+CoreWindow creation, `SetWindow` and first frame remain unestablished.
+No implementation of ordinal 295 or CoreMessaging was added.
+
+Owner status is 0. All 20 baseline hashes/absent targets, owned-client
+absence, deep/strict signature, bottle quiescence and both temporary
+registration-key removals are independently verified. Debug and
+CoreApplication registry state are restored. The source patch reproduces
+the exact built file; the mandatory integration runner remains absent
+(exit 2), so no overall PASS is claimed.
+
+| Private 1750 evidence | SHA-256 |
+| --- | --- |
+| `game.log` | `571911882312e9f5038df2e0745163a9fe0d345f4ac72b21987449fecbd566f2` |
+| `receipt.json` | `f711f39e2470372f4abc205f93dc291bb5146eed72b58601789dbdc0d4503c1f` |
+| `server-classes-tests.log` | `0f18f554958b4b961cd7519d3931cde8a110cd83df279e205fffa3a4ab1edbb9` |
+| `bound-sample.txt` | `05c69f4b248b1bbb388deb03c40472e1e142c8037da855a011d47d0806b26abf` |

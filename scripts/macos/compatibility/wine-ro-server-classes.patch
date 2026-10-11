@@ -1,0 +1,122 @@
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -571,11 +571,114 @@
+  */
+ HRESULT WINAPI RoGetServerActivatableClasses(HSTRING name, HSTRING **classes, DWORD *count)
+ {
+-    FIXME("(%p, %p, %p): stub\n", name, classes, count);
+-
+-    if (count)
+-        *count = 0;
+-    return S_OK;
++    static const WCHAR root_path[] = L"Software\\Microsoft\\WindowsRuntime";
++    HKEY runtime = NULL, servers = NULL, server = NULL, root = NULL, key = NULL;
++    const WCHAR *server_name;
++    WCHAR *class_name = NULL, *registered_server = NULL;
++    HSTRING *result = NULL, *grown;
++    DWORD max_name, index, name_length, size, activation_type, found = 0;
++    UINT32 length;
++    BOOL embedded_null;
++    LONG status;
++    HRESULT hr = S_OK;
++
++    TRACE("server %s, classes %p, count %p.\n", debugstr_hstring(name), classes, count);
++    if (classes) *classes = NULL;
++    if (count) *count = 0;
++    if (!classes || !count) return E_POINTER;
++    server_name = WindowsGetStringRawBuffer(name, &length);
++    if (!length) return REGDB_E_CLASSNOTREG;
++    if (FAILED(hr = WindowsStringHasEmbeddedNull(name, &embedded_null))) return hr;
++    if (embedded_null || wcschr(server_name, '\\')) return E_INVALIDARG;
++
++    FIXME("Machine-registry subset; package-scoped catalog and activation broker lookup are unavailable.\n");
++    if ((status = RegOpenKeyExW(HKEY_LOCAL_MACHINE, root_path, 0, KEY_READ, &runtime)) ||
++        (status = RegOpenKeyExW(runtime, L"Server", 0, KEY_READ, &servers)) ||
++        (status = RegOpenKeyExW(servers, server_name, 0, KEY_READ, &server)) ||
++        (status = RegOpenKeyExW(runtime, L"ActivatableClassId", 0, KEY_READ, &root)))
++        goto registry_error;
++    if ((status = RegQueryInfoKeyW(root, NULL, NULL, NULL, NULL, &max_name, NULL,
++                                  NULL, NULL, NULL, NULL, NULL)))
++        goto registry_error;
++    if (!(class_name = malloc(((SIZE_T)max_name + 1) * sizeof(WCHAR))))
++    {
++        hr = E_OUTOFMEMORY;
++        goto done;
++    }
++    for (index = 0;; ++index)
++    {
++        name_length = max_name + 1;
++        status = RegEnumKeyExW(root, index, class_name, &name_length, NULL, NULL, NULL, NULL);
++        if (status == ERROR_NO_MORE_ITEMS) break;
++        if (status || (status = RegOpenKeyExW(root, class_name, 0, KEY_READ, &key)))
++            goto registry_error;
++        size = sizeof(activation_type);
++        status = RegGetValueW(key, NULL, L"ActivationType", RRF_RT_REG_DWORD, NULL, &activation_type, &size);
++        if (status == ERROR_FILE_NOT_FOUND || (!status && activation_type != 1)) goto next;
++        if (status) goto registry_error;
++        size = 0;
++        status = RegGetValueW(key, NULL, L"Server", RRF_RT_REG_SZ, NULL, NULL, &size);
++        if (status == ERROR_FILE_NOT_FOUND) goto next;
++        if (status) goto registry_error;
++        if (!(registered_server = malloc(size)))
++        {
++            hr = E_OUTOFMEMORY;
++            goto done;
++        }
++        if ((status = RegGetValueW(key, NULL, L"Server", RRF_RT_REG_SZ, NULL, registered_server, &size)))
++            goto registry_error;
++        if (CompareStringOrdinal(server_name, -1, registered_server, -1, TRUE) == CSTR_EQUAL)
++        {
++            SIZE_T allocation_size = ((SIZE_T)found + 1) * sizeof(*result);
++            if (allocation_size / sizeof(*result) != (SIZE_T)found + 1)
++            {
++                hr = E_OUTOFMEMORY;
++                goto done;
++            }
++            if (!(grown = CoTaskMemRealloc(result, allocation_size)))
++            {
++                hr = E_OUTOFMEMORY;
++                goto done;
++            }
++            result = grown;
++            if (FAILED(hr = WindowsCreateString(class_name, name_length, &result[found]))) goto done;
++            TRACE("server %s serves class %s.\n", debugstr_w(server_name), debugstr_w(class_name));
++            ++found;
++        }
++next:
++        free(registered_server);
++        registered_server = NULL;
++        RegCloseKey(key);
++        key = NULL;
++    }
++    if (!found)
++    {
++        hr = REGDB_E_CLASSNOTREG;
++        goto done;
++    }
++    *classes = result;
++    *count = found;
++    result = NULL;
++    goto done;
++
++registry_error:
++    hr = status == ERROR_FILE_NOT_FOUND || status == ERROR_PATH_NOT_FOUND ?
++         REGDB_E_CLASSNOTREG : HRESULT_FROM_WIN32(status);
++    WARN("Cannot enumerate server %s: registry error %ld.\n", debugstr_w(server_name), status);
++done:
++    if (FAILED(hr))
++    {
++        for (index = 0; index < found; ++index) WindowsDeleteString(result[index]);
++        CoTaskMemFree(result);
++    }
++    free(registered_server);
++    free(class_name);
++    if (key) RegCloseKey(key);
++    if (root) RegCloseKey(root);
++    if (server) RegCloseKey(server);
++    if (servers) RegCloseKey(servers);
++    if (runtime) RegCloseKey(runtime);
++    return hr;
+ }
+ 
+ /***********************************************************************

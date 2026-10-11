@@ -4102,6 +4102,103 @@ package/save mutation or synthetic replay. This source correction's actual
 Wine inventory/unload integration is unexecuted; hard-cancelling a stalled
 writer remains unexercised. No runtime hold is requested or assumed here.
 
+### Actual2270: inventory advances; original stub and repeated breakpoints captured; bounds fail
+
+One exclusive capture-only2270 cycle was granted on the exact source-only
+pins above. Read-only preflight verified canonical33 baseline hashes/absences,
+candidate manifest/owner/wrapper/helper pins, Detail.Vector absence,
+dbghelp/alias hashes, strict signature and full recursive bottle/runtime
+quiescence. One initial AppleScript shell-quoting attempt failed before any
+owner artifact/process existed; argument-safe AppleScript then launched
+the unique owner once via Terminal/caffeinate. No game replay occurred.
+
+Standard pre-gates passed: CM retry/error35/0, Pnp backend async23/0,
+cfgmgr original/augmented1292/1369 tests (one TODO each, zero failures),
+enumeration1938/1987 tests (91 TODOs each, zero failures), wintypes1120
+tests (49 TODOs, zero failures), nullable50/0, folders96/0,
+accessibility33/0, cstub248 tests (two TODOs, zero failures), and the
+existing activation/transport/dispatcher/proxy controls.
+
+The explicit package query/create-debug/activation seam succeeds again:
+activation status0, exact mask3/Flags1/Origin4, no AppContainer, own
+launcher unpackaged and relabel denied. First wait is TIMEOUT at12944ms,
+zero total/visible windows. Actual loaded providers are builtin dbghelp,
+builtin Wine wintypes and the native alias, with admitted identity checks.
+There are162 cumulative module loads, no duplicate/unknown-unload/overflow
+inventory error, and immutable selected snapshots contain59 then66 live
+modules. This is runtime progress beyond2260's129th cumulative-load abort,
+not a test of all128-live/invalid-event cases.
+
+**FAILED owner:** polling observes20,493,144 aggregate bytes, including
+20,180,655 server-growth bytes, and records
+`Aggregate debug capture bound exceeded: exception-event-package`.
+Owned cleanup preserves continued output, eight completed dumps and final
+post-cleanup aggregate161,230,032 bytes; no truncation or success relabel.
+The first observed owner bound is distinct from the controller's subsequent
+eight-selected-event exhaustion: its ninth event fails reason6, exit result
+not collected by the already-failed owner. Server final281,988,499 bytes
+also includes pre-gates/restoration, not just the diagnostic delta.
+This exposes substantial cleanup-output growth; hard outer bound enforcement
+or immediate stalled-writer cancellation is not established.
+
+All eight genuine exception dumps validate record/thread/context/fault-module
+streams, with independent control/integer register correlation:
+
+|Dump index|Thread/chance|Code|Fault/RIP|RSP|Bytes|
+|---|---|---|---|---|---|
+|0|540/first|80000100|kernelbase+da77 / same|10f440|190596|
+|1|540/first|80000003|SharedLibrary+41cecf / +41ced0|10e260|198100|
+|2|540/first|80000003|same / same|10dc70|198406|
+|3|540/first|80000003|same / same|10d680|198406|
+|4|540/first|80000003|same / same|10d090|198406|
+|5|540/first|80000003|same / same|10caa0|198406|
+|6|540/first|80000003|same / same|10c4b0|198406|
+|7|540/first|80000003|same / same|10bec0|198406|
+
+The original flags1 parameters remain twinapi+1dd950/+21c3a2; stderr
+dispatches its three ContinueSearch handlers and fourth Cuphead+550faa8
+guard import thunk. Later exceptions have flags0/parameter0, address
+6ffff7a6cecf in SharedLibrary base6ffff7650000. Pinned SharedLibrary
+SHA `5f0fd3ae5d7840015263ae84fc05b72528d38c346c04f8e26186ebf4c0708161`
+has an INT3 at41cecf. Actual stopped RIP is the following41ced0, while
+application dispatch reports41cecf; each logged later handler at
+mrt100_app+5a70 returns0. This establishes repeated first-chance breakpoint
+observations and decreasing stopped RSP, not an unwind, runtime guard-entry
+proof or a confirmed1007 causal chain. The original and seven dumped
+breakpoints receive normal NOT_HANDLED; the ninth pending event also uses
+NOT_HANDLED in cleanup. No1007/second chance/natural app exit is captured
+before abort; these are bounded telemetry gaps, not absence conclusions.
+
+Controller cleanup reports terminate/continue/detach/quiet all1,
+190 handles closed/zero close failures; final failed1/reason6/startup1/
+first9/second0/dumps8/exited0/quiet1. Original app exit is UNOBSERVED.
+No first frame or diagnostic-success claim follows.
+
+Independent verification confirms canonical33 triples/baselines,
+all temporary registrations/fixture absence, original CoreApplication/
+WineDbg/Debug settings, dbghelp/alias/package image unchanged, strict
+signature, no runtime/owner/wrapper/caffeinate and no recursive bottle
+holders. Prior2240/2250/2260 artifact pins remain unchanged. The2270
+grant is consumed and exclusive hold released; no second launch is granted.
+
+|2270 preserved evidence|SHA256|
+|---|---|
+|FAILED receipt|`32d45bbcdfbb736e177b830db6d387b723226ddfcc94ab8fda6c8e4a6e42764f`|
+|Independent baseline proof|`a955926c5cf23e08a5c0f93bb8bc165b32f6116304d98fc501527f20b3e56b53`|
+|Expanded independent proof|`a46aeb82e738979828750ccfcfe6b0f3ed3c8962ad944488da01044aed6d7b38`|
+|Original80000100 dump|`6cbfdd833b9dd31f187b96dbb1d1369897ca0f09fc989b0367f63d1c0af8321b`|
+|First later breakpoint dump|`b9603d45b1cd5b176968b7bbaf2f8d48e14dd39adcdc813cdc84d41bd249b7c1`|
+|stdout|`5f803cda8901c643eda143e4bd4d5809882f18234bcdf417b1965c6851fadc1f`|
+|stderr|`aaf314373a225924224967ea080f023a5e9c2f61a6809732446de51a5181f75d`|
+
+Private evidence root:
+`~/xodus-app-tooling/cuphead/cuphead-owned-exception-package-20261011-2270`.
+Cheapest next discriminator is read-only exact SharedLibrary INT3 caller/
+mrt100_app+5a70 continuation and admitted Wine breakpoint-context behavior,
+plus source-only outer-cleanup output accounting/control attribution.
+No swallowing breakpoint/context mutation, guessed API or widened bounds
+is justified by this failed capture. Missing quality runner remains.
+
 #### 2210 original-exception telemetry gap and targeted capture-only plan
 
 Further read-only inspection finds exactly one dispatched native exception:

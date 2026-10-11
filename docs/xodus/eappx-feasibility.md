@@ -3598,6 +3598,91 @@ Failed2230 and original2210 captures/receipts remain intact. Exception-event
 observations alone cannot establish mrt100_app guard entry, private Vector
 slot30/outer-call return, or reason7 causality.
 
+### Actual2240: handled capture succeeds, unrelated-breakpoint fixture fails
+
+The coordinator granted exactly one exclusive bounded **NO-GAME2240** cycle
+on the above pins and canonical2195 33 triples. Exact-byte/fresh-path checks
+passed before the single Terminal+caffeinate launch. No package/game controller,
+native alias selection, Detail.Vector registration or extra patch was used.
+The cycle stopped at the second synthetic mode's failure; no replay occurred.
+
+Standard pre-gates passed, including cfgmgr32 original1292/augmented1369,
+enumeration original1938/augmented1987, wintypes1120, nullable50,
+devnode35 and compiled-out backend-error async22, all with zero failures.
+Retained proxy/marshaling/activation/error/resource/window-interface units also
+passed their owner checks. This does not override the later FAILED cycle.
+
+|2240 synthetic mode|Actual result|
+|---|---|
+|handled|PASS: controller exit0, fixture exit0, quiet1; one genuine first-chance e0425844 and one validated90552-byte dump; application handler ran;12 owned closes/0 failures|
+|unrelated breakpoint|FAIL: controller exit7, fixture exit c000001d; original80000003 passed NOT_HANDLED and handler ran, then additional c000001d first/second chances; two validated90552-byte dumps; quiet1,13 closes/0 failures|
+|unhandled|NOT RUN|
+|read-error|NOT RUN|
+|deadline|NOT RUN|
+|aggregate-size|NOT RUN|
+|live detach|NOT RUN|
+
+Both processes observed `C:\windows\system32\dbghelp.dll` with actual admitted
+hash `e111a5b162e52207d04fe82d704c1b169297c22c2fdff64348322a98a15abbfb`.
+Both recognized the exact pinned ntdll startup trap once. The handled event
+preserved parameters11223344/55667788, fault kernelbase+da77,
+RIP at that address and RSP31fc70; actual exception/thread/module stream
+correlation passed. It was continued NOT_HANDLED, and the fixture's own
+vectored handler ran before normal exit. This is observed exception-event and
+metadata-dump support, not inferred hardware support or game admission.
+
+In the breakpoint fixture, first-chance80000003 at kernelbase+da77 was not
+swallowed by startup recognition. Its dump validated and the application
+handler ran. The next event was first-chance c000001d at kernelbase+da79,
+with a second validated dump, followed by second-chance c000001d. Both
+were continued NOT_HANDLED and the process naturally exited3221225501.
+This is consistent with breakpoint context advancement applied to a
+RaiseException-generated breakpoint, but source attribution is not yet
+established. No context correction, instruction mutation or fallback was
+applied. The original FAILED receipt is not relabeled because dump capture
+worked.
+
+Per-process aggregate totals were3525565 bytes (handled) and5358264 bytes
+(breakpoint), including split output, completed dumps and respective server
+growth3016890/4740077. The full server file is155911946 bytes including all
+standard pre-gates; it is not the single-synthetic bound measurement.
+No writer stall or over-limit occurred. Timeout/read-error/over-limit/live
+detach ownership behavior remains unverified because those modes did not run.
+All original logs/dumps are preserved, untruncated.
+
+Owner result is **FAILED**:
+`RuntimeError('Checked command failed: exception-event-breakpoint')`,
+with zero restoration errors and complete owner restoration. Independent
+verification confirms all33 original baseline hashes/absences, canonical
+target/candidate/baseline triples, temporary keys/devnode/Detail.Vector
+absence, original CoreApplication/WineDbg settings, both dbghelp copies and
+native alias unchanged, strict signature, no runtime or recursive bottle
+holders, and no owner/wrapper/caffeinate processes. An initial expanded
+verifier incorrectly required the entire Debug key to be absent; read-only
+inspection corrected this to its original two permanent exclusion values
+and no RelayInclude. That verifier assumption failure was not runtime residue
+and no setting was changed to satisfy it.
+
+The consumed2240 hold is released. No next runtime or game cycle is authorized.
+The mandatory quality runner is still absent; no overall PASS or first-frame
+claim. Failed2230 and actual2210 evidence remain unchanged.
+
+|2240 preserved private evidence|SHA256|
+|---|---|
+|FAILED owner receipt|`5911e119bcbf97d6fb66d535cec3bc99d4379c76a991e24b09a6b4eb71e33b9a`|
+|Independent baseline proof|`85d09fcce8bcc5cdcb8059aa493f9341936f253282335155ad12962d1e7bf312`|
+|Expanded independent proof|`e97b1f9559ddf2b48849d7eb4325ae71feb74dd53a92618942b6d2f3c8fdb04e`|
+|handled stdout|`48d7667f3be8ef1a0edcae64ddfce8278b60fa7aac6ba3f86386572a0faaf233`|
+|handled stderr|`a8ef48e3fd5040a8b06b5d4ad3ac9019e932ceb9a5dc5924421a256f0ad603de`|
+|handled dump0|`8af5db45001b412a34c727974f7699a572a0c71eb4fb40bed850353bd2f9d64f`|
+|breakpoint stdout|`3183e389e82b4e3760aed86e0c37ce351d130c1baaf55cde2078f9cc7323f91d`|
+|breakpoint stderr|`f1731627af1e9395a7ecfec53bd66246ed50a67b68058b16e43dae790bafc4f0`|
+|breakpoint dump0|`56b966bc9f80d57caab35c4c056167ddab41a7e0c39b28e7edd8856abc6ceebf`|
+|breakpoint dump1|`97cd415b7a2f7c29c2e425a9e415d977c89a6f2ea3507a8850be3cd2d57bfe8e`|
+
+Private evidence root:
+`~/xodus-app-tooling/cuphead/cuphead-owned-exception-unit-20261011-2240`.
+
 #### 2210 original-exception telemetry gap and targeted capture-only plan
 
 Further read-only inspection finds exactly one dispatched native exception:

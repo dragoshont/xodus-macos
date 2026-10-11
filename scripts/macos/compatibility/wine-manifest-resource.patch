@@ -1,0 +1,114 @@
+--- a/dlls/kernelbase/version.c
++++ b/dlls/kernelbase/version.c
+@@ -1879,7 +1879,8 @@
+     return ERROR_SUCCESS;
+ }
+ #include "package-graph-identity.inc"
+ #include "package-graph-manifest.inc"
++#include "manifest-resource-api.inc"
+ 
+ /* PackageInfoGeneration has a measured identity-independent ABI. Other types
+  * need the package graph and must not return a fabricated empty graph. */
+--- a/dlls/kernelbase/kernelbase.spec
++++ b/dlls/kernelbase/kernelbase.spec
+@@ -500 +500 @@
+-# @ stub GetCurrentPackageApplicationResourcesContext
++@ stdcall GetCurrentPackageApplicationResourcesContext(long ptr ptr)
+@@ -507 +507 @@
+-# @ stub GetCurrentPackageResourcesContext
++@ stdcall GetCurrentPackageResourcesContext(long ptr ptr)
+@@ -654 +654 @@
+-# @ stub GetPackageResourcesProperty
++@ stdcall GetPackageResourcesProperty(ptr long ptr ptr ptr)
+--- a/dlls/apisetschema/apisetschema.spec
++++ b/dlls/apisetschema/apisetschema.spec
+@@ -485,3 +485,4 @@
+ apiset ext-ms-win-mm-wmvcore-l1-1-0 = wmvcore.dll
++apiset ext-ms-win-mrmcorer-resmanager-l1-1-0 = mrmcorer.dll
+ apiset ext-ms-win-msa-device-l1-1-0 =
+ apiset ext-ms-win-msi-misc-l1-1-0 = msi.dll
+--- /dev/null
++++ b/dlls/kernelbase/manifest-resource-api.inc
+@@ -0,0 +1,82 @@
++/* Private source-only candidate, under Wine's LGPL-2.1-or-later license.
++ * Contexts are provider-owned opaque handles, not native context blobs.
++ * MrmCoreR consumes the property payload through GetPackageResourcesProperty. */
++
++static LONG current_manifest_resource_context( UINT32 index, void **context, BOOL application )
++{
++    struct package_resources *resources;
++    LONG status;
++
++    if (!context) return ERROR_INVALID_PARAMETER;
++    if ((status = get_current_package_resources( &resources ))) return status;
++    if (index)
++    {
++        WARN( "Non-default package resource contexts are not implemented (index %u)\n", index );
++        return ERROR_NOT_SUPPORTED;
++    }
++    *context = application ? &resources->application : &resources->package;
++    return ERROR_SUCCESS;
++}
++
++LONG WINAPI GetCurrentPackageResourcesContext( UINT32 index, void *reserved, void **context )
++{
++    TRACE( "(%u %p %p)\n", index, reserved, context );
++    return current_manifest_resource_context( index, context, FALSE );
++}
++
++LONG WINAPI GetCurrentPackageApplicationResourcesContext( UINT32 index, void *reserved, void **context )
++{
++    TRACE( "(%u %p %p)\n", index, reserved, context );
++    return current_manifest_resource_context( index, context, TRUE );
++}
++
++LONG WINAPI GetPackageResourcesProperty( void *context, UINT32 property, UINT32 *size,
++                                         void *buffer, UINT32 *flags )
++{
++    struct package_resources *resources;
++    struct package_resources_context *owned;
++    const WCHAR *value;
++    SIZE_T chars, bytes;
++    WORD header[4];
++    LONG status;
++
++    TRACE( "(%p %u %p %p %p)\n", context, property, size, buffer, flags );
++    if (!context || !size || (*size && !buffer)) return ERROR_INVALID_PARAMETER;
++    if ((status = get_current_package_resources( &resources ))) return status;
++    if (context == &resources->package) owned = &resources->package;
++    else if (context == &resources->application) owned = &resources->application;
++    else
++    {
++        WARN( "Resource context is not owned by the current manifest\n" );
++        return ERROR_INVALID_PARAMETER;
++    }
++    if (!property || property > RESCTX_MAX_PROPERTY) return ERROR_INVALID_PARAMETER;
++    if (!(value = owned->values[property])) return ERROR_NOT_FOUND;
++    if (owned->flags[property] || !wcsnicmp( value, L"ms-resource:", 12 ))
++    {
++        WARN( "Resource references and file-valued manifest properties are not implemented\n" );
++        return ERROR_NOT_SUPPORTED;
++    }
++    chars = wcslen( value ) + 1;
++    if (chars > (0xffff - sizeof(header)) / sizeof(WCHAR))
++    {
++        WARN( "Manifest resource literal exceeds the 16-bit payload limit\n" );
++        return ERROR_NOT_SUPPORTED;
++    }
++    bytes = chars * sizeof(WCHAR);
++    /* Native MrmCoreR: UTF-16 literal bit, total bytes, URI bytes, value bytes. */
++    header[0] = 0x100;
++    header[1] = sizeof(header) + bytes;
++    header[2] = 0;
++    header[3] = bytes;
++    if (flags) *flags = 0;
++    if (*size < header[1])
++    {
++        *size = header[1];
++        return ERROR_INSUFFICIENT_BUFFER;
++    }
++    memcpy( buffer, header, sizeof(header) );
++    memcpy( (BYTE *)buffer + sizeof(header), value, bytes );
++    *size = header[1];
++    return ERROR_SUCCESS;
++}

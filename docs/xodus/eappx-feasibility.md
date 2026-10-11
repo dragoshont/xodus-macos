@@ -4421,6 +4421,122 @@ The Manifest resource API child now exclusively owns MRM contract/
 implementation discovery; exact native artifact paths were sent directly,
 and this runtime owner does not duplicate that lane or edit its scratch tree.
 
+#### Integrated MRM literal slice: source/full-link only2280
+
+The coordinator approved integration of the Manifest resource child's patch
+`83a18d3036a3c6085b01d688c13f8726cadebc4afe72a9daf329d2e87a8b6aa1`.
+Its include and contract tests were read first; exact-hash dry-run and
+`patch -p1` succeeded in the owned Wine source tree. The integrated include
+is byte-identical to the reviewed handoff. No child scratch source was edited.
+The patch is preserved as `wine-manifest-resource.patch`, alongside the new
+`manifest-resource-integrated-test.c`.
+
+The three exports use WINAPI/LONG and stdcall specs: context queries take
+`UINT32, reserved pointer, output pointer`; property takes an opaque pointer,
+`UINT32 property, UINT32 *byteCount, buffer, optional UINT32 *flags`.
+Only pointers equal to this process's published manifest cache are accepted.
+The existing interlocked cache publishes once and frees only losing
+candidates; no arbitrary native context layout or release API is invented.
+Native kernelbase ignores reserved and preserves context outputs on failure.
+
+The child's genuine native disassembly establishes an eight-byte header of
+four WORDs: literal bit `0x100`, total bytes, zero URI bytes, UTF-16 value bytes
+including NUL. MrmCoreR+346cb passes a UINT32 byte count, +3498f checks at least
+eight bytes, +34999 checks total length, and +34ea0/+3aa69 consumes literal
+UTF-16 bytes and divides by two. Its SIZE_T output is required even for
+queries. Native kernelbase+105b20 updates byte count/optional flags for short
+and successful buffers without copying on short capacity; absent/invalid
+properties preserve outputs. These are static ABI/consumer observations,
+not a packaged runtime oracle. The child retains the disassembly at
+`parallel/failfast/gsv_mrm.asm`.
+
+**Source boundary:** index0 and parsed literal manifest properties only.
+Nonzero indices, PRI `ms-resource:` values, file-valued slots, oversized
+16-bit payloads and foreign/native context handles are unsupported, with
+explicit errors. Missing supported IDs return1168, invalid IDs87. Genuine
+native MrmCoreR remains the consumer/provider; no new shim for its export,
+PRI fallback, package enumeration or fabricated success was added.
+
+Full `make -j4` links of kernelbase and apisetschema succeeded. The actual PE
+adds exactly the three requested exports, removes none and changes no
+forwarders relative to the canonical kernelbase candidate. Export RVAs are
+application-context26f10, package-context28760 and property30c20. Decoding the
+linked v6 schema verifies the exact mapping
+`ext-ms-win-mrmcorer-resmanager-l1-1-0 -> mrmcorer.dll`; admitted ntdll's Unix
+loader opens the vendor schema, so no ntdll rebuild or bottle schema swap is
+proposed. Strict integrated-probe compilation succeeds. The child's mock
+contract checks pass under native ASan/UBSan;28 focused safety/accounting tests
+also pass. None is Wine integration or game evidence.
+
+Fresh staged files are under
+`~/xodus-app-tooling/cuphead/mrm-candidate-20261011-2280`.
+
+|Compiled MRM artifact|SHA256|
+|---|---|
+|kernelbase.dll|`1fbe8bd25c77b60332cff5a6f4f2ce969b3514edb3e4848997169b5abe6295e4`|
+|apisetschema.dll|`f91bed73d425d26761d91a70d291b966b3fb03d4e6217871045fbdee9a3234e9`|
+|Integrated test.exe|`2ec01c9638d7800537a92d86e163f18f37d740ac5d152312175d25ff01bea232`|
+|Integrated test.c|`be0014c8e9d57c57b8d896a3f203c26837abc28ae27c04c9545a9016759515cd`|
+|Unchanged native MrmCoreR.dll, private fixture copy|`6186f981d1aa1e1991697133aa066045097ab52227a240632a0c7d8fd04352be`|
+|Full-link log|`ef6ea09c3d3d03d3e245ec0b4677eabe950d42cdb1f779e05f1e11aaf06925bb`|
+
+The proposed target delta is exact: preserve the canonical2195 assertion of
+all33 triples before applying the delta; replace only its existing vendor
+kernelbase candidate9308d50f... with1fbe8bd2..., retaining baseline
+`ca72a76ce5770996cc9cba6989031a79eb1e63b6d9fca90d59eebab22e39191b`;
+add one vendor `lib/wine/x86_64-windows/apisetschema.dll` target with candidate
+f91bed73... and baseline
+`9d20ab9c93439309b0325467e45b80b70e00ad5f484d8dd522c05e8a94b4a0fb`.
+That is34 unique mutable targets, not33 unchanged candidates. The bottle
+schema stays untouched at the same9d20ab9c... hash. Native MRM is frozen
+beside the test outside the bottle/vendor/Git; the game's original
+decoded-attempt1 copy is verified unchanged. Native `mrmcorer=n` is the
+only added consumer selection.
+
+The integrated no-game test loads the API-set name rather than bypassing
+the mapping, prints provider path and the three actual export RVAs, and
+expects real unpackaged80073d54/count0/cleared-buffer behavior. Its default
+mode has six checks, including all three exports' invalid/unpackaged paths.
+Optional `--packaged-literal` tests byte-sized property
+query plus native NULL-buffer/short/exact-size string calls against an
+explicit expected fixture literal; it assigns no identity or registration.
+An existing signed graph fixture is present but no already-bound execution
+of this new probe is established without changing its content/activation
+seam. Consequently the admission proposes the real unpackaged negative,
+not an invented packaged-positive result. Positive mock tests remain labeled
+fixtures; Cuphead's literal DisplayName alone is not packaged call evidence.
+
+The fresh source owner verifies canonical33 first, adds the explicit delta,
+freezes native provider/test, and runs the integrated no-game call after
+required standard pre-gates. It enforces18s/2MB including live server growth,
+uses control-first abort even for that command, and admits an ordinary game
+only after exact loader/output/quiet evidence. Ordinary75s/20MB accounting,
+explicit activation/identity/window/exit checks, no debugger or exception
+disposition/context/instruction edits, and restoration requirements are
+unchanged. Overshoot, stalled
+control or uncertain identity still fails; no hard writer-cancellation claim.
+
+|Updated source-only owner artifact|SHA256|
+|---|---|
+|Disabled owner, staged|`cb9379c6f2b089f4f8cf414af9f15409bb9b95ed6ad34a389547706f332d15d8`|
+|Disabled wrapper, staged|`795fc46cd76343e93fd8e40e4ff1a7311a52a70e71695206a236e485b819625d`|
+|Proposed executable owner, CRLF admission conversion|`fa0a8eecd0b0a1b057bc5756397bb98c19792adf2627d965a71ea222b2ca9d2e`|
+|Proposed executable wrapper, matching owner pin/removal of refusal|`7d7e691c91b18043238180e39703ad1463966b67e3edee90b9d9ff0fe74d69d0`|
+
+Executable hashes are computed, not enabled/executed: owner refusal would
+become `Owner().execute()`, wrapper refusal removed and its owner pin updated,
+with existing CRLF bytes preserved. Accounting/control/controller pins remain
+those above. AST, staged pins, exact34 scope and absent2280 workdir/log/status
+are verified. The next decision is one exclusive no-game plus conditional
+ordinary2280 cycle under these exact pins, stopping at first mismatch, with
+independent restoration of34/all temporary keys/settings/fixture/provider
+identities/signature/full recursive-holder/runtime quiescence. No unchanged
+synthetic debugger replay is proposed. No runtime or game is granted or run
+here; actual loaded native dependencies, Wine ownership/control, packaged
+MRM success and first frame remain untested. Mandatory
+`python gates\gate_runner.py quality-gate` again exits2 because the runner
+is absent; this remains an integration limitation, not overall PASS.
+
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup
 gaps, but native alias progress is not our distributable Vector support.

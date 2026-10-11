@@ -2024,3 +2024,172 @@ Private final evidence hashes:
 
 No first frame/playability is claimed. Unknown-interface synthesis, generic
 Vector implementation and ordinal-69 success/no-op remain held.
+
+### CoreWindow ownership and SHCore scale-registration controls
+
+Read-only attribution of the 1140 failure establishes the immediate failed
+HRESULT, rather than inferring it from adjacent log lines. MrmCoreR caller
+`+0x4982a` invokes helper `+0x4b8e4`, which queries IID
+`84acbbfe-649c-5ac7-8130-7b6b76db463c`. The caller tests that HRESULT at
+`+0x49835`; failure branches to the reporter with tag `0x659`. `+0x49943` is
+the reporter's return address, not an inline fast-fail instruction. The
+reporting chain builds `0xc0000409` with parameter 7 and ultimately has an
+`int 0x29` fallback. Detail.Vector, CoreCursor and the adapter getter are not
+the result consumed by this particular path. No private-IID shim was added.
+
+The experimental lazy window was returned before CoreApplicationView had
+created a window. The composed CoreWindow patch now makes
+`GetForCurrentThread` return `S_OK` with NULL by default when the calling
+thread has no window. The old experiment requires the exact explicit opt-in
+`WINE_COREWINDOW_AUTOCREATE=1`; the legacy no-autocreate flag takes precedence.
+The `...default-null-...1151` control passes the previous MrmCoreR/private-QI
+boundary, but encounters the SHCore scale-registration stub, with no visible
+window and a 150-second harness termination (92).
+
+The genuine twinapi caller independently grounds the ten-argument ABI of
+windows.ui NONAME ordinal 1500. The patch exports `CreateCoreWindow`, passes
+the title, bounds and owner to the existing HWND-backed implementation, registers
+the calling thread's window, and returns the requested interface with an owning
+reference. Unknown type/attribute bits are logged, not interpreted. Failed QI
+destroys the unexposed window; duplicate creation on that thread is rejected.
+The failure-counted test covers initial NULL, ordinal lookup, invalid arguments,
+failed-QI cleanup, supplied title/rectangle, shared object identity, duplicate
+creation, and NULL after destruction. The initial ordinal-1500 candidate
+`c7d6097240b1f9f55bda25853505527e724e813a0feb3c42571a2f54aced2c91`
+passes **77 checks / zero failures**. Its `...ordinal1500-...1210` game control
+still stops at the older SHCore stub; no actual game invocation of 1500 is
+observed. After an ESRCH cleanup race, exact client absence and the recorded
+server identity were established before restoring all 17 targets and verifying
+CrossOver's signature. The signal helper now tolerates that race only when an
+immediate identity recheck proves the numeric PID absent.
+
+The next approved control replaces aborting SHCore stubs 240/246 with explicit
+`E_NOTIMPL`, clearing the registration cookie. This is an unsupported boundary,
+not notification support. Candidate
+`90ab758a09988c62f835ad1ca74aa202b515ae95c039ae73f2a6939141e73e11`
+passes **7 checks / zero failures**. In unique run
+`cuphead-owned-scale-failure-20261011-1218`, admission is apartment **27/0**,
+CoreWindow **77/0**, scale **7/0**. Main thread `01f8` calls 240 with NULL
+window through MrmCoreR IAT `+0x10e078`. The stub exception is gone, but the
+held child exits after 4,240 ms with `0xcf30` (53040), zero windows, not a
+timeout. Its exception address is SharedLibrary.dll `+0x41cf88` (load base
+`0x6ffff7cb0000`, file SHA-256
+`5f0fd3ae5d7840015263ae84fc05b72528d38c346c04f8e26186ebf4c0708161`).
+Coordinator static analysis identifies this as the return address of the
+RaiseFailFastException call: a .NET Native unhandled-managed-exception
+fail-fast, not an identified native access violation.
+
+The retained log does not show a CreateCoreWindow invocation or
+ImmersiveNavigationClient activation. `+module/+loaddll` provides load and
+delay-IAT evidence, but emits no GetProcAddress lookup records; absence of a
+1500/1700 lookup line is therefore not proof that no lookup was attempted.
+No ordinal-1700 implementation, internal ImmersiveNavigationClient factory,
+or private `bb4cbbe9`, `84acbbfe`, `f21e14c1` interface was fabricated.
+All 18 targets and registry state were restored, owned runtime was released,
+and deep/strict signature verification passed.
+
+Private 1218 evidence:
+
+| Evidence | SHA-256 |
+| --- | --- |
+| `game.log` | `9c168b71f0181c3b14c6609f29ec788eae910b4970638dd34b8cd7c1415ee6a3` |
+| `receipt.json` | `fc1b04672807c3aa054b23b2e3d6a327c321974f977e67d31edebc5b4e64d06b` |
+| `interface-tests.log` | `72b6142941f0fc238a963c36d7ae35a83161f06697f68200f686c764c1aa3355` |
+| `scale-notification-tests.log` | `3aadbcb0cf5e7659003a12ee91a2ac66f7bcb9d4fe55f3c6da10ed5bb81c5fc4` |
+
+`wine-shcore-scale-registration.patch` is the subsequent approved fixed-scale
+control: 240 retains the sink with AddRef and assigns a unique nonzero cookie;
+246 detaches that exact registration and releases its reference. Invalid or
+already-revoked cookies return `E_INVALIDARG`. No sink callback is invoked,
+because this provider reports a fixed 100-percent scale. Cookie exhaustion is
+an explicit failure rather than wrapping and aliasing an earlier registration.
+External AddRef/Release calls occur outside the registration lock. Other
+SHCore ordinals, including 227/245, are unchanged. This does not provide a
+dynamic scaling backend or establish game playability.
+
+The single retained-sink game control is
+`cuphead-owned-scale-retained-20261011-1305`. SHCore is pinned to
+`4086de64048cd6a911a228219f6fa4215d03cae7645d844a44f1416c18c05509`;
+all other game candidates are unchanged from 1218, including the frozen
+`c7d60972...` windows.ui and `52ed4c9a...` combase. Before activation, apartment
+checks pass **27/0**, CoreWindow **77/0**, and retained-sink checks **16/0**.
+The scale tests cover AddRef ownership, multiple distinct nonzero cookies,
+independent sinks, NULL window, invalid input, revoke and double-revoke.
+Main thread `01f8` reaches the new registration, but the child still exits
+with `0xcf30` at the same SharedLibrary `+0x41cf88` after 2,918 ms, with zero
+windows. No report tag `0x3e9` or `0x6c5`, CreateCoreWindow invocation or
+ImmersiveNavigationClient activation is visible. Changing 240 alone therefore
+does **not** eliminate the managed fail-fast; the final throwing HRESULT
+remains unidentified. All 18 targets and registry state were restored and
+CrossOver's signature passed.
+
+| Private 1305 evidence | SHA-256 |
+| --- | --- |
+| `game.log` | `93b5a6e55feb525bb2dc100964021a0d5c331f95d88a81176df5feaf03cb2c73` |
+| `receipt.json` | `96f5aca13300c9a89b7641eacb5dbc571e23e74ff819b776a6ee44b9acfda7fb` |
+| `scale-notification-tests.log` | `836dd4f45207edd3e13b4b26036e2c012af0399508273978c5d89af11c6bf84c` |
+
+The final composed CoreWindow patch also prevents failed creation QI from
+posting `WM_QUIT` to the caller's message loop: only an exposed window owns
+that quit notification. This additional regression fix was deliberately
+**excluded** from 1305 and the subsequent diagnostic, preserving their single
+variable. It was rebuilt as
+`88244b6718750dcdfae5a95de9ffad72d739ee4c2c6a6bd7a77a8bd1626ee140`
+and independently exercised by the unit-only owner
+`cuphead-owned-final-unit-20261011-1320`: apartment **27/0**, CoreWindow
+**78/0**, scale **16/0**, no game launch or game log. All 18 targets, registry
+and signature were restored/verified. Its private receipt SHA-256 is
+`c42a26c734fdf29372181aac80b0d65a64ce6abacdb20df8bfbe1529b71815a2`.
+
+The coordinator's further static analysis identifies `0xcf30` as the
+SharedLibrary-relative EEType of base `System.Exception`, not the HRESULT
+itself. It can arise from an explicit base exception or an unmapped HRESULT;
+the exception's actual Message/HResult cannot be inferred from the exit code.
+One separately authorized, unchanged-candidate diagnostic,
+`cuphead-owned-error-origin-20261011-1340`, adds `+debugstr,+seh` and an exact
+relay filter for combase string creation/duplication, activation/error-origin/
+restricted-error APIs and kernelbase debug output/fail-fast. The Debug key is
+backed up, set/query-checked, restored and query-verified. Actual activation
+Wine PID 612 (`0x264`) maps through the successful server startup reply to
+primary thread `0268`; thread `01f8` must not be assumed across runs.
+
+This diagnostic again exits `0xcf30` at SharedLibrary `+0x41cf88` after
+4,737 ms, zero windows. It captures 638 primary-thread relay Call/Ret lines.
+The last 40 lines are 20 successful Call/Ret pairs: CoreWindow string/factory
+requests, a ResourceQualifierObservableMap class-name string, then repeated
+ResourceContextLanguagesVectorView class-name strings interleaved with empty
+string references and duplication of NULL HSTRINGs. All return `S_OK`.
+The last call is WindowsCreateString of the languages-vector-view class name,
+from SharedLibrary `+0x48356e`, immediately before the fail-fast.
+
+| Last-40 relay operation | Return site |
+| --- | --- |
+| CoreWindow WindowsCreateStringReference | MrmCoreR `+0x2381b` |
+| CoreWindow RoGetActivationFactory (two calls) | MrmCoreR `+0x4949e`, `+0x2364b` |
+| ResourceQualifierObservableMap / ResourceContextLanguagesVectorView WindowsCreateString | SharedLibrary `+0x48356e` |
+| Empty WindowsCreateStringReference | MrmCoreR `+0x5fb72` |
+| WindowsDuplicateString(NULL) | MrmCoreR `+0x5fd0b` |
+
+Earlier error-origin calls are not the final failure: twinapi `+0x7fbfc`
+passes `0x80040154` and `0x80070490` with NULL messages; vccorlib140_app
+`+0x18f47` / `+0x19043` passes `0x80040111` with NULL/empty messages in the
+earlier caught CoreCursor path. Get/SetRestrictedErrorInfo return
+`0x80004001`, and RoOriginate APIs return FALSE. No new such call or debug
+output immediately precedes the final exception. **The final exception
+Message/HResult is still unobserved.** No 1500/ImmersiveNavigation invocation
+or first frame is established, and no further game launch was performed.
+All 18 targets, CoreApplication and Debug registry state were restored,
+owned runtime was released, and deep/strict signature verification passed.
+
+| Private 1340 evidence | SHA-256 |
+| --- | --- |
+| `game.log` | `91b491b3c2fbf967d60ced0a5364e23e119400f4f16c0b00eeb653989aa9566b` |
+| `receipt.json` | `f9700a4b47539a5ee80b19e9f6707ccaa340c8b4ade61054aada92f0a57ad67a` |
+| `interface-tests.log` | `aa99344b603c7e979ed7edaf0903305738b85e2cbb88e103b468e9519650c152` |
+| `scale-notification-tests.log` | `7ed33ca92162a8b62c822239257c23a3e1c48c9abe7fee05e02daf1e7a001536` |
+
+Both generated source patches apply to their preserved exact baselines;
+targeted builds and tests pass. The prescribed repository-wide command
+`python gates/gate_runner.py quality-gate` cannot execute because that file
+does not exist here (Python exit 2). No repository-wide quality PASS or
+overall game-support completion is claimed.

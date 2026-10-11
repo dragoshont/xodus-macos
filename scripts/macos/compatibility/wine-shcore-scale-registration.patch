@@ -1,0 +1,94 @@
+--- a/dlls/shcore/main.c
++++ b/dlls/shcore/main.c
+@@ -43,6 +43,17 @@
+ 
+ static DWORD shcore_tls;
+ static IUnknown *process_ref;
++
++struct scale_change_registration
++{
++    struct scale_change_registration *next;
++    IUnknown *sink;
++    DWORD cookie;
++};
++
++static SRWLOCK scale_change_lock = SRWLOCK_INIT;
++static struct scale_change_registration *scale_change_registrations;
++static DWORD scale_change_cookie;
+ 
+ /* CW Hack 22310 */
+ extern NTSTATUS WINAPI __wine_get_current_process_explicit_app_user_model_id( WCHAR *buffer, INT size );
+@@ -2595,6 +2606,56 @@
+     return E_NOTIMPL;
+ }
+ 
++HRESULT WINAPI RegisterScaleChangeSinkForWindow(void *window, void *sink, DWORD *cookie)
++{
++    struct scale_change_registration *registration;
++
++    FIXME("window %p, sink %p, cookie %p: fixed scale 100; change notifications are never sent.\n",
++          window, sink, cookie);
++    if (!cookie) return E_INVALIDARG;
++    *cookie = 0;
++    if (!sink) return E_INVALIDARG;
++    if (!(registration = malloc(sizeof(*registration)))) return E_OUTOFMEMORY;
++
++    registration->sink = sink;
++    IUnknown_AddRef(registration->sink);
++    AcquireSRWLockExclusive(&scale_change_lock);
++    if (scale_change_cookie == MAXDWORD)
++    {
++        ReleaseSRWLockExclusive(&scale_change_lock);
++        IUnknown_Release(registration->sink);
++        free(registration);
++        return HRESULT_FROM_WIN32(ERROR_NO_SYSTEM_RESOURCES);
++    }
++    registration->cookie = ++scale_change_cookie;
++    registration->next = scale_change_registrations;
++    scale_change_registrations = registration;
++    *cookie = registration->cookie;
++    ReleaseSRWLockExclusive(&scale_change_lock);
++    return S_OK;
++}
++
++HRESULT WINAPI RevokeScaleChangeNotificationsForWindow(void *window, DWORD cookie)
++{
++    struct scale_change_registration *registration, **cursor;
++
++    TRACE("window %p, cookie %lu.\n", window, cookie);
++    AcquireSRWLockExclusive(&scale_change_lock);
++    for (cursor = &scale_change_registrations; *cursor; cursor = &(*cursor)->next)
++        if ((*cursor)->cookie == cookie) break;
++    if (!(registration = *cursor))
++    {
++        ReleaseSRWLockExclusive(&scale_change_lock);
++        WARN("Unknown scale-change registration cookie %lu.\n", cookie);
++        return E_INVALIDARG;
++    }
++    *cursor = registration->next;
++    ReleaseSRWLockExclusive(&scale_change_lock);
++    IUnknown_Release(registration->sink);
++    free(registration);
++    return S_OK;
++}
++
+ /*************************************************************************
+  * CreateRandomAccessStreamOverStream        [SHCORE.@]
+  */
+--- a/dlls/shcore/shcore.spec
++++ b/dlls/shcore/shcore.spec
+@@ -171,12 +171,12 @@
+ 232 stub -noname SHRemoveWindowSubclass
+ 233 stub -noname SHDefSubclassProc
+ 234 stub -noname SHRegisterClassW
+-240 stub -noname RegisterScaleChangeSinkForWindow
++240 stdcall -noname RegisterScaleChangeSinkForWindow(ptr ptr ptr)
+ 241 stub -noname ScaleAndMapRelativeRect
+ 242 stub -noname RelativeRectFromPhysicalRectWithScale
+ 244 stub -noname GetScaleFactorForWindow
+ 245 stub -noname RegisterScaleChangeNotificationsForWindow
+-246 stub -noname RevokeScaleChangeNotificationsForWindow
++246 stdcall -noname RevokeScaleChangeNotificationsForWindow(ptr long)
+ 247 stub -noname GetOverrideScaleFactorForWindow
+ 248 stub -noname GetSystemScaleFactorForWindow
+ 249 stub -noname UpdateScalingInfoCache

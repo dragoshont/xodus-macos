@@ -5,6 +5,10 @@
 #include <stdio.h>
 #include <stddef.h>
 
+#ifndef E_ILLEGAL_METHOD_CALL
+#define E_ILLEGAL_METHOD_CALL ((HRESULT)0x8000000e)
+#endif
+
 /* Failure-counted public SDK ICoreWindowStatic/WithContext and CoreWindow.idl ABI checks. */
 typedef struct with_context with_context;
 struct context_vtbl
@@ -34,6 +38,7 @@ struct interop_vtbl
 };
 static const GUID iid_static = {0x4d239005,0x3c2a,0x41b1,{0x90,0x22,0x53,0x6b,0xb9,0xcf,0x93,0xb1}};
 static const GUID iid_context = {0x9ac40241,0x3575,0x4c3b,{0xaf,0x66,0xe8,0xc5,0x29,0xd4,0xd0,0x6c}};
+static const GUID iid_window = {0x79b9d5f2,0x879e,0x4b89,{0xb7,0x98,0x79,0xe4,0x75,0x98,0x03,0x0c}};
 static const GUID iid_ui = {0xbb5cfacd,0x5bd8,0x59d0,{0xa5,0x9e,0x1c,0x17,0xa4,0xd6,0xd2,0x43}};
 static const GUID iid_adapter = {0x7a5b6fd1,0xcd73,0x4b6c,{0x9c,0xf4,0x2e,0x86,0x9e,0xaf,0x47,0x0a}};
 static const GUID iid_interop = {0x45d64a29,0xa63e,0x4cb6,{0xb4,0x98,0x57,0x81,0xd2,0x98,0xcb,0x4f}};
@@ -53,6 +58,7 @@ int main(void)
     HRESULT (WINAPI *delete_string)(HSTRING);
     PCWSTR (WINAPI *raw_string)(HSTRING, UINT32 *);
     HRESULT (WINAPI *get_factory)(HSTRING, IInspectable **);
+    HRESULT (WINAPI *create_window)(DWORD, PCWSTR, INT, INT, UINT, UINT, DWORD, HWND, REFIID, void **);
     HMODULE combase = LoadLibraryW(L"combase.dll"), ui = LoadLibraryW(L"windows.ui.dll");
     IInspectable *factory = NULL, *statics = NULL, *window = NULL, *first = NULL, *second = NULL;
     IUnknown *interop = NULL, *identity = NULL, fake = {&fake_vtbl};
@@ -84,12 +90,31 @@ int main(void)
     if (!factory) return 1;
     CHECK(IInspectable_QueryInterface(factory, &iid_static, (void **)&statics) == S_OK);
     if (!statics) return 1;
+    CHECK(SetEnvironmentVariableW(L"WINE_COREWINDOW_AUTOCREATE", NULL));
+    CHECK(SetEnvironmentVariableW(L"WINE_COREWINDOW_NO_AUTOCREATE", NULL));
+    CHECK(((const struct statics_vtbl *)statics->lpVtbl)->GetForCurrentThread(statics, NULL) == E_POINTER);
+    CHECK(((const struct statics_vtbl *)statics->lpVtbl)->GetForCurrentThread(statics, &window) == S_OK && !window);
+    CHECK(SetEnvironmentVariableW(L"WINE_COREWINDOW_AUTOCREATE", L"0"));
+    CHECK(((const struct statics_vtbl *)statics->lpVtbl)->GetForCurrentThread(statics, &window) == S_OK && !window);
+    CHECK(SetEnvironmentVariableW(L"WINE_COREWINDOW_AUTOCREATE", L"yes"));
+    CHECK(((const struct statics_vtbl *)statics->lpVtbl)->GetForCurrentThread(statics, &window) == S_OK && !window);
+    CHECK(SetEnvironmentVariableW(L"WINE_COREWINDOW_AUTOCREATE", L"1"));
+    CHECK(SetEnvironmentVariableW(L"WINE_COREWINDOW_NO_AUTOCREATE", L"1"));
+    CHECK(((const struct statics_vtbl *)statics->lpVtbl)->GetForCurrentThread(statics, &window) == S_OK && !window);
+    CHECK(SetEnvironmentVariableW(L"WINE_COREWINDOW_NO_AUTOCREATE", NULL));
     CHECK(((const struct statics_vtbl *)statics->lpVtbl)->GetForCurrentThread(statics, &window) == S_OK && window);
     if (!window) return 1;
     CHECK(IInspectable_QueryInterface(window, &iid_context, (void **)&context) == S_OK);
     CHECK(IInspectable_QueryInterface(window, &iid_adapter, (void **)&adapters) == S_OK);
     CHECK(IInspectable_QueryInterface(window, &iid_interop, (void **)&interop) == S_OK);
     if (!context || !adapters || !interop) return 1;
+    CHECK(SetEnvironmentVariableW(L"WINE_COREWINDOW_AUTOCREATE", NULL));
+    {
+        IInspectable *existing = NULL;
+        CHECK(((const struct statics_vtbl *)statics->lpVtbl)->GetForCurrentThread(statics, &existing) == S_OK &&
+              existing == window);
+        if (existing) IInspectable_Release(existing);
+    }
     CHECK(context->lpVtbl->get_UIContext(context, NULL) == E_POINTER);
     CHECK(context->lpVtbl->get_UIContext(context, &first) == S_OK);
     CHECK(context->lpVtbl->get_UIContext(context, &second) == S_OK && first == second);
@@ -121,11 +146,49 @@ int main(void)
     IInspectable_Release((IInspectable *)adapters);
     IInspectable_Release((IInspectable *)context);
     IInspectable_Release(window);
+    window = NULL;
+    CHECK(((const struct statics_vtbl *)statics->lpVtbl)->GetForCurrentThread(statics, &window) == S_OK && !window);
     CHECK(fake_refs == 1);
     CHECK(IInspectable_GetRuntimeClassName(first, &class_name) == S_OK);
     delete_string(class_name);
     IInspectable_Release(second);
     CHECK(IInspectable_Release(first) == 0);
+    create_window = (void *)GetProcAddress(ui, (LPCSTR)1500);
+    CHECK(create_window != NULL);
+    if (create_window)
+    {
+        RECT rect;
+        MSG message;
+        WCHAR title[64];
+        IInspectable *existing = NULL;
+        CHECK(create_window(0, NULL, 0, 0, 0, 0, 0, NULL, &iid_window, NULL) == E_POINTER);
+        CHECK(create_window(0, NULL, 0, 0, 0, 0, 0, NULL, NULL, (void **)&window) == E_INVALIDARG && !window);
+        while (PeekMessageW(&message, NULL, WM_QUIT, WM_QUIT, PM_REMOVE)) {}
+        CHECK(create_window(0, NULL, 0, 0, 0, 0, 0, NULL, &iid_static, (void **)&window) == E_NOINTERFACE && !window);
+        CHECK(!PeekMessageW(&message, NULL, WM_QUIT, WM_QUIT, PM_REMOVE));
+        CHECK(((const struct statics_vtbl *)statics->lpVtbl)->GetForCurrentThread(statics, &window) == S_OK && !window);
+        CHECK(create_window(0, L"Ordinal1500 test", 32, 48, 640, 480, 0, NULL,
+                            &iid_window, (void **)&window) == S_OK && window);
+        if (!window) return 1;
+        CHECK(((const struct statics_vtbl *)statics->lpVtbl)->GetForCurrentThread(statics, &existing) == S_OK &&
+              existing == window);
+        if (existing) IInspectable_Release(existing);
+        CHECK(IInspectable_QueryInterface(window, &iid_interop, (void **)&interop) == S_OK);
+        if (!interop) return 1;
+        CHECK(((const struct interop_vtbl *)interop->lpVtbl)->get_WindowHandle(interop, &hwnd) == S_OK && hwnd);
+        CHECK(GetWindowRect(hwnd, &rect) && rect.left == 32 && rect.top == 48 &&
+              rect.right - rect.left == 640 && rect.bottom - rect.top == 480);
+        CHECK(GetWindowTextW(hwnd, title, sizeof(title) / sizeof(title[0])) &&
+              !wcscmp(title, L"Ordinal1500 test"));
+        existing = NULL;
+        CHECK(create_window(0, NULL, 0, 0, 0, 0, 0, NULL, &iid_window,
+                            (void **)&existing) == E_ILLEGAL_METHOD_CALL && !existing);
+        CHECK(DestroyWindow(hwnd));
+        IUnknown_Release(interop);
+        IInspectable_Release(window);
+        window = NULL;
+        CHECK(((const struct statics_vtbl *)statics->lpVtbl)->GetForCurrentThread(statics, &window) == S_OK && !window);
+    }
     IInspectable_Release(statics);
     IInspectable_Release(factory);
     delete_string(name);

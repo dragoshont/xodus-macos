@@ -3764,6 +3764,70 @@ and recursive-holder restoration checks. No alias selection, Detail.Vector
 registration, package/game controller, extra provider patch or second cycle.
 No2250 runtime hold or game authorization has been granted.
 
+### Actual2250: seven synthetic exception gates pass; restored independently
+
+The coordinator subsequently granted ONE exclusive **NO-GAME2250** cycle
+on the exact above artifacts, canonical33 triples and builtin dbghelp.
+Fresh paths and all five executable/owner/wrapper/helper pins were verified
+before the single Terminal+caffeinate launch. Owner exit0, no error and no
+restoration errors. Standard pre-gates and all seven synthetic modes passed;
+no package/game controller or alias selection was used.
+
+|Mode|Observed result|Aggregate bytes|
+|---|---|---|
+|handled|e0425844 first chance, validated90552-byte dump, NOT_HANDLED, application handler, normal exit0/quiet1;12 closes/0 failures|3525988|
+|real breakpoint|trap140001564/resume140001565/bytecc; original80000003 address at trap, stopped RIP140001565, validated91418-byte dump, NOT_HANDLED, owned INT3 handler, exit0/quiet1;12 closes/0 failures|3539575|
+|unhandled|e0425845 first and second chances NOT_HANDLED; first-chance91418-byte dump validated, natural exit3762444357=e0425845/quiet1;12 closes/0 failures|3529337|
+|read-error|actual first-chance custom event/context, injected address1 read fails; exact reason3, zero dumps, owned terminate/continue/detach/quiet all1;11 closes/0 failures|1661868|
+|deadline|fixture deadline boundary entered, exact reason1; owned terminate/continue/detach/quiet all1;11 closes/0 failures|1653310|
+|aggregate-size|fixture pressure boundary entered, exact reason2 at controller64KiB output threshold; owned terminate/continue/detach/quiet all1;11 closes/0 failures|4050635|
+|live detach|custom first chance and validated91418-byte dump; NOT_HANDLED, application handler; actual detach1/quiet1/exit0;13 closes/0 failures|3543933|
+
+Every mode logged the actual loaded
+`C:\windows\system32\dbghelp.dll` admitted hash e111a5b1..., and exact startup
+recognition once. Every positive dump's actual exception/thread/module
+streams correlated with the preserved original event and stopped context.
+The real INT3 test therefore verifies the grounded fixture correction; it
+does not relabel failed2240 or alter debugger disposition/context.
+Negative controller results deliberately remain failed1 with exact reason;
+test-process exit0 requires that expected reason and successful owned cleanup.
+
+Live and completed aggregate accounting includes stdout/stderr, dumps and
+per-mode server growth. All external18s/20MB thresholds were respected.
+Aggregate-size stdout65813 bytes is preserved, including the genuine
+controller64KiB threshold overshoot; it is expected-negative evidence, not
+truncated output. The full server file168060548 bytes includes standard
+pre-gates, not a single-mode20MB violation. No stalled minidump writer or
+external18s/20MB breach was forced: those outer emergency thresholds remain
+monitored limits, not independently exercised hard-cancellation capability.
+Wine's missing CancelCallback limitation and finite polling overshoot remain.
+
+Independent verification confirms all33 baseline hashes/absences and exact
+canonical triples, temporary registration/devnode/Detail.Vector absence,
+original CoreApplication/WineDbg and two Debug exclusions, both dbghelp copies
+and alias unchanged, strict signature, no runtime/recursive bottle holders
+or owner/wrapper/caffeinate processes. The entire2240 receipt and all recorded
+capture/executable artifacts were rehashed against its failed receipt and
+remain unchanged.
+
+|2250 preserved evidence|SHA256|
+|---|---|
+|Successful no-game owner receipt|`c66b1693eec495032a09b178c76ea42cdc604e4848637a241d2945f17004537e`|
+|Independent baseline proof|`f7758fc17a004f443fd3b1dd97928465ee420420b2d2059ad6a0971f72d57312`|
+|Expanded independent proof|`66ced7507fe31c763c86a6ca6a818df0ff38d954f4fbd3070b5f7c8e78f2ce2c`|
+|handled dump|`5c758e6ae978521274e603faed1cff23b5ab04de1fd31c169e3d7e30f8d37476`|
+|real INT3 dump|`eda37058897bf3460970b7b7f106c7f7bfb5f8bc64f5eb0c01b86d5242b12861`|
+|unhandled dump|`860f066817a42cbc9041e44d847d9bfd33b1064e8262769349a40489a7b91311`|
+|live detach dump|`b4f94ab436134f7a9eb9da3041277c22c854769c471fbd54121b9c2692a82149`|
+
+Evidence root:
+`~/xodus-app-tooling/cuphead/cuphead-owned-exception-unit-20261011-2250`.
+The single2250 grant is consumed and exclusive hold released after independent
+verification. No next runtime/game grant exists. This is successful bounded
+synthetic exception admission, not a package diagnostic, guard-entry/private
+Vector-return attribution or first-frame claim. Mandatory quality-runner
+absence still blocks an overall integration PASS.
+
 #### 2210 original-exception telemetry gap and targeted capture-only plan
 
 Further read-only inspection finds exactly one dispatched native exception:

@@ -3721,6 +3721,74 @@ context only. GetStringValueForManifestField/WINE_STUB is not established
 benign, the fourth handler's owner remains unknown, and deployed
 FAILFAST_DIAGNOSTIC availability is not assumed. Successful Vector factories
 remove the activation gap but do not prove slot30 return or the outer caller.
+
+#### No-game 2230: hardware execution traps not observed, stopped/restored
+
+The coordinator granted exactly one exclusive no-game cycle on the reported
+33-target manifest and source-only candidate/owner pins. The owner ran via
+Terminal/caffeinate once. All standard pre-gates passed before the first
+synthetic mode: cfgmgr32 1292/1369, enumeration 1938/1987, wintypes 1120 tests,
+each zero failures; nullable50, devnode35, async22, plus the existing
+proxy/marshaler/dispatcher/resource/registration gates.
+
+**FAILED positive mode:** the fixture's five functions executed, reporting
+`touched=5 thread_exit=0`; EXIT_PROCESS_DEBUG_EVENT reports its natural exit0.
+However, the diagnostic reports `initial=0 rotated=0 hits=0,0,0,0,0`.
+No intended hardware SINGLE_STEP event was observed, although the installation
+and Get/SetThreadContext readback paths reported no error. This is not a
+successful debugger gate and does not establish effective hardware trapping.
+The exact cause (host execution support, context propagation or another
+mechanism) remains unproven; it is not evidence that every public debug API
+or all hardware debugging is unsupported.
+
+The actual first-chance startup breakpoint is at remote ntdll+0x110a8
+(0x6fffffbd10a8), not recognized by the candidate's exact DbgBreakPoint
+predicate. It is passed DBG_EXCEPTION_NOT_HANDLED, not blindly consumed.
+The custom e0425844 exception is likewise passed NOT_HANDLED; the fixture's
+application handler runs afterward. Thus that ordinary first-chance
+application handling is observed, but initial-trap recognition, four-slot
+hit/context and rotation requirements fail.
+
+The owner stops immediately with
+`RuntimeError('Checked command failed: debug-event-positive')`.
+The other seven modes (detach, foreign-step, unhandled, read-error, occupied,
+timeout, log-limit) are **NOT RUN**. There is no live debug-register
+restoration/readback, successful detach, second-chance, forced termination
+or expected-negative cleanup proof from this cycle. Positive-mode thread
+event/remaining thread handles and the owned process handle follow the
+implemented close paths after natural exit, not a runtime handle-leak census.
+Do not substitute natural fixture success for the missing gates.
+
+Positive split captures are 1012 bytes stdout / 394292 bytes stderr; the
+owner's synthetic aggregate completion check, including server growth,
+reports no bound failure. The cumulative server log is 149,558,052 bytes
+including all preceding standard gates; it is not the isolated positive
+process growth. That growth was checked live but not recorded separately
+in the receipt, a remaining accounting-telemetry limitation. The complete
+original captures and failed owner receipt are retained without truncation.
+
+Owner restoration reports zero errors. Independent verifier exits0 and
+confirms all33 baseline hashes/absences, prior temporary registration and
+devnode fixture absence, original WineDbg/CoreApplication settings, strict
+signature, no runtime and recursive holder quiescence. An independent
+comparison also confirms exact equality of all target/candidate/baseline
+triples with2195. Native alias stays unselected, Detail.Vector absent and the
+package controller unexecuted. The grant is consumed and exclusive hold
+released; no replay, fallback, binary patch or game is authorized.
+The original MRM/PInvoke exception attribution remains unresolved.
+
+| Preserved 2230 evidence | SHA-256 |
+| --- | --- |
+| Failed owner receipt | `23a6d8a65340dc50c5a7d65d2b04720d1cf414497e510bc68c2692d2e65e6d64` |
+| Independent restoration proof | `883f62b04e836e8c28ad737e7f037badf8d7e1e403b174c57b5e822de9fbfd05` |
+| Positive stdout | `8da0281728c0144ac55a1527ab9436142b76f7ddc284b111be109d03acc05cdc` |
+| Positive stderr | `4884fcb34b3412f7696da6dd56cb8dab6722a180acb522ba57edc1bfcd7e33c2` |
+| Complete cumulative server capture | `ba14c614cceb6c46805c8b27d7dea5c83fb9b7ddf6611a00579cd4341d5311e1` |
+
+No overall integration PASS: mandatory quality runner remains absent and the
+first required synthetic hardware-trap gate failed. Any further action must
+first discriminate the unobserved hardware events and startup breakpoint
+without speculative compatibility changes or another unchanged game launch.
 | Frozen executed owner | `50904eb36c6359a6ee13cfad538478238bb7ff8d0a41373647fe75f007636405` |
 | Frozen executed Terminal wrapper | `32160f9ab71e37dd305f7e2e2686eba99683f94704c67d3cc571cb6f6d5222a7` |
 

@@ -1,0 +1,36 @@
+diff --git a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
+--- a/dlls/kernelbase/version.c
++++ b/dlls/kernelbase/version.c
+@@ -1560,6 +1560,12 @@
++static LONG get_current_package_id( UINT32 *, BYTE * );
++static LONG get_current_package_info( UINT32, UINT32 *, BYTE *, UINT32 * );
++static LONG get_current_package_path( UINT32 *, WCHAR * );
++static LONG get_current_package_aumid( UINT32 *, WCHAR * );
++
+ LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentApplicationUserModelId( UINT32 *length, WCHAR *id )
+ {
+-    FIXME( "(%p %p): stub\n", length, id );
+-    return APPMODEL_ERROR_NO_APPLICATION;
++    return get_current_package_aumid( length, id );
+ }
+@@ -1690,6 +1690,5 @@
+ LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageId( UINT32 *len, BYTE *buffer )
+ {
+-    FIXME( "(%p %p): stub\n", len, buffer );
+-    return APPMODEL_ERROR_NO_PACKAGE;
++    return get_current_package_id( len, buffer );
+ }
+@@ -1701,6 +1701,5 @@
+ LONG WINAPI GetCurrentPackageInfo( const UINT32 flags, UINT32 *buffer_size, BYTE *buffer, UINT32 *count )
+ {
+-    FIXME( "(%#x %p %p %p): stub\n", flags, buffer_size, buffer, count );
+-    return APPMODEL_ERROR_NO_PACKAGE;
++    return get_current_package_info( flags, buffer_size, buffer, count );
+ }
+@@ -1710,6 +1710,5 @@
+ LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackagePath( UINT32 *length, WCHAR *path )
+ {
+-    FIXME( "(%p %p): stub\n", length, path );
+-    return APPMODEL_ERROR_NO_PACKAGE;
++    return get_current_package_path( length, path );
+ }

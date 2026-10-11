@@ -1,0 +1,721 @@
+diff --git a/dlls/combase/combase.spec b/dlls/combase/combase.spec
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -1,355 +1,362 @@
+-@ stub ObjectStublessClient3
+-@ stub ObjectStublessClient4
+-@ stub ObjectStublessClient5
+-@ stub ObjectStublessClient6
+-@ stub ObjectStublessClient7
+-@ stub ObjectStublessClient8
+-@ stub ObjectStublessClient9
+-@ stub ObjectStublessClient10
+-@ stub ObjectStublessClient11
+-@ stub ObjectStublessClient12
+-@ stub ObjectStublessClient13
+-@ stub ObjectStublessClient14
+-@ stub ObjectStublessClient15
+-@ stub ObjectStublessClient16
+-@ stub ObjectStublessClient17
+-@ stub ObjectStublessClient18
+-@ stub ObjectStublessClient19
+-@ stub ObjectStublessClient20
+-@ stub ObjectStublessClient21
+-@ stub ObjectStublessClient22
+-@ stub ObjectStublessClient23
+-@ stub ObjectStublessClient24
+-@ stub ObjectStublessClient25
+-@ stub ObjectStublessClient26
+-@ stub ObjectStublessClient27
+-@ stub ObjectStublessClient28
+-@ stub ObjectStublessClient29
+-@ stub ObjectStublessClient30
+-@ stub ObjectStublessClient31
+-@ stub ObjectStublessClient32
+-@ stub NdrProxyForwardingFunction3
+-@ stub NdrProxyForwardingFunction4
+-@ stub NdrProxyForwardingFunction5
+-@ stub NdrProxyForwardingFunction6
+-@ stub NdrProxyForwardingFunction7
+-@ stub NdrProxyForwardingFunction8
+-@ stub NdrProxyForwardingFunction9
+-@ stub NdrProxyForwardingFunction10
+-@ stub NdrProxyForwardingFunction11
+-@ stub NdrProxyForwardingFunction12
+-@ stub NdrProxyForwardingFunction13
+-@ stub NdrProxyForwardingFunction14
+-@ stub NdrProxyForwardingFunction15
+-@ stub NdrProxyForwardingFunction16
+-@ stub NdrProxyForwardingFunction17
+-@ stub NdrProxyForwardingFunction18
+-@ stub NdrProxyForwardingFunction19
+-@ stub NdrProxyForwardingFunction20
+-@ stub NdrProxyForwardingFunction21
+-@ stub NdrProxyForwardingFunction22
+-@ stub NdrProxyForwardingFunction23
+-@ stub NdrProxyForwardingFunction24
+-@ stub NdrProxyForwardingFunction25
+-@ stub NdrProxyForwardingFunction26
+-@ stub NdrProxyForwardingFunction27
+-@ stub NdrProxyForwardingFunction28
+-@ stub NdrProxyForwardingFunction29
+-@ stub NdrProxyForwardingFunction30
+-@ stub NdrProxyForwardingFunction31
+-@ stub NdrProxyForwardingFunction32
+-@ stub NdrOleInitializeExtension
+-@ stdcall RoFailFastWithErrorContextInternal2(long long ptr)
+-@ stub RoFailFastWithErrorContextInternal
+-@ stub UpdateProcessTracing
+-@ stdcall CLIPFORMAT_UserFree(ptr ptr)
+-@ stdcall CLIPFORMAT_UserMarshal(ptr ptr ptr)
+-@ stdcall CLIPFORMAT_UserSize(ptr long ptr)
+-@ stdcall CLIPFORMAT_UserUnmarshal(ptr ptr ptr)
+-@ stub CLSIDFromOle1Class
+-@ stdcall CLSIDFromProgID(wstr ptr)
+-@ stdcall CLSIDFromProgIDEx(wstr ptr)
+-@ stdcall CLSIDFromString(wstr ptr)
+-@ stub CleanupOleStateInAllTls
+-@ stdcall CleanupTlsOleState(ptr)
+-@ stub ClearCleanupFlag
+-@ stdcall CoAddRefServerProcess()
+-@ stub CoAllowUnmarshalerCLSID
+-@ stub CoCancelCall
+-@ stdcall CoCopyProxy(ptr ptr)
+-@ stdcall CoCreateErrorInfo(ptr) CreateErrorInfo
+-@ stdcall CoCreateFreeThreadedMarshaler(ptr ptr)
+-@ stdcall CoCreateGuid(ptr)
+-@ stdcall CoCreateInstance(ptr ptr long ptr ptr)
+-@ stdcall CoCreateInstanceEx(ptr ptr long ptr long ptr)
+-@ stdcall CoCreateInstanceFromApp(ptr ptr long ptr long ptr)
+-@ stub CoCreateObjectInContext
+-@ stub CoDeactivateObject
+-@ stdcall CoDecodeProxy(long int64 ptr)
+-@ stdcall CoDecrementMTAUsage(ptr)
+-@ stdcall CoDisableCallCancellation(ptr)
+-@ stub CoDisconnectContext
+-@ stdcall CoDisconnectObject(ptr long)
+-@ stdcall CoEnableCallCancellation(ptr)
+-@ stdcall CoFileTimeNow(ptr)
+-@ stdcall CoFreeUnusedLibraries()
+-@ stdcall CoFreeUnusedLibrariesEx(long long)
+-@ stdcall CoGetActivationState(int128 long ptr)
+-@ stub CoGetApartmentID
+-@ stdcall CoGetApartmentType(ptr ptr)
+-@ stdcall CoGetCallContext(ptr ptr)
+-@ stdcall CoGetCallState(long ptr)
+-@ stdcall CoGetCallerTID(ptr)
+-@ stub CoGetCancelObject
+-@ stdcall CoGetClassObject(ptr long ptr ptr ptr)
+-@ stub CoGetClassVersion
+-@ stdcall CoGetContextToken(ptr)
+-@ stdcall CoGetCurrentLogicalThreadId(ptr)
+-@ stdcall CoGetCurrentProcess()
+-@ stdcall CoGetDefaultContext(long ptr ptr)
+-@ stdcall CoGetErrorInfo(long ptr) GetErrorInfo
+-@ stdcall CoGetInstanceFromFile(ptr ptr ptr long long wstr long ptr)
+-@ stdcall CoGetInstanceFromIStorage(ptr ptr ptr long ptr long ptr)
+-@ stdcall CoGetInterfaceAndReleaseStream(ptr ptr ptr)
+-@ stdcall CoGetMalloc(long ptr)
+-@ stdcall CoGetMarshalSizeMax(ptr ptr ptr long ptr long)
+-@ stub CoGetModuleType
+-@ stdcall CoGetObjectContext(ptr ptr)
+-@ stdcall CoGetPSClsid(ptr ptr)
+-@ stub CoGetProcessIdentifier
+-@ stdcall CoGetStandardMarshal(ptr ptr long ptr long ptr)
+-@ stub CoGetStdMarshalEx
+-@ stdcall CoGetSystemSecurityPermissions(long ptr)
+-@ stdcall CoGetTreatAsClass(ptr ptr)
+-@ stdcall CoImpersonateClient()
+-@ stdcall CoIncrementMTAUsage(ptr)
+-@ stdcall CoInitializeEx(ptr long)
+-@ stdcall CoInitializeSecurity(ptr long ptr ptr long long ptr long ptr)
+-@ stdcall CoInitializeWOW(long long)
+-@ stub CoInvalidateRemoteMachineBindings
+-@ stdcall CoIsHandlerConnected(ptr)
+-@ stdcall CoIsOle1Class(ptr)
+-@ stdcall CoLockObjectExternal(ptr long long)
+-@ stdcall CoMarshalHresult(ptr long)
+-@ stdcall CoMarshalInterThreadInterfaceInStream(ptr ptr ptr)
+-@ stdcall CoMarshalInterface(ptr ptr ptr long ptr long)
+-@ stub CoPopServiceDomain
+-@ stub CoPushServiceDomain
+-@ stub CoQueryAuthenticationServices
+-@ stdcall CoQueryClientBlanket(ptr ptr ptr ptr ptr ptr ptr)
+-@ stdcall CoQueryProxyBlanket(ptr ptr ptr ptr ptr ptr ptr ptr)
+-@ stub CoReactivateObject
+-@ stub CoRegisterActivationFilter
+-@ stdcall CoRegisterChannelHook(ptr ptr)
+-@ stdcall CoRegisterClassObject(ptr ptr long long ptr)
+-@ stdcall CoRegisterInitializeSpy(ptr ptr)
+-@ stdcall CoRegisterMallocSpy(ptr)
+-@ stdcall CoRegisterMessageFilter(ptr ptr)
+-@ stdcall CoRegisterPSClsid(ptr ptr)
+-@ stdcall CoRegisterSurrogate(ptr)
+-@ stdcall CoRegisterSurrogateEx(ptr ptr)
+-@ stdcall CoReleaseMarshalData(ptr)
+-@ stdcall CoReleaseServerProcess()
+-@ stdcall CoResumeClassObjects()
+-@ stub CoRetireServer
+-@ stdcall CoRevertToSelf()
+-@ stdcall CoRevokeClassObject(long)
+-@ stdcall CoRevokeInitializeSpy(int64)
+-@ stdcall CoRevokeMallocSpy()
+-@ stub CoSetCancelObject
+-@ stdcall CoSetErrorInfo(long ptr) SetErrorInfo
+-@ stdcall CoSetProxyBlanket(ptr long long ptr long long ptr long)
+-@ stdcall CoSuspendClassObjects()
+-@ stdcall CoSwitchCallContext(ptr ptr)
+-@ stdcall CoTaskMemAlloc(long)
+-@ stdcall CoTaskMemFree(ptr)
+-@ stdcall CoTaskMemRealloc(ptr long)
+-@ stub CoTestCancel
+-@ stdcall CoTreatAsClass(ptr ptr)
+-@ stdcall CoUninitialize()
+-@ stub CoUnloadingWOW
+-@ stdcall CoUnmarshalHresult(ptr ptr)
+-@ stdcall CoUnmarshalInterface(ptr ptr ptr)
+-@ stub CoVrfCheckThreadState
+-@ stub CoVrfGetThreadState
+-@ stub CoVrfReleaseThreadState
+-@ stdcall CoWaitForMultipleHandles(long long long ptr ptr)
+-@ stub CoWaitForMultipleObjects
+-@ stdcall CreateErrorInfo(ptr)
+-@ stdcall CreateStreamOnHGlobal(ptr long ptr)
+-@ stub DcomChannelSetHResult
+-@ stdcall DllDebugObjectRPCHook(long ptr)
+-@ stdcall DllGetActivationFactory(ptr ptr)
+-@ stdcall -private DllGetClassObject(ptr ptr ptr)
+-@ stub EnableHookObject
+-@ stdcall FreePropVariantArray(long ptr)
+-@ stub FreePropVariantArrayWorker
+-@ stub GetCatalogHelper
+-@ stdcall GetErrorInfo(long ptr)
+-@ stub GetFuncDescs
+-@ stdcall GetHGlobalFromStream(ptr ptr)
+-@ stub GetHookInterface
+-@ stdcall GetRestrictedErrorInfo(ptr)
+-@ stdcall HACCEL_UserFree(ptr ptr)
+-@ stdcall HACCEL_UserMarshal(ptr ptr ptr)
+-@ stdcall HACCEL_UserSize(ptr long ptr)
+-@ stdcall HACCEL_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HBITMAP_UserFree(ptr ptr)
+-@ stdcall HBITMAP_UserMarshal(ptr ptr ptr)
+-@ stdcall HBITMAP_UserSize(ptr long ptr)
+-@ stdcall HBITMAP_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HBRUSH_UserFree(ptr ptr)
+-@ stdcall HBRUSH_UserMarshal(ptr ptr ptr)
+-@ stdcall HBRUSH_UserSize(ptr long ptr)
+-@ stdcall HBRUSH_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HDC_UserFree(ptr ptr)
+-@ stdcall HDC_UserMarshal(ptr ptr ptr)
+-@ stdcall HDC_UserSize(ptr long ptr)
+-@ stdcall HDC_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HGLOBAL_UserFree(ptr ptr)
+-@ stdcall HGLOBAL_UserMarshal(ptr ptr ptr)
+-@ stdcall HGLOBAL_UserSize(ptr long ptr)
+-@ stdcall HGLOBAL_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HICON_UserFree(ptr ptr)
+-@ stdcall HICON_UserMarshal(ptr ptr ptr)
+-@ stdcall HICON_UserSize(ptr long ptr)
+-@ stdcall HICON_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HMENU_UserFree(ptr ptr)
+-@ stdcall HMENU_UserMarshal(ptr ptr ptr)
+-@ stdcall HMENU_UserSize(ptr long ptr)
+-@ stdcall HMENU_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HPALETTE_UserFree(ptr ptr)
+-@ stdcall HPALETTE_UserMarshal(ptr ptr ptr)
+-@ stdcall HPALETTE_UserSize(ptr long ptr)
+-@ stdcall HPALETTE_UserUnmarshal(ptr ptr ptr)
+-@ stdcall HSTRING_UserFree(ptr ptr)
+-@ stub -arch=win64 HSTRING_UserFree64
+-@ stdcall HSTRING_UserMarshal(ptr ptr ptr)
+-@ stub -arch=win64 HSTRING_UserMarshal64
+-@ stdcall HSTRING_UserSize(ptr long ptr)
+-@ stub -arch=win64 HSTRING_UserSize64
+-@ stdcall HSTRING_UserUnmarshal(ptr ptr ptr)
+-@ stub -arch=win64 HSTRING_UserUnmarshal64
+-@ stdcall HWND_UserFree(ptr ptr)
+-@ stdcall HWND_UserMarshal(ptr ptr ptr)
+-@ stdcall HWND_UserSize(ptr long ptr)
+-@ stdcall HWND_UserUnmarshal(ptr ptr ptr)
+-@ stub HkOleRegisterObject
+-@ stdcall IIDFromString(wstr ptr)
+-@ stub InternalAppInvokeExceptionFilter
+-@ stub InternalCCFreeUnused
+-@ stub InternalCCGetClassInformationForDde
+-@ stub InternalCCGetClassInformationFromKey
+-@ stub InternalCCSetDdeServerWindow
+-@ stub InternalCMLSendReceive
+-@ stub InternalCallAsProxyExceptionFilter
+-@ stub InternalCallFrameExceptionFilter
+-@ stub InternalCallerIsAppContainer
+-@ stub InternalCanMakeOutCall
+-@ stub InternalCoIsSurrogateProcess
+-@ stub InternalCoRegisterDisconnectCallback
+-@ stub InternalCoRegisterSurrogatedObject
+-@ stdcall InternalCoStdMarshalObject(ptr long ptr ptr)
+-@ stub InternalCoUnregisterDisconnectCallback
+-@ stub InternalCompleteObjRef
+-@ stub InternalCreateCAggId
+-@ stub InternalCreateIdentityHandler
+-@ stub InternalDoATClassCreate
+-@ stub InternalFillLocalOXIDInfo
+-@ stub InternalFreeObjRef
+-@ stub InternalGetWindowPropInterface
+-@ stdcall InternalIrotEnumRunning(ptr)
+-@ stdcall InternalIrotGetObject(ptr ptr ptr)
+-@ stdcall InternalIrotGetTimeOfLastChange(ptr ptr)
+-@ stdcall InternalIrotIsRunning(ptr)
+-@ stdcall InternalIrotNoteChangeTime(long ptr)
+-@ stdcall InternalIrotRegister(ptr ptr ptr ptr long ptr ptr)
+-@ stdcall InternalIrotRevoke(long ptr ptr ptr)
+-@ stub InternalIsApartmentInitialized
+-@ stdcall InternalIsProcessInitialized()
+-@ stub InternalMarshalObjRef
+-@ stub InternalNotifyDDStartOrStop
+-@ stub InternalOleModalLoopBlockFn
+-@ stub InternalRegisterWindowPropInterface
+-@ stub InternalReleaseMarshalObjRef
+-@ stub InternalSTAInvoke
+-@ stub InternalServerExceptionFilter
+-@ stub InternalSetAptCallCtrlOnTlsIfRequired
+-@ stub InternalSetOleThunkWowPtr
+-@ stub InternalStubInvoke
+-@ stdcall InternalTlsAllocData(ptr)
+-@ stub InternalUnmarshalObjRef
+-@ stub IsErrorPropagationEnabled
+-@ stub NdrExtStubInitialize
+-@ stub NdrOleDllGetClassObject
+-@ stub NdrpFindInterface
+-@ stdcall ProgIDFromCLSID(ptr ptr)
+-@ stdcall PropVariantClear(ptr)
+-@ stdcall PropVariantCopy(ptr ptr)
+-@ stub ReleaseFuncDescs
+-@ stdcall RoActivateInstance(ptr ptr)
+-@ stub RoCaptureErrorContext
+-@ stub RoClearError
+-@ stub RoFailFastWithErrorContext
+-@ stub RoFreeParameterizedTypeExtra
+-@ stub RoGetActivatableClassRegistration
+-@ stdcall RoGetActivationFactory(ptr ptr ptr)
+-@ stdcall RoGetAgileReference(long ptr ptr ptr)
+-@ stdcall RoGetApartmentIdentifier(ptr)
+-@ stdcall RoGetErrorReportingFlags(ptr)
+-@ stub RoGetMatchingRestrictedErrorInfo
+-@ stdcall RoGetParameterizedTypeInstanceIID(long ptr ptr ptr ptr)
+-@ stdcall RoGetServerActivatableClasses(ptr ptr ptr)
+-@ stdcall RoInitialize(long)
+-@ stub RoInspectCapturedStackBackTrace
+-@ stub RoInspectThreadErrorInfo
+-@ stdcall RoOriginateError(long ptr)
+-@ stdcall RoOriginateErrorW(long long ptr)
+-@ stdcall RoOriginateLanguageException(long ptr ptr)
+-@ stub RoParameterizedTypeExtraGetTypeSignature
+-@ stdcall RoRegisterActivationFactories(ptr ptr long ptr)
+-@ stdcall RoRegisterForApartmentShutdown(ptr ptr ptr)
+-@ stub RoReportCapabilityCheckFailure
+-@ stub RoReportFailedDelegate
+-@ stdcall RoReportUnhandledError(ptr)
+-@ stub RoResolveRestrictedErrorInfoReference
+-@ stub RoRevokeActivationFactories
+-@ stdcall RoSetErrorReportingFlags(long)
+-@ stub RoTransformError
+-@ stub RoTransformErrorW
+-@ stdcall RoUninitialize()
+-@ stub RoUnregisterForApartmentShutdown
+-@ stub SetCleanupFlag
+-@ stdcall SetErrorInfo(long ptr)
+-@ stdcall SetRestrictedErrorInfo(ptr)
+-@ stdcall StringFromCLSID(ptr ptr)
+-@ stdcall StringFromGUID2(ptr ptr long)
+-@ stdcall StringFromIID(ptr ptr) StringFromCLSID
+-@ stub UpdateDCOMSettings
+-@ stdcall WdtpInterfacePointer_UserFree(ptr)
+-@ stub -arch=win64 WdtpInterfacePointer_UserFree64
+-@ stdcall WdtpInterfacePointer_UserMarshal(ptr long ptr ptr ptr)
+-@ stub -arch=win64 WdtpInterfacePointer_UserMarshal64
+-@ stdcall WdtpInterfacePointer_UserSize(ptr long long ptr ptr)
+-@ stub -arch=win64 WdtpInterfacePointer_UserSize64
+-@ stdcall WdtpInterfacePointer_UserUnmarshal(ptr ptr ptr ptr)
+-@ stub -arch=win64 WdtpInterfacePointer_UserUnmarshal64
+-@ stdcall WindowsCompareStringOrdinal(ptr ptr ptr)
+-@ stdcall WindowsConcatString(ptr ptr ptr)
+-@ stdcall WindowsCreateString(wstr long ptr)
+-@ stdcall WindowsCreateStringReference(wstr long ptr ptr)
+-@ stdcall WindowsDeleteString(ptr)
+-@ stdcall WindowsDeleteStringBuffer(ptr)
+-@ stdcall WindowsDuplicateString(ptr ptr)
+-@ stdcall WindowsGetStringLen(ptr)
+-@ stdcall WindowsGetStringRawBuffer(ptr ptr)
+-@ stub WindowsInspectString
+-@ stdcall WindowsIsStringEmpty(ptr)
+-@ stdcall WindowsPreallocateStringBuffer(long ptr ptr)
+-@ stdcall WindowsPromoteStringBuffer(ptr ptr)
+-@ stub WindowsReplaceString
+-@ stdcall WindowsStringHasEmbeddedNull(ptr ptr)
+-@ stdcall WindowsSubstring(ptr long ptr)
+-@ stdcall WindowsSubstringWithSpecifiedLength(ptr long long ptr)
+-@ stdcall WindowsTrimStringEnd(ptr ptr ptr)
+-@ stdcall WindowsTrimStringStart(ptr ptr ptr)
++69 stub -noname CoRegisterServerShutdownDelay
++90 stub -noname RoGetDesignMode
++95 stub -noname CoSignalPendingGitRegistrationWaits
++120 stub -noname CoRegisterForApartmentShutdown
++122 stdcall -noname CoGetApartmentIdentifier(ptr)
++157 stub -noname RoGetDesignModeV2
++168 stub -noname CoImpersonateClientOfObject
++1 stub ObjectStublessClient3
++2 stub ObjectStublessClient4
++3 stub ObjectStublessClient5
++4 stub ObjectStublessClient6
++5 stub ObjectStublessClient7
++6 stub ObjectStublessClient8
++7 stub ObjectStublessClient9
++8 stub ObjectStublessClient10
++9 stub ObjectStublessClient11
++10 stub ObjectStublessClient12
++11 stub ObjectStublessClient13
++12 stub ObjectStublessClient14
++13 stub ObjectStublessClient15
++14 stub ObjectStublessClient16
++15 stub ObjectStublessClient17
++16 stub ObjectStublessClient18
++17 stub ObjectStublessClient19
++18 stub ObjectStublessClient20
++19 stub ObjectStublessClient21
++20 stub ObjectStublessClient22
++21 stub ObjectStublessClient23
++22 stub ObjectStublessClient24
++23 stub ObjectStublessClient25
++24 stub ObjectStublessClient26
++25 stub ObjectStublessClient27
++26 stub ObjectStublessClient28
++27 stub ObjectStublessClient29
++28 stub ObjectStublessClient30
++29 stub ObjectStublessClient31
++30 stub ObjectStublessClient32
++31 stub NdrProxyForwardingFunction3
++32 stub NdrProxyForwardingFunction4
++33 stub NdrProxyForwardingFunction5
++34 stub NdrProxyForwardingFunction6
++35 stub NdrProxyForwardingFunction7
++36 stub NdrProxyForwardingFunction8
++37 stub NdrProxyForwardingFunction9
++38 stub NdrProxyForwardingFunction10
++39 stub NdrProxyForwardingFunction11
++40 stub NdrProxyForwardingFunction12
++41 stub NdrProxyForwardingFunction13
++42 stub NdrProxyForwardingFunction14
++43 stub NdrProxyForwardingFunction15
++44 stub NdrProxyForwardingFunction16
++45 stub NdrProxyForwardingFunction17
++46 stub NdrProxyForwardingFunction18
++47 stub NdrProxyForwardingFunction19
++48 stub NdrProxyForwardingFunction20
++49 stub NdrProxyForwardingFunction21
++50 stub NdrProxyForwardingFunction22
++51 stub NdrProxyForwardingFunction23
++52 stub NdrProxyForwardingFunction24
++53 stub NdrProxyForwardingFunction25
++54 stub NdrProxyForwardingFunction26
++55 stub NdrProxyForwardingFunction27
++56 stub NdrProxyForwardingFunction28
++57 stub NdrProxyForwardingFunction29
++58 stub NdrProxyForwardingFunction30
++59 stub NdrProxyForwardingFunction31
++60 stub NdrProxyForwardingFunction32
++61 stub NdrOleInitializeExtension
++62 stdcall RoFailFastWithErrorContextInternal2(long long ptr)
++63 stub RoFailFastWithErrorContextInternal
++64 stub UpdateProcessTracing
++65 stdcall CLIPFORMAT_UserFree(ptr ptr)
++66 stdcall CLIPFORMAT_UserMarshal(ptr ptr ptr)
++67 stdcall CLIPFORMAT_UserSize(ptr long ptr)
++68 stdcall CLIPFORMAT_UserUnmarshal(ptr ptr ptr)
++356 stub CLSIDFromOle1Class
++70 stdcall CLSIDFromProgID(wstr ptr)
++71 stdcall CLSIDFromProgIDEx(wstr ptr)
++72 stdcall CLSIDFromString(wstr ptr)
++73 stub CleanupOleStateInAllTls
++74 stdcall CleanupTlsOleState(ptr)
++75 stub ClearCleanupFlag
++76 stdcall CoAddRefServerProcess()
++77 stub CoAllowUnmarshalerCLSID
++78 stub CoCancelCall
++79 stdcall CoCopyProxy(ptr ptr)
++80 stdcall CoCreateErrorInfo(ptr) CreateErrorInfo
++81 stdcall CoCreateFreeThreadedMarshaler(ptr ptr)
++82 stdcall CoCreateGuid(ptr)
++83 stdcall CoCreateInstance(ptr ptr long ptr ptr)
++84 stdcall CoCreateInstanceEx(ptr ptr long ptr long ptr)
++85 stdcall CoCreateInstanceFromApp(ptr ptr long ptr long ptr)
++86 stub CoCreateObjectInContext
++87 stub CoDeactivateObject
++88 stdcall CoDecodeProxy(long int64 ptr)
++89 stdcall CoDecrementMTAUsage(ptr)
++357 stdcall CoDisableCallCancellation(ptr)
++91 stub CoDisconnectContext
++92 stdcall CoDisconnectObject(ptr long)
++93 stdcall CoEnableCallCancellation(ptr)
++94 stdcall CoFileTimeNow(ptr)
++358 stdcall CoFreeUnusedLibraries()
++96 stdcall CoFreeUnusedLibrariesEx(long long)
++97 stdcall CoGetActivationState(int128 long ptr)
++98 stub CoGetApartmentID
++99 stdcall CoGetApartmentType(ptr ptr)
++100 stdcall CoGetCallContext(ptr ptr)
++101 stdcall CoGetCallState(long ptr)
++102 stdcall CoGetCallerTID(ptr)
++103 stub CoGetCancelObject
++104 stdcall CoGetClassObject(ptr long ptr ptr ptr)
++105 stub CoGetClassVersion
++106 stdcall CoGetContextToken(ptr)
++107 stdcall CoGetCurrentLogicalThreadId(ptr)
++108 stdcall CoGetCurrentProcess()
++109 stdcall CoGetDefaultContext(long ptr ptr)
++110 stdcall CoGetErrorInfo(long ptr) GetErrorInfo
++111 stdcall CoGetInstanceFromFile(ptr ptr ptr long long wstr long ptr)
++112 stdcall CoGetInstanceFromIStorage(ptr ptr ptr long ptr long ptr)
++113 stdcall CoGetInterfaceAndReleaseStream(ptr ptr ptr)
++114 stdcall CoGetMalloc(long ptr)
++115 stdcall CoGetMarshalSizeMax(ptr ptr ptr long ptr long)
++116 stub CoGetModuleType
++117 stdcall CoGetObjectContext(ptr ptr)
++118 stdcall CoGetPSClsid(ptr ptr)
++119 stub CoGetProcessIdentifier
++359 stdcall CoGetStandardMarshal(ptr ptr long ptr long ptr)
++121 stub CoGetStdMarshalEx
++360 stdcall CoGetSystemSecurityPermissions(long ptr)
++123 stdcall CoGetTreatAsClass(ptr ptr)
++124 stdcall CoImpersonateClient()
++125 stdcall CoIncrementMTAUsage(ptr)
++126 stdcall CoInitializeEx(ptr long)
++127 stdcall CoInitializeSecurity(ptr long ptr ptr long long ptr long ptr)
++128 stdcall CoInitializeWOW(long long)
++129 stub CoInvalidateRemoteMachineBindings
++130 stdcall CoIsHandlerConnected(ptr)
++131 stdcall CoIsOle1Class(ptr)
++132 stdcall CoLockObjectExternal(ptr long long)
++133 stdcall CoMarshalHresult(ptr long)
++134 stdcall CoMarshalInterThreadInterfaceInStream(ptr ptr ptr)
++135 stdcall CoMarshalInterface(ptr ptr ptr long ptr long)
++136 stub CoPopServiceDomain
++137 stub CoPushServiceDomain
++138 stub CoQueryAuthenticationServices
++139 stdcall CoQueryClientBlanket(ptr ptr ptr ptr ptr ptr ptr)
++140 stdcall CoQueryProxyBlanket(ptr ptr ptr ptr ptr ptr ptr ptr)
++141 stub CoReactivateObject
++142 stub CoRegisterActivationFilter
++143 stdcall CoRegisterChannelHook(ptr ptr)
++144 stdcall CoRegisterClassObject(ptr ptr long long ptr)
++145 stdcall CoRegisterInitializeSpy(ptr ptr)
++146 stdcall CoRegisterMallocSpy(ptr)
++147 stdcall CoRegisterMessageFilter(ptr ptr)
++148 stdcall CoRegisterPSClsid(ptr ptr)
++149 stdcall CoRegisterSurrogate(ptr)
++150 stdcall CoRegisterSurrogateEx(ptr ptr)
++151 stdcall CoReleaseMarshalData(ptr)
++152 stdcall CoReleaseServerProcess()
++153 stdcall CoResumeClassObjects()
++154 stub CoRetireServer
++155 stdcall CoRevertToSelf()
++156 stdcall CoRevokeClassObject(long)
++361 stdcall CoRevokeInitializeSpy(int64)
++158 stdcall CoRevokeMallocSpy()
++159 stub CoSetCancelObject
++160 stdcall CoSetErrorInfo(long ptr) SetErrorInfo
++161 stdcall CoSetProxyBlanket(ptr long long ptr long long ptr long)
++162 stdcall CoSuspendClassObjects()
++163 stdcall CoSwitchCallContext(ptr ptr)
++164 stdcall CoTaskMemAlloc(long)
++165 stdcall CoTaskMemFree(ptr)
++166 stdcall CoTaskMemRealloc(ptr long)
++167 stub CoTestCancel
++362 stdcall CoTreatAsClass(ptr ptr)
++169 stdcall CoUninitialize()
++170 stub CoUnloadingWOW
++171 stdcall CoUnmarshalHresult(ptr ptr)
++172 stdcall CoUnmarshalInterface(ptr ptr ptr)
++173 stub CoVrfCheckThreadState
++174 stub CoVrfGetThreadState
++175 stub CoVrfReleaseThreadState
++176 stdcall CoWaitForMultipleHandles(long long long ptr ptr)
++177 stub CoWaitForMultipleObjects
++178 stdcall CreateErrorInfo(ptr)
++179 stdcall CreateStreamOnHGlobal(ptr long ptr)
++180 stub DcomChannelSetHResult
++181 stdcall DllDebugObjectRPCHook(long ptr)
++182 stdcall DllGetActivationFactory(ptr ptr)
++183 stdcall -private DllGetClassObject(ptr ptr ptr)
++184 stub EnableHookObject
++185 stdcall FreePropVariantArray(long ptr)
++186 stub FreePropVariantArrayWorker
++187 stub GetCatalogHelper
++188 stdcall GetErrorInfo(long ptr)
++189 stub GetFuncDescs
++190 stdcall GetHGlobalFromStream(ptr ptr)
++191 stub GetHookInterface
++192 stdcall GetRestrictedErrorInfo(ptr)
++193 stdcall HACCEL_UserFree(ptr ptr)
++194 stdcall HACCEL_UserMarshal(ptr ptr ptr)
++195 stdcall HACCEL_UserSize(ptr long ptr)
++196 stdcall HACCEL_UserUnmarshal(ptr ptr ptr)
++197 stdcall HBITMAP_UserFree(ptr ptr)
++198 stdcall HBITMAP_UserMarshal(ptr ptr ptr)
++199 stdcall HBITMAP_UserSize(ptr long ptr)
++200 stdcall HBITMAP_UserUnmarshal(ptr ptr ptr)
++201 stdcall HBRUSH_UserFree(ptr ptr)
++202 stdcall HBRUSH_UserMarshal(ptr ptr ptr)
++203 stdcall HBRUSH_UserSize(ptr long ptr)
++204 stdcall HBRUSH_UserUnmarshal(ptr ptr ptr)
++205 stdcall HDC_UserFree(ptr ptr)
++206 stdcall HDC_UserMarshal(ptr ptr ptr)
++207 stdcall HDC_UserSize(ptr long ptr)
++208 stdcall HDC_UserUnmarshal(ptr ptr ptr)
++209 stdcall HGLOBAL_UserFree(ptr ptr)
++210 stdcall HGLOBAL_UserMarshal(ptr ptr ptr)
++211 stdcall HGLOBAL_UserSize(ptr long ptr)
++212 stdcall HGLOBAL_UserUnmarshal(ptr ptr ptr)
++213 stdcall HICON_UserFree(ptr ptr)
++214 stdcall HICON_UserMarshal(ptr ptr ptr)
++215 stdcall HICON_UserSize(ptr long ptr)
++216 stdcall HICON_UserUnmarshal(ptr ptr ptr)
++217 stdcall HMENU_UserFree(ptr ptr)
++218 stdcall HMENU_UserMarshal(ptr ptr ptr)
++219 stdcall HMENU_UserSize(ptr long ptr)
++220 stdcall HMENU_UserUnmarshal(ptr ptr ptr)
++221 stdcall HPALETTE_UserFree(ptr ptr)
++222 stdcall HPALETTE_UserMarshal(ptr ptr ptr)
++223 stdcall HPALETTE_UserSize(ptr long ptr)
++224 stdcall HPALETTE_UserUnmarshal(ptr ptr ptr)
++225 stdcall HSTRING_UserFree(ptr ptr)
++226 stub -arch=win64 HSTRING_UserFree64
++227 stdcall HSTRING_UserMarshal(ptr ptr ptr)
++228 stub -arch=win64 HSTRING_UserMarshal64
++229 stdcall HSTRING_UserSize(ptr long ptr)
++230 stub -arch=win64 HSTRING_UserSize64
++231 stdcall HSTRING_UserUnmarshal(ptr ptr ptr)
++232 stub -arch=win64 HSTRING_UserUnmarshal64
++233 stdcall HWND_UserFree(ptr ptr)
++234 stdcall HWND_UserMarshal(ptr ptr ptr)
++235 stdcall HWND_UserSize(ptr long ptr)
++236 stdcall HWND_UserUnmarshal(ptr ptr ptr)
++237 stub HkOleRegisterObject
++238 stdcall IIDFromString(wstr ptr)
++239 stub InternalAppInvokeExceptionFilter
++240 stub InternalCCFreeUnused
++241 stub InternalCCGetClassInformationForDde
++242 stub InternalCCGetClassInformationFromKey
++243 stub InternalCCSetDdeServerWindow
++244 stub InternalCMLSendReceive
++245 stub InternalCallAsProxyExceptionFilter
++246 stub InternalCallFrameExceptionFilter
++247 stub InternalCallerIsAppContainer
++248 stub InternalCanMakeOutCall
++249 stub InternalCoIsSurrogateProcess
++250 stub InternalCoRegisterDisconnectCallback
++251 stub InternalCoRegisterSurrogatedObject
++252 stdcall InternalCoStdMarshalObject(ptr long ptr ptr)
++253 stub InternalCoUnregisterDisconnectCallback
++254 stub InternalCompleteObjRef
++255 stub InternalCreateCAggId
++256 stub InternalCreateIdentityHandler
++257 stub InternalDoATClassCreate
++258 stub InternalFillLocalOXIDInfo
++259 stub InternalFreeObjRef
++260 stub InternalGetWindowPropInterface
++261 stdcall InternalIrotEnumRunning(ptr)
++262 stdcall InternalIrotGetObject(ptr ptr ptr)
++263 stdcall InternalIrotGetTimeOfLastChange(ptr ptr)
++264 stdcall InternalIrotIsRunning(ptr)
++265 stdcall InternalIrotNoteChangeTime(long ptr)
++266 stdcall InternalIrotRegister(ptr ptr ptr ptr long ptr ptr)
++267 stdcall InternalIrotRevoke(long ptr ptr ptr)
++268 stub InternalIsApartmentInitialized
++269 stdcall InternalIsProcessInitialized()
++270 stub InternalMarshalObjRef
++271 stub InternalNotifyDDStartOrStop
++272 stub InternalOleModalLoopBlockFn
++273 stub InternalRegisterWindowPropInterface
++274 stub InternalReleaseMarshalObjRef
++275 stub InternalSTAInvoke
++276 stub InternalServerExceptionFilter
++277 stub InternalSetAptCallCtrlOnTlsIfRequired
++278 stub InternalSetOleThunkWowPtr
++279 stub InternalStubInvoke
++280 stdcall InternalTlsAllocData(ptr)
++281 stub InternalUnmarshalObjRef
++282 stub IsErrorPropagationEnabled
++283 stub NdrExtStubInitialize
++284 stub NdrOleDllGetClassObject
++285 stub NdrpFindInterface
++286 stdcall ProgIDFromCLSID(ptr ptr)
++287 stdcall PropVariantClear(ptr)
++288 stdcall PropVariantCopy(ptr ptr)
++289 stub ReleaseFuncDescs
++290 stdcall RoActivateInstance(ptr ptr)
++291 stub RoCaptureErrorContext
++292 stub RoClearError
++293 stub RoFailFastWithErrorContext
++294 stub RoFreeParameterizedTypeExtra
++295 stub RoGetActivatableClassRegistration
++296 stdcall RoGetActivationFactory(ptr ptr ptr)
++297 stdcall RoGetAgileReference(long ptr ptr ptr)
++298 stdcall RoGetApartmentIdentifier(ptr)
++299 stdcall RoGetErrorReportingFlags(ptr)
++300 stub RoGetMatchingRestrictedErrorInfo
++301 stdcall RoGetParameterizedTypeInstanceIID(long ptr ptr ptr ptr)
++302 stdcall RoGetServerActivatableClasses(ptr ptr ptr)
++303 stdcall RoInitialize(long)
++304 stub RoInspectCapturedStackBackTrace
++305 stub RoInspectThreadErrorInfo
++306 stdcall RoOriginateError(long ptr)
++307 stdcall RoOriginateErrorW(long long ptr)
++308 stdcall RoOriginateLanguageException(long ptr ptr)
++309 stub RoParameterizedTypeExtraGetTypeSignature
++310 stdcall RoRegisterActivationFactories(ptr ptr long ptr)
++311 stdcall RoRegisterForApartmentShutdown(ptr ptr ptr)
++312 stub RoReportCapabilityCheckFailure
++313 stub RoReportFailedDelegate
++314 stdcall RoReportUnhandledError(ptr)
++315 stub RoResolveRestrictedErrorInfoReference
++316 stub RoRevokeActivationFactories
++317 stdcall RoSetErrorReportingFlags(long)
++318 stub RoTransformError
++319 stub RoTransformErrorW
++320 stdcall RoUninitialize()
++321 stub RoUnregisterForApartmentShutdown
++322 stub SetCleanupFlag
++323 stdcall SetErrorInfo(long ptr)
++324 stdcall SetRestrictedErrorInfo(ptr)
++325 stdcall StringFromCLSID(ptr ptr)
++326 stdcall StringFromGUID2(ptr ptr long)
++327 stdcall StringFromIID(ptr ptr) StringFromCLSID
++328 stub UpdateDCOMSettings
++329 stdcall WdtpInterfacePointer_UserFree(ptr)
++330 stub -arch=win64 WdtpInterfacePointer_UserFree64
++331 stdcall WdtpInterfacePointer_UserMarshal(ptr long ptr ptr ptr)
++332 stub -arch=win64 WdtpInterfacePointer_UserMarshal64
++333 stdcall WdtpInterfacePointer_UserSize(ptr long long ptr ptr)
++334 stub -arch=win64 WdtpInterfacePointer_UserSize64
++335 stdcall WdtpInterfacePointer_UserUnmarshal(ptr ptr ptr ptr)
++336 stub -arch=win64 WdtpInterfacePointer_UserUnmarshal64
++337 stdcall WindowsCompareStringOrdinal(ptr ptr ptr)
++338 stdcall WindowsConcatString(ptr ptr ptr)
++339 stdcall WindowsCreateString(wstr long ptr)
++340 stdcall WindowsCreateStringReference(wstr long ptr ptr)
++341 stdcall WindowsDeleteString(ptr)
++342 stdcall WindowsDeleteStringBuffer(ptr)
++343 stdcall WindowsDuplicateString(ptr ptr)
++344 stdcall WindowsGetStringLen(ptr)
++345 stdcall WindowsGetStringRawBuffer(ptr ptr)
++346 stub WindowsInspectString
++347 stdcall WindowsIsStringEmpty(ptr)
++348 stdcall WindowsPreallocateStringBuffer(long ptr ptr)
++349 stdcall WindowsPromoteStringBuffer(ptr ptr)
++350 stub WindowsReplaceString
++351 stdcall WindowsStringHasEmbeddedNull(ptr ptr)
++352 stdcall WindowsSubstring(ptr long ptr)
++353 stdcall WindowsSubstringWithSpecifiedLength(ptr long long ptr)
++354 stdcall WindowsTrimStringEnd(ptr ptr ptr)
++355 stdcall WindowsTrimStringStart(ptr ptr ptr)

@@ -1,0 +1,75 @@
+diff --git a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -1,0 +1,1 @@
++@ stdcall RtlCheckSandboxedToken(long ptr)
+diff --git a/dlls/ntdll/sec.c b/dlls/ntdll/sec.c
+--- a/dlls/ntdll/sec.c
++++ b/dlls/ntdll/sec.c
+@@ -2350,4 +2350,20 @@
+     memcpy( sid->SubAuthority + 1, hash, sizeof(hash) );
+ 
+     return STATUS_SUCCESS;
+ }
++
++NTSTATUS WINAPI RtlCheckSandboxedToken( HANDLE token, BOOLEAN *is_sandboxed )
++{
++    ULONG sandboxed = 0, size;
++    NTSTATUS status;
++
++    TRACE( "(%p %p)\n", token, is_sandboxed );
++    *is_sandboxed = FALSE;
++    if (!token) token = GetCurrentThreadEffectiveToken();
++    status = NtQueryInformationToken( token, TokenIsSandboxed, &sandboxed, sizeof(sandboxed), &size );
++    if (status) return status;
++    *is_sandboxed = !!sandboxed;
++    return STATUS_SUCCESS;
++}
+diff --git a/dlls/ntdll/unix/security.c b/dlls/ntdll/unix/security.c
+--- a/dlls/ntdll/unix/security.c
++++ b/dlls/ntdll/unix/security.c
+@@ -434,4 +434,14 @@
+         0,    /* TokenSecurityAttributes */
+         0,    /* TokenIsRestricted */
+-        0     /* TokenProcessTrustLevel */
++        0,    /* TokenProcessTrustLevel */
++        0,    /* TokenPrivateNameSpace */
++        0,    /* TokenSingletonAttributes */
++        0,    /* TokenBnoIsolation */
++        0,    /* TokenChildProcessFlags */
++        0,    /* TokenIsLessPrivilegedAppContainer */
++        sizeof(DWORD), /* TokenIsSandboxed */
++        0,    /* TokenIsAppSilo */
++        0,    /* TokenLoggingInformation */
++        0     /* TokenLearningMode */
+     };
+@@ -448,1 +458,1 @@
+-    if (class < MaxTokenInfoClass) len = info_len[class];
++    if (class < ARRAY_SIZE(info_len)) len = info_len[class];
+@@ -732,1 +742,29 @@
++    case TokenIsSandboxed:
++        {
++            BYTE label_buf[sizeof(TOKEN_MANDATORY_LABEL) + sizeof(SID)];
++            TOKEN_MANDATORY_LABEL *label = (TOKEN_MANDATORY_LABEL *)label_buf;
++            DWORD appcontainer = 0;
++            ULONG size;
++            SID *sid;
++
++            SERVER_START_REQ( get_token_info )
++            {
++                req->handle = wine_server_obj_handle( token );
++                status = wine_server_call( req );
++            }
++            SERVER_END_REQ;
++            if (status) break;
++            status = NtQueryInformationToken( token, TokenIntegrityLevel, label_buf, sizeof(label_buf), &size );
++            if (status) break;
++            status = NtQueryInformationToken( token, TokenIsAppContainer, &appcontainer, sizeof(appcontainer), &size );
++            if (status) break;
++            sid = label->Label.Sid;
++            *(DWORD *)info = appcontainer || !sid->SubAuthorityCount ||
++                             sid->SubAuthority[sid->SubAuthorityCount - 1] < SECURITY_MANDATORY_MEDIUM_RID;
++        }
++        break;
++
+     case TokenLinkedToken:

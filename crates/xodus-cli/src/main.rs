@@ -13,6 +13,18 @@ mod webview;
 
 #[derive(Subcommand)]
 enum SubCommand {
+    #[command(about = "Inspect a local Appx or bundle manifest without login or downloading")]
+    InspectManifest {
+        path: String,
+        #[arg(long, help = "Select an exact bundle architecture, for example x64")]
+        architecture: Option<String>,
+    },
+    #[command(about = "Inspect public PC package metadata without login or downloading")]
+    InspectProduct {
+        product: String,
+        #[arg(short, long)]
+        market: Option<String>,
+    },
     #[command(about = "Download msixvc or xsp files fo given game")]
     Download {
         product: String,
@@ -143,12 +155,27 @@ async fn main() -> ExitCode {
     {
         registry.init();
     }
+    let args = CliArgs::parse();
+    if let SubCommand::InspectManifest { path, architecture } = args.command {
+        return commands::inspect_manifest::run(path, architecture);
+    }
+    if let SubCommand::ExtractEappx {
+        path,
+        destination,
+        key_file,
+    } = args.command
+    {
+        return commands::extract_eappx::run(path, destination, key_file).await;
+    }
+
     let client = reqwest::ClientBuilder::new()
         .user_agent(format!("xodus-cli/{}", env!("CARGO_PKG_VERSION")))
         .connection_verbose(true)
         .build()
         .unwrap();
-    let args = CliArgs::parse();
+    if let SubCommand::InspectProduct { product, market } = args.command {
+        return commands::inspect_product::run(&client, product, market).await;
+    }
 
     xodus::secrets::init_secrets().expect("Unable to initialize credentials");
     let tokens = TokenManager::with_keychain_and_memory();
@@ -168,6 +195,12 @@ async fn main() -> ExitCode {
     }
 
     let code = match args.command {
+        SubCommand::InspectManifest { .. } => {
+            unreachable!("Local manifest inspection is handled before credential initialization")
+        }
+        SubCommand::InspectProduct { .. } => {
+            unreachable!("Public product inspection is handled before credential initialization")
+        }
         SubCommand::Download {
             product,
             market,
@@ -203,11 +236,9 @@ async fn main() -> ExitCode {
             )
             .await
         }
-        SubCommand::ExtractEappx {
-            path,
-            destination,
-            key_file,
-        } => commands::extract_eappx::run(path, destination, key_file).await,
+        SubCommand::ExtractEappx { .. } => {
+            unreachable!("Local EAppx extraction is handled before credential initialization")
+        }
         SubCommand::Streaming {
             source,
             destination,

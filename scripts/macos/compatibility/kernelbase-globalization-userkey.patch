@@ -1,0 +1,6 @@
+diff --git a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
+--- a/dlls/kernelbase/kernelbase.spec
++++ b/dlls/kernelbase/kernelbase.spec
+@@ -1,1 +1,1 @@
+-# @ stub OpenGlobalizationUserSettingsKey
++@ stdcall OpenGlobalizationUserSettingsKey(long ptr ptr)

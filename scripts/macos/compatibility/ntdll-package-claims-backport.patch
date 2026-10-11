@@ -1,0 +1,171 @@
+diff -u a/dlls/ntdll/rtl.c b/dlls/ntdll/rtl.c
+--- a/dlls/ntdll/rtl.c
++++ b/dlls/ntdll/rtl.c
+@@ -1620,16 +1620,156 @@
+ {
+     FIXME("(%p, %p) stub!\n", table, buffer);
+     return NULL;
++}
++
++/* Package identity lives in the token security attributes WIN://SYSAPPID (strings: package full name,
++ * application id, family name) and WIN://PKG (one integer: claim flags in the low 32 bits, origin in
++ * the high 32 bits), as provisioned by the package activation path. */
++struct package_claim_attribute
++{
++    UNICODE_STRING name;
++    USHORT type, reserved;
++    ULONG flags, count;
++    union { ULONG64 *integers; UNICODE_STRING *strings; void *pointer; } values;
++};
++struct package_claim_attributes
++{
++    USHORT version, reserved;
++    ULONG count;
++    struct package_claim_attribute *attributes;
++};
++typedef struct { ULONG Flags; ULONG Origin; } PS_PKG_CLAIM;
++#define PKG_ATTR_UINT64 2
++#define PKG_ATTR_STRING 3
++
++static NTSTATUS query_token_attribute( HANDLE token, const WCHAR *name, USHORT type, ULONG min_count,
++                                       struct package_claim_attributes **info,
++                                       struct package_claim_attribute **attribute )
++{
++    UNICODE_STRING str;
++    ULONG bytes = 0;
++    NTSTATUS status;
++    ULONG_PTR base, end, address;
++
++    *info = NULL;
++    RtlInitUnicodeString( &str, name );
++    status = NtQuerySecurityAttributesToken( token, &str, 1, NULL, 0, &bytes );
++    if (status != STATUS_BUFFER_TOO_SMALL) return status ? status : STATUS_INVALID_PARAMETER;
++    if (bytes < sizeof(**info) || bytes > 1024 * 1024) return STATUS_INVALID_PARAMETER;
++    if (!(*info = RtlAllocateHeap( GetProcessHeap(), 0, bytes ))) return STATUS_NO_MEMORY;
++    if ((status = NtQuerySecurityAttributesToken( token, &str, 1, *info, bytes, &bytes ))) goto fail;
++    status = STATUS_INVALID_PARAMETER;
++    base = (ULONG_PTR)*info;
++    end = base + bytes;
++    address = (ULONG_PTR)(*info)->attributes;
++    if ((*info)->version != 1 || (*info)->count != 1 ||
++        address < base || address > end || sizeof(**attribute) > end - address) goto fail;
++    *attribute = (*info)->attributes;
++    address = (ULONG_PTR)(*attribute)->values.pointer;
++    if ((*attribute)->type != type || (*attribute)->count < min_count ||
++        address < base || address > end) goto fail;
++    if (type == PKG_ATTR_STRING)
++    {
++        ULONG i;
++        if ((*attribute)->count > (end - address) / sizeof(UNICODE_STRING)) goto fail;
++        for (i = 0; i < (*attribute)->count; i++)
++        {
++            UNICODE_STRING *v = &(*attribute)->values.strings[i];
++            address = (ULONG_PTR)v->Buffer;
++            if (v->Length % sizeof(WCHAR) || address < base || address > end || v->Length > end - address)
++                goto fail;
++        }
++    }
++    else if ((*attribute)->count > (end - address) / sizeof(ULONG64)) goto fail;
++    return STATUS_SUCCESS;
++fail:
++    RtlFreeHeap( GetProcessHeap(), 0, *info );
++    *info = NULL;
++    return status;
++}
++
++static NTSTATUS copy_claim_string( const UNICODE_STRING *value, WCHAR *buffer, SIZE_T *size )
++{
++    SIZE_T required = value->Length + sizeof(WCHAR);
++
++    if (!size) return STATUS_SUCCESS;
++    if (*size < required || !buffer)
++    {
++        *size = required;
++        return STATUS_BUFFER_TOO_SMALL;
++    }
++    memcpy( buffer, value->Buffer, value->Length );
++    buffer[value->Length / sizeof(WCHAR)] = 0;
++    *size = required;
++    return STATUS_SUCCESS;
+ }
+ 
+ /*********************************************************************
++ *           RtlQueryPackageClaims [NTDLL.@]
++ *
++ * Sizes are in bytes including the terminating null. Returns STATUS_NOT_FOUND for a token without
++ * package identity (measured natively for unpackaged sihost/explorer).
++ */
++NTSTATUS WINAPI RtlQueryPackageClaims( HANDLE token, WCHAR *fullname, SIZE_T *fullname_size,
++                                       WCHAR *appid, SIZE_T *appid_size, GUID *dynamic_id,
++                                       PS_PKG_CLAIM *claim, ULONG64 *attributes_present )
++{
++    struct package_claim_attributes *ids = NULL, *pkg = NULL;
++    struct package_claim_attribute *ids_attr, *pkg_attr;
++    HANDLE opened = NULL;
++    NTSTATUS status, ret;
++    ULONG64 present = 0;
++
++    TRACE( "(%p, %p, %p, %p, %p, %p, %p, %p)\n", token, fullname, fullname_size, appid, appid_size,
++           dynamic_id, claim, attributes_present );
++
++    if (attributes_present) *attributes_present = 0;
++
++    if (token == GetCurrentThreadToken() || token == GetCurrentThreadEffectiveToken())
++    {
++        status = NtOpenThreadToken( GetCurrentThread(), TOKEN_QUERY, TRUE, &opened );
++        if (status == STATUS_NO_TOKEN && token == GetCurrentThreadEffectiveToken())
++            status = NtOpenProcessToken( GetCurrentProcess(), TOKEN_QUERY, &opened );
++        if (status) return status;
++        token = opened;
++    }
++    else if (token == GetCurrentProcessToken())
++    {
++        if ((status = NtOpenProcessToken( GetCurrentProcess(), TOKEN_QUERY, &opened ))) return status;
++        token = opened;
++    }
++    status = query_token_attribute( token, L"WIN://SYSAPPID", PKG_ATTR_STRING, 2,
++                                    &ids, &ids_attr );
++    if (!status)
++    {
++        present |= 1;
++        if (!query_token_attribute( token, L"WIN://PKG", PKG_ATTR_UINT64, 1,
++                                    &pkg, &pkg_attr ))
++            present |= 2;
++    }
++    if (opened) NtClose( opened );
++    if (status) return status == STATUS_NOT_FOUND ? STATUS_NOT_FOUND : status;
++
++    ret = copy_claim_string( &ids_attr->values.strings[0], fullname, fullname_size );
++    status = copy_claim_string( &ids_attr->values.strings[1], appid, appid_size );
++    if (!ret) ret = status;
++    if (dynamic_id) memset( dynamic_id, 0, sizeof(*dynamic_id) );
++    if (claim)
++    {
++        ULONG64 value = pkg ? pkg_attr->values.integers[0] : 0;
++        claim->Flags = (ULONG)value;
++        claim->Origin = (ULONG)(value >> 32);
++    }
++    if (attributes_present) *attributes_present = present;
++    RtlFreeHeap( GetProcessHeap(), 0, ids );
++    RtlFreeHeap( GetProcessHeap(), 0, pkg );
++    return ret;
++}
++
++/*********************************************************************
+  *           RtlQueryPackageIdentity [NTDLL.@]
+  */
+ NTSTATUS WINAPI RtlQueryPackageIdentity(HANDLE token, WCHAR *fullname, SIZE_T *fullname_size,
+                                         WCHAR *appid, SIZE_T *appid_size, BOOLEAN *packaged)
+ {
+-    FIXME("(%p, %p, %p, %p, %p, %p): stub\n", token, fullname, fullname_size, appid, appid_size, packaged);
+-    return STATUS_NOT_FOUND;
++    PS_PKG_CLAIM claim;
++    NTSTATUS status;
++
++    TRACE("(%p, %p, %p, %p, %p, %p)\n", token, fullname, fullname_size, appid, appid_size, packaged);
++    status = RtlQueryPackageClaims( token, fullname, fullname_size, appid, appid_size, NULL, &claim, NULL );
++    if (packaged && (status == STATUS_SUCCESS || status == STATUS_BUFFER_TOO_SMALL)) *packaged = TRUE;
++    return status;
+ }
+ 
+ /*********************************************************************

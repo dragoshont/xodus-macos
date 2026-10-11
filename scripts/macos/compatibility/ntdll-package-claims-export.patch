@@ -1,0 +1,5 @@
+diff --git a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -1,0 +1,1 @@
++@ stdcall RtlQueryPackageClaims(long ptr ptr ptr ptr ptr ptr ptr)

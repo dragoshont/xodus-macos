@@ -1,0 +1,31 @@
+diff --git a/dlls/combase/roapi.c b/dlls/combase/roapi.c
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -443,1 +443,22 @@
++/* Normal application hosting only; Wine does not host the XAML designer. */
++HRESULT WINAPI RoGetDesignMode(BOOL *design_mode)
++{
++    TRACE("(%p)\n", design_mode);
++    if (!design_mode) return E_INVALIDARG;
++    *design_mode = FALSE;
++    return S_OK;
++}
++
++HRESULT WINAPI RoGetDesignModeV2(BOOL *design_mode)
++{
++    TRACE("(%p)\n", design_mode);
++    if (!design_mode) return E_INVALIDARG;
++    *design_mode = FALSE;
++    return S_OK;
++}
++
+ HRESULT WINAPI RoGetApartmentIdentifier(UINT64 *identifier)
+diff --git a/dlls/combase/combase.spec b/dlls/combase/combase.spec
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -2,1 +2,1 @@
+-90 stub -noname RoGetDesignMode
++90 stdcall -noname RoGetDesignMode(ptr)
+@@ -7,1 +7,1 @@
+-157 stub -noname RoGetDesignModeV2
++157 stdcall -noname RoGetDesignModeV2(ptr)

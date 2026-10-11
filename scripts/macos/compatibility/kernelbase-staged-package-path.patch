@@ -1,0 +1,5 @@
+diff --git a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
+--- a/dlls/kernelbase/kernelbase.spec
++++ b/dlls/kernelbase/kernelbase.spec
+@@ -1,0 +1,1 @@
++@ stdcall GetStagedPackagePathByFullName2(wstr long ptr ptr)

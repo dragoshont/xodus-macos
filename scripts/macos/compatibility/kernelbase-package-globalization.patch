@@ -1,0 +1,6 @@
+diff --git a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
+--- a/dlls/kernelbase/kernelbase.spec
++++ b/dlls/kernelbase/kernelbase.spec
+@@ -1,0 +1,2 @@
++@ stdcall GetCurrentPackageGlobalizationContext(long ptr ptr)
++@ stdcall GetPackageGlobalizationProperty(ptr long ptr ptr)

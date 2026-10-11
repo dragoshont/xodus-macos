@@ -1,0 +1,39 @@
+diff --git a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
+--- a/dlls/kernelbase/kernelbase.spec
++++ b/dlls/kernelbase/kernelbase.spec
+@@ -1,0 +1,1 @@
++@ stdcall GetCurrentPackageInfo3(long long ptr ptr ptr)
+diff --git a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
+--- a/dlls/kernelbase/version.c
++++ b/dlls/kernelbase/version.c
+@@ -1870,6 +1870,31 @@
+     memcpy(id->publisherId, publisher_id, sizeof(*id->publisherId) * len);
+     id->publisherId[len] = 0;
+ 
+     return ERROR_SUCCESS;
+ }
++
++/* PackageInfoGeneration has a measured identity-independent ABI. Other types
++ * need the package graph and must not return a fabricated empty graph. */
++HRESULT WINAPI GetCurrentPackageInfo3( UINT32 flags, UINT32 type, UINT32 *length,
++                                       void *buffer, UINT32 *count )
++{
++    UINT32 name_length = 0;
++    LONG status;
++
++    TRACE( "(%#x %u %p %p %p)\n", flags, type, length, buffer, count );
++    if (type == 16)
++    {
++        if (!length || (*length && !buffer)) return E_INVALIDARG;
++        if (count) *count = 0;
++        if (*length < sizeof(UINT32)) return HRESULT_FROM_WIN32( ERROR_INSUFFICIENT_BUFFER );
++        *(UINT32 *)buffer = 0;
++        *length = sizeof(UINT32);
++        return S_OK;
++    }
++    status = GetCurrentPackageFamilyName( &name_length, NULL );
++    if (status != ERROR_INSUFFICIENT_BUFFER)
++        return HRESULT_FROM_WIN32( status );
++    FIXME( "Package graph information type %u is not implemented\n", type );
++    return E_NOTIMPL;
++}

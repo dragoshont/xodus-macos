@@ -1,0 +1,12 @@
+diff --git a/dlls/kernelbase/version.c b/dlls/kernelbase/version.c
+--- a/dlls/kernelbase/version.c
++++ b/dlls/kernelbase/version.c
+@@ -1680,8 +1680,10 @@
++static LONG get_current_package_identity_string( unsigned int, UINT32 *, WCHAR * );
++
+ LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageFullName( UINT32 *length, WCHAR *name )
+ {
+-    FIXME( "(%p %p): stub\n", length, name );
+-    return APPMODEL_ERROR_NO_PACKAGE;
++    return get_current_package_identity_string( 0, length, name );
+ }

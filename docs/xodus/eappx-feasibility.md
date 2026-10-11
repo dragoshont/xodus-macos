@@ -1662,3 +1662,39 @@ temporary registration/private mrt100 removed and the temporary bottle RMCLIENT
 removed. Source/build and runtime leases were released. No proprietary provider
 was acquired or distributed and no absent-service state was represented as
 permission.
+
+### GIT completion signal: verified synchronous-Wine empty-state subset
+
+Genuine private ordinal 95 `CoSignalPendingGitRegistrationWaits` is void with
+no arguments. Genuine normal processes with no pending registration waiters
+return without signaling anything. The matching Wine source's sole standard
+GIT implementation, `ole32/git.c`, marshals and inserts registrations
+synchronously under its table lock; it has no pending-registration event,
+completion-wait queue or producer paired with this signal.
+
+`wine-combase-git-signal.patch` implements the corresponding empty-state
+return with a TRACE diagnostic and preserves the void ABI at NONAME ordinal
+95. It is not an implementation of native pending GIT wait signaling; adding
+an asynchronous producer later requires corresponding real signaling.
+Matching combase build and independent controls compile successfully.
+Candidate SHA-256:
+`52ed4c9a03781b8df2bb04d81af6f97fb39f5696f72bc85dc6b748098874862b`.
+
+The leased GUI run passes all 18 real GIT controls: no-apartment/STA/MTA calls
+return, and actual GIT registration, retrieval and revocation remain intact.
+All prior apartment, shutdown, design-mode, cleanup, RMCLIENT, factory, policy,
+loader and original-activation controls remain passing.
+Receipt prefix: `celeste-registered-git-empty-waiters`.
+
+Actual original Celeste passes the ordinal-95 boundary but still fails to find
+the `Windows.Foundation.Collections.Detail.Vector` factory, then aborts at
+private ordinal 69 `CoRegisterServerShutdownDelay`. It remains exit 4103 with
+zero windows (514 ms). The Vector failure remains a potentially earlier causal
+boundary, not proof that repairing successive aborts will create a working app.
+The next required evidence is the reached ordinal-69 contract and the exact
+Vector factory/IID behavior, not an unchanged runtime rerun.
+
+All five shared vendor modules were restored with signature verification,
+bottle twinapi restored, temporary registration/private mrt100 and bottle
+RMCLIENT removed. Source/build and runtime leases were released before the
+coordinator's Cuphead experiment. No rendering or playability is established.

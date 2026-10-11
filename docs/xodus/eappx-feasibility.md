@@ -1743,3 +1743,42 @@ The next discriminating probe is temporary class registration followed by
 Private ordinal 69 remains unsupported: the genuine caller registers a 2,000 ms
 server-shutdown delay, but no real delay behavior has been implemented and no
 success-shaped no-op was added. Rendering and playability remain unverified.
+
+### Detail.Vector: verified temporary-registration routing
+
+The existing runtime-only grant explicitly covered temporary class registration
+and a native override. The coordinator released runtime and requested the
+Celeste-only catalog probe; no source/build, game launch or unknown slot call
+was authorized or performed. The direct-export probe and its receipts remain
+preserved.
+
+Receipt prefix: `celeste-wintypes-catalog-20261011`, in the same private trial
+directory. Signature and Celeste target-identity admission passed. The exact
+class key under
+`HKLM\Software\Microsoft\WindowsRuntime\ActivatableClassId` was first confirmed
+absent. The temporary `DllPath` was
+`C:\windows\system32\wintypes.dll`, with argv overrides
+`--dll=wintypes=n;combase=n,b`, authentic provider SHA-256 `5a94b019...` and
+bottle-local combase candidate `52ed4c9a...`.
+
+The probe executable was outside the provider staging directory. The loader
+explicitly reports **native** `C:\windows\system32\wintypes.dll`, resolving the
+direct trial's executable-directory ambiguity. `RoInitialize` succeeds, and
+`RoGetActivationFactory` returns non-NULL objects with `S_OK` for both
+IActivationFactory and the exact requested
+`08c77958-89bf-5cf8-a9cd-c72147b9b3a9`. GetIids returns the expected two IIDs;
+all three standard QIs succeed with the same factory/tear-off identity pattern
+as the direct control. Failure-counted routing/interface controls pass 6/0,
+process exit 0.
+
+Finally cleanup deleted the temporary key and confirmed it absent, restored
+original bottle combase `a6d35827...` and wintypes `1404067f...` with matching
+full hashes, and verified CrossOver's signature. The restoration JSON records
+the provider hash, registry restoration and both DLL baselines. No Cuphead
+bottle or shared vendor files were modified; runtime was released.
+
+This proves exact-IID registration routing to the genuine provider, not our-own
+implementation parity, the behavior of slot 30, or progress in either game.
+Celeste's latest actual-game result remains exit 4103 with zero windows; private
+ordinal 69 is still unsupported. Any game experiment needs its own serialized
+runtime scope and must preserve these distinctions.

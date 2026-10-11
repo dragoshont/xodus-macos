@@ -4867,6 +4867,32 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
   dependencies through `GetStagedPackagePathByFullName2(type 2)`, all
   successfully. The resources-deployment gap is therefore not on this fatal's
   path. The fixed abort quiesced cleanly, and restoration completed.
+- **2380–2383:** integrated `corewindow-autocreate-default.patch`
+  (`3e08fdd7…`) and `corewindow-null-hwnd.patch` (`0d531beb…`). Both
+  applied together, and the windows.ui build is `0983cbf9…`. The contract
+  test passed 16/16 under ASan/UBSan.
+  - 2380, 2381 and 2382 stopped at the pre-game CoreWindow conformance gate.
+    That gate encodes the old opt-in contract and sets the AUTOCREATE
+    variables itself. Neither the Unix env nor `--env` can opt it out.
+  - 2383 used a 2380 gate variant (`fe9c6edb…`) that asserts the strict NULL
+    under `WINE_COREWINDOW_NO_AUTOCREATE=1` and the new default create
+    otherwise.
+  - 2383 result, with RelayInclude for `RoGetActivationFactory` and
+    `RoActivateInstance`: the fatal is unchanged (`mrmcorer+0x9ABA0`, exit
+    `0xC0000421`, 0 windows), and Cuphead never queried
+    `GetForCurrentThread`.
+  - MrmCoreR was loaded directly, with no combase activation before it.
+  - Before the fatal, MrmCoreR itself activated, all returning S_OK:
+    `CoreWindow`/`ICoreWindowStatic` at `+0x2364b`; an instance at
+    `+0x4a65b`, which loaded builtin `system32\windows.ui`; a factory at
+    `+0x4bce0`; and `CoreApplication`/`ICoreApplication`
+    (`0AACF7A4…`) at `+0x42854`, inside the `0x42684` init. That last
+    factory is served by native `twinapi.appcore`. The fatal follows
+    immediately.
+  - HYPOTHESIS: an `ICoreApplication` call, made with no
+    `CoreApplication.Run` view, returns `0x8000000E`.
+  - Restoration: 36/36 baselines match for each label, and no Wine
+    processes remain.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

@@ -4199,6 +4199,119 @@ plus source-only outer-cleanup output accounting/control attribution.
 No swallowing breakpoint/context mutation, guessed API or widened bounds
 is justified by this failed capture. Missing quality runner remains.
 
+### Read-only2270 discriminator: debugger-dependent FailFast recursion and delayed bound cleanup
+
+Further debug-game launches are CUT pending this discriminator. No runtime,
+context/code modification, swallowed exception or source implementation was
+performed. The exact2270 receipt and captured artifact pins are unchanged.
+
+**VERIFIED pinned static control-flow:** SharedLibrary's enclosing native
+function spans41cd40-41cfc2. It calls
+`api-ms-win-core-debug-l1-1-1!IsDebuggerPresent` at41ce9c, tests EAX at41cecb,
+branches to41ced0 if zero at41cecd and otherwise executes INT3 at41cecf.
+The admitted kernelbase SHA9308d50f exports IsDebuggerPresent at3b810;
+its actual bytes read TEB->PEB->BeingDebugged (PEB+2), matching
+`dlls/kernelbase/debug.c:165-170`. This is not a dormant guessed diagnostic.
+The attached DEBUG_ONLY_THIS_PROCESS controller changes an explicit branch
+in the executing failure path. The actual breakpoint record and dump RIP
+prove that branch reached its INT3.
+
+The intended straight-line continuation after debugger handling is41ced0:
+initialize EBX=80004005, optionally take an exception HRESULT, or at41cefe
+set EBX=ESI+1000. The helper builds its terminal exception record at41cf2c,
+sets flags1 and calls RaiseFailFastException at41cf82 (return site41cf88).
+Thus the debugger trap precedes generated1007; more breakpoint dumps are
+not independent proof of more originating faults.
+
+**VERIFIED static handler identity:** mrt100_app+5a70 is
+`jmp [RIP+3f44a]` through local pointer RVA44ec0, whose pinned disk value is
+preferred-base+8380 with a DIR64 relocation. It is a local guard thunk,
+not another unknown import.8380 is RhpPInvokeExceptionGuard. Its call7f50
+is followed by return--1 test83af/83b2; the--1 branch returns EAX0 at840c,
+otherwise it takes runtime policy branches and calls32c0 or32e0 at83ea/
+8402 before returning0. Both32c0/32e0 set reason7 (ECX) and invoke12a0;
+12a0 obtains/calls an indirect failure callback at12bd/12e5. No
+unconditional INT3-specific RIP increment/normal41ced0 continuation exists
+in this handler. Runtime IAT/local pointer contents and callback target
+were not read; disk relocation is not a stopped guard-entry RIP.
+
+**Observed versus hypothesis:** preserved stderr reports later handler
+mrt+5a70 returning0; eight stopped records/context snapshots show first
+80000100 then seven debugger-dependent INT3 events. After the first
+breakpoint, each RSP falls by5f0, with unchanged record address and
+stopped RIP41ced0. Application dispatch instead reports41cecf, consistent
+with admitted `dlls/ntdll/unix/signal_x86_64.c:1750-1753` decrementing
+EXCEPTION_BREAKPOINT RIP before the application dispatcher. The controller
+never edits that context and passes NOT_HANDLED. The established frozen
+ntdll.so decrement remains the admitted code, not a new build.
+
+**HYPOTHESIS, strongly grounded but not unwound:** unhandled debugger INT3
+enters the native PInvoke failure policy again, calling the managed FailFast
+helper on a deeper stack and hitting its debugger branch again. The5f0
+per-event descent plus guard thunk/control-flow supports nested FailFast
+re-entry, rather than eight independent game faults or a simple same-stack
+INT3 reexecution. No stack payload/unwind/callback-return trace proves each
+edge. This debugger-induced terminal-path recursion is distinct from the
+original missing-export80000100 dispatch to Cuphead's guard import thunk;
+it does not establish that original failure is benign or fixable by
+swallowing it. Further attached-game capture is not the cheapest probe.
+
+**VERIFIED source-only owner audit:** at the20MB observation,
+`cuphead-exception2270-owner.py:334-337` raises without first terminating
+the active command; its command ExitStack closes Python's file handles,
+not child-inherited writer handles. The finally block at1019 starts
+11 temporary-key query/delete/query restorations, WineDbg restoration and
+CoreApplication restoration before `cleanup_runtime()` at1050. These
+ordinary `command()` calls have30s individual deadlines and100ms polling,
+but no exception-package aggregate polling once that call has raised.
+The actual package process/debugger can keep running during that sequence.
+
+Afterward cleanup_runtime at562-600 first runs a Wine tasklist census,
+reads/parses the full server trace/generations, validates native ownership,
+then signals admitted clients/explicit launchers, waits up to8s at200ms,
+escalates exact survivors and stops the owned server. Registry operations
+therefore precede both target control and the ownership refresh. The
+100ms active-command polling cadence is not a hard outer bound across
+these blocking restoration/census/trace-read phases.
+
+Exact preserved server byte offsets identify the continued writers:
+server.log is the owned wineserver's output. Post-bound request prefix0220
+is controller native PID69363, Wine pid0234 (verified same-generation
+init_first_thread and package census), not the historical0220 pre-gate
+generation. Target Cuphead is native PID69377/Wine022c. At the first
+post-bound process census, both remain live.0220 contributes89,886,362
+post-bound server bytes, notably remote dump module enumeration;
+read_process_memory method records contribute71,076,353 bytes overall.
+The restoration commands add114 first-thread roots (wrapper/helper chains),
+and enum_key_value traces contribute28,970,880 bytes. Controller target
+terminate_process(handle0074,exit95) is only at139,267,061 bytes after
+the observed bound; detach follows and target/controller terminate.
+The owner's cleanup census begins at post-bound129,982,576, after the
+bulk of restoration. Total post-bound server growth is139,304,710.
+These are file-offset order facts, not wall-clock cancellation latency.
+
+The receipt's `server_growth_after_owned_cleanup`159,485,365 is measured
+from the package's initial offset all the way through registry restoration
+and owned cleanup, not exclusively game/dump output. Combined final
+161,230,032 correctly remains over-limit FAILED, but attribution must
+separate continued controller/dump requests from restoration client noise.
+
+**ONE grounded next correction, source-only proposal:** on package
+bound/timeout/failure, run a control-first owned abort before any Wine
+registry restoration. Freeze the already-admitted generation/native-identity
+mapping, reconcile only through a bounded incremental ownership mechanism,
+stop the exact owned target/debugger/launcher set under identity checks,
+and require quiescence before running registry restoration in a separate
+bounded phase. Keep original captures untruncated and mark overshoot FAILED;
+preserve the existing safe requirement never to restore provider files while
+runtime is live. Do not merely reorder current unbounded full-trace/census
+work and call it hard cancellation. A future fresh helper needs local
+synthetic live writer/blocked census/identity mismatch/cleanup-order tests,
+including post-bound output attribution, before any runtime proposal.
+No implementation/next owner/game hold is authorized by this analysis.
+The failure path can already be discriminated statically without debugger
+attachment; hiding BeingDebugged or handling its trap would change semantics.
+
 #### 2210 original-exception telemetry gap and targeted capture-only plan
 
 Further read-only inspection finds exactly one dispatched native exception:

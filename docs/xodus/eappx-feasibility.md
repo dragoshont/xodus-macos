@@ -4855,6 +4855,18 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
   restored. The runtime had already exited. An offline recovery restored 36
   files and 14 registry blocks, and independent verification `060139b8…`
   passed. The abort now re-drains within its window before refusing.
+- **2370/2371:** integrated the Manifest child's `GetInitInfoByPackageFullName`
+  kernelbase provider and the `ext-ms-win-resources-deployment-l1-1-0`
+  api-set mapping (patch `ba8ef8b4…`; kernelbase `14c86783…`, apisetschema
+  `e01c6842…`). 2370 stopped at the no-game MRM gate before launch. The gate's
+  checks had passed, but it pinned the kernelbase `property_rva`, which the
+  rebuild moved, so 2371 reran with the new RVA. In 2371 the fatal is
+  unchanged (`mrmcorer+0x9ABA0`, exit `0xC0000421`, 0 windows).
+  `GetInitInfoByPackageFullName` and `GetPackagePathByFullName` were never
+  called. MrmCoreR (`+0x216d0`) resolved Cuphead and its three framework
+  dependencies through `GetStagedPackagePathByFullName2(type 2)`, all
+  successfully. The resources-deployment gap is therefore not on this fatal's
+  path. The fixed abort quiesced cleanly, and restoration completed.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

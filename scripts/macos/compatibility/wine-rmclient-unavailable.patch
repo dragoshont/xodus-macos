@@ -17,7 +17,7 @@ diff --git a/dlls/rmclient/main.c b/dlls/rmclient/main.c
 new file mode 100644
 --- /dev/null
 +++ b/dlls/rmclient/main.c
-@@ -0,0 +1,29 @@
+@@ -0,0 +1,33 @@
 +/*
 + * Unsupported Host Activity Manager connection boundary.
 + *
@@ -35,19 +35,21 @@ new file mode 100644
 + */
 +
 +#include <stdarg.h>
++#include "ntstatus.h"
++#define WIN32_NO_STATUS
 +#include "windef.h"
 +#include "winbase.h"
-+#include "winerror.h"
++#include "winternl.h"
 +#include "wine/debug.h"
 +
 +WINE_DEFAULT_DEBUG_CHANNEL(rmclient);
 +
-+HRESULT WINAPI HamConnectForExtendedExecution(const void *descriptor, HANDLE *connection)
++NTSTATUS WINAPI HamConnectForExtendedExecution(const void *descriptor, HANDLE *connection)
 +{
 +    ERR("(%p, %p): HAM backend unavailable; extended execution is not granted.\n", descriptor, connection);
-+    if (!connection) return E_POINTER;
-+    *connection = NULL;
-+    return HRESULT_FROM_WIN32(RPC_S_SERVER_UNAVAILABLE);
++    if (!descriptor) return STATUS_INVALID_PARAMETER_1;
++    if (!connection) return STATUS_INVALID_PARAMETER_2;
++    return STATUS_NOT_SUPPORTED;
 +}
 diff --git a/configure.ac b/configure.ac
 --- a/configure.ac

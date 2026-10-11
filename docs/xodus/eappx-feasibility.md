@@ -2378,3 +2378,69 @@ baselines and compared with the built source after LF normalization.
 The mandatory integration command `python gates/gate_runner.py quality-gate`
 still exits 2 because this repository does not contain `gates/gate_runner.py`;
 no overall quality-gate PASS or task-completion claim is made.
+
+### RMCLIENT conformance and two-surface admission
+
+The coordinator attributed the four older clients to its own Oct 10
+Cuphead run, verified exact process identities and disconnected server
+sockets, and terminated those four processes. Bottle and host quiescence
+were then verified before the next control. The private capture owner now
+checks for `.wineserver` directory holders with `lsof` before preparation,
+immediately before mutation, and after owned-runtime cleanup. Probe errors,
+permission warnings and active holders block admission; six synthetic
+capture-safety tests pass, including this rejection behavior.
+
+The existing RMCLIENT unavailable-backend implementation is retained,
+with the newly verified native contract:
+`NTSTATUS HamConnectForExtendedExecution(const void *, HANDLE *)`.
+NULL parameters return `STATUS_INVALID_PARAMETER_1` (`0xc00000ef`);
+NULL output with non-NULL parameters is defensively rejected with
+`STATUS_INVALID_PARAMETER_2`. Otherwise it returns `STATUS_NOT_SUPPORTED`
+(`0xc00000bb`), never dereferencing the opaque parameters or writing the
+output. HAM connectivity and extended execution are **not** granted.
+The existing named export/ordinal 32 is unchanged; no other RMCLIENT
+exports are implemented.
+
+The matching-source targeted build passes, and the updated full creation
+patch reproduces the built main implementation. Its main-file hunk count
+also includes the complete return and closing brace, rather than truncating
+those lines. Provider-bound RMCLIENT tests pass **10 checks, zero failures**,
+including named/ordinal identity, the negative NTSTATUS values and
+unchanged output on failure.
+Candidate SHA-256:
+`9d7019d192bb61ba54b345bbe520af885c6659dcb77d20b752f9ddaede94d6b9`.
+
+The single control `cuphead-owned-rmclient-20261011-1600` admits that DLL
+at both bottle system32 and vendor Wine system32: **20 targets total**.
+All 18 existing candidate hashes match the 1530 control exactly.
+The real game, primary thread `02bc`, loads
+`C:\windows\system32\RMCLIENT.dll` at lines 5982-5987 and calls the honest
+unavailable connection at lines 5991-5993. Genuine twinapi continues past
+that failure. No success-only HAM handle path is claimed.
+
+The next sequence is now:
+
+| Private game lines | Observed result |
+| --- | --- |
+| 6000-6005 | Detail.Vector activation for IID `08c77958-89bf-5cf8-a9cd-c72147b9b3a9` returns `0x80040154`. |
+| 6006-6007 | The already-admitted combase aborts on `CoRegisterServerShutdownDelay`, raising `EXCEPTION_WINE_STUB`. The matching spec identifies this as unimplemented noname ordinal 69. |
+| 11730-11733 | Fail-fast `0x1007`, real child exit **4103** after **1407 ms**, **0 total / 0 visible windows**. |
+
+No ordinal-1500 creation, ordinal-1700 resolution,
+ImmersiveNavigationClient or actual `corewindow_put_PointerCursor`
+invocation is observed. `Run` and `SetWindow` are not directly traced.
+The next blocker is not an existing implementation omitted from admission
+or one of the pre-approved public input classes. Ordinal 69 and
+Detail.Vector remain held: no guessed ABI, private-interface synthesis,
+new implementation or additional launch followed this control.
+
+Owner status is 0 with no owner/restoration errors. All 20 baseline
+hashes/absent targets, registry restoration, CrossOver deep/strict signature
+and post-restore bottle quiescence are independently verified.
+
+| Private 1600 evidence | SHA-256 |
+| --- | --- |
+| `game.log` | `c7c59b628c69cc11d2a0aaacc6185c5d07683cd48c71ae7a8dff103113cd7602` |
+| `receipt.json` | `64c907eff9efb9e327ad74616b527b8b7439f04ee62ec48441788374ad297e08` |
+| `rmclient-tests.log` | `84b426dc200de054a56af8d7ebb64efd3e552043fbe92020d3675cb08b52fae8` |
+| `bottle-quiescence.json` | `923d0e339096d0a7da76af12e6c733a8760401603c9448e83b0c32d02d00b6c3` |

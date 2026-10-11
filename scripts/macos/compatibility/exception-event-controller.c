@@ -20,7 +20,19 @@ struct capture
     unsigned handles_closed, handles_failed;
     ULONGLONG deadline, limit, dump_bytes;
     WCHAR dump_prefix[4096];
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+    struct { ULONG_PTR base; DWORD size; WCHAR name[260]; BOOL loaded; } modules[128];
+    unsigned module_count, selected_events;
+    BOOL saw_stub, first_wait;
+    ULONGLONG started;
+#endif
 };
+
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+static BOOL package_prepare(struct capture *, int, char **, WCHAR *, WCHAR *, WCHAR *);
+static BOOL package_activate(struct capture *);
+static BOOL package_windows(struct capture *);
+#endif
 
 static void close_owned(struct capture *capture, HANDLE handle)
 {
@@ -244,18 +256,32 @@ static BOOL save_exception(struct capture *capture, DEBUG_EVENT *event, BOOL inj
         return FALSE;
     file = CreateFileW(path, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_NEW, 0, NULL);
     if (file == INVALID_HANDLE_VALUE) return FALSE;
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+    printf("EXCEPTION_DUMP_BIND event=%u thread=%lu code=%08lx chance=%u path=%ls\n",
+           capture->selected_events, (unsigned long)thread->id, (unsigned long)record.ExceptionCode,
+           event->u.Exception.dwFirstChance ? 1 : 2, path);
+#endif
     pointers.ExceptionRecord = &record; pointers.ContextRecord = &context;
     exception.ThreadId = thread->id; exception.ExceptionPointers = &pointers;
     exception.ClientPointers = FALSE;
     bound.file = file; bound.deadline = capture->deadline;
     bound.limit = capture->dump_bytes < capture->limit ? capture->limit - capture->dump_bytes : 0;
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+    if (bound.limit > 2000000) bound.limit = 2000000;
+#endif
     bound.exceeded = FALSE;
     callback.CallbackRoutine = dump_callback; callback.CallbackParam = &bound;
     written = MiniDumpWriteDump(capture->process.hProcess, capture->process.dwProcessId, file,
                                MiniDumpNormal, &exception, NULL, &callback);
     valid = written && !bound.exceeded && validate_dump(file, thread->id, &record, &context, capture->limit);
     if (!GetFileSizeEx(file, &size) || size.QuadPart < 0) valid = FALSE;
-    else capture->dump_bytes += size.QuadPart;
+    else
+    {
+        capture->dump_bytes += size.QuadPart;
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+        if ((ULONGLONG)size.QuadPart > bound.limit) valid = FALSE;
+#endif
+    }
     if (!valid) fprintf(stderr, "EXCEPTION_DUMP_ERROR written=%u bound=%u error=%lu\n",
                         written, bound.exceeded, (unsigned long)GetLastError());
     close_owned(capture, file);
@@ -279,6 +305,32 @@ static BOOL module_event(struct capture *capture, HANDLE file, void *base,
     if (!length || length >= ARRAY_SIZE(path)) return FALSE;
     name = wcsrchr(path, '\\'); name = name ? name + 1 : path;
     printf("EXCEPTION_MODULE name=%ls base=%p\n", name, base);
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+    {
+        IMAGE_DOS_HEADER dos;
+        IMAGE_NT_HEADERS64 nt;
+        unsigned index = capture->module_count;
+        if (index == ARRAY_SIZE(capture->modules) || wcslen(name) >= 260 ||
+            !read_remote(capture, (ULONG_PTR)base, &dos, sizeof(dos)) ||
+            dos.e_magic != IMAGE_DOS_SIGNATURE || dos.e_lfanew > 0x100000 ||
+            !read_remote(capture, (ULONG_PTR)base + dos.e_lfanew, &nt, sizeof(nt)) ||
+            nt.Signature != IMAGE_NT_SIGNATURE || nt.FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64 ||
+            nt.OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC || !nt.OptionalHeader.SizeOfImage)
+            return FALSE;
+        capture->modules[index].base = (ULONG_PTR)base;
+        capture->modules[index].size = nt.OptionalHeader.SizeOfImage;
+        wcscpy(capture->modules[index].name, name);
+        capture->modules[index].loaded = TRUE;
+        ++capture->module_count;
+    }
+    if ((!_wcsicmp(name, L"twinapi.appcore.dll") &&
+         !hash_file(file, "0d3e56c5068633f975bcab528267789f520f82a6d6a50f1330104e7597289b43")) ||
+        (!_wcsicmp(name, L"mrt100_app.dll") &&
+         !hash_file(file, "6eb3c9c626c2514b39301969f318d1b7c839d3efe1a86a90783ec6f78f19e3ec")) ||
+        (!_wcsicmp(name, L"xodus-vector-oracle.dll") &&
+         !hash_file(file, "5a94b019c7190d9ec47f98e0bc28dced70036f1f97e9a84ef9d75340e364158a")))
+        return FALSE;
+#endif
     if (!_wcsicmp(name, fixture_name) && !hash_file(file, fixture_pin)) return FALSE;
     if (!_wcsicmp(name, L"dbghelp.dll") &&
         !hash_file(file, "e111a5b162e52207d04fe82d704c1b169297c22c2fdff64348322a98a15abbfb")) return FALSE;
@@ -312,12 +364,23 @@ int main(int argc, char **argv)
     STARTUPINFOW startup;
     DEBUG_EVENT event;
     WCHAR image[4096], command[8192], *name;
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+    WCHAR cwd[4096];
+#endif
     ULONG_PTR startup_address = 0;
     DWORD disposition, exit_code = STILL_ACTIVE;
     BOOL pending = FALSE, exited = FALSE;
     unsigned i;
     setvbuf(stdout, NULL, _IONBF, 0);
     memset(&capture, 0, sizeof(capture)); memset(&startup, 0, sizeof(startup)); startup.cb = sizeof(startup);
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+    if (!package_prepare(&capture, argc, argv, image, command, cwd))
+    {
+        fprintf(stderr, "EXCEPTION_PACKAGE_PREPARE_ERROR error=%lu\n", (unsigned long)GetLastError());
+        return 2;
+    }
+    name = wcsrchr(image, '\\'); name = name ? name + 1 : image;
+#else
     if (argc != 5 || strlen(argv[2]) != 64 ||
         (strcmp(argv[3], "handled") && strcmp(argv[3], "breakpoint") && strcmp(argv[3], "unhandled") &&
          strcmp(argv[3], "read-error") && strcmp(argv[3], "deadline") &&
@@ -327,6 +390,7 @@ int main(int argc, char **argv)
                              capture.dump_prefix, ARRAY_SIZE(capture.dump_prefix))) return 2;
     name = wcsrchr(image, '\\'); name = name ? name + 1 : image;
     if (_wcsicmp(name, L"exception-event-fixture.exe")) return 2;
+#endif
     {
         HMODULE provider = GetModuleHandleW(L"dbghelp.dll");
         WCHAR path[4096];
@@ -341,22 +405,49 @@ int main(int argc, char **argv)
         CloseHandle(file);
         printf("EXCEPTION_DUMP_PROVIDER=%ls pin=e111a5b162e52207d04fe82d704c1b169297c22c2fdff64348322a98a15abbfb\n", path);
     }
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+    puts("EXCEPTION_PACKAGE_FILTER stub=80000100 then=all-first-and-second-chance failfast=00001007 max_events=8 max_dump_bytes=2000000 total_controller_bytes=10000000 deadline_ms=60000");
+    capture.limit = 10000000;
+    capture.started = GetTickCount64();
+    capture.deadline = capture.started + 60000;
+#else
     capture.limit = !strcmp(argv[3], "aggregate-size") ? 65536 : 10000000;
     capture.deadline = GetTickCount64() + (!strcmp(argv[3], "deadline") ? 2000 : 12000);
     if (_snwprintf(command, ARRAY_SIZE(command), L"\"%ls\" %hs", image, argv[3]) < 0) return 2;
+#endif
     if (!CreateProcessW(image, command, NULL, NULL, FALSE, CREATE_SUSPENDED | DEBUG_ONLY_THIS_PROCESS,
-                        NULL, NULL, &startup, &capture.process))
+                        NULL,
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+                        cwd,
+#else
+                        NULL,
+#endif
+                        &startup, &capture.process))
     {
         fprintf(stderr, "EXCEPTION_CREATE_PROCESS_ERROR error=%lu\n", (unsigned long)GetLastError());
         return 3;
     }
     printf("EXCEPTION_OWNED_PID=%lu\n", (unsigned long)capture.process.dwProcessId);
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+    if (!package_activate(&capture))
+    { capture.failed = TRUE; capture.reason = 4; goto done; }
+#endif
     if (ResumeThread(capture.process.hThread) == (DWORD)-1)
     { capture.failed = TRUE; capture.reason = 4; goto done; }
     close_owned(&capture, capture.process.hThread); capture.process.hThread = NULL;
     if (capture.failed) goto done;
     while (!exited)
     {
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+        if (!capture.first_wait && GetTickCount64() - capture.started >= 11000)
+        {
+            capture.first_wait = TRUE;
+            printf("ORIGINAL_APP_FIRST_WAIT=%lu ELAPSED_MS=%llu\n",
+                   (unsigned long)WaitForSingleObject(capture.process.hProcess, 0),
+                   (unsigned long long)(GetTickCount64() - capture.started));
+            if (!package_windows(&capture)) { capture.failed = TRUE; capture.reason = 4; break; }
+        }
+#endif
         __int64 size = _ftelli64(stdout);
         if (size < 0) { capture.failed = TRUE; capture.reason = 4; break; }
         if ((ULONGLONG)size + capture.dump_bytes > capture.limit)
@@ -412,6 +503,13 @@ int main(int argc, char **argv)
                 if (capture.threads[i].id == event.dwThreadId && capture.threads[i].handle)
                 { close_owned(&capture, capture.threads[i].handle); capture.threads[i].handle = NULL; }
             break;
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+        case UNLOAD_DLL_DEBUG_EVENT:
+            for (i = 0; i < capture.module_count; ++i)
+                if (capture.modules[i].base == (ULONG_PTR)event.u.UnloadDll.lpBaseOfDll)
+                    capture.modules[i].loaded = FALSE;
+            break;
+#endif
         case EXCEPTION_DEBUG_EVENT:
             if (!capture.startup && event.u.Exception.dwFirstChance &&
                 event.dwThreadId == capture.process.dwThreadId &&
@@ -431,8 +529,30 @@ int main(int argc, char **argv)
                 else for (i = 0; i < record->NumberParameters; ++i)
                     printf("EXCEPTION_PARAMETER index=%u value=%llx\n", i,
                            (unsigned long long)record->ExceptionInformation[i]);
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+                if (record->ExceptionCode == 0x80000100) capture.saw_stub = TRUE;
+                if (!capture.failed && (capture.saw_stub || record->ExceptionCode == 0x1007))
+                {
+                    unsigned module;
+                    if (++capture.selected_events > 8)
+                    { capture.failed = TRUE; capture.reason = 6; break; }
+                    printf("EXCEPTION_SELECTED index=%u chance=%u code=%08lx\n",
+                           capture.selected_events, event.u.Exception.dwFirstChance ? 1 : 2,
+                           (unsigned long)record->ExceptionCode);
+                    for (module = 0; module < capture.module_count; ++module)
+                        if (capture.modules[module].loaded)
+                            printf("EXCEPTION_INVENTORY event=%u name=%ls base=%llx size=%lx\n",
+                                   capture.selected_events, capture.modules[module].name,
+                                   (unsigned long long)capture.modules[module].base,
+                                   (unsigned long)capture.modules[module].size);
+                    printf("EXCEPTION_RECORD_OWNER event=%u address=%p\n",
+                           capture.selected_events, record->ExceptionAddress);
+                    if (!save_exception(&capture, &event, FALSE)) capture.failed = TRUE;
+                }
+#else
                 if (!capture.failed && event.u.Exception.dwFirstChance &&
                     !save_exception(&capture, &event, !strcmp(argv[3], "read-error"))) capture.failed = TRUE;
+#endif
             }
             break;
         case OUTPUT_DEBUG_STRING_EVENT:
@@ -454,6 +574,7 @@ int main(int argc, char **argv)
         if (!ContinueDebugEvent(event.dwProcessId, event.dwThreadId, disposition))
         { capture.failed = TRUE; capture.reason = 4; break; }
         pending = FALSE;
+#ifndef EXCEPTION_PACKAGE_CAPTURE
         if (!strcmp(argv[3], "detach") && capture.dumps)
         {
             WCHAR event_name[128];
@@ -472,8 +593,15 @@ int main(int argc, char **argv)
                    capture.detached, capture.quiet, (unsigned long)exit_code);
             break;
         }
+#endif
     }
 done:
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+    if (!package_windows(&capture))
+    { capture.failed = TRUE; if (!capture.reason) capture.reason = 4; }
+    if (exited) printf("ORIGINAL_APP_EXIT=%lu\n", (unsigned long)exit_code);
+    else puts("ORIGINAL_APP_EXIT_UNOBSERVED=1");
+#endif
     if (capture.failed && !exited) cleanup_owned(&capture, pending, &event);
     for (i = 0; i < capture.thread_count; ++i)
         close_owned(&capture, capture.threads[i].handle);
@@ -498,6 +626,9 @@ done:
             if (capture.reason != 5) capture.reason = size < 0 ? 4 : 2;
         }
     }
+#ifdef EXCEPTION_PACKAGE_CAPTURE
+    return !capture.failed && capture.startup && exited && capture.quiet ? 0 : 7;
+#else
     if (!strcmp(argv[3], "read-error"))
         return capture.failed && capture.reason == 3 && capture.detached && capture.quiet && capture.first ? 0 : 7;
     if (!strcmp(argv[3], "deadline") || !strcmp(argv[3], "aggregate-size"))
@@ -508,4 +639,5 @@ done:
                capture.second == 1 && exited && exit_code == 0xe0425845 ? 0 : 7;
     return !capture.failed && capture.startup && capture.dumps == 1 && capture.first == 1 &&
            !capture.second && exited && !exit_code ? 0 : 7;
+#endif
 }

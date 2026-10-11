@@ -3828,6 +3828,112 @@ synthetic exception admission, not a package diagnostic, guard-entry/private
 Vector-return attribution or first-frame claim. Mandatory quality-runner
 absence still blocks an overall integration PASS.
 
+### Source-only2260: filtered explicit package diagnostic adapter
+
+The coordinator authorized source-only preparation, not a game/runtime cycle.
+`exception-event-package-controller.c` now includes the validated
+exception-event engine with a compile-time package adapter. It does not use
+the cut hardware header or old package/debug controller. Compiling the
+synthetic branch still produces the exact2250 controller SHA558195bb... and
+fixture SHA7cb8ed07...; existing2250/failed2240 artifacts are untouched.
+
+The adapter queries the existing registered package/App image, requires its
+exact Cuphead.exe bytes, creates it suspended with DEBUG_ONLY_THIS_PROCESS
+and the normal `-ServerName:Xodus.Cuphead.App`, then performs explicit
+NtXodusActivateRegisteredPackage before resume. It checks launcher and
+pre-activation child genuinely unpackaged, activated token's exact package/App
+strings, mask3/Flags1/Origin4 (DeveloperUnsigned, not Store), no AppContainer,
+launcher still unpackaged and repeat activation denied. Catalog mismatch,
+image hash mismatch, missing export, activation/identity or process failure
+stops rather than fabricating claims. Existing application exit/window checks
+are retained: first-wait status around11s if still running, PID-only window
+count/visible/bounds, final actual exit and owned wait/handle results.
+Natural app failure is preserved as its actual exit, not product success.
+
+**Exact filter:** all non-startup event records/parameters are logged and
+NOT_HANDLED. Dumps are selected for original80000100, every later first-
+and second-chance exception after that record, and00001007 even if it arrives
+before the stub. At most **eight selected events/dumps**, **2,000,000 bytes
+per dump**, **10,000,000 controller stdout+dump bytes**, controller60s.
+Selection exhaustion fails reason6 and owned cleanup; failed/oversized dumps
+are retained, never discarded to continue into a success-shaped receipt.
+Routine module/thread/debug-string events do not generate dumps.
+Each selected event preserves its genuine stopped context/record, validated
+exception/thread/module streams and an event-indexed live module inventory
+(base/SizeOfImage/name, read-only PE headers), plus explicit event/thread/code/
+chance-to-dump-file bindings. Module unloads update inventory; the fixed bound
+is128 module-load records and128 owned thread handles, with overflow failure.
+Original ntdll startup and dbghelp pins remain; loaded twinapi/mrt100_app/alias
+files have their existing exact pins checked. No raw stack or unwind is added.
+Exception observation alone still cannot prove guard entry or private Vector
+slot30/outer-call return.
+
+Fresh2260 owner uses the existing exact-lineage cleanup/restoration harness,
+canonical33 triples and successful2250 receipt/expanded-proof identities.
+It proposes standard required provider pre-gates followed by **one** explicit
+package capture; identical2250 synthetic behaviors are not replayed without
+new evidence. Old launch/sample/+file branches are removed from the fresh
+owner. Only package stderr uses minimal seh/loaddll (plus error diagnostics);
+the separate owned server retains its lineage trace for safe cleanup.
+The single package command's external threshold is **75s/20,000,000 bytes**,
+polling100ms across stdout/stderr/server delta/live and completed dumps.
+Completion is polled before timeout classification. Failed in-flight command
+accounting is conservatively rechecked after owned cleanup, including server
+growth from command start; completed originals and hashes are retained.
+This is a monitored owner threshold with finite overshoot, not a hard writer
+cancellation guarantee: Wine still lacks CancelCallback, and stalled-writer
+outer termination has not been exercised.2250 proves controller negative
+cleanup and live detach, not debugged package activation parity or outer stall.
+
+Read-only fixture discovery found an existing signed graph fixture with App
+and Secondary applications, but `Xodus.PackageGraphTest` is **not in the active
+Cuphead bottle catalog**. Its static graph executable is not an already
+available registered-server/debug fixture for this exact Cuphead adapter.
+No registration, resigning, repackaging or fixture runtime was performed to
+force parity. The new query/create-debug/activate/resume seam, package-specific
+module-inventory/filter/count limits, second-chance dumps and new ADVAPI32/
+USER32 loader path therefore remain unexecuted/unverified runtime boundaries.
+If a future seam/dependency fails, stop with that evidence, not a loader hack.
+
+Three AMD64 PE32+ candidates strictly compile with empty warning logs;
+mutation/unverified-unwind import checks remain. All13 local aggregate/dump
+accounting tests pass; owner/wrapper AST, staged pins and fresh work/log/status
+absence verify. Mandatory quality command still exits2 (missing runner).
+No Windows executable, Wine runtime, package or game was executed for2260.
+
+Candidate directory:
+`~/xodus-app-tooling/cuphead/exception-event-candidate-20261011-2260`.
+Root owners: `cuphead-exception2260-{owner,launch}.py`, helper
+`capture_accounting2260.py`. Unique proposed cycle label:
+`cuphead-owned-exception-package-20261011-2260`. Wrapper accepts only
+`capture-only`, pins its owner and refuses replay. No2260 hold is granted.
+
+|2260 source-only artifact|SHA256|
+|---|---|
+|shared exception-event-controller.c|`09cd6d0118db0f4aa350a5e41656032c39cf658e5720fc48efae8bcf7278b7e9`|
+|exception-event-package-controller.c|`61cf5b63c435fdbb592b77b92bb474ba1cecb4596d060495351337edc3cd4de5`|
+|exception-event-package-controller.exe|`5cd98f9d79c97ee9f4b3b630f62c0cc41fe31dd883cdfa8b4b180dd10271467f`|
+|unchanged synthetic controller.exe|`558195bb602a130b980e82c4a503e22328624718b17ad8083bd6d6bab843d8bf`|
+|compile_exception_event.py|`41a8c5e4a75097dca912ab7a920d58a15402e5f728c8657eb4c44ae73cbb9b9c`|
+|source-compile-manifest.json|`fab8a7ee56126b87d3148ab1bcbab1b2e590480bc24e62edda365b64efb974f1`|
+|cuphead-exception2260-owner.py|`d1f7c45dad0290505937ca81ee439d0bd0b354f670df82e7aa769f6f22b8b34a`|
+|cuphead-exception2260-launch.py|`0aff59f2d19f39c8630dbfbd0230a236d431a701b15f9bad74bdab11704ab42a`|
+|capture_accounting2260.py|`28add3e42f44916613dddd83f7db87e8380767738c24da10c71bd36c463ed1a1`|
+|original queried Cuphead.exe|`c4aaae517d4433d576748c2b5d963083deea88df154115d099662f075dc9c21c`|
+
+Proposed admission only: one exclusive targeted game-capture cycle on the
+identical2195 33 triples, unchanged read-only builtin dbghelp and ONLY the
+previously verified native Vector alias selection/temporary originally-absent
+Detail.Vector key from2205/2210. Alias remains SHA5a94b019... outside Git,
+vendor and bottle; same temporary server/App activation registrations and
+existing standard pre-gate keys/settings are independently restored.
+No #295/frame/events/provider patch, package/save change or second launch.
+Restore all33 baselines and original keys/devnode/settings, verify dbghelp and
+alias unchanged, strict signature/full runtime/recursive holder quiescence
+independently before releasing any future hold. Preserve2250 and failed2240/
+2210 evidence. If1007 is not a debug event, report that telemetry gap explicitly;
+its synthesized code is not the recovered original exception or causality.
+
 #### 2210 original-exception telemetry gap and targeted capture-only plan
 
 Further read-only inspection finds exactly one dispatched native exception:

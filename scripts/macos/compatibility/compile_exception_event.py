@@ -21,9 +21,11 @@ flags = [
     "-I" + str(root / "wine-source/include/msvcrt"),
 ]
 manifest = {"files": {}, "commands": []}
-for name in ("exception-event-fixture", "exception-event-controller"):
+for name in ("exception-event-fixture", "exception-event-controller", "exception-event-package-controller"):
     command = flags + [str(candidate / (name + ".c")), "-o",
                        str(candidate / (name + ".exe")), "-lbcrypt", "-ldbghelp"]
+    if name == "exception-event-package-controller":
+        command += ["-ladvapi32", "-luser32"]
     result = subprocess.run(command, capture_output=True, text=True, env=environment, timeout=120)
     (candidate / (name + "-compile.log")).write_text(result.stdout + result.stderr)
     manifest["commands"].append({"argv": command, "exit": result.returncode})

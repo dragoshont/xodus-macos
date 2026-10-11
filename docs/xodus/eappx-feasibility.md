@@ -1362,3 +1362,116 @@ The required `python gates/gate_runner.py quality-gate` invocation returned
 exit 2 because that runner is absent from this worktree. The focused
 matching-source build/activated-fixture/actual-game receipts above are separate
 evidence, not a substitute quality-gate PASS or completion claim.
+
+### Private apartment identifier candidate: build and export-map hold
+
+The genuine Windows oracle identifies private ordinal 122 as
+`HRESULT CoGetApartmentIdentifier(UINT64 *)`, not the named security-policy API.
+Its result is an opaque, stable identity for an actual apartment instance:
+same-thread STA reconstruction creates a new identity, simultaneous STAs have
+distinct identities, and an uninitialized thread can use the live process MTA.
+No apartment returns `CO_E_NOTINITIALIZED` and clears the output. An OXID based
+on PID/TID is unsuitable because it is reused after same-thread reconstruction.
+
+`wine-combase-apartment-ordinal.patch` adds a lifecycle-owned monotonic identity
+under Wine's existing apartment lock and queries the current or implicit MTA
+apartment with reference release. It leaves RPC/OXID identity unchanged.
+The defensive `NULL` output check returns `E_POINTER`; this deliberately differs
+from genuine Windows' observed access violation and is not parity evidence.
+`com-apartment-identifier-test.c` covers the initialized/uninitialized,
+reconstruction, implicit-MTA and simultaneous-STA cases. Its matching-source
+candidate and test executable compile, including `-Wall -Wextra -Werror` for the
+test. The subsequently leased runtime run passes all 27 apartment controls;
+this validates the bounded identity contract, not a complete COM implementation.
+
+The first seven-slot spec candidate built successfully, but export inspection
+found that adding explicit ordinal 69 raised Wine's ordinal base from 1 to 69
+and shifted all 355 named exports. Preserving names alone does not preserve
+ordinal consumers. That candidate is **not approved for deployment**.
+
+The separate generated `wine-combase-stable-ordinal-spec.patch` instead pins
+the entire matching build's existing named export map. It retains all 355
+names and preserves 348 original ordinals. Only the seven names conflicting
+with genuine twinapi's private slots move to unused ordinals 356..362:
+
+| Preserved named export | Displaced ordinal | New ordinal |
+| --- | --- | --- |
+| CLSIDFromOle1Class | 69 | 356 |
+| CoDisableCallCancellation | 90 | 357 |
+| CoFreeUnusedLibraries | 95 | 358 |
+| CoGetStandardMarshal | 120 | 359 |
+| CoGetSystemSecurityPermissions | 122 | 360 |
+| CoRevokeInitializeSpy | 157 | 361 |
+| CoTreatAsClass | 168 | 362 |
+
+The seven private slots are NONAME. Ordinal 122 implements the apartment
+contract; the other six remain unsupported Wine abort stubs, not guessed
+success/no-op or safely callable failure implementations. This is a
+matching-source **x64 experimental map**, not Microsoft's full export map
+or compatibility with all Windows-native ordinal consumers. Apply the stable
+spec patch and the apartment implementation patch to the matching catalog
+source with its existing COM-policy patch; do not reapply already-installed
+implementation hunks.
+
+The stable spec patch passes `git apply --check` and application on an isolated
+temporary copy, with 362 unique explicit ordinals spanning 1..362. After the
+coordinator released its ntdll source/build window, it was applied to the
+matching source and rebuilt using `make -j4 dlls/combase/all`. The directory
+target `make dlls/combase` was a no-op and was not counted as build evidence.
+The rebuilt PE export-table audit verifies base 1, all 355 original names,
+348 unchanged ordinals, the seven specified relocations and seven occupied
+NONAME slots. Ordinal 122 points to the apartment implementation at RVA
+`0x9130`, not the named policy function.
+
+The audited combase SHA-256 is
+`f4a2ba0ef1752b47a37480fb1a37371be8ec8576fa634421a69bea5ec09f8641`.
+The coordinator's ntdll source files and built artifacts remained unchanged:
+PE `0c6120e7b6738f3d79b4b96d94543aa62a7015362c4bed6d8028a6da250b04a9`,
+Unix `e4d34518f2627d73a0035223939ec53bea0dd9829b07238486f51c35cae34422`.
+This preserves its WNF and RtlReportException changes; their runtime behavior
+is separate coordinator evidence.
+
+The actual Celeste trace records 83 loaded paths. Inspection of 82 available
+restored files found no additional combase ordinal consumers, but restored
+Wine files are not the temporary genuine replacements. Inspecting the
+authentic replacement providers separately confirms that twinapi imports
+exactly the seven reported private slots and mrt100 imports none. This does
+not cover future dynamically loaded providers or the wider UWP stack.
+
+The remaining genuine Celeste framework providers were also inspected:
+`mrt100_app.dll` (`c3f74a65...`), `vccorlib140_app.dll` (`6a32fd00...`),
+`vcruntime140_app.dll` (`b8acc56e...`) and `msvcp140_app.dll` (`40d3e499...`)
+have no direct combase ordinal imports. Their extracted payload and framework
+copies have identical SHA-256 hashes. None of these four, genuine mrt100 or
+genuine twinapi has a direct combase ordinal delay import. This does not
+resolve API-set forwarders, runtime `GetProcAddress` calls or the other
+libraries in twinapi's delay-import graph.
+
+The researcher's 220-System32-module scan reports imported combase ordinals
+no higher than 232. Thus relocations to 356..362 do not collide with that
+sampled genuine import set. This is not a proof of safety for every caller:
+existing Wine ordinal consumers of the seven displaced slots remain
+incompatible, and future native providers need their own intersection audit.
+
+The completed combase source/build window was released, followed by an
+explicitly granted runtime window for apartment controls and original Celeste.
+Receipt prefix: `celeste-registered-apartment-stable-map`. Apartment controls
+pass 27/0, native factory/IID controls 6/0, configured-policy controls 6/0,
+four loader regressions pass and original activation checks pass 13/0.
+
+The actual original Celeste trace calls `CoGetApartmentIdentifier` with output
+pointer `0x10fd10` and receives its real apartment instance identifier `1`.
+It then reaches **private ordinal 120, CoRegisterForApartmentShutdown**, whose
+unsupported Wine stub aborts from caller address `0x6fffff4ada77`. Celeste still
+exits 4103 with zero windows (292 ms). This is a new causal boundary after the
+repaired ordinal binding, despite the unchanged final game exit code.
+No CoreWindow activation request was observed in this trace; the coordinator's
+Cuphead CoreWindow frontier is not a reproduced Celeste result.
+
+The genuine ordinal-120 oracle was requested before implementation: its
+internal three-parameter contract, middle `UINT64 *` direction, callback and
+cookie lifetime remain unverified. No output clearing or fabricated registration
+success has been added. All five vendor modules were restored and signatures
+verified, bottle twinapi restored, temporary CoreApplication registration and
+private mrt100 removed. The runtime lease was released. Neither rendering nor
+playability is established.

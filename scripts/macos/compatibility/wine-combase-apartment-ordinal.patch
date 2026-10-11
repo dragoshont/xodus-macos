@@ -1,0 +1,33 @@
+diff --git a/dlls/combase/combase_private.h b/dlls/combase/combase_private.h
+--- a/dlls/combase/combase_private.h
++++ b/dlls/combase/combase_private.h
+@@ -31,1 +31,2 @@
+     OXID oxid;               /* object exporter ID (RO) */
++    UINT64 identifier;      /* opaque identity for this apartment instance (RO) */
+diff --git a/dlls/combase/apartment.c b/dlls/combase/apartment.c
+--- a/dlls/combase/apartment.c
++++ b/dlls/combase/apartment.c
+@@ -51,1 +51,2 @@
+ static struct list apts = LIST_INIT(apts);
++static UINT64 next_apartment_identifier; /* protected by apt_cs */
+@@ -397,1 +398,2 @@
+     apt->tid = GetCurrentThreadId();
++    apt->identifier = ++next_apartment_identifier;
+@@ -1310,1 +1312,19 @@
++/* Windows 26100 private ordinal 122. Unlike OXID's PID/TID encoding, this
++ * identifier belongs to the apartment instance and changes after reconstruction. */
++HRESULT WINAPI CoGetApartmentIdentifier( UINT64 *identifier )
++{
++    struct apartment *apt;
++
++    TRACE( "(%p)\n", identifier );
++    if (!identifier) return E_POINTER; /* defensive divergence from native NULL AV */
++    *identifier = 0;
++    if (!(apt = apartment_get_current_or_mta())) return CO_E_NOTINITIALIZED;
++    *identifier = apt->identifier;
++    apartment_release( apt );
++    TRACE( "Current apartment identifier %s\n", wine_dbgstr_longlong(*identifier) );
++    return S_OK;
++}
++
+ OXID apartment_getoxid(const struct apartment *apt)

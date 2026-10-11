@@ -1,0 +1,86 @@
+--- a/dlls/ntdll/resource.c
++++ b/dlls/ntdll/resource.c
+@@ -377,6 +377,73 @@
+ #endif
+ 
+ /**********************************************************************
++ *      RtlLoadString (NTDLL.@)
++ */
++NTSTATUS WINAPI RtlLoadString( void *module, ULONG id, const WCHAR *language, ULONG flags,
++                              const WCHAR **string, USHORT *length, WCHAR *language_name,
++                              ULONG *language_length )
++{
++    const IMAGE_RESOURCE_DATA_ENTRY *entry;
++    LDR_RESOURCE_INFO info = { 6 /* RT_STRING */, id / 16 + 1, LANG_NEUTRAL };
++    const USHORT *data;
++    void *ptr;
++    ULONG size, offset = 0, index;
++    NTSTATUS status;
++
++    TRACE( "module %p, id %lu, language %s, flags %#lx.\n", module, id, debugstr_w(language), flags );
++    if (TRACE_ON(resource))
++    {
++        void *frames[6];
++        USHORT count = RtlCaptureStackBackTrace(0, ARRAY_SIZE(frames), frames, NULL), i;
++        for (i = 0; i < count; ++i)
++            TRACE( "RtlLoadString origin frame %u: ip %p.\n", i, frames[i] );
++    }
++    if (!string) return STATUS_INVALID_PARAMETER;
++    *string = NULL;
++    if (length) *length = 0;
++    if (flags) return STATUS_INVALID_PARAMETER;
++    if (language || language_name || language_length)
++    {
++        FIXME( "Named language selection and language-name outputs are not supported.\n" );
++        return STATUS_NOT_SUPPORTED;
++    }
++    if ((status = LdrFindResource_U( module, &info, 3, &entry ))) return status;
++    if ((status = LdrAccessResource( module, entry, &ptr, &size ))) return status;
++
++    __TRY
++    {
++        data = ptr;
++        for (index = 0; index <= id % 16; ++index)
++        {
++            if (size - offset < sizeof(*data))
++            {
++                status = STATUS_RESOURCE_DATA_NOT_FOUND;
++                break;
++            }
++            if (data[offset / sizeof(*data)] > (size - offset - sizeof(*data)) / sizeof(*data))
++            {
++                status = STATUS_RESOURCE_DATA_NOT_FOUND;
++                break;
++            }
++            if (index == id % 16)
++            {
++                if (length) *length = data[offset / sizeof(*data)];
++                *string = (const WCHAR *)&data[offset / sizeof(*data) + 1];
++                status = STATUS_SUCCESS;
++                break;
++            }
++            offset += (data[offset / sizeof(*data)] + 1) * sizeof(*data);
++        }
++    }
++    __EXCEPT_PAGE_FAULT
++    {
++        return GetExceptionCode();
++    }
++    __ENDTRY;
++    return status;
++}
++
++/**********************************************************************
+  *	RtlFindMessage  (NTDLL.@)
+  */
+ NTSTATUS WINAPI RtlFindMessage( HMODULE hmod, ULONG type, ULONG lang,
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -895,6 +895,7 @@
+ @ stdcall RtlLengthSid(ptr)
+ @ stdcall RtlLocalTimeToSystemTime(ptr ptr)
+ @ stdcall RtlLocaleNameToLcid(wstr ptr long)
++@ stdcall RtlLoadString(ptr long wstr long ptr ptr ptr ptr)
+ @ stdcall RtlLocateExtendedFeature(ptr long ptr)
+ @ stdcall RtlLocateExtendedFeature2(ptr long ptr ptr)
+ @ stdcall RtlLocateLegacyContext(ptr ptr)

@@ -1,0 +1,358 @@
+--- a/dlls/combase/roapi.c
++++ b/dlls/combase/roapi.c
+@@ -40,6 +40,81 @@
+     DWORD threading_model;
+ };
+ 
++struct registered_activation_class
++{
++    HSTRING name;
++    PFNGETACTIVATIONFACTORY callback;
++};
++
++struct activation_registration
++{
++    struct list entry;
++    RO_REGISTRATION_COOKIE cookie;
++    LONG ref;
++    UINT32 count;
++    struct registered_activation_class classes[];
++};
++
++static SRWLOCK activation_registration_lock = SRWLOCK_INIT;
++static struct list activation_registrations = LIST_INIT(activation_registrations);
++static ULONG_PTR activation_cookie;
++
++static BOOL activation_names_equal(HSTRING first, HSTRING second)
++{
++    INT order;
++    return SUCCEEDED(WindowsCompareStringOrdinal(first, second, &order)) && !order;
++}
++
++static void release_activation_registration(struct activation_registration *registration)
++{
++    UINT32 i;
++
++    if (InterlockedDecrement(&registration->ref)) return;
++    for (i = 0; i < registration->count; ++i) WindowsDeleteString(registration->classes[i].name);
++    free(registration);
++}
++
++static BOOL get_registered_activation_factory(HSTRING name, REFIID iid, void **out, HRESULT *result)
++{
++    struct activation_registration *registration, *found = NULL;
++    IActivationFactory *factory = NULL;
++    UINT32 i, index = 0;
++
++    AcquireSRWLockShared(&activation_registration_lock);
++    LIST_FOR_EACH_ENTRY(registration, &activation_registrations, struct activation_registration, entry)
++    {
++        for (i = 0; i < registration->count; ++i)
++            if (activation_names_equal(name, registration->classes[i].name))
++            {
++                found = registration;
++                index = i;
++                InterlockedIncrement(&found->ref);
++                break;
++            }
++        if (found) break;
++    }
++    ReleaseSRWLockShared(&activation_registration_lock);
++    if (!found) return FALSE;
++
++    /* Callbacks can reenter activation or revoke their own registration. */
++    TRACE("registered class %s, cookie %p, callback %p.\n",
++          debugstr_hstring(found->classes[index].name), found->cookie, found->classes[index].callback);
++    *result = found->classes[index].callback(found->classes[index].name, &factory);
++    if (SUCCEEDED(*result))
++    {
++        if (factory) *result = IActivationFactory_QueryInterface(factory, iid, out);
++        else
++        {
++            ERR("Registered callback returned success without a factory for %s.\n", debugstr_hstring(name));
++            *result = E_UNEXPECTED;
++        }
++    }
++    else ERR("Registered callback for %s failed, hr %#lx.\n", debugstr_hstring(name), *result);
++    if (factory) IActivationFactory_Release(factory);
++    release_activation_registration(found);
++    return TRUE;
++}
++
+ static HRESULT get_library_for_classid(const WCHAR *classid, WCHAR **out)
+ {
+     ACTCTX_SECTION_KEYED_DATA data;
+@@ -156,8 +231,12 @@
+ 
+     if (!iid || !class_factory)
+         return E_INVALIDARG;
++    *class_factory = NULL;
+ 
+     if (FAILED(hr = ensure_mta()))
++        return hr;
++
++    if (get_registered_activation_factory(classid, iid, class_factory, &hr))
+         return hr;
+ 
+     hr = get_library_for_classid(WindowsGetStringRawBuffer(classid, NULL), &library);
+@@ -505,21 +584,168 @@
+ HRESULT WINAPI RoRegisterActivationFactories(HSTRING *classes, PFNGETACTIVATIONFACTORY *callbacks,
+                                              UINT32 count, RO_REGISTRATION_COOKIE *cookie)
+ {
+-    FIXME("(%p, %p, %d, %p): in-process factory registration unsupported\n",
+-            classes, callbacks, count, cookie);
++    struct activation_registration *registration, *existing;
++    APTTYPE type;
++    APTTYPEQUALIFIER qualifier;
++    HRESULT hr;
++    UINT32 i, j, k;
++    BOOL embedded_null;
++    SIZE_T allocation_size;
++
++    TRACE("classes %p, callbacks %p, count %u, cookie %p.\n", classes, callbacks, count, cookie);
+ 
+     if (!cookie) return E_POINTER;
+     *cookie = NULL;
++    if (!classes || !callbacks) return E_POINTER;
++    if (!count) return E_INVALIDARG;
++    allocation_size = sizeof(*registration) + (SIZE_T)count * sizeof(registration->classes[0]);
++    if (allocation_size < sizeof(*registration) ||
++        (allocation_size - sizeof(*registration)) / sizeof(registration->classes[0]) != count)
++        return E_INVALIDARG;
++    if (FAILED(hr = CoGetApartmentType(&type, &qualifier))) return hr;
++    if (type == APTTYPE_NA) return CO_E_NOT_SUPPORTED;
++    if (!(registration = calloc(1, allocation_size)))
++        return E_OUTOFMEMORY;
++    registration->ref = 1;
++    registration->count = count;
++    for (i = 0; i < count; ++i)
++    {
++        if (!WindowsGetStringLen(classes[i]) || !callbacks[i] ||
++            FAILED(hr = WindowsStringHasEmbeddedNull(classes[i], &embedded_null)) || embedded_null)
++        {
++            WARN("Invalid registration class or callback at index %u.\n", i);
++            hr = E_INVALIDARG;
++            goto failed;
++        }
++        for (j = 0; j < i; ++j)
++            if (activation_names_equal(classes[i], registration->classes[j].name))
++            {
++                WARN("Duplicate registration class %s.\n", debugstr_hstring(classes[i]));
++                hr = CO_E_ALREADYINITIALIZED;
++                goto failed;
++            }
++        if (FAILED(hr = WindowsDuplicateString(classes[i], &registration->classes[i].name))) goto failed;
++        registration->classes[i].callback = callbacks[i];
++    }
++
++    AcquireSRWLockExclusive(&activation_registration_lock);
++    LIST_FOR_EACH_ENTRY(existing, &activation_registrations, struct activation_registration, entry)
++        for (i = 0; i < count; ++i)
++            for (k = 0; k < existing->count; ++k)
++                if (activation_names_equal(registration->classes[i].name, existing->classes[k].name))
++                {
++                    WARN("Class %s is already registered.\n", debugstr_hstring(registration->classes[i].name));
++                    hr = CO_E_ALREADYINITIALIZED;
++                    goto unlock_failed;
++                }
++    if (activation_cookie == ~(ULONG_PTR)0)
++    {
++        ERR("Activation registration cookie space exhausted.\n");
++        hr = HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW);
++        goto unlock_failed;
++    }
++    registration->cookie = (RO_REGISTRATION_COOKIE)++activation_cookie;
++    list_add_tail(&activation_registrations, &registration->entry);
++    *cookie = registration->cookie;
++    for (i = 0; i < count; ++i)
++        TRACE("registered class %s, cookie %p, callback %p.\n", debugstr_hstring(registration->classes[i].name),
++              registration->cookie, registration->classes[i].callback);
++    ReleaseSRWLockExclusive(&activation_registration_lock);
++    FIXME("Process-local registration only; no out-of-process broker publication or apartment marshaling.\n");
++    return S_OK;
++
++unlock_failed:
++    ReleaseSRWLockExclusive(&activation_registration_lock);
++failed:
++    release_activation_registration(registration);
++    return hr;
++}
++
++void WINAPI RoRevokeActivationFactories(RO_REGISTRATION_COOKIE cookie)
++{
++    struct activation_registration *registration, *found = NULL;
++
++    TRACE("cookie %p.\n", cookie);
++    if (!cookie) return;
++    AcquireSRWLockExclusive(&activation_registration_lock);
++    LIST_FOR_EACH_ENTRY(registration, &activation_registrations, struct activation_registration, entry)
++        if (registration->cookie == cookie)
++        {
++            list_remove(&registration->entry);
++            found = registration;
++            break;
++        }
++    ReleaseSRWLockExclusive(&activation_registration_lock);
++    if (found) release_activation_registration(found);
++    else WARN("Unknown or revoked activation registration cookie %p.\n", cookie);
++}
++
++/* Signature derived from genuine twinapi caller RE, not the genuine export. */
++HRESULT WINAPI CoRegisterServerShutdownDelay(void *context, DWORD delay_ms)
++{
++    TRACE("context %p, delay_ms %lu.\n", context, delay_ms);
++    FIXME("Wine has no idle-server-shutdown policy; this delay hint has nothing to change.\n");
++    return S_OK;
++}
++
++static void trace_illegal_method_call(HRESULT error)
++{
++    void *frames[8];
++    HMODULE base;
++    USHORT count, i;
++
++    if (error != E_ILLEGAL_METHOD_CALL) return;
++    count = RtlCaptureStackBackTrace(0, ARRAY_SIZE(frames), frames, NULL);
++    for (i = 0; i < count; ++i)
++    {
++        base = NULL;
++        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
++                          (const WCHAR *)frames[i], &base);
++        FIXME("Illegal-method-call origin frame %u: ip %p, module %p, offset %#Ix.\n",
++              i, frames[i], base, base ? (ULONG_PTR)frames[i] - (ULONG_PTR)base : 0);
++    }
++}
++
++BOOL WINAPI IsErrorPropagationEnabled(void)
++{
++    TRACE("Error propagation is disabled.\n");
++    return FALSE;
++}
++
++BOOL WINAPI RoTransformError(HRESULT old_error, HRESULT new_error, HSTRING message)
++{
++    trace_illegal_method_call(new_error);
++    TRACE("old %#lx, new %#lx, message %s; no error transformation.\n",
++          old_error, new_error, debugstr_hstring(message));
++    return FALSE;
++}
++
++BOOL WINAPI RoTransformErrorW(HRESULT old_error, HRESULT new_error, UINT max_len, const WCHAR *message)
++{
++    trace_illegal_method_call(new_error);
++    TRACE("old %#lx, new %#lx, max_len %u, message %p; no error transformation.\n",
++          old_error, new_error, max_len, message);
++    return FALSE;
++}
++
++HRESULT WINAPI RoGetMatchingRestrictedErrorInfo(HRESULT error, IRestrictedErrorInfo **info)
++{
++    FIXME("error %#lx, info %p: restricted error matching is unavailable.\n", error, info);
++    if (!info) return E_POINTER;
++    *info = NULL;
+     return E_NOTIMPL;
+ }
+ 
+-void WINAPI RoRevokeActivationFactories(RO_REGISTRATION_COOKIE cookie)
+-{
+-    /* Registration explicitly fails above, so there can be no owned cookie. */
+-    if (cookie)
+-        FIXME("(%p): no in-process factory registry; ignoring unknown cookie\n", cookie);
+-    else
+-        TRACE("(%p)\n", cookie);
++HRESULT WINAPI RoReportFailedDelegate(IUnknown *delegate, IRestrictedErrorInfo *info)
++{
++    FIXME("delegate %p, info %p: failed-delegate reporting is unavailable.\n", delegate, info);
++    return E_NOTIMPL;
++}
++
++HRESULT WINAPI CoCancelCall(DWORD thread, ULONG timeout)
++{
++    TRACE("thread %lu, timeout %lu: call cancellation is disabled.\n", thread, timeout);
++    return CO_E_CANCEL_DISABLED;
+ }
+ 
+ /***********************************************************************
+@@ -554,6 +780,7 @@
+  */
+ BOOL WINAPI RoOriginateError(HRESULT error, HSTRING message)
+ {
++    trace_illegal_method_call(error);
+     FIXME("%#lx, %s: stub\n", error, debugstr_hstring(message));
+     return FALSE;
+ }
+@@ -563,6 +790,7 @@
+  */
+ BOOL WINAPI RoOriginateErrorW(HRESULT error, UINT max_len, const WCHAR *message)
+ {
++    trace_illegal_method_call(error);
+     FIXME("%#lx, %u, %p: stub\n", error, max_len, message);
+     return FALSE;
+ }
+--- a/dlls/combase/combase.spec
++++ b/dlls/combase/combase.spec
+@@ -1,4 +1,4 @@
+-69 stub -noname CoRegisterServerShutdownDelay
++69 stdcall -noname CoRegisterServerShutdownDelay(ptr long)
+ 90 stdcall -noname RoGetDesignMode(ptr)
+ 95 stdcall -noname CoSignalPendingGitRegistrationWaits()
+ 120 stdcall -noname CoRegisterForApartmentShutdown(ptr ptr ptr)
+@@ -83,7 +83,7 @@
+ 75 stub ClearCleanupFlag
+ 76 stdcall CoAddRefServerProcess()
+ 77 stub CoAllowUnmarshalerCLSID
+-78 stub CoCancelCall
++78 stdcall CoCancelCall(long long)
+ 79 stdcall CoCopyProxy(ptr ptr)
+ 80 stdcall CoCreateErrorInfo(ptr) CreateErrorInfo
+ 81 stdcall CoCreateFreeThreadedMarshaler(ptr ptr)
+@@ -287,7 +287,7 @@
+ 279 stub InternalStubInvoke
+ 280 stdcall InternalTlsAllocData(ptr)
+ 281 stub InternalUnmarshalObjRef
+-282 stub IsErrorPropagationEnabled
++282 stdcall IsErrorPropagationEnabled()
+ 283 stub NdrExtStubInitialize
+ 284 stub NdrOleDllGetClassObject
+ 285 stub NdrpFindInterface
+@@ -305,7 +305,7 @@
+ 297 stdcall RoGetAgileReference(long ptr ptr ptr)
+ 298 stdcall RoGetApartmentIdentifier(ptr)
+ 299 stdcall RoGetErrorReportingFlags(ptr)
+-300 stub RoGetMatchingRestrictedErrorInfo
++300 stdcall RoGetMatchingRestrictedErrorInfo(long ptr)
+ 301 stdcall RoGetParameterizedTypeInstanceIID(long ptr ptr ptr ptr)
+ 302 stdcall RoGetServerActivatableClasses(ptr ptr ptr)
+ 303 stdcall RoInitialize(long)
+@@ -318,13 +318,13 @@
+ 310 stdcall RoRegisterActivationFactories(ptr ptr long ptr)
+ 311 stdcall RoRegisterForApartmentShutdown(ptr ptr ptr)
+ 312 stub RoReportCapabilityCheckFailure
+-313 stub RoReportFailedDelegate
++313 stdcall RoReportFailedDelegate(ptr ptr)
+ 314 stdcall RoReportUnhandledError(ptr)
+ 315 stub RoResolveRestrictedErrorInfoReference
+ 316 stdcall RoRevokeActivationFactories(ptr)
+ 317 stdcall RoSetErrorReportingFlags(long)
+-318 stub RoTransformError
+-319 stub RoTransformErrorW
++318 stdcall RoTransformError(long long ptr)
++319 stdcall RoTransformErrorW(long long long ptr)
+ 320 stdcall RoUninitialize()
+ 321 stub RoUnregisterForApartmentShutdown
+ 322 stub SetCleanupFlag
+--- a/dlls/combase/combase.c
++++ b/dlls/combase/combase.c
+@@ -2996,9 +2996,12 @@
+         apartment_release(apt);
+         *type = APTTYPE_MTA;
+         *qualifier = APTTYPEQUALIFIER_IMPLICIT_MTA;
++        TRACE("result %#lx, type %u, qualifier %u.\n", S_OK, *type, *qualifier);
+         return S_OK;
+     }
+ 
++    TRACE("result %#lx, type %u, qualifier %u.\n", tlsdata->apt ? S_OK : CO_E_NOTINITIALIZED,
++          *type, *qualifier);
+     return tlsdata->apt ? S_OK : CO_E_NOTINITIALIZED;
+ }
+ 

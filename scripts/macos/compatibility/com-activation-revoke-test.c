@@ -22,8 +22,8 @@ int main(void)
 
     check(register_factories && revoke, "paired named exports present");
     if (!register_factories || !revoke) goto done;
-    check(register_factories(NULL, NULL, 0, &cookie) == E_NOTIMPL && !cookie,
-          "unsupported registration cannot invent success or cookie");
+    check(register_factories(NULL, NULL, 0, &cookie) == E_POINTER && !cookie,
+          "invalid registration arrays cannot invent success or cookie");
     check(register_factories(NULL, NULL, 0, NULL) == E_POINTER, "invalid registration output rejected");
     for (state = 0; state < 3; state++)
     {

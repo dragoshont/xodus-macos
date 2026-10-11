@@ -2444,3 +2444,115 @@ and post-restore bottle quiescence are independently verified.
 | `receipt.json` | `64c907eff9efb9e327ad74616b527b8b7439f04ee62ec48441788374ad297e08` |
 | `rmclient-tests.log` | `84b426dc200de054a56af8d7ebb64efd3e552043fbe92020d3675cb08b52fae8` |
 | `bottle-quiescence.json` | `923d0e339096d0a7da76af12e6c733a8760401603c9448e83b0c32d02d00b6c3` |
+
+### Process-local activation registration and control 1640
+
+The coordinator grounded noname combase ordinal 69 in genuine twinapi
+callers: `HRESULT CoRegisterServerShutdownDelay(void *, DWORD)`.
+Its signature is derived from caller reverse engineering, not a genuine
+export definition. It returns `S_OK` with a FIXME: Wine has no idle-server
+shutdown policy to which this delay hint could apply.
+
+`wine-ro-activation-registration.patch` implements the requested
+process-local subset of the public activation-registration APIs.
+Registrations copy HSTRING names, reject empty/embedded-NUL and duplicate
+names, retain callbacks, and publish an all-or-nothing batch behind an SRW
+lock. Opaque cookies can revoke the batch. Factory lookup checks this table
+before activation contexts and registry lookup, calls callbacks outside the
+lock, and queries the returned factory for the requested IID. Refcounted
+registrations survive self-revocation and concurrent revocation.
+Out-of-process broker publication and apartment marshaling are not
+implemented. Synthetic tests passed **44/0**; the updated revoke regression
+passed **11/0**.
+
+The one control `cuphead-owned-activation-20261011-1640` admitted combase
+`9ad5feaad485df1e4eb08287382f376627fbe9374a9971720f050512b5d3b369`
+with ordinal 122 at RVA `0x9130`. All other 1600 pins were unchanged.
+Ordinal 69 is observed returning normally on primary thread `02f8`.
+**Game registration and registered class names were not observed**;
+synthetic registration success is not proof that genuine twinapi reached it.
+The next abort is missing `ntdll.RtlLoadString`, during error-message lookup.
+The child remained alive with **0 total / 0 visible windows** and was
+terminated at the controller's **150-second bound**. Exit **92** is
+controller termination, not a natural game exit.
+
+No ordinal-1500 creation or ImmersiveNavigationClient is observed; `Run`
+and `SetWindow` completion are not established. All 20 baseline
+hashes/absent targets, owned-client absence, deep/strict CrossOver signature
+and bottle quiescence were independently verified after restoration.
+
+| Private 1640 evidence | SHA-256 |
+| --- | --- |
+| `game.log` | `c61bea0df9fff4d3e25585f4522185d6423d846b17569cc3c58d0de98ac745a6` |
+| `receipt.json` | `09ea3f6fe0c3b642970abdf8bd78efd6de0c86b1e5ddab6139b00c59afd4d515` |
+| `registration-tests.log` | `94e073a3dffd1b7ed51bd9856afc44d79abc185bf402d4c1ff94999c00cbfaa0` |
+
+### RtlLoadString and error-propagation control 1700
+
+The separately authorized slice adds `wine-rtl-load-string.patch`.
+`RtlLoadString` uses `LdrFindResource_U`/`LdrAccessResource` to find
+RT_STRING block `id / 16 + 1` and counted UTF-16 entry `id % 16`.
+It returns a resource-backed pointer and an optional WCHAR length, not a
+fabricated or NUL-terminated message. Truncated entries fail explicitly.
+NULL language uses Wine's existing neutral/default language selection;
+nonzero flags return `STATUS_INVALID_PARAMETER`. Named language selection
+and language-name outputs are explicitly unsupported. Resource errors
+propagate unchanged. Trace-only six-frame capture attributes the caller
+without changing the lookup result.
+
+The combase patch also includes the approved unavailable-error-propagation
+subset: `IsErrorPropagationEnabled`/`RoTransformError`/`RoTransformErrorW`
+return FALSE, matching restricted-error lookup initializes output NULL and
+returns `E_NOTIMPL`, failed-delegate reporting returns `E_NOTIMPL`, and
+`CoCancelCall` returns `CO_E_CANCEL_DISABLED`. The SDK signature of
+`RoTransformErrorW` has **four** arguments, including `UINT cchMax`;
+the shorter suggested signature is not used. Illegal-method-call stack
+logging in error origination/transformation preserves existing results.
+Apartment-result logging likewise changes no apartment state.
+
+Only three of the 20 admitted file targets change from 1640: ntdll PE and
+the two combase copies. The ntdll Unix library is unchanged at
+`e4d34518f2627d73a0035223939ec53bea0dd9829b07238486f51c35cae34422`.
+The owner required `cmd /c echo XODUS_NTDLL_ABI_SMOKE` and all unit gates
+before launching the game. The echo passed; synthetic resource tests
+passed **18/0** and provider-bound error tests **14/0**. Registry tests
+remain **44/0**. New candidate hashes:
+
+| Candidate | SHA-256 |
+| --- | --- |
+| ntdll PE | `f8bd19c7606e0f7c506380d1c5c1d8bea477cbfea935f8c6f115de2ae8a2cb42` |
+| combase, ordinal 122 RVA `0x9150` | `4056e2f6538a2868238f970efb11b9c786e995fbb01a0f0e588bb9fca661c35a` |
+
+The single `cuphead-owned-rtl-20261011-1700` control establishes:
+
+| Private game evidence | Observed result |
+| --- | --- |
+| Lines 13850-13862, primary `0350` | String id `0x2011`; helper return twinapi+`0x5cd34`, originating return twinapi+`0xf505`, then MrmCoreR+`0x42c05`. Relay frames precede the genuine frames; frame 4, not frame 2, identifies the originating site. |
+| Resource lookup | `STATUS_RESOURCE_TYPE_NOT_FOUND` (`0xc000008a`), matching the absence of RT_STRING in genuine twinapi. The caller tolerates it. |
+| Lines 13870-13905 | `RoOriginateErrorW(0x8000000e, 0, NULL)` is observed. |
+| Lines 13999-14011 | Final exception code 4 contains `0x8000000e`; natural child exit **3221226529** (`0xc0000409`) after **1573 ms**, **0 total / 0 visible windows**. |
+
+The coordinator's static attribution identifies twinapi+`0xf505` as
+CoreApplication Properties' "no current CoreApplication instance" path.
+This is downstream error handling after `CoreApplication.Run` already
+failed; HAM, Detail.Vector and ordinal 69 were teardown, not successful
+startup. The preceding Run parser requires a final `-ServerName:` argument,
+absent from the current launch contract. Registration/class names are still
+not observed, and no CoreWindow/first frame is established.
+`CoGetApartmentType` returns `S_OK` at the relevant MrmCoreR call; type and
+qualifier were not captured because that function's channel is `ole`,
+not `combase`. No private CoreApplication interface is synthesized.
+
+Owner status is 0. All 20 baseline hashes/absent targets, owned-client
+absence, deep/strict signature and bottle quiescence are independently
+verified. Registry and temporary Debug restoration checks pass.
+Both patches reproduce all five built source files from preserved baselines.
+The mandatory `python gates/gate_runner.py quality-gate` still exits 2
+because the configured runner is absent; no overall PASS is claimed.
+
+| Private 1700 evidence | SHA-256 |
+| --- | --- |
+| `game.log` | `733bbc590c724b1dec0016c564f00c0c704e9d460f3f2a87e798e86ba707aef5` |
+| `receipt.json` | `333d95b30d3369aabe03bb3f5cb15ed2c3ace23974fd2e6b734ff227d8fd97c9` |
+| `rtl-load-string-tests.log` | `664b102903cff584efa0e4239013f37c60651d1e3b0d1d4e17d99ad4ed9b76cc` |
+| `error-propagation-tests.log` | `66fb17f1dbab3153f5120645a2fb5150d07c9c1e30b707dedaa79b948d823a8a` |

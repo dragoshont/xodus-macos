@@ -1,0 +1,13 @@
+#include <windows.h>
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+STRINGTABLE
+BEGIN
+    0 "block-zero"
+    15 "last-in-block"
+    16 "next-block"
+    31 "last-next-block"
+END
+99 6
+BEGIN
+    0xffff
+END

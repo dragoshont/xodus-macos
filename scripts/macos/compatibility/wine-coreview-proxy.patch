@@ -1,0 +1,72 @@
+--- a/dlls/ole32/Makefile.in
++++ b/dlls/ole32/Makefile.in
+@@ -12,6 +12,7 @@
+ 	comcat.c \
+ 	compobj.c \
+ 	compositemoniker.c \
++	coreview_p.idl \
+ 	datacache.c \
+ 	dcom.idl \
+ 	defaulthandler.c \
+@@ -43,4 +44,4 @@
+ 	storage32.c \
+ 	usrmarshal.c
+ 
+-dlldata_EXTRADEFS = -DENTRY_PREFIX=OLE32_ -DPROXY_CLSID=CLSID_PSFactoryBuffer -DWINE_REGISTER_DLL
++dlldata_EXTRADEFS = -DENTRY_PREFIX=OLE32_ -DPROXY_CLSID=CLSID_PSFactoryBuffer -DWINE_REGISTER_DLL -DPROXY_DELEGATION
+--- /dev/null
++++ b/dlls/ole32/coreview_p.idl
+@@ -0,0 +1,53 @@
++#ifdef __WIDL__
++#pragma winrt ns_prefix
++#endif
++
++#pragma makedep proxy
++#pragma makedep register
++
++import "windows.applicationmodel.core.idl";
++
++cpp_quote("#ifdef __midl_proxy")
++cpp_quote("#include <initguid.h>")
++cpp_quote("#endif")
++cpp_quote("#define IID_IInspectableProxy IID___x_ABI_CXodusProxy_CIInspectableProxy")
++cpp_quote("#define IID_IActivatedHandler IID___x_ABI_CXodusProxy_CIActivatedHandler")
++cpp_quote("#define IID_ICoreApplicationView IID___x_ABI_CXodusProxy_CICoreApplicationView")
++
++/* Use the public IID without regenerating proxies for every imported class. */
++namespace XodusProxy {
++    [
++        object,
++        uuid(cf193a96-eb13-5e3b-8bdf-87b6efae8339),
++        pointer_default(unique)
++    ]
++    interface IActivatedHandler : IUnknown
++    {
++        HRESULT Invoke([in] Windows.ApplicationModel.Core.ICoreApplicationView *sender,
++                       [in] Windows.ApplicationModel.Activation.IActivatedEventArgs *args);
++    }
++
++    [
++        object,
++        uuid(af86e2e0-b12d-4c6a-9c5a-d7aa65101e90),
++        pointer_default(unique)
++    ]
++    interface IInspectableProxy : IUnknown
++    {
++        HRESULT GetIids([out] ULONG *iidCount, [out, size_is(,*iidCount)] IID **iids);
++        HRESULT GetRuntimeClassName([out] HSTRING *className);
++        HRESULT GetTrustLevel([out] TrustLevel *trustLevel);
++    }
++
++    [
++        uuid(638bb2db-451d-4661-b099-414f34ffb9f1)
++    ]
++    interface ICoreApplicationView : IInspectableProxy
++    {
++        [propget] HRESULT CoreWindow([out, retval] Windows.UI.Core.ICoreWindow **value);
++        HRESULT add_Activated([in] IActivatedHandler *handler, [out, retval] EventRegistrationToken *token);
++        HRESULT remove_Activated([in] EventRegistrationToken token);
++        [propget] HRESULT IsMain([out, retval] boolean *value);
++        [propget] HRESULT IsHosted([out, retval] boolean *value);
++    }
++}

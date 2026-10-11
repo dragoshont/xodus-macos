@@ -2844,3 +2844,99 @@ compiled candidate. The mandatory quality runner remains missing
 | 2010 `receipt.json` | `eb0ea08b6a607be81225146bd6b7775727245ccdaf5b56b0c3d4e80a534faeb0` |
 | 2010 `stdmarshal-tests.log` | `6c8692099f6fc7777bcb0427d0d20a5119aaa38234bfe0ecfa2c2bea48794d59` |
 | 2010 `dispatcher-tests.log` | `7a49887bd87a1ae3ac38667e1443e4bcad5d5b5450ec4d4f26f6a277910b36d2` |
+
+### Public CoreApplicationView proxy and control 2120
+
+The 2010 IID is now identified from the public Wine/SDK metadata:
+`{638bb2db-451d-4661-b099-414f34ffb9f1}` is **ICoreApplicationView**,
+not an undocumented interface. Its eleven-slot ABI comprises IInspectable
+and CoreWindow, add/remove Activated, IsMain and IsHosted. The granted
+`wine-coreview-proxy.patch` adds an ABI-only IDL to ole32's existing proxy
+build, without modifying twinapi or marking its objects agile.
+
+Exact source inspection confirms ole32's `oleproxy.c` DllGetClassObject
+calls the generated `OLE32_DllGetClassObject`. Its combined `dlldata.c`
+includes the new proxy file; the existing Makefile selects
+`CLSID_PSFactoryBuffer` (`00000320-0000-0000-c000-000000000046`).
+The patch enables `PROXY_DELEGATION` for the generated inherited stubs.
+Private source-namespace aliases retain the public wire IIDs and slot
+order. CoreWindow's out parameter uses its public default ICoreWindow
+interface, not a guessed runtimeclass layout.
+
+The slice also needs generated proxies for public IInspectable and the
+Activated TypedEventHandler. The latter's IID,
+`cf193a96-eb13-5e3b-8bdf-87b6efae8339`, matches the WIDL-generated public
+header. These three interfaces, and no other application interfaces, are
+generated. Temporary interface keys bind all three to ole32's PS factory,
+with NumMethods 11, 6 and 4 respectively; their absent baselines are
+checked and restored. No persistent bottle proxy registration is added.
+
+The strict `coreview-proxy-test.c` passes **30/0** in no-game controls
+and again before the game. A non-agile public ICoreApplicationView test
+object lives on an STA; an MTA obtains it through GIT and calls IsMain,
+IsHosted, CoreWindow (NULL result), add_Activated and remove_Activated.
+All five server calls execute on the original pumping STA. Activated
+also makes a real reverse proxy call to a test handler with NULL sender
+and arguments. Both objects return to their original reference counts;
+CoGetPSClsid resolves both the view and handler to the expected factory.
+Non-NULL CoreWindow and activation-argument marshaling are not established
+by this test.
+
+The final admitted ole32 SHA-256 is
+`7edcde96e5512a1177c30acfb08b75bb057b85f9c72c2631e508430a4739f66b`.
+The exported patch reproduces both compiled source inputs byte-for-byte:
+IDL `90c0fc030776a3cbbd6e612b05fa1719f5abf0233c3ef874a3e8003a57caa8f9`;
+Makefile `7d8549e9f0bc7d2d3ea22cc9de1a1ed31b1aeda1b8957521632ffa7ea5aaf5af`.
+Regression admissions pass dispatcher 47/0, aggregated marshaler 54/0,
+ordinal 122 27/0 at RVA 0x9050 and PropertySet 29/0.
+
+| Private 2120 evidence | Observed result |
+| --- | --- |
+| Apartments | Main `06a8` is MTA, type 1/qualifier 0; view `06c0` is MAINSTA, type 3/qualifier 0. |
+| Lines 7687-7689 | CoGetStdMarshalEx(flags 1) returns S_OK to twinapi+0x3120b. |
+| Lines 7805-7890 | CoGetPSClsid resolves ICoreApplicationView to ole32; NdrDllGetClassObject and CreateStub construct its real generated stub. GIT registration succeeds. |
+| Lines 7905-7918 | GIT Get unmarshals the public view in the same STA and returns the original object successfully. |
+| Lines 7935-7952 | The **next** operation is CoMarshalInterThreadInterfaceInStream for private IID `2e5500b6-66ad-467f-abb5-022a64283d88`. Standard MSHLFLAGS_NORMAL marshaling fails proxy/stub lookup with E_NOINTERFACE (0x80004002). This is not another failure of the public-view GIT registration. |
+| Static caller correlation | Runtime delay-slot resolution identifies twinapi IAT+0x242290. Disassembly shows the API call at twinapi+0x182ce, return +0x182d5, inside helper +0x1822c; its caller returns at +0x16f5d after loading the private IID. These are verified static return sites correlated with the runtime import slot, not a captured unwind. |
+| Error propagation | RoOriginateErrorW(0x80004002) returns to twinapi+0x7fbfc. The filtered relay did not record a direct inter-thread-marshal API return address or call stack. |
+| Pump / callback | Private pump slot 3 is reached on `06c0`, handle 0x214. Callback twinapi+0x2fc90 is registered but no invocation is observed. No game ordinal-1500/CoreWindow creation is observed. |
+| Exit | Child exits 0xc0000409 / 3221226529 after 1395 ms, zero total/visible windows. Early exit prevents the 140-second wait sample; no manual dialog closure is reported. |
+
+The post-reboot baseline first passed all 22 original target checks.
+Adding bottle/vendor ole32 makes **24** restoration targets. An initial
+SSH-owned no-game attempt passed the proxy test but failed the existing
+HWND dispatcher test because it lacked GUI-driver access; all targets
+were restored. GUI-owned UNIT2115 passed all admissions, then refused
+file restoration while a coordinator-owned scratch prefix was using the
+shared CrossOver providers. Prefix isolation does not isolate vendor
+DLL mutation. The coordinator established a shared-runtime hold; scoped
+recovery restored all 24 files before the single game.
+
+2120's owner then refused cleanup on a historical/census parent conflict.
+The long capture reused Wine process IDs; the old parser has no generation
+model. Recovery did not weaken that check or replay the game. A fresh
+current census, exact native PID/start time, startup mapping and bottle
+working directory independently admitted the six remaining owned service
+clients. Only those clients and the recorded server were terminated.
+Pinned backups restored all 24 targets, including ad-hoc-signed Mach-O
+providers whose signing changes were distinguished from code changes.
+The original failed receipt remains unchanged; supplemental runtime and
+file recovery receipts record the successful restoration.
+
+All 24 baseline hashes/absences, six temporary interface/server/dispatcher
+keys, original empty WineDbg key, original CoreApplication payload path,
+signature and bottle quiescence were independently verified. The shared
+provider hold was then released. Future captures must address Wine PID
+generations and retain a shared-provider exclusion window before another
+control; these are capture-owner issues, not game-product fixes.
+The mandatory quality runner is still missing (exit 2), so no overall
+PASS or playability claim is made. The next private IID requires grounded
+ABI/marshaling evidence and a separate grant.
+
+| Private evidence | SHA-256 |
+| --- | --- |
+| 2120 `game.log` | `8800a620e08f46c5589b1e898a27df3518859d58dbe1896af36246b611a14f16` |
+| 2120 original `receipt.json` (cleanup refusal) | `465718a7fc1e65c319a6be52d0b58f2d091fe7033630738e091017814e2e2a0f` |
+| 2120 `runtime-recovery-admission.json` | `0415ff68795d79e86e8f428b6301e4f3a6682f82962c114438ee87bf098d3552` |
+| 2120 `file-recovery.json` | `a56aa58db970855b2f3ca13edf649c4d24f3d9cadd6ce4c443b35512ebc130b9` |
+| 2120 `coreview-proxy-tests.log` | `bfffbbd29a551beec66815887f79b9a4e4c550972e819249f3a431eed53fb390` |

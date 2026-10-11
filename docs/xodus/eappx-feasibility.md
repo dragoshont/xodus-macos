@@ -4819,6 +4819,32 @@ The required interface and semantics of that class remain unidentified. The
 owner reported complete restoration, and independent verification
 `7d372308…` confirmed 35 baselines, absent system32 MRM/override, keys,
 WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…`.
+
+**2320–2350:**
+- **2320:** the threadpoolwinrt SignalNotifier patch `0cc86c9a…` removed the
+  CLSID `{96c7a5ef…}` gap; its Wine conformance test passed. Cuphead still
+  exits `0xC0000421` with no window.
+- **2330, 2331:** procedural refusals with no launch (trace backlog, then the
+  guard). **2332:** a broad RelayFromInclude trace exceeded the 20 MB bound
+  before the raise.
+- **Dual MrmCoreR load:** caused by a stale bottle registration. The early
+  activation script pointed ResourceContext and ResourceManager at the
+  package-local `MrmCoreR.dll`; genuine Windows uses System32.
+  `scripts/macos/compatibility/winrt_class_registration.py` now resolves
+  these system classes to `C:\windows\system32\mrmcorer.dll`. It refuses a
+  package fallback when the provider is absent, so a permanent registration
+  also needs that provider permanently installed.
+- **2340:** a cycle-owned repoint gave a single system32 MrmCoreR, but the
+  same fatal recurred. The dual-load hypothesis is falsified.
+- **2350:** RelayInclude was limited to RaiseException. The fatal
+  `kernelbase.RaiseException(4, 1, 2, …)` returns to `mrmcorer+0x9ABA0`. That
+  is the return address of MrmCoreR's generic WIL throw thunk `0x9ab68`.
+  Static analysis puts the only arg2=4 reporter call at `0x3d719`, inside the
+  ambient ResourceContext get-or-create `0x3d660`. There, a provider
+  vtable `+0x30` returns `0x8000000E`, apparently because the ambient-context
+  global `0x100cb0` is still unset. The calling frame above `0x3d660` was not
+  captured.
+- Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup
 gaps, but native alias progress is not our distributable Vector support.

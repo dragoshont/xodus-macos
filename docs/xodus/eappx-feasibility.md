@@ -5049,6 +5049,23 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
     named file mapping, created with the ML/NX/NW/NR plus capability SDDL.
   - `Run` never returns. CoreMessaging is never loaded, and no
     broker `CoGetObject` is reached.
+- 2403 — stand-in `ext-ms-win-com-psmregister-l1-1-0.dll`:
+  - Candidate: a PE DLL, `d5243ade…`, placed as an absent target in
+    system32. `PsmQueryBackgroundActivationType` sets `*type = 0` and
+    returns `S_OK`, or `E_POINTER` when the output pointer is NULL.
+  - Gate: 7/0 checks pass. Restoration completed.
+  - VERIFIED: the DLL loads natively and is called from main with the
+    (HANDLE)-4 pseudo-token, returning type 0. The psm delay-load failure
+    is gone.
+  - Next wall: right after that call, twinapi does an `ApplicationService`
+    mutant/section probe, then `CreateWellKnownSid(22 = LocalSystem)`, then
+    delay-loads `RPCRT4.RpcBindingCreateW`.
+    - Wine does not implement that export.
+    - The same `EXCEPTION_WINE_STUB` → .NET Native → fail-fast `0x1007`
+      chain follows.
+  - Of twinapi's rpcrt4 imports, `RpcBindingCreateW` and
+    `RpcBindingBind` are the ones Wine is missing. This is the ncalrpc
+    client for interface `{5824833b…}`.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

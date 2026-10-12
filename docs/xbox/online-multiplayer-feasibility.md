@@ -161,4 +161,42 @@ account is available, without disturbing the safe offline default.
 - If NMS ignores the connectivity hint, the next honest lever is the **wine WinHTTP** path
   (ours): return a prompt connection failure for unreachable Xbox/PlayFab endpoints so the
   title's online login fails fast instead of hanging — to be designed with the coordinator
-  as it touches a shared wine DLL.
+  as it touches a shared wine DLL. A drafted, opt-in, off-by-default implementation of this
+  lever is in `patches/winhttp-resolve-timeout.patch` (see §8).
+
+## 8. Runtime probe plan (next coordinated window)
+
+The wine WinHTTP DLL is shared and load-bearing for other titles, so the resolve-timeout
+patch lands only after one coordinated runtime window that confirms the stall location.
+Enable `WINEDEBUG=+winhttp,+winsock,+secur32` plus our `gdkc` markers, launch NMS, and
+read the stderr log at the "connecting" stall.
+
+Baseline outcome map:
+
+- `WinHttpSendRequest` logged but **no** `SENDREQUEST_COMPLETE` and **no** winsock
+  `connect()` ⇒ the async op never completes before the socket — consistent with a wedged
+  pre-connect step (resolve). Primary hypothesis.
+- Proxy auto-detect logged then silence ⇒ WPAD/auto-proxy stall (bounded, see below).
+- `connect()` present but no TLS handshake completion ⇒ schannel/secur32, not resolve.
+- **No** `WinHttp*` calls at all at the stall ⇒ libHttpClient is on the **XCurl** provider,
+  not WinHTTP → pivot the probe to XCurl/curl + schannel.
+
+Per-gap confirmations (each line maps a trace signature to a decision):
+
+- **Resolve timeout = 0 (infinite) — primary suspect.** `RESOLVING_NAME` logged with **no**
+  `NAME_RESOLVED` and **no** winsock `connect()` ⇒ `GetAddrInfoW` is blocked and
+  `netconn_resolve`'s `timeout==0` path (`net.c`) never returns. Remedy =
+  `patches/winhttp-resolve-timeout.patch`: set `XODUS_WINHTTP_RESOLVE_TIMEOUT_MS=10000` and
+  re-run; expect a `Xodus: clamping unbounded DNS resolve` WARN followed, on expiry, by a
+  `WINHTTP_CALLBACK_STATUS_REQUEST_ERROR` carrying `ERROR_WINHTTP_TIMEOUT` (12002) or
+  `ERROR_WINHTTP_NAME_NOT_RESOLVED` (12007) — an honest transport failure, no fabricated
+  success — so the title drops out of "connecting".
+- **AUTOMATIC_PROXY / WPAD.** Grep the trace for `WinHttpDetectAutoProxyConfigUrl` / `wpad`;
+  a one-time ~5 s stall per request ⇒ auto-proxy DNS (bounded, `session.c`), not the
+  infinite hang — rule in/out, do not treat as the root cause.
+- **HTTP/2 enable is a no-op.** `WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL` logs its `FIXME` and
+  returns `TRUE` while `HTTP_PROTOCOL_USED` reports 0 (HTTP/1.1). Confirm the request still
+  proceeds on HTTP/1.1; only a problem if the PlayFab endpoint refuses 1.1 (not expected).
+
+Caveat: the above is verified against upstream `wine-mirror/wine`; the Xodus fork may carry
+deltas, so the `+winhttp` cycle also confirms fork parity before the patch is applied.

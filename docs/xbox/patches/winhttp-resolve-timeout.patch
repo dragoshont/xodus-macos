@@ -1,0 +1,106 @@
+# Xodus — honest bounded DNS-resolve timeout for wine WinHTTP
+#
+# WHY
+# ---
+# GDK titles launched through Xodus (e.g. No Man's Sky, StoreId BQVQTL3PCH05) reach
+# their frontend but then hang indefinitely at "connecting to servers" with ZERO
+# outbound TCP from the wine process tree. The hang is NOT in our xgameruntime XUser
+# seam (XUserAddAsync is never called at the stall); it is inside the title's own
+# bundled online stack: PlayFab* -> libHttpClient -> WinHTTP (wine builtin), driven by
+# async WinHttpSendRequest.
+#
+# ROOT CAUSE (confirmed against wine-mirror/wine master, read-only):
+#   * dlls/winhttp/session.c       : #define DEFAULT_RESOLVE_TIMEOUT 0   (0 == infinite)
+#     WinHttpOpen() seeds session->resolve_timeout from this; it flows to
+#     request->resolve_timeout.
+#   * dlls/winhttp/request.c:open_connection()
+#       send_callback(... WINHTTP_CALLBACK_STATUS_RESOLVING_NAME ...);
+#       ret = netconn_resolve( host->hostname, port, 0, &connect->sockaddr,
+#                              request->resolve_timeout );
+#   * dlls/winhttp/net.c:netconn_resolve()
+#       if (!timeout) ret = resolve_hostname(...);   <-- SYNCHRONOUS, NO UPPER BOUND
+#       else { TrySubmitThreadpoolCallback(resolve_proc,...);
+#              if (WaitForSingleObject(async->done, timeout) != WAIT_OBJECT_0)
+#                  ret = ERROR_WINHTTP_TIMEOUT; ... }
+#   * dlls/winhttp/net.c:resolve_hostname()
+#       returns ERROR_WINHTTP_NAME_NOT_RESOLVED when GetAddrInfoW fails.
+#
+# So when the sandbox cannot resolve a PlayFab/Xbox endpoint, GetAddrInfoW() blocks the
+# WinHttpSendRequest worker forever: open_connection() never returns, netconn_create()
+# (the actual connect(), hence the first outbound TCP) is never reached, and no
+# WINHTTP_CALLBACK_STATUS_SENDREQUEST_COMPLETE / _REQUEST_ERROR is ever posted. This is
+# the single genuine infinite-hang hole on the WinHTTP path and it matches the observed
+# symptom (log frozen at "connecting", zero TCP) exactly.
+#
+# FIX (honest, opt-in, OFF by default)
+# ------------------------------------
+# When XODUS_WINHTTP_RESOLVE_TIMEOUT_MS is set to a non-zero value, clamp an otherwise
+# zero (== infinite) resolve timeout to that bound. netconn_resolve() then runs the
+# lookup on a threadpool thread and, on expiry, returns ERROR_WINHTTP_TIMEOUT; a real
+# lookup failure still returns ERROR_WINHTTP_NAME_NOT_RESOLVED. In BOTH cases
+# open_connection() returns the error, send_request() jumps to its `end:` block and, for
+# async requests, posts WINHTTP_CALLBACK_STATUS_REQUEST_ERROR carrying that dwError.
+# libHttpClient/PlayFab therefore observe an honest HTTP transport FAILURE and the title
+# drops out of "connecting" instead of hanging. We NEVER fabricate a successful resolve,
+# a connection, or an HTTP response. With the variable unset, behaviour is byte-for-byte
+# identical to upstream wine.
+#
+# NOTE: line numbers below are approximate against the Xodus wine fork; apply by function
+# context (get_receive_response_timeout / open_connection in dlls/winhttp/request.c).
+# The wine winhttp DLL is shared and load-bearing for other titles, so this lands only
+# after a coordinated runtime window and a +winhttp probe cycle (see feasibility doc §8).
+
+--- a/dlls/winhttp/request.c
++++ b/dlls/winhttp/request.c
+@@ static int get_receive_response_timeout( struct request *request )
+ static int get_receive_response_timeout( struct request *request )
+ {
+     if (request->receive_response_timeout == -1) return ACTUAL_DEFAULT_RECEIVE_RESPONSE_TIMEOUT;
+     return request->receive_response_timeout;
+ }
+ 
++/* Xodus honest bounded-resolve override.
++ *
++ * Wine defaults the DNS-resolve timeout to 0 (DEFAULT_RESOLVE_TIMEOUT, session.c), which
++ * makes netconn_resolve()/GetAddrInfoW() block with no upper bound (net.c). A GDK title
++ * whose online stack (libHttpClient -> WinHTTP) resolves an endpoint the sandbox cannot
++ * reach then hangs forever inside the WinHttpSendRequest worker with zero outbound TCP,
++ * because open_connection() never returns and no REQUEST_ERROR / SENDREQUEST_COMPLETE is
++ * posted.
++ *
++ * OFF by default (identical to upstream). When XODUS_WINHTTP_RESOLVE_TIMEOUT_MS is set to
++ * a non-zero value we clamp an otherwise-zero (infinite) resolve timeout to that bound.
++ * netconn_resolve() then returns ERROR_WINHTTP_TIMEOUT on expiry, or
++ * ERROR_WINHTTP_NAME_NOT_RESOLVED on a real lookup failure; send_request() reports either
++ * through the normal WINHTTP_CALLBACK_STATUS_REQUEST_ERROR path. We never fabricate a
++ * successful resolve or response. */
++static int get_effective_resolve_timeout( struct request *request )
++{
++    char value[16];
++    DWORD len;
++    int ms;
++
++    if (request->resolve_timeout) return request->resolve_timeout;
++
++    len = GetEnvironmentVariableA( "XODUS_WINHTTP_RESOLVE_TIMEOUT_MS", value, sizeof(value) );
++    if (!len || len >= sizeof(value)) return request->resolve_timeout;
++    if ((ms = atoi( value )) <= 0) return request->resolve_timeout;
++
++    WARN( "Xodus: clamping unbounded DNS resolve to %d ms (XODUS_WINHTTP_RESOLVE_TIMEOUT_MS).\n", ms );
++    return ms;
++}
++
+ static DWORD open_connection( struct request *request )
+ {
+     BOOL is_secure = request->hdr.flags & WINHTTP_FLAG_SECURE;
+@@ open_connection: name resolution
+         len = lstrlenW( host->hostname ) + 1;
+         send_callback( &request->hdr, WINHTTP_CALLBACK_STATUS_RESOLVING_NAME, host->hostname, len );
+ 
+-        if ((ret = netconn_resolve( host->hostname, port, 0, &connect->sockaddr, request->resolve_timeout )))
++        if ((ret = netconn_resolve( host->hostname, port, 0, &connect->sockaddr,
++                                    get_effective_resolve_timeout( request ) )))
+         {
+             release_host( host );
+             return ret;
+         }

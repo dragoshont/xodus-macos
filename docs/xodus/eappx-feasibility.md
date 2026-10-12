@@ -5010,6 +5010,27 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
       yields a float that mrmcorer scales into the resource scale
       qualifier (HYPOTHESIS: display scale).
   - Windows 0, no frame.
+- 2400 — strict CoreWindow `GetForCurrentThread` (case A):
+  - 2399 evidence: the main thread is MTA (`RoInitialize(1)`, apartment
+    type 1). No `SetWindow` or ordinal-1500 `CreateCoreWindow` runs on any
+    thread. The only CoreWindow HWND was the builtin's lazy one, created
+    under `twinapi+0x21324`.
+  - Change: set the existing builtin switch
+    `WINE_COREWINDOW_NO_AUTOCREATE=1`, only for the ordinary activation.
+    Threads without an explicitly created or bound window now get `NULL`,
+    which matches native MTA behaviour. No rebuild.
+  - Gate: `corewindow-strict-test.exe` `37898c03…` checks that a strict MTA
+    thread gets `NULL` with no HWND, and that an existing bound window is
+    still returned. Owner `0657c24e…`; restoration complete.
+  - Runtime: every `GetForCurrentThread` returns `NULL`, including
+    twinapi's and mrmcorer's. The `{84acbbfe}` fail-fast is gone.
+  - New terminal fault: `RaiseFailFastException` (exit `0x1007`) at
+    `SharedLibrary.dll+0x41cf88` on main.
+    - It comes immediately after a successful GIT registration of
+      `{e2663f37-2e1b-500c-ad68-c3ed7a8f74c8}` (FTM marshal, hr 0).
+    - The managed cause is not visible in the relay.
+  - The ASTA view worker stays parked in `PumpUntilSignaled`. Windows 0,
+    no frame.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

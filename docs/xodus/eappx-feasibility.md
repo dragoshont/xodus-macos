@@ -5087,6 +5087,53 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
     combase.RoOriginateErrorW(0x8000000E E_ILLEGAL_METHOD_CALL)`. The
     exception is unhandled → fail-fast `0xC0000409`, 0 windows. The broker
     CLSIDs (ImmersiveShell/ShellServiceHost) are never reached.
+- 2406 — combase ordinal 120/122 singleton probe (relay-only, no fix):
+  - Re-grounded against the REAL build tree
+    (`~/xodus-app-tooling/celeste/wine-source/dlls/combase`), correcting an
+    earlier draft that had analysed a stale all-`@` scratch spec. The build
+    `combase.spec` already carries EXPLICIT `-noname` ordinals matching
+    native — 69 `CoRegisterServerShutdownDelay`, 90 `RoGetDesignMode`,
+    95 `CoSignalPendingGitRegistrationWaits`,
+    120 `CoRegisterForApartmentShutdown(ptr,ptr,ptr)`,
+    122 `CoGetApartmentIdentifier(ptr)`, 157 `RoGetDesignModeV2`,
+    168 `CoImpersonateClientOfObject` — all implemented (apartment.c:1366/
+    1387, roapi.c:524/532). The renumber/reimplement candidate is therefore
+    REDUNDANT and was NOT built.
+  - 2406 runtime confirms the seven ordinals WORK: CoGetApartmentType→MTA,
+    CoGetApartmentIdentifier→"Current apartment identifier 1" (S_OK),
+    CoRegisterForApartmentShutdown called. Fault nonetheless reproduces:
+    `0x8000000E` on the MRM ResourceContext path (mrmcorer #10–15 → twinapi
+    0xf528/0xd670/0x713f/0x7558/0x77d0/0x7fbfc → combase
+    `RoOriginateErrorW(8000000e)`, SEH code=4, fatal).
+  - NEW lead: just before the fault, `CoCreateInstance` of CLSID
+    `{02844640-e37c-4322-a3b8-4c61a2e58879}` / IID
+    `{33c255c3-1a86-45fc-9498-f60d8f56b9d3}` (INPROC_SERVER) returns
+    `REGDB_E_CLASSNOTREG (0x80040154)`. Native InprocServer32 for this CLSID
+    is `twinapi.appcore.dll` itself (a twinapi self-hosted in-proc class);
+    the bottle registry had no entry. → tested in 2407.
+- 2407 — twinapi self-host CLSID registry probe (registry-only, no DLL change):
+  - Owner `cuphead-ordinary2407-owner.py` sha `829deec3…`; combase/rpcrt4 as
+    the 2405/2406 build tree. Added (and auto-removed via
+    `created_registration_keys`; restoration_errors []):
+    `HKLM\Software\Classes\CLSID\{02844640-…879}\InprocServer32` /ve =
+    `C:\windows\system32\twinapi.appcore.dll`, ThreadingModel = `Both`.
+  - CAUSAL result (stderr sha
+    `5e9e1301082034de5eb806cc80fbdee6f69e9361b265ce72f5acef7d5a94521f`): the
+    CLSID now resolves — `apartment_getclassobject` → twinapi
+    `DllGetClassObject`, `CoCreateInstance` S_OK for IID `{33c255c3…}`,
+    custom-marshaled into the GIT (cookie 0xf101). The `0x8000000E` fastfail
+    is ELIMINATED (0 occurrences, vs 2406's fatal exit).
+  - New wall (distinct fingerprint, not a repeat): main thread 0548 blocks
+    on `WaitForMultipleObjectsEx(2, INFINITE, non-alertable)` at stderr
+    L9200, immediately after marshaling the self-host `IServiceProvider`;
+    thread 0544 idle-pumps `CreateEventExW`/`WaitForSingleObjectEx(100ms)` →
+    `WAIT_TIMEOUT`. No crash; owner debug-timeout ended it. Residual
+    `0x80040154` is now only an earlier `RoActivateInstance` (L2183),
+    decoupled from the former fastfail.
+  - Next probe: identify the 2 handles 0548 waits on and the
+    `RegisterWaitForSingleObject`/`QueueUserWorkItem`/`CreateThread` that
+    create them (the broker/worker the self-host service provider expects to
+    signal) — narrow relay, not a full cycle.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

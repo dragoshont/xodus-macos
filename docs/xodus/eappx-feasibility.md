@@ -5031,6 +5031,24 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
     - The managed cause is not visible in the relay.
   - The ASTA view worker stays parked in `PumpUntilSignaled`. Windows 0,
     no frame.
+- 2401/2402 — fail-fast oracle (report-only kernelbase `5df387b4…`,
+  combase `8d06a4b9…`; return values unchanged):
+  - 2401 stopped at the pre-launch MRM gate only because the pinned
+    kernelbase export RVAs shifted; the MRM checks passed 6/0.
+  - 2402 repinned the RVAs and ran with restoration complete; exit
+    `0x1007` as before.
+  - Root cause of the fail-fast: inside `CoreApplication.Run` on main,
+    twinapi+0x6b842 delay-loads
+    `ext-ms-win-com-psmregister-l1-1-0.dll.PsmQueryBackgroundActivationType`.
+    - The load fails and raises `EXCEPTION_WINE_STUB`, the only exception
+      on main.
+    - .NET Native's handler (mrt100 → `SharedLibrary.dll+0x41cf88`) then
+      calls `RaiseFailFastException(0x1007)` with no parameters. There is no
+      managed exception text.
+  - The stub call comes right after a successful `ApplicationService:<hash>`
+    named file mapping, created with the ML/NX/NW/NR plus capability SDDL.
+  - `Run` never returns. CoreMessaging is never loaded, and no
+    broker `CoGetObject` is reached.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

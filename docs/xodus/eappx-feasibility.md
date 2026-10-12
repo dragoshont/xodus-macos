@@ -4977,6 +4977,39 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
     - `get_ApplicationViewClientAdapter` returns `E_NOTIMPL`.
     - The late UIContext QI for `{f21e14c1}` returns `E_NOINTERFACE`.
   - Causal impact of these anomalies: unproven (HYPOTHESIS).
+- **2395–2397 (relay read-outs of the Run activation step):**
+  - Main queries only token classes 1, 2, 8, 9, 25, 29 and 39, so the
+    AppContainer/Low-IL token answers stay held.
+  - The `0x80070057` source is `CreateWellKnownSid(111)`
+    (`WinBuiltinDefaultSystemManagedGroupSid`, `S-1-5-32-581`), which
+    returns `ERROR_INVALID_PARAMETER` in Wine.
+- **2398 (kernelbase well-known SIDs 108, 109, 111 and 112):**
+  - Targeted gate: 37 checks, 0 failures. Restoration errors: none.
+  - `CreateWellKnownSid(111)` now succeeds.
+  - The next fault is the `sechost` SDDL parse of twinapi's named-object
+    SD. It fails on the conditional ACE
+    `(XA;;GA;;;IU;(WIN://SYSAPPID Contains "<PFN>"))`, with
+    `RPC_S_INVALID_STRING_UUID` (`0x800706A9`). `0x8000000E` still follows.
+- **2399 (conditional-ACE SDDL plus a server ACL that accepts it):**
+  - `sechost` encodes `XA`/`XD` conditions as `artx` postfix bytecode, and
+    the SD tokenizer ignores `:` inside parentheses and quotes.
+  - `wineserver` accepts `ACCESS_ALLOWED_CALLBACK` ACEs but never evaluates
+    them, so they grant nothing. Deny-callback ACEs are still rejected, and
+    access checks are unchanged.
+  - Targeted gate: 32 checks, 0 failures. Restoration errors: none.
+  - Runtime: the SDDL parses. No `0x80070057`, `0x800706A9` or
+    `0x8000000E` appear, and mrmcorer's `ResourceContext` path runs.
+  - New terminal fault: WIL fail-fast `0xC0000409` on main.
+    - `mrmcorer+0x494d3` gets the builtin's lazily created main-thread
+      CoreWindow.
+    - It QIs that window for the private
+      `{84acbbfe-649c-5ac7-8130-7b6b76db463c}` (present only in native
+      Windows.UI, twinapi.appcore, MrmCoreR and Windows.Graphics), and the
+      builtin returns `E_NOINTERFACE`.
+    - Statically, the interface's slot 6 returns an object whose slot 17
+      yields a float that mrmcorer scales into the resource scale
+      qualifier (HYPOTHESIS: display scale).
+  - Windows 0, no frame.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

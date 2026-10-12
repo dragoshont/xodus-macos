@@ -5130,10 +5130,24 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
     `WAIT_TIMEOUT`. No crash; owner debug-timeout ended it. Residual
     `0x80040154` is now only an earlier `RoActivateInstance` (L2183),
     decoupled from the former fastfail.
-  - Next probe: identify the 2 handles 0548 waits on and the
-    `RegisterWaitForSingleObject`/`QueueUserWorkItem`/`CreateThread` that
-    create them (the broker/worker the self-host service provider expects to
-    signal) — narrow relay, not a full cycle.
+  - Root cause (mined from the same 2407 stderr, no extra cycle): main 0548
+    registers the self-host `{33c255c3}` object into the GIT (cookie
+    `0xf101`, L9164/9195) then `CoWaitForMultipleHandles(COWAIT_DISPATCH_CALLS,
+    INFINITE)` — but NOTHING ever retrieves `0xf101` (zero
+    `GetInterfaceFromGlobal`/`CoUnmarshalInterface` for it in the whole run;
+    the only GIT consumer is `0xf100` = `{638bb2db}` ICoreApplicationView,
+    retrieved by STA thread 0570 itself). So the inbound COM call main pumps
+    for never arrives → deadlock. Corroborating: ImmersiveShell
+    `{c2f03a33}` / ShellServiceHost `{6b3b8d23}` / `Session:` monikers appear
+    ZERO times — the broker that would drive the view-activation callback is
+    never contacted under Wine. End-state is fully quiescent (13 threads, all
+    in terminal waits). The residual `0x80040154` is an unrelated
+    `ExtendedExecutionSession` activation on 0544.
+  - Decision point (not another blind cycle): either implement an in-proc
+    consumer that retrieves `0xf101` and issues the expected inbound call, or
+    identify (via RE) which native component unmarshals `0xf101` to drive the
+    callback. Handle identity and true per-thread stacks are unobtainable
+    here without a debugger.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

@@ -5066,6 +5066,27 @@ WineDbg, pins, no runtime/holders and the signature. Failed receipt `28a9efa9…
   - Of twinapi's rpcrt4 imports, `RpcBindingCreateW` and
     `RpcBindingBind` are the ones Wine is missing. This is the ncalrpc
     client for interface `{5824833b…}`.
+- 2404/2405 — faithful `RpcBindingCreateW`/`RpcBindingBind` in Wine rpcrt4:
+  - Implemented both public APIs (ncalrpc; endpoint from template or
+    interface default; accepts the auth/QoS templates; `Bind` returns the
+    real status). twinapi fn 0x6e620 tolerates a failed Create/Bind.
+  - 2404 gate FAILED one check: on a NULL template the impl returned before
+    clearing the out handle. Fix: clear `*Binding = NULL` first (when
+    `Binding` is non-NULL), then validate `Template`.
+  - 2405 candidate `rpcrt4.dll 0706d76e…`, test `0e29e1da…`.
+    `rpcbind_checks=10 failures=0`; all unit gates pass; restoration clean.
+  - VERIFIED at runtime (pid 1256, package identity mask=3): the game now
+    launches and runs ~1.7 s. `RpcBindingCreateW`→0 (non-NULL handle),
+    `RpcBindingBind`→0x6d9 (`EPT_S_NOT_REGISTERED`, tolerated), `Free` OK.
+    Every delay-load on the Run path RESOLVED — no `EXCEPTION_WINE_STUB`.
+    The only missing export observed is `kernelbase!WilFailureNotifyWatchers`
+    (returns NULL, tolerated). The psm/rpc delay-load walls are gone.
+  - Next wall (new): main thread is MTA (`CoGetApartmentType` type 1).
+    MRM resource resolution faults: `SharedLibrary→Cuphead→mrmcorer.dll
+    (+0x42c05/+0x427bc)→twinapi.appcore(entry +0xf528→+0xd670→+0x7558)→
+    combase.RoOriginateErrorW(0x8000000E E_ILLEGAL_METHOD_CALL)`. The
+    exception is unhandled → fail-fast `0xC0000409`, 0 windows. The broker
+    CLSIDs (ImmersiveShell/ShellServiceHost) are never reached.
 - Independent verification: 2340 `cf204f29…`, 2350 `d205e86a…`.
 **Finite product checkpoint:** Cuphead still has no observed window/frame.
 Pnp/nullable/folders fixes and the Vector oracle removed earlier startup

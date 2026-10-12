@@ -8,25 +8,47 @@ complete through cycle 2407. Cycles 2408–2415 are summarized **only here**.
 
 ## 1. Loss risk (read first)
 
-**This handoff is not resume-ready.** The most recent Wine source work exists only
-on the reference Mac.
+**This handoff is not resume-ready.** The latest Wine source is now preserved as
+an exact snapshot (see Backup below). There is still no verified clean base or
+diff, and the receipts and built DLLs exist only on the Mac.
 
 | Item | Where it lives | Remote copy? | Risk |
 |---|---|---|---|
 | EAppx CLI work (`extract-eappx` offline, `inspect` metadata, Appx activation parsing) | This repo, branch `dragoshont-celeste-eappx-support` (`d12fc6b`, `3c20792`, `af28314`, `fb45770`, `ba2a141`) | Yes, pushed to `origin` | Low |
 | Wine patches through ~2407 | This repo, `scripts/macos/compatibility/*.patch` + `*-test.c` | Yes | Low. Check them against the Mac source before reuse. |
-| 2408–2415 Wine edits: `dlls/ole32/git.c`, `dlls/windows.ui/corewindow.c`, `dlls/windows.ui/tests/corewindow.c`, `dlls/windows.ui/tests/Makefile.in` | Mac only: `$TOOLING/celeste/wine-source/` | **No.** The source tree is not a git repo, and no patch was exported. | **High.** Lost if the Mac or its disk is lost. |
-| Owner/launcher scripts (`cuphead-ordinary2411-owner.py`, `-launch.py`, `cuphead-2415-aqua.py`) | Mac only: `$TOOLING/cuphead/` | **No** | **High.** Required for safe swap and restore. |
+| 2408–2415 Wine edits: `dlls/ole32/git.c`, `dlls/windows.ui/corewindow.c`, `dlls/windows.ui/tests/corewindow.c`, `dlls/windows.ui/tests/Makefile.in` | Mac: `$TOOLING/celeste/wine-source/`. Snapshot in private `dragoshont/xode-wine`, commit `1e492759091cd24c56c9318043443e144ff9ad7b`, path `snapshots/cuphead-2415/wine/` | **Yes, as an exact snapshot.** Hashes match the table below. **No diff exists**, because no verified pristine base is preserved. | Medium. Full files are preserved, but the change set must be reconstructed against a verified clean CrossOver 26.3 tree. |
+| Owner/launcher scripts (`cuphead-ordinary2411-owner.py`, `-launch.py`, `cuphead-2415-aqua.py`) | Mac: `$TOOLING/cuphead/`. Snapshot in `xode-wine` `snapshots/cuphead-2415/reference-scripts/` | Yes, reference only | Medium. Machine-bound paths, hashes and labels. Not safe to run on a new machine. |
 | Cycle receipts, logs, candidate DLL dirs | Mac only: `$TOOLING/cuphead/cuphead-owned-*` | No (on purpose; see §5) | Medium. The only proof of 2412–2415 results. |
 | Existing `wine-corewindow-context-interop.patch` | Repo | Yes | Stale. It predates AUTOCREATE and the adapter fallback. |
 
 `$TOOLING` means `~/xodus-app-tooling` on the reference Mac. Neither that
 directory nor `celeste/wine-source` has a `.git` directory (checked 2026-10-12).
 
-**First action when resuming:** export the four Mac-only Wine files as a diff
-against a pristine CrossOver 26.3 source tree. Do the same for the three scripts.
-Commit them under `scripts/macos/compatibility/` in a separate pass. Strip the
-diagnostic-only parts (§4) or label them clearly.
+### Backup (2026-10-12)
+
+The private repo `https://github.com/dragoshont/xode-wine` (commit `1e49275`)
+holds an exact source snapshot:
+
+- the four Wine files and the three reference scripts;
+- `SHA256SUMS`;
+- `COPYING.LIB`, `LICENSE`, `AUTHORS` and `VERSION` (`Wine version 11.0`) from
+  the same tree;
+- a README stating: source only, do not upstream, no binaries.
+
+The diagnostic parts are kept, labeled never-default.
+
+**Gaps that remain after the backup:**
+
+- No verified pristine base, so no diff. The only candidate base on the Mac
+  (`~/src/crossover-sources-26.3.0`) is marked quarantined legacy AI context. It
+  is not proven unmodified and was not pushed.
+- Built candidate DLLs, cycle receipts and logs remain Mac-only (on purpose).
+- Full hashes for some superseded builds and receipts are missing (§3).
+
+**First action when resuming:** obtain a verified clean CrossOver 26.3 source
+tree. Diff the `xode-wine` snapshot against it, separate the reusable fixes from
+the diagnostic parts (§4), and only then commit patches under
+`scripts/macos/compatibility/`.
 
 ### Mac-local source fingerprints (read 2026-10-12)
 
@@ -146,8 +168,10 @@ Homebrew `python3`. Other machines can do source and review work only.
 1. **Clone:** `git clone https://github.com/dragoshont/xodus-macos.git`, then
    `git switch dragoshont-celeste-eappx-support`. Read this file, then the tail of
    `eappx-feasibility.md`.
-2. **Preserve first:** export the §1 Mac-only files as patches into the repo and
-   verify their sha256 values against §1. Until that is done, do not edit them.
+2. **Source:** clone the private `dragoshont/xode-wine` repo and check
+   `snapshots/cuphead-2415/SHA256SUMS`. Overlay the snapshot onto a *verified
+   clean* CrossOver 26.3 tree. Never use the reference scripts unmodified on a
+   new machine.
 3. **Preflight, read-only, on the Mac:**
    - Hash the installed CrossOver and bottle `windows.ui` / `ole32` against the
      §3 baselines.
